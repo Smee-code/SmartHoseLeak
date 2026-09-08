@@ -127,44 +127,44 @@
 // USER CONFIGURATION
 // ============================================================================
 
-#define NUM_MODULES                3
+#define NUM_MODULES 3
 
 // ---- Pin assignments per module ----
-const uint8_t FLOW_PINS[NUM_MODULES]     = {27, 26, 25};
+const uint8_t FLOW_PINS[NUM_MODULES] = {27, 26, 25};
 const uint8_t PRESSURE_PINS[NUM_MODULES] = {34, 35, 32};
 
 // ---- Flow sensor calibration (shared across identical sensor models) ----
-#define PULSES_PER_LITER          450.0   // YF-S201 typical - confirm per datasheet
+#define PULSES_PER_LITER 450.0 // YF-S201 typical - confirm per datasheet
 
 // ---- Pressure sensor calibration (shared across identical sensor models) ----
-#define SENSOR_VOUT_MIN            0.5
-#define SENSOR_VOUT_MAX            4.5
-#define PRESSURE_MAX_BAR           12.0
-#define DIVIDER_RATIO              (20000.0 / (10000.0 + 20000.0)) // R2/(R1+R2)
-#define ADC_MAX_COUNT              4095.0
-#define ADC_VREF                   3.3
+#define SENSOR_VOUT_MIN 0.5
+#define SENSOR_VOUT_MAX 4.5
+#define PRESSURE_MAX_BAR 12.0
+#define DIVIDER_RATIO (20000.0 / (10000.0 + 20000.0)) // R2/(R1+R2)
+#define ADC_MAX_COUNT 4095.0
+#define ADC_VREF 3.3
 
 // ---- Timing ----
-#define SAMPLE_INTERVAL_MS         1000
-#define FILTER_HISTORY_SIZE        5
-#define EMA_ALPHA                  0.2
+#define SAMPLE_INTERVAL_MS 1000
+#define FILTER_HISTORY_SIZE 5
+#define EMA_ALPHA 0.2
 
 // ---- Detection thresholds (tune per rig / per module if needed) ----
-#define P_LOW_THRESHOLD_BAR        1.5
-#define RESIDUAL_LEAK_THRESHOLD    0.18
-#define FLOW_ZERO_THRESHOLD_LPM    0.3
-#define STATIC_TEST_WINDOW_S       30
+#define P_LOW_THRESHOLD_BAR 1.5
+#define RESIDUAL_LEAK_THRESHOLD 0.18
+#define FLOW_ZERO_THRESHOLD_LPM 0.3
+#define STATIC_TEST_WINDOW_S 30
 #define STATIC_DECAY_THRESHOLD_BAR 0.05
-#define REQUIRED_CONSECUTIVE       15
+#define REQUIRED_CONSECUTIVE 15
 
-#define MAX_CALIBRATION_POINTS     10
+#define MAX_CALIBRATION_POINTS 10
 
 // ---- GSM module (SIM800L / SIM900 / A6, AT-command based) ----
-#define GSM_RX_PIN                 16      // ESP32 RX2 <- GSM module TX
-#define GSM_TX_PIN                 17      // ESP32 TX2 -> GSM module RX
-#define GSM_BAUD                   9600
-#define OWNER_PHONE_NUMBER         "+639171234567"  // <-- UPDATE THIS
-HardwareSerial GSM_SERIAL(2);               // ESP32 UART2
+#define GSM_RX_PIN 16 // ESP32 RX2 <- GSM module TX
+#define GSM_TX_PIN 17 // ESP32 TX2 -> GSM module RX
+#define GSM_BAUD 9600
+#define OWNER_PHONE_NUMBER "+639171234567" // <-- UPDATE THIS
+HardwareSerial GSM_SERIAL(2);              // ESP32 UART2
 
 // ---- WiFi / web dashboard ----
 // These two are only FALLBACK DEFAULTS, used on a brand-new board that has
@@ -172,30 +172,30 @@ HardwareSerial GSM_SERIAL(2);               // ESP32 UART2
 // entered through the setup page (stored in NVS), so the same firmware runs on
 // any network without recompiling. Leave both as "" to force setup mode on
 // first boot.
-#define DEFAULT_WIFI_SSID          ""
-#define DEFAULT_WIFI_PASSWORD      ""
+#define DEFAULT_WIFI_SSID ""
+#define DEFAULT_WIFI_PASSWORD ""
 
-#define WIFI_CONNECT_TIMEOUT_MS    15000   // give up on initial connect after this long
-#define WIFI_RETRY_INTERVAL_MS     30000   // if disconnected, retry this often (non-blocking)
-#define WIFI_FAILS_BEFORE_AP       5       // consecutive failed retries -> reopen setup AP
-#define WEB_SERVER_PORT            80
+#define WIFI_CONNECT_TIMEOUT_MS 15000 // give up on initial connect after this long
+#define WIFI_RETRY_INTERVAL_MS 30000  // if disconnected, retry this often (non-blocking)
+#define WIFI_FAILS_BEFORE_AP 5        // consecutive failed retries -> reopen setup AP
+#define WEB_SERVER_PORT 80
 
 // ---- Setup access point (shown when the device cannot join a network) ----
 // Join this AP with a phone and the captive portal opens the setup page.
 // Its WPA2 password is what protects setup mode - anyone who can join the AP
 // can configure the device, so do not leave it blank.
-#define SETUP_AP_SSID              "LeakDetect-Setup"
-#define SETUP_AP_PASSWORD          "leakdetect123"   // >= 8 chars, or the AP will be open
-#define DNS_PORT                   53
+#define SETUP_AP_SSID "LeakDetect-Setup"
+#define SETUP_AP_PASSWORD "leakdetect123" // >= 8 chars, or the AP will be open
+#define DNS_PORT 53
 
 // ---- Credentials for the /wifi config page while on a normal network ----
 // The status dashboard stays open to anyone on the LAN; only the pages that
 // can CHANGE the device's network are behind this login.
-#define CONFIG_USERNAME            "admin"
-#define CONFIG_PASSWORD            "leakadmin"       // <-- CHANGE THIS
+#define CONFIG_USERNAME "admin"
+#define CONFIG_PASSWORD "leakadmin" // <-- CHANGE THIS
 
 // ---- Where the saved credentials live in flash ----
-#define WIFI_PREFS_NAMESPACE       "wifi-cfg"
+#define WIFI_PREFS_NAMESPACE "wifi-cfg"
 
 // ---- Smart Hose Leak server uplink ----
 // The readings are POSTed as JSON to the Django server, which owns the
@@ -207,30 +207,31 @@ HardwareSerial GSM_SERIAL(2);               // ESP32 UART2
 // "localhost" and 127.0.0.1 will NOT work - those mean the ESP32 itself.
 // DEVICE_API_KEY is printed by `python manage.py setup_demo` and is also in
 // the Django admin under Devices.
-#define SERVER_URL                 "http://192.168.1.14:8000/api/ingest/"  // <-- CHECK THIS
-#define DEVICE_ID                  "esp32-01"
-#define DEVICE_API_KEY             "PASTE_THE_KEY_FROM_setup_demo_HERE"    // <-- UPDATE THIS
+#define SERVER_URL "http://192.168.1.14:8000/api/ingest/" // <-- CHECK THIS
+#define DEVICE_ID "esp32-01"
+#define DEVICE_API_KEY "Tu-8U_8etJh_y4Fy_4Ao4vVzg431iCobAZs00KaKoog" // <-- UPDATE THIS
 
-#define UPLOAD_INTERVAL_MS         2000    // how often to POST readings
-#define HTTP_TIMEOUT_MS            5000    // give up on a POST after this long
+#define UPLOAD_INTERVAL_MS 2000 // how often to POST readings
+#define HTTP_TIMEOUT_MS 5000    // give up on a POST after this long
 
 WebServer webServer(WEB_SERVER_PORT);
 DNSServer dnsServer;
 Preferences wifiPrefs;
 
-String cfgSSID     = "";      // credentials currently in use (from NVS or defaults)
+String cfgSSID = ""; // credentials currently in use (from NVS or defaults)
 String cfgPassword = "";
 
 unsigned long lastWifiRetryMillis = 0;
 bool wifiEverConnected = false;
-bool apMode = false;          // true while the setup access point is running
+bool apMode = false; // true while the setup access point is running
 uint8_t wifiFailCount = 0;
 
 // ============================================================================
 // GLOBAL STATE
 // ============================================================================
 
-enum SystemStatus {
+enum SystemStatus
+{
   STATUS_NORMAL,
   STATUS_LOW_SUPPLY,
   STATUS_POSSIBLE_LEAK
@@ -239,8 +240,9 @@ enum SystemStatus {
 // All per-module state lives here. One struct instance per physical
 // pressure+flow sensor pair, so the sampling/filter/classification code
 // below is written once and looped over NUM_MODULES instead of copy-pasted.
-struct ModuleState {
-  uint8_t id;              // 1, 2, 3 - for display/SMS messages
+struct ModuleState
+{
+  uint8_t id; // 1, 2, 3 - for display/SMS messages
   uint8_t flowPin;
   uint8_t pressurePin;
 
@@ -305,13 +307,16 @@ void IRAM_ATTR flowPulseISR2() { modules[2].flowPulseCount++; }
 // module's history array is passed in)
 // ============================================================================
 
-float medianFilter(float *history, uint8_t size) {
+float medianFilter(float *history, uint8_t size)
+{
   float sorted[FILTER_HISTORY_SIZE];
   memcpy(sorted, history, sizeof(float) * size);
-  for (uint8_t i = 1; i < size; i++) {
+  for (uint8_t i = 1; i < size; i++)
+  {
     float key = sorted[i];
     int j = i - 1;
-    while (j >= 0 && sorted[j] > key) {
+    while (j >= 0 && sorted[j] > key)
+    {
       sorted[j + 1] = sorted[j];
       j--;
     }
@@ -320,8 +325,10 @@ float medianFilter(float *history, uint8_t size) {
   return sorted[size / 2];
 }
 
-float emaFilter(float previousEMA, float newSample, float alpha) {
-  if (previousEMA < 0) return newSample;
+float emaFilter(float previousEMA, float newSample, float alpha)
+{
+  if (previousEMA < 0)
+    return newSample;
   return alpha * newSample + (1.0 - alpha) * previousEMA;
 }
 
@@ -329,22 +336,26 @@ float emaFilter(float previousEMA, float newSample, float alpha) {
 // SENSOR READING FUNCTIONS
 // ============================================================================
 
-float readPressureRaw(uint8_t pin) {
+float readPressureRaw(uint8_t pin)
+{
   int adcCount = analogRead(pin);
   float vAtPin = (adcCount / ADC_MAX_COUNT) * ADC_VREF;
   float vSensorOut = vAtPin / DIVIDER_RATIO;
 
   float pressureBar = (vSensorOut - SENSOR_VOUT_MIN) *
-                       (PRESSURE_MAX_BAR / (SENSOR_VOUT_MAX - SENSOR_VOUT_MIN));
+                      (PRESSURE_MAX_BAR / (SENSOR_VOUT_MAX - SENSOR_VOUT_MIN));
 
-  if (pressureBar < 0) pressureBar = 0;
+  if (pressureBar < 0)
+    pressureBar = 0;
   return pressureBar;
 }
 
-float computeFlowRateLPM(uint32_t pulses, unsigned long elapsedMillis) {
+float computeFlowRateLPM(uint32_t pulses, unsigned long elapsedMillis)
+{
   float liters = pulses / PULSES_PER_LITER;
   float minutes = elapsedMillis / 60000.0;
-  if (minutes <= 0) return 0;
+  if (minutes <= 0)
+    return 0;
   return liters / minutes;
 }
 
@@ -355,29 +366,41 @@ float computeFlowRateLPM(uint32_t pulses, unsigned long elapsedMillis) {
 // module. Vary flow (open/close taps) and send 'A' to capture each stable
 // (P,Q) point, then 'F' to finish and compute that module's K_CONDUCTANCE.
 
-void handleCalibrationInput(ModuleState &m, char cmd) {
-  if (cmd == 'A') {
-    if (m.calibCount < MAX_CALIBRATION_POINTS) {
+void handleCalibrationInput(ModuleState &m, char cmd)
+{
+  if (cmd == 'A')
+  {
+    if (m.calibCount < MAX_CALIBRATION_POINTS)
+    {
       m.calibP[m.calibCount] = m.pressureEMA;
       m.calibQ[m.calibCount] = m.flowEMA;
       m.calibCount++;
       Serial.printf("[CALIBRATION M%d] Captured point %d: P=%.2f bar, Q=%.2f L/min\n",
                     m.id, m.calibCount, m.pressureEMA, m.flowEMA);
-    } else {
+    }
+    else
+    {
       Serial.printf("[CALIBRATION M%d] Max calibration points reached.\n", m.id);
     }
-  } else if (cmd == 'F') {
+  }
+  else if (cmd == 'F')
+  {
     float numerator = 0, denominator = 0;
-    for (uint8_t i = 0; i < m.calibCount; i++) {
-      if (m.calibP[i] > 0.01) {
+    for (uint8_t i = 0; i < m.calibCount; i++)
+    {
+      if (m.calibP[i] > 0.01)
+      {
         numerator += m.calibQ[i] * sqrt(m.calibP[i]);
         denominator += m.calibP[i];
       }
     }
-    if (denominator > 0) {
+    if (denominator > 0)
+    {
       m.K_CONDUCTANCE = numerator / denominator;
       Serial.printf("[CALIBRATION M%d] Complete. K_CONDUCTANCE = %.4f\n", m.id, m.K_CONDUCTANCE);
-    } else {
+    }
+    else
+    {
       Serial.printf("[CALIBRATION M%d] Not enough valid points to compute K.\n", m.id);
     }
     m.calibrationMode = false;
@@ -389,54 +412,76 @@ void handleCalibrationInput(ModuleState &m, char cmd) {
 // LEAK CLASSIFICATION LOGIC (unchanged per-module logic)
 // ============================================================================
 
-SystemStatus classify(ModuleState &m, float pressure, float flow) {
+SystemStatus classify(ModuleState &m, float pressure, float flow)
+{
   bool haveCalibration = (m.K_CONDUCTANCE > 0);
 
   float expectedFlow = 0;
   float residualRatio = 0;
-  if (haveCalibration) {
+  if (haveCalibration)
+  {
     expectedFlow = m.K_CONDUCTANCE * sqrt(max(pressure, 0.0f));
-    if (expectedFlow > 0.05) {
+    if (expectedFlow > 0.05)
+    {
       residualRatio = (flow - expectedFlow) / expectedFlow;
     }
   }
 
   // --- Static (zero-flow) pressure decay test - doesn't need calibration ---
-  if (flow < FLOW_ZERO_THRESHOLD_LPM) {
-    if (!m.inZeroFlowWindow) {
+  if (flow < FLOW_ZERO_THRESHOLD_LPM)
+  {
+    if (!m.inZeroFlowWindow)
+    {
       m.inZeroFlowWindow = true;
       m.zeroFlowStartMillis = millis();
       m.pressureAtZeroFlowStart = pressure;
-    } else {
+    }
+    else
+    {
       unsigned long elapsedS = (millis() - m.zeroFlowStartMillis) / 1000;
-      if (elapsedS >= STATIC_TEST_WINDOW_S) {
+      if (elapsedS >= STATIC_TEST_WINDOW_S)
+      {
         float drop = m.pressureAtZeroFlowStart - pressure;
-        if (drop > STATIC_DECAY_THRESHOLD_BAR) {
+        if (drop > STATIC_DECAY_THRESHOLD_BAR)
+        {
           return STATUS_POSSIBLE_LEAK;
         }
         m.zeroFlowStartMillis = millis();
         m.pressureAtZeroFlowStart = pressure;
       }
     }
-  } else {
+  }
+  else
+  {
     m.inZeroFlowWindow = false;
   }
 
   // --- Pressure/flow curve residual test (requires calibration) ---
-  if (haveCalibration) {
-    if (pressure < P_LOW_THRESHOLD_BAR) {
-      if (fabs(residualRatio) < RESIDUAL_LEAK_THRESHOLD) {
+  if (haveCalibration)
+  {
+    if (pressure < P_LOW_THRESHOLD_BAR)
+    {
+      if (fabs(residualRatio) < RESIDUAL_LEAK_THRESHOLD)
+      {
         return STATUS_LOW_SUPPLY;
-      } else if (residualRatio > RESIDUAL_LEAK_THRESHOLD) {
-        return STATUS_POSSIBLE_LEAK;
       }
-    } else {
-      if (residualRatio > RESIDUAL_LEAK_THRESHOLD) {
+      else if (residualRatio > RESIDUAL_LEAK_THRESHOLD)
+      {
         return STATUS_POSSIBLE_LEAK;
       }
     }
-  } else {
-    if (pressure < P_LOW_THRESHOLD_BAR) {
+    else
+    {
+      if (residualRatio > RESIDUAL_LEAK_THRESHOLD)
+      {
+        return STATUS_POSSIBLE_LEAK;
+      }
+    }
+  }
+  else
+  {
+    if (pressure < P_LOW_THRESHOLD_BAR)
+    {
       return STATUS_LOW_SUPPLY;
     }
   }
@@ -444,25 +489,36 @@ SystemStatus classify(ModuleState &m, float pressure, float flow) {
   return STATUS_NORMAL;
 }
 
-void updateStatusWithHysteresis(ModuleState &m, SystemStatus newCandidate) {
-  if (newCandidate == m.candidateStatus) {
+void updateStatusWithHysteresis(ModuleState &m, SystemStatus newCandidate)
+{
+  if (newCandidate == m.candidateStatus)
+  {
     m.consecutiveCount++;
-  } else {
+  }
+  else
+  {
     m.candidateStatus = newCandidate;
     m.consecutiveCount = 1;
   }
 
-  if (m.consecutiveCount >= REQUIRED_CONSECUTIVE && m.candidateStatus != m.currentStatus) {
+  if (m.consecutiveCount >= REQUIRED_CONSECUTIVE && m.candidateStatus != m.currentStatus)
+  {
     m.currentStatus = m.candidateStatus;
   }
 }
 
-const char* statusToString(SystemStatus s) {
-  switch (s) {
-    case STATUS_NORMAL:        return "NORMAL";
-    case STATUS_LOW_SUPPLY:    return "LOW WATER SUPPLY";
-    case STATUS_POSSIBLE_LEAK: return "POSSIBLE LEAK";
-    default:                   return "UNKNOWN";
+const char *statusToString(SystemStatus s)
+{
+  switch (s)
+  {
+  case STATUS_NORMAL:
+    return "NORMAL";
+  case STATUS_LOW_SUPPLY:
+    return "LOW WATER SUPPLY";
+  case STATUS_POSSIBLE_LEAK:
+    return "POSSIBLE LEAK";
+  default:
+    return "UNKNOWN";
   }
 }
 
@@ -475,38 +531,45 @@ const char* statusToString(SystemStatus s) {
 // a production system should parse specific response codes (OK/ERROR)
 // and retry, and should check network registration (AT+CREG?) and signal
 // quality (AT+CSQ) before attempting to send.
-String gsmReadResponse(unsigned long timeoutMs) {
+String gsmReadResponse(unsigned long timeoutMs)
+{
   String response = "";
   unsigned long start = millis();
-  while (millis() - start < timeoutMs) {
-    while (GSM_SERIAL.available()) {
+  while (millis() - start < timeoutMs)
+  {
+    while (GSM_SERIAL.available())
+    {
       response += (char)GSM_SERIAL.read();
     }
   }
   return response;
 }
 
-bool gsmModulePresent() {
-  while (GSM_SERIAL.available()) GSM_SERIAL.read(); // flush
+bool gsmModulePresent()
+{
+  while (GSM_SERIAL.available())
+    GSM_SERIAL.read(); // flush
   GSM_SERIAL.println("AT");
   String resp = gsmReadResponse(1000);
   return resp.indexOf("OK") >= 0;
 }
 
-bool sendSMS(const String &number, const String &message) {
-  while (GSM_SERIAL.available()) GSM_SERIAL.read(); // flush stale data
+bool sendSMS(const String &number, const String &message)
+{
+  while (GSM_SERIAL.available())
+    GSM_SERIAL.read(); // flush stale data
 
-  GSM_SERIAL.println("AT+CMGF=1");       // text mode (not PDU mode)
+  GSM_SERIAL.println("AT+CMGF=1"); // text mode (not PDU mode)
   gsmReadResponse(500);
 
   GSM_SERIAL.print("AT+CMGS=\"");
   GSM_SERIAL.print(number);
   GSM_SERIAL.println("\"");
-  gsmReadResponse(500);                  // wait for the '>' prompt
+  gsmReadResponse(500); // wait for the '>' prompt
 
   GSM_SERIAL.print(message);
-  GSM_SERIAL.write(26);                  // Ctrl+Z terminates and sends the SMS body
-  String resp = gsmReadResponse(5000);   // sending can take a few seconds
+  GSM_SERIAL.write(26);                // Ctrl+Z terminates and sends the SMS body
+  String resp = gsmReadResponse(5000); // sending can take a few seconds
 
   bool ok = (resp.indexOf("OK") >= 0) || (resp.indexOf("+CMGS") >= 0);
   Serial.printf("[GSM] Send to %s: %s -- raw response: %s\n",
@@ -518,15 +581,19 @@ bool sendSMS(const String &number, const String &message) {
 // NORMAL/LOW_SUPPLY -> POSSIBLE_LEAK, and again on POSSIBLE_LEAK -> NORMAL
 // (leak cleared). leakNotified prevents re-sending every sample while the
 // alarm condition is still active.
-void checkAndNotifyLeak(ModuleState &m) {
-  if (m.currentStatus == STATUS_POSSIBLE_LEAK && !m.leakNotified) {
+void checkAndNotifyLeak(ModuleState &m)
+{
+  if (m.currentStatus == STATUS_POSSIBLE_LEAK && !m.leakNotified)
+  {
     String msg = "ALERT: Possible LEAK detected on Module " + String(m.id) +
                  ". Pressure=" + String(m.pressureEMA, 2) + " bar, Flow=" +
                  String(m.flowEMA, 2) + " L/min. Please check the pipeline.";
     Serial.printf("[LEAK] Module %d - sending SMS alert.\n", m.id);
     sendSMS(OWNER_PHONE_NUMBER, msg);
     m.leakNotified = true;
-  } else if (m.currentStatus != STATUS_POSSIBLE_LEAK && m.leakNotified) {
+  }
+  else if (m.currentStatus != STATUS_POSSIBLE_LEAK && m.leakNotified)
+  {
     String msg = "UPDATE: Module " + String(m.id) +
                  " leak condition has CLEARED. Status is now " +
                  String(statusToString(m.currentStatus)) + ".";
@@ -548,12 +615,15 @@ void checkAndNotifyLeak(ModuleState &m) {
 // by "k" (not "k_conductance"), and it wraps the batch in the device identity.
 // The status tokens from statusToString() - "NORMAL", "LOW WATER SUPPLY",
 // "POSSIBLE LEAK" - are already exactly the strings the server accepts.
-String buildPayload() {
+String buildPayload()
+{
   String json = "{\"device_id\":\"" DEVICE_ID "\",\"readings\":[";
 
-  for (uint8_t i = 0; i < NUM_MODULES; i++) {
+  for (uint8_t i = 0; i < NUM_MODULES; i++)
+  {
     ModuleState &m = modules[i];
-    if (i > 0) json += ",";
+    if (i > 0)
+      json += ",";
     json += "{\"module\":" + String(m.id);
     json += ",\"pressure_bar\":" + String(m.pressureEMA, 3);
     json += ",\"flow_lpm\":" + String(m.flowEMA, 3);
@@ -575,13 +645,16 @@ String buildPayload() {
 // Skipped entirely in setup-AP mode - there the ESP32 has an IP address of its
 // own but no route to the server, so attempting the POST would only stall the
 // loop for HTTP_TIMEOUT_MS on every pass.
-void uploadReadings() {
-  if (apMode) {
+void uploadReadings()
+{
+  if (apMode)
+  {
     lastUploadOk = false;
     lastUploadResult = "skipped - in WiFi setup mode";
     return;
   }
-  if (WiFi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED)
+  {
     lastUploadOk = false;
     lastUploadResult = "skipped - WiFi not connected";
     return;
@@ -590,7 +663,8 @@ void uploadReadings() {
   HTTPClient http;
   http.setTimeout(HTTP_TIMEOUT_MS);
 
-  if (!http.begin(SERVER_URL)) {
+  if (!http.begin(SERVER_URL))
+  {
     lastUploadOk = false;
     lastUploadResult = "bad SERVER_URL";
     Serial.println("[UPLOAD] Failed to parse SERVER_URL.");
@@ -602,19 +676,26 @@ void uploadReadings() {
 
   int code = http.POST(buildPayload());
 
-  if (code == 200) {
+  if (code == 200)
+  {
     lastUploadOk = true;
     lastUploadResult = "OK";
     Serial.println("[UPLOAD] OK");
-  } else if (code == 401) {
+  }
+  else if (code == 401)
+  {
     lastUploadOk = false;
     lastUploadResult = "401 - DEVICE_API_KEY rejected by server";
     Serial.println("[UPLOAD] REJECTED 401 - DEVICE_API_KEY does not match any device on the server.");
-  } else if (code > 0) {
+  }
+  else if (code > 0)
+  {
     lastUploadOk = false;
     lastUploadResult = "HTTP " + String(code);
     Serial.printf("[UPLOAD] Server returned %d: %s\n", code, http.getString().c_str());
-  } else {
+  }
+  else
+  {
     lastUploadOk = false;
     lastUploadResult = String("no reply - ") + http.errorToString(code);
     Serial.printf("[UPLOAD] Failed: %s\n", http.errorToString(code).c_str());
@@ -633,35 +714,44 @@ void uploadReadings() {
 // Preferences writes to a flash partition that survives reboots, so a device
 // configured once at a site stays configured. "Forget network" clears it.
 
-void loadWiFiConfig() {
-  wifiPrefs.begin(WIFI_PREFS_NAMESPACE, true);   // read-only
-  cfgSSID     = wifiPrefs.getString("ssid", "");
+void loadWiFiConfig()
+{
+  wifiPrefs.begin(WIFI_PREFS_NAMESPACE, true); // read-only
+  cfgSSID = wifiPrefs.getString("ssid", "");
   cfgPassword = wifiPrefs.getString("pass", "");
   wifiPrefs.end();
 
-  if (cfgSSID.length() == 0) {
-    cfgSSID     = DEFAULT_WIFI_SSID;
+  if (cfgSSID.length() == 0)
+  {
+    cfgSSID = DEFAULT_WIFI_SSID;
     cfgPassword = DEFAULT_WIFI_PASSWORD;
-    if (cfgSSID.length() == 0) {
+    if (cfgSSID.length() == 0)
+    {
       Serial.println("[WIFI] No saved network. Will start setup mode.");
-    } else {
+    }
+    else
+    {
       Serial.printf("[WIFI] No saved network - falling back to compiled default \"%s\".\n",
                     cfgSSID.c_str());
     }
-  } else {
+  }
+  else
+  {
     Serial.printf("[WIFI] Loaded saved network \"%s\".\n", cfgSSID.c_str());
   }
 }
 
-void saveWiFiConfig(const String &ssid, const String &password) {
-  wifiPrefs.begin(WIFI_PREFS_NAMESPACE, false);  // read-write
+void saveWiFiConfig(const String &ssid, const String &password)
+{
+  wifiPrefs.begin(WIFI_PREFS_NAMESPACE, false); // read-write
   wifiPrefs.putString("ssid", ssid);
   wifiPrefs.putString("pass", password);
   wifiPrefs.end();
   Serial.printf("[WIFI] Saved network \"%s\" to flash.\n", ssid.c_str());
 }
 
-void clearWiFiConfig() {
+void clearWiFiConfig()
+{
   wifiPrefs.begin(WIFI_PREFS_NAMESPACE, false);
   wifiPrefs.clear();
   wifiPrefs.end();
@@ -670,18 +760,32 @@ void clearWiFiConfig() {
 
 // Minimal escaping so an SSID containing quotes or angle brackets cannot break
 // (or inject into) the config page markup.
-String htmlEscape(const String &in) {
+String htmlEscape(const String &in)
+{
   String out;
   out.reserve(in.length() + 8);
-  for (size_t i = 0; i < in.length(); i++) {
+  for (size_t i = 0; i < in.length(); i++)
+  {
     char c = in[i];
-    switch (c) {
-      case '&':  out += "&amp;";  break;
-      case '<':  out += "&lt;";   break;
-      case '>':  out += "&gt;";   break;
-      case '"':  out += "&quot;"; break;
-      case '\'': out += "&#39;";  break;
-      default:   out += c;
+    switch (c)
+    {
+    case '&':
+      out += "&amp;";
+      break;
+    case '<':
+      out += "&lt;";
+      break;
+    case '>':
+      out += "&gt;";
+      break;
+    case '"':
+      out += "&quot;";
+      break;
+    case '\'':
+      out += "&#39;";
+      break;
+    default:
+      out += c;
     }
   }
   return out;
@@ -693,21 +797,25 @@ String htmlEscape(const String &in) {
 
 // Blocking attempt with a timeout, called from setup(). Failure here does not
 // halt the sketch - GSM + Serial keep working either way.
-bool connectWiFi() {
-  if (cfgSSID.length() == 0) return false;
+bool connectWiFi()
+{
+  if (cfgSSID.length() == 0)
+    return false;
 
   Serial.printf("[WIFI] Connecting to \"%s\" ", cfgSSID.c_str());
   WiFi.mode(WIFI_STA);
   WiFi.begin(cfgSSID.c_str(), cfgPassword.c_str());
 
   unsigned long start = millis();
-  while (WiFi.status() != WL_CONNECTED && (millis() - start) < WIFI_CONNECT_TIMEOUT_MS) {
+  while (WiFi.status() != WL_CONNECTED && (millis() - start) < WIFI_CONNECT_TIMEOUT_MS)
+  {
     delay(300);
     Serial.print(".");
   }
   Serial.println();
 
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED)
+  {
     wifiEverConnected = true;
     apMode = false;
     wifiFailCount = 0;
@@ -716,21 +824,22 @@ bool connectWiFi() {
   }
 
   Serial.println("[WIFI] WARNING: could not connect within timeout. "
-                  "Continuing without WiFi (GSM + Serial still active).");
+                 "Continuing without WiFi (GSM + Serial still active).");
   return false;
 }
 
 // Brings up the device's own access point so a phone/laptop can configure it
 // with no existing network available. AP_STA (rather than plain AP) keeps the
 // station interface alive so the setup page can still scan for networks.
-void startSetupAP() {
+void startSetupAP()
+{
   apMode = true;
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(SETUP_AP_SSID, SETUP_AP_PASSWORD);
   delay(200);
 
   IPAddress ip = WiFi.softAPIP();
-  dnsServer.start(DNS_PORT, "*", ip);   // captive portal: every lookup resolves here
+  dnsServer.start(DNS_PORT, "*", ip); // captive portal: every lookup resolves here
 
   Serial.printf("[WIFI] SETUP MODE. Join \"%s\" (password \"%s\"), then open http://%s/\n",
                 SETUP_AP_SSID, SETUP_AP_PASSWORD, ip.toString().c_str());
@@ -740,23 +849,28 @@ void startSetupAP() {
 // most once every WIFI_RETRY_INTERVAL_MS instead of stalling the sensor loop.
 // After WIFI_FAILS_BEFORE_AP consecutive failures it stops retrying a network
 // that is clearly gone and reopens setup mode so the device can be re-pointed.
-void maintainWiFi() {
-  if (apMode) {
+void maintainWiFi()
+{
+  if (apMode)
+  {
     dnsServer.processNextRequest();
     return;
   }
 
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED)
+  {
     wifiFailCount = 0;
     return;
   }
 
   unsigned long now = millis();
-  if (now - lastWifiRetryMillis < WIFI_RETRY_INTERVAL_MS) return;
+  if (now - lastWifiRetryMillis < WIFI_RETRY_INTERVAL_MS)
+    return;
   lastWifiRetryMillis = now;
 
   wifiFailCount++;
-  if (wifiFailCount > WIFI_FAILS_BEFORE_AP || cfgSSID.length() == 0) {
+  if (wifiFailCount > WIFI_FAILS_BEFORE_AP || cfgSSID.length() == 0)
+  {
     Serial.printf("[WIFI] %u failed retries - reopening setup access point.\n", wifiFailCount);
     startSetupAP();
     return;
@@ -775,9 +889,12 @@ void maintainWiFi() {
 // In setup-AP mode the AP's own WPA2 password is already the gate, so basic
 // auth is skipped there - otherwise first-time setup would demand a second
 // password the installer has no way to enter.
-bool requireConfigAuth() {
-  if (apMode) return true;
-  if (webServer.authenticate(CONFIG_USERNAME, CONFIG_PASSWORD)) return true;
+bool requireConfigAuth()
+{
+  if (apMode)
+    return true;
+  if (webServer.authenticate(CONFIG_USERNAME, CONFIG_PASSWORD))
+    return true;
   webServer.requestAuthentication();
   return false;
 }
@@ -785,7 +902,8 @@ bool requireConfigAuth() {
 // Scans for nearby networks and renders the setup form. The scan blocks for
 // roughly 2-4 seconds; that is acceptable because it only runs when someone
 // actually opens the page, not on the sampling path.
-String buildWifiPage(const String &message) {
+String buildWifiPage(const String &message)
+{
   int found = WiFi.scanNetworks();
 
   String html = "<!DOCTYPE html><html><head>";
@@ -804,16 +922,22 @@ String buildWifiPage(const String &message) {
   html += "</style></head><body>";
 
   html += "<h1>WiFi Setup</h1>";
-  if (message.length() > 0) {
+  if (message.length() > 0)
+  {
     html += "<div class='msg'>" + htmlEscape(message) + "</div>";
   }
 
   html += "<p>Current: <b>";
-  if (apMode) {
+  if (apMode)
+  {
     html += "setup mode (not joined to any network)";
-  } else if (WiFi.status() == WL_CONNECTED) {
+  }
+  else if (WiFi.status() == WL_CONNECTED)
+  {
     html += htmlEscape(cfgSSID) + "</b> at <b>" + WiFi.localIP().toString();
-  } else {
+  }
+  else
+  {
     html += "disconnected (" + htmlEscape(cfgSSID) + ")";
   }
   html += "</b></p>";
@@ -822,9 +946,11 @@ String buildWifiPage(const String &message) {
   html += "<label for='ssid_select'>Nearby networks</label>";
   html += "<select id='ssid_select' name='ssid_select'>";
   html += "<option value=''>-- select a network --</option>";
-  for (int i = 0; i < found; i++) {
+  for (int i = 0; i < found; i++)
+  {
     String s = WiFi.SSID(i);
-    if (s.length() == 0) continue;   // hidden network - must be typed manually
+    if (s.length() == 0)
+      continue; // hidden network - must be typed manually
     html += "<option value='" + htmlEscape(s) + "'>" + htmlEscape(s);
     html += " (" + String(WiFi.RSSI(i)) + " dBm";
     html += (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? ", open" : ", secured";
@@ -851,7 +977,8 @@ String buildWifiPage(const String &message) {
   html += "so you can try again. Leak detection, SMS alerts and Serial output keep running ";
   html += "either way - WiFi is only used for the dashboard.</p>";
 
-  if (!apMode) {
+  if (!apMode)
+  {
     html += "<p class='note'><a href='/'>&larr; Back to dashboard</a></p>";
   }
 
@@ -861,21 +988,27 @@ String buildWifiPage(const String &message) {
   return html;
 }
 
-void handleWifiPage() {
-  if (!requireConfigAuth()) return;
+void handleWifiPage()
+{
+  if (!requireConfigAuth())
+    return;
   webServer.send(200, "text/html", buildWifiPage(""));
 }
 
-void handleWifiSave() {
-  if (!requireConfigAuth()) return;
+void handleWifiSave()
+{
+  if (!requireConfigAuth())
+    return;
 
   // The typed field wins if it was filled in, so hidden networks still work.
   String ssid = webServer.arg("ssid");
   ssid.trim();
-  if (ssid.length() == 0) ssid = webServer.arg("ssid_select");
+  if (ssid.length() == 0)
+    ssid = webServer.arg("ssid_select");
   String password = webServer.arg("password");
 
-  if (ssid.length() == 0) {
+  if (ssid.length() == 0)
+  {
     webServer.send(400, "text/html",
                    buildWifiPage("Pick a network from the list or type a name."));
     return;
@@ -892,12 +1025,14 @@ void handleWifiSave() {
   html += "<b>" SETUP_AP_SSID "</b> access point within a minute.</p></body></html>";
   webServer.send(200, "text/html", html);
 
-  delay(1500);        // let the response actually flush before the reset
+  delay(1500); // let the response actually flush before the reset
   ESP.restart();
 }
 
-void handleWifiForget() {
-  if (!requireConfigAuth()) return;
+void handleWifiForget()
+{
+  if (!requireConfigAuth())
+    return;
 
   clearWiFiConfig();
   webServer.send(200, "text/html",
@@ -911,8 +1046,10 @@ void handleWifiForget() {
 
 // In setup mode, send every stray request to the config page - that is what
 // makes phones pop up the "sign in to network" captive portal prompt.
-void handleNotFound() {
-  if (apMode) {
+void handleNotFound()
+{
+  if (apMode)
+  {
     webServer.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/wifi", true);
     webServer.send(302, "text/plain", "");
     return;
@@ -921,7 +1058,8 @@ void handleNotFound() {
 }
 
 // Builds a compact JSON snapshot of all module states.
-String buildStatusJSON() {
+String buildStatusJSON()
+{
   String json = "{";
   json += "\"wifi_connected\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";
   json += "\"setup_mode\":" + String(apMode ? "true" : "false") + ",";
@@ -930,9 +1068,11 @@ String buildStatusJSON() {
   json += "\"server_upload_ok\":" + String(lastUploadOk ? "true" : "false") + ",";
   json += "\"server_upload\":\"" + htmlEscape(lastUploadResult) + "\",";
   json += "\"modules\":[";
-  for (uint8_t i = 0; i < NUM_MODULES; i++) {
+  for (uint8_t i = 0; i < NUM_MODULES; i++)
+  {
     ModuleState &m = modules[i];
-    if (i > 0) json += ",";
+    if (i > 0)
+      json += ",";
     json += "{";
     json += "\"id\":" + String(m.id) + ",";
     json += "\"pressure_bar\":" + String(m.pressureEMA, 2) + ",";
@@ -947,16 +1087,19 @@ String buildStatusJSON() {
   return json;
 }
 
-void handleWebStatus() {
+void handleWebStatus()
+{
   webServer.send(200, "application/json", buildStatusJSON());
 }
 
 // Simple auto-refreshing HTML page; refreshes itself every 3s via meta tag
 // so no JavaScript polling is required. Good enough for a thesis demo.
-void handleWebRoot() {
+void handleWebRoot()
+{
   // In setup mode there are no meaningful readings to show yet, and the only
   // useful thing the visitor can do is pick a network.
-  if (apMode) {
+  if (apMode)
+  {
     handleWifiPage();
     return;
   }
@@ -982,19 +1125,24 @@ void handleWebRoot() {
   html += "</p>";
   html += "<table><tr><th>Module</th><th>Pressure (bar)</th><th>Flow (L/min)</th><th>K</th><th>Status</th></tr>";
 
-  for (uint8_t i = 0; i < NUM_MODULES; i++) {
+  for (uint8_t i = 0; i < NUM_MODULES; i++)
+  {
     ModuleState &m = modules[i];
     String cssClass = "NORMAL";
-    if (m.currentStatus == STATUS_LOW_SUPPLY) cssClass = "LOW";
-    if (m.currentStatus == STATUS_POSSIBLE_LEAK) cssClass = "LEAK";
+    if (m.currentStatus == STATUS_LOW_SUPPLY)
+      cssClass = "LOW";
+    if (m.currentStatus == STATUS_POSSIBLE_LEAK)
+      cssClass = "LEAK";
 
     html += "<tr><td>Module " + String(m.id) + "</td>";
     html += "<td>" + String(m.pressureEMA, 2) + "</td>";
     html += "<td>" + String(m.flowEMA, 2) + "</td>";
     html += "<td>" + String(m.K_CONDUCTANCE, 3) + "</td>";
     html += "<td class='" + cssClass + "'>" + String(statusToString(m.currentStatus));
-    if (m.calibrationMode) html += " (calibrating)";
-    if (m.simulationMode) html += " (simulated)";
+    if (m.calibrationMode)
+      html += " (calibrating)";
+    if (m.simulationMode)
+      html += " (simulated)";
     html += "</td></tr>";
   }
 
@@ -1006,7 +1154,8 @@ void handleWebRoot() {
   webServer.send(200, "text/html", html);
 }
 
-void setupWebServer() {
+void setupWebServer()
+{
   webServer.on("/", handleWebRoot);
   webServer.on("/status", handleWebStatus);
   webServer.on("/wifi", HTTP_GET, handleWifiPage);
@@ -1021,7 +1170,8 @@ void setupWebServer() {
 // MODULE INITIALIZATION
 // ============================================================================
 
-void initModule(uint8_t index, uint8_t flowPin, uint8_t pressurePin, void (*isr)()) {
+void initModule(uint8_t index, uint8_t flowPin, uint8_t pressurePin, void (*isr)())
+{
   ModuleState &m = modules[index];
   m.id = index + 1;
   m.flowPin = flowPin;
@@ -1051,7 +1201,8 @@ void initModule(uint8_t index, uint8_t flowPin, uint8_t pressurePin, void (*isr)
 // ============================================================================
 // SETUP
 // ============================================================================
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   delay(500);
 
@@ -1070,17 +1221,21 @@ void setup() {
   Serial.println("============================================");
   Serial.println("  Water Leak Detection - 3 Modules + GSM + WiFi");
   Serial.println("============================================");
-  if (gsmModulePresent()) {
+  if (gsmModulePresent())
+  {
     Serial.println("[GSM] Module detected and responding.");
-  } else {
+  }
+  else
+  {
     Serial.println("[GSM] WARNING: module not responding to AT. Check wiring/power.");
   }
 
   loadWiFiConfig();
-  if (!connectWiFi()) {
-    startSetupAP();     // no saved network, or it is out of range
+  if (!connectWiFi())
+  {
+    startSetupAP(); // no saved network, or it is out of range
   }
-  setupWebServer();     // dashboard on a normal network, setup page on the AP
+  setupWebServer(); // dashboard on a normal network, setup page on the AP
 
   Serial.println("Send 'C1'/'C2'/'C3' to calibrate that module.");
   Serial.println("  While calibrating: 'A' = capture point, 'F' = finish & compute K");
@@ -1093,7 +1248,8 @@ void setup() {
 // ============================================================================
 // MAIN LOOP
 // ============================================================================
-void loop() {
+void loop()
+{
   // --- Keep WiFi alive + serve web requests ---
   // handleClient() runs in both modes: on a normal network it serves the
   // dashboard, and in setup mode it serves the configuration page over the AP.
@@ -1101,44 +1257,61 @@ void loop() {
   webServer.handleClient();
 
   // --- Handle Serial commands ---
-  if (Serial.available()) {
+  if (Serial.available())
+  {
     char cmd = Serial.read();
 
-    if (cmd == 'C') {
+    if (cmd == 'C')
+    {
       char digit = Serial.read();
       int idx = digit - '1';
-      if (idx >= 0 && idx < NUM_MODULES) {
+      if (idx >= 0 && idx < NUM_MODULES)
+      {
         modules[idx].calibrationMode = true;
         modules[idx].calibCount = 0;
         activeCalibModule = idx;
         Serial.printf("[CALIBRATION] Module %d - vary flow, 'A' to capture, 'F' to finish.\n", idx + 1);
       }
-    } else if ((cmd == 'A' || cmd == 'F') && activeCalibModule >= 0) {
+    }
+    else if ((cmd == 'A' || cmd == 'F') && activeCalibModule >= 0)
+    {
       handleCalibrationInput(modules[activeCalibModule], cmd);
-    } else if (cmd == 'S') {
+    }
+    else if (cmd == 'S')
+    {
       char digit = Serial.read();
       int idx = digit - '1';
-      if (Serial.peek() == ',') Serial.read();
+      if (Serial.peek() == ',')
+        Serial.read();
       float p = Serial.parseFloat();
-      if (Serial.peek() == ',') Serial.read();
+      if (Serial.peek() == ',')
+        Serial.read();
       float q = Serial.parseFloat();
-      if (idx >= 0 && idx < NUM_MODULES) {
+      if (idx >= 0 && idx < NUM_MODULES)
+      {
         modules[idx].simPressure = p;
         modules[idx].simFlow = q;
         modules[idx].simulationMode = true;
         Serial.printf("[SIMULATION] Module %d - Injecting P=%.2f bar, Q=%.2f L/min\n", idx + 1, p, q);
       }
-    } else if (cmd == 'R') {
+    }
+    else if (cmd == 'R')
+    {
       // Peek: a following digit scopes it to one module, otherwise resets all
-      if (isDigit(Serial.peek())) {
+      if (isDigit(Serial.peek()))
+      {
         char digit = Serial.read();
         int idx = digit - '1';
-        if (idx >= 0 && idx < NUM_MODULES) {
+        if (idx >= 0 && idx < NUM_MODULES)
+        {
           modules[idx].simulationMode = false;
           Serial.printf("[SIMULATION] Module %d - returned to real sensor readings.\n", idx + 1);
         }
-      } else {
-        for (uint8_t i = 0; i < NUM_MODULES; i++) modules[i].simulationMode = false;
+      }
+      else
+      {
+        for (uint8_t i = 0; i < NUM_MODULES; i++)
+          modules[i].simulationMode = false;
         Serial.println("[SIMULATION] All modules returned to real sensor readings.");
       }
     }
@@ -1147,11 +1320,13 @@ void loop() {
   }
 
   unsigned long now = millis();
-  if (now - lastSampleMillis >= SAMPLE_INTERVAL_MS) {
+  if (now - lastSampleMillis >= SAMPLE_INTERVAL_MS)
+  {
     unsigned long elapsed = now - lastSampleMillis;
     lastSampleMillis = now;
 
-    for (uint8_t i = 0; i < NUM_MODULES; i++) {
+    for (uint8_t i = 0; i < NUM_MODULES; i++)
+    {
       ModuleState &m = modules[i];
 
       // --- Read & filter pressure ---
@@ -1193,7 +1368,8 @@ void loop() {
   // --- Upload to the Django server on its own, slower timer ---
   // Kept separate from the sampling timer so the POST rate can be tuned
   // without changing how often the sensors are read and classified.
-  if (now - lastUploadMillis >= UPLOAD_INTERVAL_MS) {
+  if (now - lastUploadMillis >= UPLOAD_INTERVAL_MS)
+  {
     lastUploadMillis = now;
     uploadReadings();
   }
