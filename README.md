@@ -53,20 +53,27 @@ the dashboard is what the real rig would produce.
 
 ## Connecting the real ESP32
 
-The sketch is at [`firmware/smart_hose_leak/smart_hose_leak.ino`](firmware/smart_hose_leak/smart_hose_leak.ino).
-It is your original 3-module + GSM sketch with a WiFi uplink added; the detection,
-filtering, calibration, hysteresis and SMS logic are unchanged.
+The sketch is at
+[`firmware/water_leak_detection_3modules_gsm_wifi/`](firmware/water_leak_detection_3modules_gsm_wifi/).
+It is the 3-module + GSM sketch with two additions: a captive-portal WiFi setup, and the
+uplink that POSTs readings to this server. Detection, filtering, calibration, hysteresis
+and SMS are unchanged, and none of them depend on the server being up.
 
-1. **Edit the four config values near the top of the sketch:**
+1. **Edit the three config values near the top of the sketch:**
 
    | Setting | Value |
    |---|---|
-   | `WIFI_SSID` / `WIFI_PASSWORD` | Your WiFi network |
    | `SERVER_URL` | `http://<your PC LAN IP>:8000/api/ingest/` — **not** `127.0.0.1` |
-   | `DEVICE_API_KEY` | The key printed by `setup_demo` |
+   | `DEVICE_API_KEY` | The key printed by `setup_demo`, also in the admin under *Devices* |
    | `OWNER_PHONE_NUMBER` | The facilitator's number, e.g. `+639171234567` |
 
    Find your LAN IP with `ipconfig` (look for *IPv4 Address*, usually `192.168.x.x`).
+
+   WiFi credentials are **not** in the sketch. On first boot the board raises its own
+   access point, `LeakDetect-Setup` (password `leakdetect123`). Join it with a phone, let
+   the captive portal open (or browse to `http://192.168.4.1/`), pick the network and
+   save. The credentials are kept in flash, so the same firmware runs anywhere. Change
+   them later at `http://<device-ip>/wifi`, behind `admin` / `leakadmin`.
 
 2. **Run the server so the network can reach it**, not just your own machine:
 
@@ -81,9 +88,16 @@ filtering, calibration, hysteresis and SMS logic are unchanged.
    see `[WIFI] Connected` followed by `[UPLOAD] OK` every couple of seconds. Readings
    appear on the dashboard immediately.
 
+The board also serves its own page at `http://<device-ip>/` showing live readings and, in
+the top line, the result of the last upload to this server — the quickest way to tell a
+wrong key or a wrong IP from a wiring problem. The same is at `http://<device-ip>/status`
+as JSON.
+
 **If you see `[UPLOAD] REJECTED 401`** the `DEVICE_API_KEY` does not match. Copy it again
 from the Django admin. **If uploads time out**, the ESP32 cannot reach the PC — check that
-both are on the same network and that the firewall is allowing port 8000.
+both are on the same network and that the firewall is allowing port 8000. **If the board
+never joins WiFi**, it reopens the `LeakDetect-Setup` access point after about three
+minutes so you can point it at a different network.
 
 ### Calibrate before trusting the alerts
 
@@ -240,7 +254,7 @@ core/
     mark_offline.py  log device outages
 templates/       All HTML, plus the PWA manifest and service worker
 static/          app.css, app.js, map.js, chart.js, icons
-firmware/        The ESP32 sketch
+firmware/        The ESP32 sketch (WiFi portal + GSM + server uplink)
 tools/simulator.py   Stand-in for the device
 ```
 
