@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Notices - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>Notices</h1>
+      <p class="sub">Alerts and announcements for {{ household.household_id }}.</p>
+    </div>
+  </div>
+
+  <div class="notice-list">
+    {% for notification in page %}
+      <div class="notice" data-kind="{{ notification.kind }}"
+           data-unread="{% if not notification.read_at %}true{% else %}false{% endif %}">
+        <div class="notice-head">
+          <p class="notice-title">{{ notification.title }}</p>
+          <span class="notice-time">{{ notification.created_at|date:"M j, Y g:i A" }}</span>
+        </div>
+        <p class="notice-body" style="white-space:pre-wrap">{{ notification.body }}</p>
+        <p class="small muted" style="margin:.4rem 0 0">
+          {{ notification.get_kind_display }}
+          {% if notification.segment %} &middot; {{ notification.segment.name }}{% endif %}
+        </p>
+      </div>
+    {% empty %}
+      <p class="empty">You have no notices yet.</p>
+    {% endfor %}
+  </div>
+
+  {% if page.has_other_pages %}
+    <div class="pager">
+      {% if page.has_previous %}
+        <a class="btn btn-sm" href="?page={{ page.previous_page_number }}">Previous</a>
+      {% endif %}
+      <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}
+        <a class="btn btn-sm" href="?page={{ page.next_page_number }}">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

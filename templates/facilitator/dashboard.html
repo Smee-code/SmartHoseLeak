@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>Facilitator Dashboard</h1>
+      <p class="sub">{{ SITE_LOCALE }}</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn btn-sm" href="{% url 'household_create' %}">Add household</a>
+      <a class="btn btn-sm" href="{% url 'notification_center' %}">Send a notice</a>
+      <a class="btn btn-sm" href="{% url 'reports' %}">Reports</a>
+    </div>
+  </div>
+
+  {# Populated live by app.js whenever a critical alert is open. #}
+  <div id="alert-banner" class="messages" style="padding:0;margin:0 0 1rem" hidden></div>
+
+  <section class="stats" aria-label="Summary">
+    <div class="stat">
+      <div class="stat-value">{{ household_count }}</div>
+      <div class="stat-label">Active households</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ open_events|length }}</div>
+      <div class="stat-label">Open alerts</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ pending_complaints }}</div>
+      <div class="stat-label">Pending complaints</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">
+        {% for device in devices %}{% if device.is_online %}Online{% else %}Offline{% endif %}{% empty %}&mdash;{% endfor %}
+      </div>
+      <div class="stat-label">
+        Device status
+        {% for device in devices %}
+          {% if device.last_seen %}<br><span class="small" data-ago="{{ device.last_seen|date:'c' }}"></span>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <h2 style="margin-top:1.6rem">Live supply lines</h2>
+  <p class="muted small">Updates automatically. Pressure is shown in bar, with the PSI equivalent below it.</p>
+
+  <section class="tiles" style="margin-top:.8rem">
+    {% for segment in segments %}
+      <article class="tile" data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}">
+        <div class="tile-head">
+          <div>
+            <div class="tile-title">M{{ segment.module_index }} &middot; {{ segment.name }}</div>
+            <div class="tile-sub">{{ segment.start_m|floatformat:"-1" }}&ndash;{{ segment.end_m|floatformat:"-1" }} m from the main valve</div>
+          </div>
+          <span class="pill pill-{{ segment.status }}" data-field="status">{{ segment.get_status_display }}</span>
+        </div>
+
+        <div class="readouts">
+          <div class="readout">
+            <div class="readout-label">Pressure</div>
+            <div class="readout-value"><span data-field="pressure_bar">--</span> <span class="readout-alt">bar</span></div>
+            <div class="readout-alt" data-field="pressure_psi">--</div>
+          </div>
+          <div class="readout">
+            <div class="readout-label">Flow rate</div>
+            <div class="readout-value"><span data-field="flow_lpm">--</span> <span class="readout-alt">L/min</span></div>
+            <div class="readout-alt"><span data-field="households">{{ segment.households.count }}</span> household(s)</div>
+          </div>
+        </div>
+
+        <p class="small" data-field="note" style="margin:.7rem 0 0;min-height:1.2em"></p>
+
+        <div class="tile-foot">
+          <span data-field="updated">no data yet</span>
+          <form method="post" action="{% url 'segment_maintenance' segment.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'dashboard' %}">
+            <button type="submit" class="btn btn-sm">
+              {% if segment.status == 'MAINTENANCE' %}End maintenance{% else %}Mark maintenance{% endif %}
+            </button>
+          </form>
+        </div>
+      </article>
+    {% empty %}
+      <div class="card">
+        <p class="empty">
+          No supply lines configured yet.<br>
+          <span class="small">Run <code>python manage.py setup_demo</code> to create the device and its three lines.</span>
+        </p>
+      </div>
+    {% endfor %}
+  </section>
+
+  <div class="split" style="margin-top:1.6rem">
+
+    <div class="card" id="map-panel">
+      <div class="card-head">
+        <h2>Leak map</h2>
+        <button type="button" class="btn btn-sm" id="map-toggle">Switch view</button>
+      </div>
+      <div id="leak-map" hidden></div>
+      <div id="map-schematic"></div>
+      <p class="map-note" id="map-note"></p>
+      <div class="legend">
+        <span><i style="background:#17794c"></i>Normal</span>
+        <span><i style="background:#a8620b"></i>Low supply / maintenance</span>
+        <span><i style="background:#b3261e"></i>Possible leak</span>
+        <span><i style="background:#6b7785"></i>Offline</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Open alerts</h2>
+        <a class="small" href="{% url 'event_list' %}?status=open">View all</a>
+      </div>
+      {% if open_events %}
+        <div class="notice-list">
+          {% for event in open_events %}
+            <div class="notice" data-kind="automatic">
+              <div class="notice-head">
+                <p class="notice-title">{{ event.get_status_display }} &middot; {{ event.segment.name }}</p>
+                <span class="notice-time" data-ago="{{ event.detected_at|date:'c' }}"></span>
+              </div>
+              <p class="notice-body">
+                {{ event.location_label }} &mdash;
+                {{ event.pressure_bar|floatformat:2 }} bar, {{ event.flow_lpm|floatformat:2 }} L/min.
+              </p>
+              {% if not event.acknowledged_at %}
+                <form method="post" action="{% url 'event_acknowledge' event.pk %}" style="margin-top:.5rem">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{% url 'dashboard' %}">
+                  <button type="submit" class="btn btn-sm">Acknowledge</button>
+                </form>
+              {% else %}
+                <p class="small muted" style="margin:.4rem 0 0">
+                  Acknowledged by {{ event.acknowledged_by|default:"facilitator" }}.
+                </p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty">No open alerts. All monitored lines are reading normally.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1.6rem">
+    <div class="card-head">
+      <h2>Pressure and flow history</h2>
+      <div class="btn-row">
+        <select id="chart-metric" aria-label="Metric">
+          <option value="pressure_bar">Pressure (bar)</option>
+          <option value="pressure_psi">Pressure (psi)</option>
+          <option value="flow_lpm">Flow (L/min)</option>
+        </select>
+        <select id="chart-range" aria-label="Time range">
+          <option value="1">Last hour</option>
+          <option value="6" selected>Last 6 hours</option>
+          <option value="24">Last 24 hours</option>
+          <option value="168">Last 7 days</option>
+        </select>
+      </div>
+    </div>
+    <div class="chart-wrap"><div id="history-chart"></div></div>
+    <div class="chart-legend" id="chart-legend"></div>
+  </div>
+
+  <div class="card" style="margin-top:1.6rem">
+    <div class="card-head">
+      <h2>Recent activity</h2>
+      <a class="small" href="{% url 'event_list' %}">Full event log</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>When</th><th>Line</th><th>Status</th><th>Location</th><th class="num">Pressure</th><th class="num">Flow</th></tr>
+        </thead>
+        <tbody>
+          {% for event in recent_events %}
+            <tr>
+              <td class="nowrap">{{ event.detected_at|date:"M j, g:i A" }}</td>
+              <td>M{{ event.segment.module_index }} {{ event.segment.name }}</td>
+              <td><span class="pill pill-{{ event.status }}">{{ event.get_status_display }}</span></td>
+              <td class="nowrap small">{{ event.location_label }}</td>
+              <td class="num">{{ event.pressure_bar|floatformat:2 }} bar</td>
+              <td class="num">{{ event.flow_lpm|floatformat:2 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">No events recorded yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ map_segments|json_script:"segments-data" }}
+<script>
+  window.SHL_SEGMENTS = JSON.parse(document.getElementById('segments-data').textContent);
+</script>
+<script src="{% static 'js/map.js' %}"></script>
+<script src="{% static 'js/chart.js' %}"></script>
+<script>SHL.startPolling();</script>
+{% endblock %}

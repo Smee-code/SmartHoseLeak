@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Supply lines - {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>Supply lines and distance markers</h1>
+      <p class="sub">Each line is one sensor module on the ESP32. The markers decide the reported leak location.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Module</th><th>Name</th><th class="num">Start marker</th><th class="num">End marker</th>
+          <th class="num">Length</th><th class="num">Households</th><th>Status</th><th>Map coords</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for segment in segments %}
+          <tr>
+            <td><strong>M{{ segment.module_index }}</strong></td>
+            <td>{{ segment.name }}</td>
+            <td class="num">{{ segment.start_m|floatformat:"-1" }} m</td>
+            <td class="num">{{ segment.end_m|floatformat:"-1" }} m</td>
+            <td class="num">{{ segment.length_m|floatformat:"-1" }} m</td>
+            <td class="num">{{ segment.household_count }}</td>
+            <td><span class="pill pill-{{ segment.status }}">{{ segment.get_status_display }}</span></td>
+            <td class="small">
+              {% if segment.start_lat and segment.end_lat %}
+                <span class="pill pill-ok">set</span>
+              {% else %}
+                <span class="muted">not set</span>
+              {% endif %}
+            </td>
+            <td class="right">
+              <div class="btn-row" style="justify-content:flex-end">
+                <a class="btn btn-sm" href="{% url 'segment_edit' segment.pk %}">Edit</a>
+                <form method="post" action="{% url 'segment_maintenance' segment.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{% url 'segment_list' %}">
+                  <button type="submit" class="btn btn-sm">
+                    {% if segment.status == 'MAINTENANCE' %}End maintenance{% else %}Maintenance{% endif %}
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9" class="empty">No supply lines configured.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:1.6rem">
+    <div class="card-head"><h2>Devices</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Device ID</th><th>Label</th><th>Status</th><th>Last seen</th><th>Last IP</th></tr></thead>
+        <tbody>
+          {% for device in devices %}
+            <tr>
+              <td class="mono">{{ device.device_id }}</td>
+              <td>{{ device.label }}</td>
+              <td>
+                {% if device.is_online %}<span class="pill pill-ok">online</span>
+                {% else %}<span class="pill pill-OFFLINE">offline</span>{% endif %}
+              </td>
+              <td class="small">
+                {% if device.last_seen %}<span data-ago="{{ device.last_seen|date:'c' }}"></span>
+                {% else %}<span class="muted">never</span>{% endif %}
+              </td>
+              <td class="mono small">{{ device.last_ip|default:"&mdash;" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">No devices registered.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:.8rem">
+      The device API key is shown in the Django admin under Devices. Paste it into
+      <span class="mono">DEVICE_API_KEY</span> in the ESP32 sketch.
+    </p>
+  </div>
+</div>
+{% endblock %}

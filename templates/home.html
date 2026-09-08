@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">{{ SITE_LOCALE }}</span>
+    <h1>Smart Hose Leak Detection System</h1>
+    <p>
+      Automated leak detection with immediate alerts for the community water supply.
+      Flow and pressure sensors watch every monitored hose line continuously, so a fault is
+      found in seconds instead of after a walk along the whole line &mdash; and the households
+      on that line are told what is happening.
+    </p>
+    <div class="btn-row">
+      {% if user.is_authenticated %}
+        <a class="btn btn-primary" href="{% url 'post_login' %}">Go to my dashboard</a>
+      {% else %}
+        <a class="btn btn-primary" href="{% url 'login' %}">Sign in</a>
+        <a class="btn" href="#how">How it works</a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <section class="stats" aria-label="System summary">
+    <div class="stat">
+      <div class="stat-value">{{ stats.segments }}</div>
+      <div class="stat-label">Monitored supply lines</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ stats.monitored_metres|floatformat:0 }} m</div>
+      <div class="stat-label">Hose line under monitoring</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ stats.households }}</div>
+      <div class="stat-label">Registered households</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ stats.events_30d }}</div>
+      <div class="stat-label">Leak alerts in the last 30 days</div>
+    </div>
+  </section>
+
+  <section id="how" style="margin-top:2.2rem">
+    <h2>How the system works</h2>
+    <p class="muted">Four stages, from the sensor in the field to the notice on a household phone.</p>
+    <div class="grid grid-4" style="margin-top:1rem">
+      <div class="feature">
+        <div class="feature-icon" aria-hidden="true">&#9679;</div>
+        <h3>1. Sense</h3>
+        <p>A flow sensor and a pressure sensor on each hose line feed an ESP32, which samples
+           every second and filters the readings.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon" aria-hidden="true">&#9888;</div>
+        <h3>2. Detect</h3>
+        <p>Flow that runs higher than the calibrated pressure&ndash;flow curve, or pressure that decays
+           while no tap is open, is flagged as a possible leak.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon" aria-hidden="true">&#9873;</div>
+        <h3>3. Locate</h3>
+        <p>Distance markers along each line narrow the fault to the segment it sits in, so the
+           facilitator knows which stretch to walk.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon" aria-hidden="true">&#9993;</div>
+        <h3>4. Alert</h3>
+        <p>An SMS goes to the facilitator immediately, and every household on the affected line
+           gets a notice in the Owner Portal.</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="margin-top:2.2rem">
+    <div class="split">
+      <div class="card">
+        <div class="card-head"><h2>Monitored supply lines</h2></div>
+        {% if segments %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Line</th>
+                  <th>Distance markers</th>
+                  <th>Length</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for segment in segments %}
+                  <tr>
+                    <td><strong>M{{ segment.module_index }}</strong> {{ segment.name }}</td>
+                    <td class="nowrap">{{ segment.start_m|floatformat:"-1" }}&ndash;{{ segment.end_m|floatformat:"-1" }} m</td>
+                    <td class="num">{{ segment.length_m|floatformat:"-1" }} m</td>
+                    <td><span class="pill pill-{{ segment.status }}">{{ segment.get_status_display }}</span></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p class="small muted" style="margin-top:.7rem">
+            Live readings are visible after signing in.
+          </p>
+        {% else %}
+          <p class="empty">No supply lines have been configured yet.</p>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Who signs in here</h2></div>
+        <h3>Water system facilitator</h3>
+        <p class="small muted">
+          Full access: the live leak map, the pressure monitoring dashboard for every household,
+          the household database, the complaints inbox, and the tools for sending notices.
+        </p>
+        <h3 style="margin-top:1rem">Registered household owner</h3>
+        <p class="small muted">
+          Submit a water supply complaint, read notices from the facilitator, and check the
+          current pressure on your own supply line.
+        </p>
+        <p class="small muted" style="margin-top:1rem">
+          Owner accounts are created by the facilitator. If you are a registered subscriber and do
+          not have a login yet, ask the water system facilitator to issue one.
+        </p>
+        {% if not user.is_authenticated %}
+          <a class="btn btn-primary btn-block" href="{% url 'login' %}" style="margin-top:.6rem">Sign in</a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

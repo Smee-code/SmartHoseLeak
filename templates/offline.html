@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Offline - {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="wrap-narrow">
+  <div class="card center" style="padding:2.5rem 1.5rem">
+    <h1>You are offline</h1>
+    <p class="muted">
+      This page needs a connection to load. Live readings, notices and complaints will be
+      available again as soon as your phone reconnects.
+    </p>
+    <button type="button" class="btn btn-primary" onclick="location.reload()">Try again</button>
+  </div>
+</div>
+{% endblock %}

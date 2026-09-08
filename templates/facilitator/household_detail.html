@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ household.household_id }} - {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>{{ household.household_id }} &middot; {{ household.owner_name }}</h1>
+      <p class="sub">{{ household.address }}</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn btn-sm" href="{% url 'household_edit' household.pk %}">Edit</a>
+      <a class="btn btn-sm" href="{% url 'household_list' %}">Back to list</a>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="card-head"><h2>Record</h2></div>
+      <dl class="definition">
+        <dt>Contact</dt><dd>{{ household.contact_number }}</dd>
+        <dt>Supply line</dt>
+        <dd>
+          {% if household.segment %}
+            M{{ household.segment.module_index }} {{ household.segment.name }}
+            <span class="muted small">({{ household.segment.location_label }})</span>
+          {% else %}<span class="muted">Unassigned</span>{% endif %}
+        </dd>
+        <dt>Account</dt><dd>{{ household.get_account_status_display }}</dd>
+        <dt>Registered</dt><dd>{{ household.date_registered }}</dd>
+        <dt>Portal login</dt>
+        <dd>
+          {% if household.user %}
+            <span class="mono">{{ household.user.username }}</span>
+            {% if household.user.must_change_password %}
+              <span class="pill pill-warn">temporary password</span>
+            {% endif %}
+          {% else %}<span class="muted">No account issued</span>{% endif %}
+        </dd>
+        {% if household.notes %}<dt>Notes</dt><dd>{{ household.notes }}</dd>{% endif %}
+      </dl>
+
+      {% if household.user %}
+        <form method="post" action="{% url 'household_reset_password' household.pk %}" style="margin-top:1rem">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm">Issue a new temporary password</button>
+        </form>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Current reading</h2></div>
+      {% with latest=household.segment.latest %}
+        {% if latest %}
+          <div class="big-readout">
+            <div class="value">{{ latest.pressure_bar|floatformat:2 }}<span class="unit"> bar</span></div>
+            <div class="alt">{{ latest.pressure_psi|floatformat:1 }} psi &middot; {{ latest.flow_lpm|floatformat:2 }} L/min</div>
+            <p style="margin-top:.6rem">
+              <span class="pill pill-{{ household.segment.status }}">{{ household.segment.get_status_display }}</span>
+            </p>
+            <p class="small muted">Updated <span data-ago="{{ latest.updated_at|date:'c' }}"></span></p>
+          </div>
+        {% else %}
+          <p class="empty">No readings for this supply line yet.</p>
+        {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+
+  <div class="split" style="margin-top:1.6rem">
+    <div class="card">
+      <div class="card-head"><h2>Complaints</h2></div>
+      {% for complaint in complaints %}
+        <div class="notice">
+          <div class="notice-head">
+            <p class="notice-title"><a href="{% url 'complaint_detail' complaint.pk %}">{{ complaint.subject }}</a></p>
+            <span class="notice-time">{{ complaint.created_at|date:"M j, Y" }}</span>
+          </div>
+          <p class="notice-body">{{ complaint.reference }} &middot; {{ complaint.get_status_display }}</p>
+        </div>
+      {% empty %}
+        <p class="empty">No complaints filed by this household.</p>
+      {% endfor %}
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Notices sent</h2></div>
+      {% for notification in notifications %}
+        <div class="notice" data-kind="{{ notification.kind }}">
+          <div class="notice-head">
+            <p class="notice-title">{{ notification.title }}</p>
+            <span class="notice-time">{{ notification.created_at|date:"M j, g:i A" }}</span>
+          </div>
+          <p class="notice-body">{{ notification.body|truncatewords:24 }}</p>
+        </div>
+      {% empty %}
+        <p class="empty">No notices sent to this household yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Notices - {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>Send a notice</h1>
+      <p class="sub">Reaches household owners in the Owner Portal. Leak alerts are sent automatically.</p>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="card-head"><h2>New notice</h2></div>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="message message-error"><span>{{ form.non_field_errors }}</span></div>
+        {% endif %}
+        {% for field in form %}{% include "_form_field.html" %}{% endfor %}
+        <button type="submit" class="btn btn-primary">Send notice</button>
+      </form>
+      <p class="small muted" style="margin-top:1rem">
+        Tip: when a repair will interrupt supply, mark the line as under maintenance on the
+        dashboard first so the sensors do not raise a leak alert during the work.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Recently sent</h2></div>
+      <div class="notice-list">
+        {% for notification in sent %}
+          <div class="notice" data-kind="{{ notification.kind }}">
+            <div class="notice-head">
+              <p class="notice-title">{{ notification.title }}</p>
+              <span class="notice-time">{{ notification.created_at|date:"M j, g:i A" }}</span>
+            </div>
+            <p class="notice-body">{{ notification.body|truncatewords:28 }}</p>
+            <p class="small muted" style="margin:.35rem 0 0">
+              {{ notification.get_kind_display }} &rarr;
+              {% if notification.recipient %}{{ notification.recipient.household_id }}{% else %}all households{% endif %}
+              {% if notification.read_at %}&middot; read{% else %}&middot; unread{% endif %}
+            </p>
+          </div>
+        {% empty %}
+          <p class="empty">No notices sent yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

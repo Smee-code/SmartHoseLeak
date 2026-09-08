@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Sign in - {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="auth-shell">
+  <div class="card auth-card">
+    <h1 style="font-size:1.3rem">Sign in</h1>
+    <p class="muted small">Use the account issued by the water system facilitator.</p>
+
+    {% if form.errors %}
+      <div class="message message-error" style="margin-bottom:1rem">
+        <span>The username or password is incorrect. Please try again.</span>
+      </div>
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% for field in form %}{% include "_form_field.html" %}{% endfor %}
+      <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+    </form>
+
+    <p class="small muted" style="margin-top:1rem">
+      Forgot your password? The facilitator can issue a new temporary one from the household record.
+    </p>
+  </div>
+</div>
+{% endblock %}

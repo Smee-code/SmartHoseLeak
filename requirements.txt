@@ -1,0 +1,4 @@
+Django==5.2.*
+
+# Only needed if you switch DB_ENGINE to postgres in .env
+# psycopg[binary]>=3.1

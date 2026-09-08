@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Reports - {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>Reports</h1>
+      <p class="sub">Summary since {{ since|date:"M j, Y" }} &mdash; the last 30 days.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn btn-sm" href="{% url 'export_csv' 'households' %}">Households CSV</a>
+      <a class="btn btn-sm" href="{% url 'export_csv' 'events' %}">Alert log CSV</a>
+      <a class="btn btn-sm" href="{% url 'export_csv' 'pressure' %}">Pressure log CSV</a>
+      <button type="button" class="btn btn-sm" onclick="window.print()">Print</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Per supply line</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Supply line</th><th>Markers</th>
+            <th class="num">Avg pressure (bar)</th><th class="num">Avg pressure (psi)</th>
+            <th class="num">Peak (bar)</th><th class="num">Avg flow (L/min)</th>
+            <th class="num">Minutes logged</th><th class="num">Leak alerts</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in per_segment %}
+            <tr>
+              <td>M{{ row.segment.module_index }} {{ row.segment.name }}</td>
+              <td class="small nowrap">{{ row.segment.start_m|floatformat:"-1" }}&ndash;{{ row.segment.end_m|floatformat:"-1" }} m</td>
+              <td class="num">{{ row.avg_pressure_bar }}</td>
+              <td class="num">{{ row.avg_pressure_psi }}</td>
+              <td class="num">{{ row.max_pressure_bar }}</td>
+              <td class="num">{{ row.avg_flow_lpm }}</td>
+              <td class="num">{{ row.minutes_logged }}</td>
+              <td class="num">
+                {% if row.leak_events %}<strong style="color:var(--danger)">{{ row.leak_events }}</strong>
+                {% else %}0{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="empty">No supply lines configured.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:.8rem">
+      Averages are computed from the per-minute rollups. A minute with no logged reading is not
+      counted, so "minutes logged" also indicates how much of the period the device was reporting.
+    </p>
+  </div>
+
+  <div class="card" style="margin-top:1.6rem">
+    <div class="card-head"><h2>Complaints by status</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Status</th><th class="num">Count</th></tr></thead>
+        <tbody>
+          {% for row in complaint_counts %}
+            <tr><td>{{ row.status }}</td><td class="num">{{ row.n }}</td></tr>
+          {% empty %}
+            <tr><td colspan="2" class="empty">No complaints filed yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

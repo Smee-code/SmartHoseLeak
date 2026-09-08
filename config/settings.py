@@ -1,0 +1,144 @@
+"""
+Django settings for the Smart Hose Leak Detection System.
+
+SQLite is used by default so the project runs on any machine with no setup.
+Set DB_ENGINE=postgres plus the DB_* variables in .env to move to PostgreSQL
+without touching any model code.
+"""
+
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def env(key, default=None):
+    return os.environ.get(key, default)
+
+
+def env_bool(key, default=False):
+    return str(env(key, str(default))).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_list(key, default=""):
+    return [item.strip() for item in env(key, default).split(",") if item.strip()]
+
+
+# Load a .env file if present, without adding a dependency.
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    for _line in _env_file.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _, _v = _line.partition("=")
+            os.environ.setdefault(_k.strip(), _v.strip())
+
+SECRET_KEY = env("SECRET_KEY", "dev-only-key-change-before-deployment")
+DEBUG = env_bool("DEBUG", True)
+
+# The ESP32 posts to this server by IP on the local network, so the LAN
+# address must be allowed. In DEBUG we accept any host to keep field testing
+# painless; production deployments must set ALLOWED_HOSTS explicitly.
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "*") if not DEBUG else ["*"]
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
+
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "core",
+]
+
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+ROOT_URLCONF = "config.urls"
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "core.context_processors.site_context",
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = "config.wsgi.application"
+
+if env("DB_ENGINE", "sqlite") == "postgres":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": env("DB_NAME", "smarthoseleak"),
+            "USER": env("DB_USER", "postgres"),
+            "PASSWORD": env("DB_PASSWORD", ""),
+            "HOST": env("DB_HOST", "127.0.0.1"),
+            "PORT": env("DB_PORT", "5432"),
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+
+AUTH_USER_MODEL = "core.User"
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "post_login"
+LOGOUT_REDIRECT_URL = "home"
+
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "Asia/Manila"
+USE_I18N = True
+USE_TZ = True
+
+STATIC_URL = "static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
+
+# ---------------------------------------------------------------------------
+# Smart Hose Leak settings
+# ---------------------------------------------------------------------------
+
+SITE_NAME = "Smart Hose Leak Detection System"
+SITE_LOCALE = "Brgy. Lower Dakong Patag, Sison, Surigao del Norte"
+
+# A segment whose last reading is older than this is shown as offline.
+DEVICE_OFFLINE_AFTER_SECONDS = int(env("DEVICE_OFFLINE_AFTER_SECONDS", "60"))
+
+# Minute rollups older than this are pruned by `manage.py prune_rollups`.
+ROLLUP_RETENTION_DAYS = int(env("ROLLUP_RETENTION_DAYS", "90"))
+
+# How often the dashboards poll /api/live/ (milliseconds).
+LIVE_POLL_INTERVAL_MS = int(env("LIVE_POLL_INTERVAL_MS", "3000"))

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}My complaints - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>Complaints</h1>
+      <p class="sub">Report a water supply problem and track what happens to it.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Submit a complaint</h2></div>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% for field in form %}{% include "_form_field.html" %}{% endfor %}
+      <button type="submit" class="btn btn-primary btn-block">Submit complaint</button>
+    </form>
+    <p class="small muted" style="margin-top:.8rem">
+      You will get a reference number, and the facilitator&rsquo;s reply appears here and in your notices.
+    </p>
+  </div>
+
+  <h2 style="margin-top:1.6rem">My submitted complaints</h2>
+  <div class="notice-list" style="margin-top:.6rem">
+    {% for complaint in complaints %}
+      <div class="notice">
+        <div class="notice-head">
+          <p class="notice-title">{{ complaint.subject }}</p>
+          <span class="pill {% if complaint.status == 'pending' %}pill-warn{% elif complaint.status == 'resolved' %}pill-ok{% elif complaint.status == 'in_progress' %}pill-info{% else %}pill-muted{% endif %}">
+            {{ complaint.get_status_display }}
+          </span>
+        </div>
+        <p class="small muted" style="margin:.2rem 0 .4rem">
+          <span class="mono">{{ complaint.reference }}</span> &middot;
+          {{ complaint.get_category_display }} &middot;
+          {{ complaint.created_at|date:"M j, Y g:i A" }}
+        </p>
+        <p class="notice-body" style="white-space:pre-wrap">{{ complaint.body }}</p>
+
+        {% if complaint.response %}
+          <div class="notice" data-kind="targeted" style="margin-top:.7rem">
+            <div class="notice-head">
+              <p class="notice-title">Facilitator reply</p>
+              <span class="notice-time">{{ complaint.responded_at|date:"M j, g:i A" }}</span>
+            </div>
+            <p class="notice-body" style="white-space:pre-wrap">{{ complaint.response }}</p>
+          </div>
+        {% endif %}
+      </div>
+    {% empty %}
+      <p class="empty">You have not submitted any complaints.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

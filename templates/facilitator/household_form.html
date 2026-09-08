@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{% if household %}Edit household{% else %}Add household{% endif %} - {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>{% if household %}Edit {{ household.household_id }}{% else %}Add a household{% endif %}</h1>
+      <p class="sub">The supply line assignment decides who is notified when a leak is detected.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="message message-error"><span>{{ form.non_field_errors }}</span></div>
+      {% endif %}
+      {% for field in form %}{% include "_form_field.html" %}{% endfor %}
+      <div class="btn-row" style="margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Save household</button>
+        <a class="btn" href="{% url 'household_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% load static %}<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
+  <meta name="description" content="Automated leak detection and water supply monitoring for {{ SITE_LOCALE }}.">
+  <meta name="theme-color" content="#0b6ea8">
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <link rel="icon" href="{% static 'img/icon.svg' %}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{% static 'img/icon-192.png' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% block head %}{% endblock %}
+  <script>
+    // Applied before first paint so the page never flashes the wrong theme.
+    (function () {
+      try {
+        var saved = localStorage.getItem('shl-theme');
+        if (!saved) {
+          saved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', saved);
+      } catch (e) { /* private mode: keep the light default */ }
+    })();
+  </script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="{% url 'home' %}">
+      <img src="{% static 'img/icon.svg' %}" alt="" width="32" height="32">
+      <span>
+        <strong>Smart Hose Leak</strong>
+        <small>Detection System</small>
+      </span>
+    </a>
+
+    {% if user.is_authenticated %}
+      <nav class="mainnav" aria-label="Main">
+        {% if is_facilitator %}
+          <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>Dashboard</a>
+          <a href="{% url 'pressure_monitor' %}" {% if request.resolver_match.url_name == 'pressure_monitor' %}aria-current="page"{% endif %}>Pressure</a>
+          <a href="{% url 'household_list' %}" {% if 'household' in request.resolver_match.url_name %}aria-current="page"{% endif %}>Households</a>
+          <a href="{% url 'event_list' %}" {% if 'event' in request.resolver_match.url_name %}aria-current="page"{% endif %}>Alerts</a>
+          <a href="{% url 'complaint_list' %}" {% if 'complaint' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            Complaints{% if pending_complaint_count %} <span class="badge">{{ pending_complaint_count }}</span>{% endif %}
+          </a>
+          <a href="{% url 'notification_center' %}" {% if request.resolver_match.url_name == 'notification_center' %}aria-current="page"{% endif %}>Notices</a>
+          <a href="{% url 'segment_list' %}" {% if 'segment' in request.resolver_match.url_name %}aria-current="page"{% endif %}>Lines</a>
+          <a href="{% url 'reports' %}" {% if request.resolver_match.url_name == 'reports' %}aria-current="page"{% endif %}>Reports</a>
+        {% else %}
+          <a href="{% url 'owner_home' %}" {% if request.resolver_match.url_name == 'owner_home' %}aria-current="page"{% endif %}>Home</a>
+          <a href="{% url 'owner_pressure' %}" {% if request.resolver_match.url_name == 'owner_pressure' %}aria-current="page"{% endif %}>My Pressure</a>
+          <a href="{% url 'owner_notifications' %}" {% if request.resolver_match.url_name == 'owner_notifications' %}aria-current="page"{% endif %}>
+            Notices{% if unread_count %} <span class="badge">{{ unread_count }}</span>{% endif %}
+          </a>
+          <a href="{% url 'owner_complaints' %}" {% if request.resolver_match.url_name == 'owner_complaints' %}aria-current="page"{% endif %}>Complaints</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+
+    <div class="topbar-actions">
+      <span id="conn-pill" class="pill pill-muted" title="Connection quality">&#8226; checking</span>
+      <button type="button" id="theme-toggle" class="icon-btn" aria-label="Switch between light and dark mode">
+        <span aria-hidden="true" data-theme-icon>&#9789;</span>
+      </button>
+      {% if user.is_authenticated %}
+        <div class="usermenu">
+          <button type="button" class="icon-btn" id="usermenu-btn" aria-expanded="false" aria-controls="usermenu-panel">
+            <span class="avatar">{{ user.username|first|upper }}</span>
+          </button>
+          <div class="usermenu-panel" id="usermenu-panel" hidden>
+            <p class="usermenu-name">{{ user.get_full_name|default:user.username }}</p>
+            <p class="usermenu-role">{{ user.get_role_display }}</p>
+            {% if household %}<p class="usermenu-role">{{ household.household_id }}</p>{% endif %}
+            <a href="{% url 'password_change' %}">Change password</a>
+            {% if user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
+            <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+              <button type="submit" class="linklike">Sign out</button>
+            </form>
+          </div>
+        </div>
+      {% else %}
+        <a class="btn btn-primary btn-sm" href="{% url 'login' %}">Sign in</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+{% if messages %}
+  <div class="messages" role="status">
+    {% for message in messages %}
+      <div class="message message-{{ message.tags|default:'info' }}">
+        <span>{{ message }}</span>
+        <button type="button" class="message-close" aria-label="Dismiss">&times;</button>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if user.is_authenticated and user.must_change_password and request.resolver_match.url_name != 'password_change' %}
+  <div class="messages">
+    <div class="message message-warning">
+      <span>You are still using a temporary password.
+        <a href="{% url 'password_change' %}">Change it now</a>.</span>
+    </div>
+  </div>
+{% endif %}
+
+<main id="main">{% block content %}{% endblock %}</main>
+
+<footer class="sitefoot">
+  <p><strong>{{ SITE_NAME }}</strong></p>
+  <p>{{ SITE_LOCALE }}</p>
+  <p class="muted">A capstone project of the College of Information Technology Education,
+     North Eastern Mindanao State University &mdash; Cantilan Campus.</p>
+</footer>
+
+<script>window.SHL = {pollMs: {{ LIVE_POLL_INTERVAL_MS }}};</script>
+<script src="{% static 'js/app.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}My water supply - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>Hello, {{ household.owner_name|truncatewords:1 }}</h1>
+      <p class="sub">{{ household.household_id }} &middot; {{ household.address }}</p>
+    </div>
+  </div>
+
+  {% if segment %}
+    <div class="card tile" data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}" style="border-left-width:5px">
+      <div class="tile-head">
+        <div>
+          <div class="tile-title">My supply line</div>
+          <div class="tile-sub">M{{ segment.module_index }} &middot; {{ segment.name }}</div>
+        </div>
+        <span class="pill pill-{{ segment.status }}" data-field="status">{{ segment.get_status_display }}</span>
+      </div>
+
+      <div class="big-readout">
+        <div class="value"><span data-field="pressure_bar">--</span><span class="unit"> bar</span></div>
+        <div class="alt"><span data-field="pressure_psi">--</span></div>
+      </div>
+
+      <p class="small center" data-field="note" style="min-height:1.2em;margin:0"></p>
+      <div class="tile-foot">
+        <span data-field="updated">no data yet</span>
+        <a class="small" href="{% url 'owner_pressure' %}">See history</a>
+      </div>
+    </div>
+  {% else %}
+    <div class="card">
+      <p class="empty">
+        Your household has not been assigned to a supply line yet.<br>
+        <span class="small">Ask the water system facilitator to assign one so you can see live readings.</span>
+      </p>
+    </div>
+  {% endif %}
+
+  <div class="grid grid-3" style="margin-top:1.2rem">
+    <a class="feature" href="{% url 'owner_notifications' %}" style="text-decoration:none;color:inherit">
+      <div class="feature-icon" aria-hidden="true">&#9993;</div>
+      <h3>Notices {% if unread %}<span class="badge">{{ unread }}</span>{% endif %}</h3>
+      <p>Announcements and alerts from the water system facilitator.</p>
+    </a>
+    <a class="feature" href="{% url 'owner_complaints' %}" style="text-decoration:none;color:inherit">
+      <div class="feature-icon" aria-hidden="true">&#9998;</div>
+      <h3>Complaints</h3>
+      <p>
+        {% if open_complaints %}You have {{ open_complaints }} open complaint(s).
+        {% else %}Report a problem with your water supply.{% endif %}
+      </p>
+    </a>
+    <a class="feature" href="{% url 'owner_pressure' %}" style="text-decoration:none;color:inherit">
+      <div class="feature-icon" aria-hidden="true">&#9679;</div>
+      <h3>My pressure</h3>
+      <p>Current reading and the recent history for your line.</p>
+    </a>
+  </div>
+
+  <div class="card" style="margin-top:1.2rem">
+    <div class="card-head">
+      <h2>Latest notices</h2>
+      <a class="small" href="{% url 'owner_notifications' %}">View all</a>
+    </div>
+    <div class="notice-list">
+      {% for notification in recent_notifications %}
+        <div class="notice" data-kind="{{ notification.kind }}"
+             data-unread="{% if not notification.read_at %}true{% else %}false{% endif %}">
+          <div class="notice-head">
+            <p class="notice-title">{{ notification.title }}</p>
+            <span class="notice-time">{{ notification.created_at|date:"M j, g:i A" }}</span>
+          </div>
+          <p class="notice-body">{{ notification.body|truncatewords:30 }}</p>
+        </div>
+      {% empty %}
+        <p class="empty">No notices yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>SHL.startPolling();</script>
+{% endblock %}

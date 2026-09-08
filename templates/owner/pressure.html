@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}My water pressure - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>My water pressure</h1>
+      <p class="sub">
+        {% if segment %}M{{ segment.module_index }} &middot; {{ segment.name }}
+        {% else %}No supply line assigned{% endif %}
+      </p>
+    </div>
+  </div>
+
+  {% if segment %}
+    <div class="card tile" data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}" style="border-left-width:5px">
+      <div class="tile-head">
+        <div class="tile-title">Current reading</div>
+        <span class="pill pill-{{ segment.status }}" data-field="status">{{ segment.get_status_display }}</span>
+      </div>
+
+      <div class="readouts">
+        <div class="readout">
+          <div class="readout-label">Pressure</div>
+          <div class="readout-value"><span data-field="pressure_bar">--</span> <span class="readout-alt">bar</span></div>
+          <div class="readout-alt" data-field="pressure_psi">--</div>
+        </div>
+        <div class="readout">
+          <div class="readout-label">Flow rate</div>
+          <div class="readout-value"><span data-field="flow_lpm">--</span> <span class="readout-alt">L/min</span></div>
+          <div class="readout-alt">on your supply line</div>
+        </div>
+      </div>
+
+      <p class="small" data-field="note" style="margin:.7rem 0 0;min-height:1.2em"></p>
+      <div class="tile-foot"><span data-field="updated">no data yet</span></div>
+    </div>
+
+    <div class="card" style="margin-top:1.2rem">
+      <div class="card-head">
+        <h2>History</h2>
+        <div class="btn-row">
+          <select id="chart-metric" aria-label="Metric">
+            <option value="pressure_bar">Pressure (bar)</option>
+            <option value="pressure_psi">Pressure (psi)</option>
+            <option value="flow_lpm">Flow (L/min)</option>
+          </select>
+          <select id="chart-range" aria-label="Time range">
+            <option value="6" selected>Last 6 hours</option>
+            <option value="24">Last 24 hours</option>
+            <option value="168">Last 7 days</option>
+          </select>
+        </div>
+      </div>
+      <div class="chart-wrap"><div id="history-chart" data-segment="{{ segment.id }}"></div></div>
+      <div class="chart-legend" id="chart-legend"></div>
+    </div>
+
+    <div class="card" style="margin-top:1.2rem">
+      <h3>What the readings mean</h3>
+      <dl class="definition">
+        <dt><span class="pill pill-NORMAL">Normal</span></dt>
+        <dd>Pressure and flow are within the expected range for your line.</dd>
+        <dt><span class="pill pill-LOW_SUPPLY">Low Water Supply</span></dt>
+        <dd>Pressure is below normal. You may notice weaker flow at your tap.</dd>
+        <dt><span class="pill pill-POSSIBLE_LEAK">Possible Leak</span></dt>
+        <dd>A leak is suspected on your line. The facilitator has already been alerted.</dd>
+        <dt><span class="pill pill-MAINTENANCE">Under Maintenance</span></dt>
+        <dd>Planned work is in progress on your line.</dd>
+        <dt><span class="pill pill-OFFLINE">Offline</span></dt>
+        <dd>The sensor is not reporting right now. This does not always mean your supply is out.</dd>
+      </dl>
+    </div>
+  {% else %}
+    <div class="card">
+      <p class="empty">
+        Your household has not been assigned to a supply line yet, so there are no readings to show.
+      </p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if segment %}
+  <script src="{% static 'js/chart.js' %}"></script>
+  <script>SHL.startPolling();</script>
+{% endif %}
+{% endblock %}

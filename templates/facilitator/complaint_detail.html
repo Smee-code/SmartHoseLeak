@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ complaint.reference }} - {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>{{ complaint.subject }}</h1>
+      <p class="sub">{{ complaint.reference }} &middot; filed {{ complaint.created_at|date:"M j, Y g:i A" }}</p>
+    </div>
+    <a class="btn btn-sm" href="{% url 'complaint_list' %}">Back to inbox</a>
+  </div>
+
+  <div class="split">
+    <div class="card">
+      <div class="card-head">
+        <h2>Complaint</h2>
+        <span class="pill {% if complaint.status == 'pending' %}pill-warn{% elif complaint.status == 'resolved' %}pill-ok{% elif complaint.status == 'in_progress' %}pill-info{% else %}pill-muted{% endif %}">
+          {{ complaint.get_status_display }}
+        </span>
+      </div>
+      <p class="muted small">{{ complaint.get_category_display }}</p>
+      <p style="white-space:pre-wrap">{{ complaint.body }}</p>
+
+      {% if complaint.response %}
+        <div class="notice" style="margin-top:1rem">
+          <div class="notice-head">
+            <p class="notice-title">Your reply</p>
+            <span class="notice-time">{{ complaint.responded_at|date:"M j, g:i A" }}</span>
+          </div>
+          <p class="notice-body" style="white-space:pre-wrap">{{ complaint.response }}</p>
+        </div>
+      {% endif %}
+
+      <hr style="border:0;border-top:1px solid var(--border);margin:1.2rem 0">
+
+      <h3>Respond</h3>
+      <p class="small muted">Saving a reply also sends it to the owner as a notification.</p>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% for field in form %}{% include "_form_field.html" %}{% endfor %}
+        <button type="submit" class="btn btn-primary">Save and notify owner</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Household</h2></div>
+      <dl class="definition">
+        <dt>Household</dt>
+        <dd><a href="{% url 'household_detail' complaint.household.pk %}">{{ complaint.household.household_id }}</a></dd>
+        <dt>Owner</dt><dd>{{ complaint.household.owner_name }}</dd>
+        <dt>Contact</dt><dd>{{ complaint.household.contact_number }}</dd>
+        <dt>Address</dt><dd>{{ complaint.household.address }}</dd>
+        <dt>Supply line</dt>
+        <dd>
+          {% if complaint.household.segment %}
+            M{{ complaint.household.segment.module_index }} {{ complaint.household.segment.name }}
+          {% else %}<span class="muted">Unassigned</span>{% endif %}
+        </dd>
+      </dl>
+
+      {% with latest=complaint.household.segment.latest %}
+        {% if latest %}
+          <div class="readouts" style="margin-top:1rem">
+            <div class="readout">
+              <div class="readout-label">Line pressure now</div>
+              <div class="readout-value">{{ latest.pressure_bar|floatformat:2 }}</div>
+              <div class="readout-alt">{{ latest.pressure_psi|floatformat:1 }} psi</div>
+            </div>
+            <div class="readout">
+              <div class="readout-label">Flow now</div>
+              <div class="readout-value">{{ latest.flow_lpm|floatformat:2 }}</div>
+              <div class="readout-alt">L/min</div>
+            </div>
+          </div>
+          <p class="small muted" style="margin-top:.6rem">
+            Status: <span class="pill pill-{{ complaint.household.segment.status }}">{{ complaint.household.segment.get_status_display }}</span>
+          </p>
+        {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+</div>
+{% endblock %}
