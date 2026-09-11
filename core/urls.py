@@ -39,7 +39,11 @@ urlpatterns = [
     path("dashboard/events/", views.event_list, name="event_list"),
     path("dashboard/events/<int:pk>/acknowledge/", views.event_acknowledge, name="event_acknowledge"),
     path("dashboard/complaints/", views.complaint_list, name="complaint_list"),
-    path("dashboard/complaints/<int:pk>/", views.complaint_detail, name="complaint_detail"),
+    # The inbox and an open thread are the same view, so the list stays
+    # beside the conversation the way a mail client works.
+    path("dashboard/complaints/<int:pk>/", views.complaint_list, name="complaint_thread"),
+    path("dashboard/complaints/<int:pk>/reply/", views.complaint_reply, name="complaint_reply"),
+    path("dashboard/complaints/<int:pk>/status/", views.complaint_status, name="complaint_status"),
     path("dashboard/notifications/", views.notification_center, name="notification_center"),
     path("dashboard/reports/", views.reports, name="reports"),
     path("dashboard/export/<str:kind>.csv", views.export_csv, name="export_csv"),
@@ -48,6 +52,7 @@ urlpatterns = [
     path("portal/", views.owner_home, name="owner_home"),
     path("portal/notifications/", views.owner_notifications, name="owner_notifications"),
     path("portal/complaints/", views.owner_complaints, name="owner_complaints"),
+    path("portal/complaints/<int:pk>/", views.owner_complaints, name="owner_complaint_thread"),
     path("portal/pressure/", views.owner_pressure, name="owner_pressure"),
 
     # JSON API

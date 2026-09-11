@@ -72,7 +72,7 @@
       {% for complaint in complaints %}
         <div class="notice">
           <div class="notice-head">
-            <p class="notice-title"><a href="{% url 'complaint_detail' complaint.pk %}">{{ complaint.subject }}</a></p>
+            <p class="notice-title"><a href="{% url 'complaint_thread' complaint.pk %}">{{ complaint.subject }}</a></p>
             <span class="notice-time">{{ complaint.created_at|date:"M j, Y" }}</span>
           </div>
           <p class="notice-body">{{ complaint.reference }} &middot; {{ complaint.get_status_display }}</p>

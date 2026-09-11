@@ -22,7 +22,8 @@ from django.views.decorators.http import require_POST
 
 from .forms import (
     ComplaintForm,
-    ComplaintResponseForm,
+    ComplaintMessageForm,
+    ComplaintStatusForm,
     HouseholdForm,
     MaintenanceForm,
     NotificationForm,
@@ -32,6 +33,7 @@ from .forms import (
 )
 from .models import (
     Complaint,
+    ComplaintMessage,
     Device,
     Household,
     LeakEvent,
@@ -581,65 +583,123 @@ def event_acknowledge(request, pk):
     return redirect(request.POST.get("next") or "event_list")
 
 
-@facilitator_required
-def complaint_list(request):
-    complaints = Complaint.objects.select_related("household", "household__segment")
-    status = request.GET.get("status", "")
+def _complaint_threads(status=""):
+    """
+    The inbox list: every complaint as a conversation, newest activity first.
+
+    Ordered by last_message_at rather than created_at so a thread rises when
+    someone writes in it, which is the whole point of reading it as a
+    message list instead of a ticket table.
+    """
+    threads = (
+        Complaint.objects.select_related("household", "household__segment")
+        .annotate(
+            unread=Count(
+                "messages",
+                filter=Q(messages__from_owner=True, messages__read_by_facilitator=False),
+                distinct=True,
+            )
+        )
+        .order_by("-last_message_at")
+    )
     if status:
-        complaints = complaints.filter(status=status)
-    page = Paginator(complaints, 20).get_page(request.GET.get("page"))
+        threads = threads.filter(status=status)
+    return threads
+
+
+@facilitator_required
+def complaint_list(request, pk=None):
+    """
+    Conversation inbox, and the open thread beside it.
+
+    One view serves both so the list stays on screen while reading a thread,
+    the way a mail client does. On a narrow screen the CSS shows one pane at
+    a time.
+    """
+    status = request.GET.get("status", "")
+    threads = _complaint_threads(status)
+
+    complaint = None
+    message_form = None
+    status_form = None
+
+    if pk is not None:
+        complaint = get_object_or_404(
+            Complaint.objects.select_related("household", "household__segment"), pk=pk
+        )
+        # Opening a thread is what marks the owner's messages as seen.
+        complaint.messages.filter(from_owner=True, read_by_facilitator=False).update(
+            read_by_facilitator=True
+        )
+        message_form = ComplaintMessageForm()
+        status_form = ComplaintStatusForm(instance=complaint)
+
     return render(
         request,
         "facilitator/complaints.html",
         {
-            "page": page,
+            "threads": threads[:60],
+            "complaint": complaint,
+            "messages_list": complaint.messages.select_related("author") if complaint else None,
+            "message_form": message_form,
+            "status_form": status_form,
             "status": status,
-            "statuses": Complaint.Status.choices,
-            "counts": {
-                key: Complaint.objects.filter(status=key).count() for key, _ in Complaint.Status.choices
-            },
+            # (key, label, count) so the filter chips can show their totals -
+            # a template cannot look a value up in a dict by variable key.
+            "status_filters": [
+                (key, label, Complaint.objects.filter(status=key).count())
+                for key, label in Complaint.Status.choices
+            ],
         },
     )
 
 
 @facilitator_required
-def complaint_detail(request, pk):
+@require_POST
+def complaint_reply(request, pk):
+    """Facilitator adds a message to a thread, and the owner is told."""
     complaint = get_object_or_404(
         Complaint.objects.select_related("household", "household__segment"), pk=pk
     )
-    form = ComplaintResponseForm(request.POST or None, instance=complaint)
+    form = ComplaintMessageForm(request.POST)
 
-    if request.method == "POST" and form.is_valid():
-        # Only a newly typed reply counts. A blank box keeps the existing
-        # response (see the form), so without this a status-only change would
-        # re-stamp the timestamp and send the owner a duplicate notice.
-        new_reply = getattr(form, "new_reply", False)
+    if not form.is_valid():
+        messages.error(request, "Write something before sending.")
+        return redirect("complaint_thread", pk=pk)
 
-        updated = form.save(commit=False)
-        if new_reply:
-            updated.responded_at = timezone.now()
-            updated.responded_by = request.user
-        updated.save()
+    with transaction.atomic():
+        message = form.save(commit=False)
+        message.complaint = complaint
+        message.author = request.user
+        message.from_owner = False
+        message.read_by_facilitator = True   # the sender has obviously read it
+        message.save()
 
-        if new_reply:
-            # Mirror the reply into the owner notification inbox so they see
-            # it in the same place as every other message from the facilitator.
-            Notification.objects.create(
-                kind=Notification.Kind.TARGETED,
-                title=f"Reply to your complaint {updated.reference}",
-                body=updated.response,
-                sent_by=request.user,
-                recipient=updated.household,
-                segment=updated.household.segment,
-            )
-            messages.success(request, "Reply sent. The owner has been notified.")
-        else:
-            messages.success(
-                request, f"Complaint marked as {updated.get_status_display()}."
-            )
-        return redirect("complaint_detail", pk=pk)
+        # Mirror into the owner's inbox so a reply is visible from the bell
+        # as well as inside the thread.
+        Notification.objects.create(
+            kind=Notification.Kind.TARGETED,
+            title=f"Reply to your complaint {complaint.reference}",
+            body=message.body,
+            sent_by=request.user,
+            recipient=complaint.household,
+            segment=complaint.household.segment,
+        )
 
-    return render(request, "facilitator/complaint_detail.html", {"complaint": complaint, "form": form})
+    messages.success(request, "Reply sent. The owner has been notified.")
+    return redirect("complaint_thread", pk=pk)
+
+
+@facilitator_required
+@require_POST
+def complaint_status(request, pk):
+    """Move a thread between Pending / In Progress / Resolved / Rejected."""
+    complaint = get_object_or_404(Complaint, pk=pk)
+    form = ComplaintStatusForm(request.POST, instance=complaint)
+    if form.is_valid():
+        form.save()
+        messages.success(request, f"Marked as {complaint.get_status_display()}.")
+    return redirect("complaint_thread", pk=pk)
 
 
 @facilitator_required
@@ -823,22 +883,79 @@ def owner_notifications(request, household):
 
 
 @owner_required
-def owner_complaints(request, household):
-    form = ComplaintForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        complaint = form.save(commit=False)
-        complaint.household = household
-        complaint.save()
-        messages.success(
-            request,
-            f"Complaint {complaint.reference} submitted. You can track its status on this page.",
+def owner_complaints(request, household, pk=None):
+    """
+    The owner's side of the same conversations, plus the form to start one.
+
+    Threads are scoped to their own household by the queryset, so a guessed
+    id from another household is a 404 rather than someone else's messages.
+    """
+    threads = (
+        household.complaints.annotate(
+            unread=Count(
+                "messages",
+                filter=Q(messages__from_owner=False, messages__read_by_owner=False),
+                distinct=True,
+            )
         )
-        return redirect("owner_complaints")
+        .order_by("-last_message_at")
+    )
+
+    complaint = None
+    if pk is not None:
+        complaint = get_object_or_404(threads, pk=pk)
+        complaint.messages.filter(from_owner=False, read_by_owner=False).update(
+            read_by_owner=True
+        )
+
+    form = ComplaintForm()
+    message_form = ComplaintMessageForm() if complaint else None
+
+    if request.method == "POST":
+        # Either a reply in the open thread, or a brand new complaint.
+        if complaint is not None and "body" in request.POST and "subject" not in request.POST:
+            message_form = ComplaintMessageForm(request.POST)
+            if message_form.is_valid():
+                message = message_form.save(commit=False)
+                message.complaint = complaint
+                message.author = request.user
+                message.from_owner = True
+                message.read_by_owner = True
+                message.save()
+                messages.success(request, "Message sent to the facilitator.")
+                return redirect("owner_complaint_thread", pk=complaint.pk)
+        else:
+            form = ComplaintForm(request.POST)
+            if form.is_valid():
+                with transaction.atomic():
+                    new = form.save(commit=False)
+                    new.household = household
+                    new.save()
+                    # The description is the opening message of the thread.
+                    ComplaintMessage.objects.create(
+                        complaint=new,
+                        author=request.user,
+                        from_owner=True,
+                        body=new.body,
+                        read_by_owner=True,
+                    )
+                messages.success(
+                    request,
+                    f"Complaint {new.reference} submitted. The facilitator has been notified.",
+                )
+                return redirect("owner_complaint_thread", pk=new.pk)
 
     return render(
         request,
         "owner/complaints.html",
-        {"form": form, "household": household, "complaints": household.complaints.all()},
+        {
+            "form": form,
+            "household": household,
+            "threads": threads,
+            "complaint": complaint,
+            "messages_list": complaint.messages.select_related("author") if complaint else None,
+            "message_form": message_form,
+        },
     )
 
 

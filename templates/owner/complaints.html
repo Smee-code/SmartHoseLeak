@@ -1,57 +1,109 @@
 {% extends "base.html" %}
 {% block title %}My complaints - {{ SITE_NAME }}{% endblock %}
-
 {% block content %}
-<div class="wrap-narrow">
+<div class="wrap">
   <div class="page-head">
     <div>
-      <h1>Complaints</h1>
-      <p class="sub">Report a water supply problem and track what happens to it.</p>
+      <h1>My complaints</h1>
+      <p class="sub">Report a problem with your water supply and follow the reply.</p>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-head"><h2>Submit a complaint</h2></div>
-    <form method="post" novalidate>
-      {% csrf_token %}
-      {% for field in form %}{% include "_form_field.html" %}{% endfor %}
-      <button type="submit" class="btn btn-primary btn-block">Submit complaint</button>
-    </form>
-    <p class="small muted" style="margin-top:.8rem">
-      You will get a reference number, and the facilitator&rsquo;s reply appears here and in your notices.
-    </p>
-  </div>
+  <div class="thread-shell {% if complaint %}thread-open{% endif %}">
 
-  <h2 style="margin-top:1.6rem">My submitted complaints</h2>
-  <div class="notice-list" style="margin-top:.6rem">
-    {% for complaint in complaints %}
-      <div class="notice">
-        <div class="notice-head">
-          <p class="notice-title">{{ complaint.subject }}</p>
-          <span class="pill {% if complaint.status == 'pending' %}pill-warn{% elif complaint.status == 'resolved' %}pill-ok{% elif complaint.status == 'in_progress' %}pill-info{% else %}pill-muted{% endif %}">
-            {{ complaint.get_status_display }}
+    <aside class="thread-list" aria-label="My complaints">
+      {% for t in threads %}
+        <a class="thread-item {% if complaint and t.pk == complaint.pk %}is-active{% endif %}"
+           href="{% url 'owner_complaint_thread' t.pk %}">
+          <span class="thread-avatar" aria-hidden="true">
+            {{ t.get_category_display|first|upper }}
           </span>
-        </div>
-        <p class="small muted" style="margin:.2rem 0 .4rem">
-          <span class="mono">{{ complaint.reference }}</span> &middot;
-          {{ complaint.get_category_display }} &middot;
-          {{ complaint.created_at|date:"M j, Y g:i A" }}
-        </p>
-        <p class="notice-body" style="white-space:pre-wrap">{{ complaint.body }}</p>
+          <span class="thread-item-body">
+            <span class="thread-item-top">
+              <strong>{{ t.subject }}</strong>
+              <time>{{ t.last_message_at|date:"M j" }}</time>
+            </span>
+            <span class="thread-item-sub">{{ t.reference }}</span>
+            <span class="thread-item-foot">
+              <span class="pill pill-sm pill-{{ t.status }}">{{ t.get_status_display }}</span>
+              {% if t.unread %}<span class="badge">{{ t.unread }}</span>{% endif %}
+            </span>
+          </span>
+        </a>
+      {% empty %}
+        <p class="empty">You have not filed any complaints.</p>
+      {% endfor %}
+    </aside>
 
-        {% if complaint.response %}
-          <div class="notice" data-kind="targeted" style="margin-top:.7rem">
-            <div class="notice-head">
-              <p class="notice-title">Facilitator reply</p>
-              <span class="notice-time">{{ complaint.responded_at|date:"M j, g:i A" }}</span>
-            </div>
-            <p class="notice-body" style="white-space:pre-wrap">{{ complaint.response }}</p>
+    <section class="thread-pane">
+      {% if not complaint %}
+        {% comment %}No thread open: the pane is the form for starting one.{% endcomment %}
+        <header class="thread-head">
+          <div class="thread-head-main">
+            <h2>Report a problem</h2>
+            <p class="sub">The facilitator is notified as soon as you send it.</p>
           </div>
-        {% endif %}
-      </div>
-    {% empty %}
-      <p class="empty">You have not submitted any complaints.</p>
-    {% endfor %}
+        </header>
+        <form method="post" style="padding:1rem">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="message message-error">{{ form.non_field_errors }}</div>
+          {% endif %}
+          {% include "_form_field.html" with field=form.category %}
+          {% include "_form_field.html" with field=form.subject %}
+          {% include "_form_field.html" with field=form.body %}
+          <button type="submit" class="btn btn-primary">Submit complaint</button>
+        </form>
+      {% else %}
+        <header class="thread-head">
+          <a class="btn btn-sm thread-back" href="{% url 'owner_complaints' %}">&larr; Back</a>
+          <div class="thread-head-main">
+            <h2>{{ complaint.subject }}</h2>
+            <p class="sub">
+              {{ complaint.reference }} &middot; {{ complaint.get_category_display }} &middot;
+              filed {{ complaint.created_at|date:"M j, Y" }}
+            </p>
+          </div>
+          <span class="pill pill-{{ complaint.status }}">{{ complaint.get_status_display }}</span>
+        </header>
+
+        <div class="thread-messages" id="thread-messages">
+          {% for m in messages_list %}
+            {% comment %}
+              Sides are flipped against the facilitator view: here the owner's
+              own messages are the ones on the right.
+            {% endcomment %}
+            <div class="bubble-row {% if m.from_owner %}from-me{% else %}from-them{% endif %}">
+              <div class="bubble">
+                <p>{{ m.body|linebreaksbr }}</p>
+                <time>
+                  {% if not m.from_owner %}Facilitator &middot; {% endif %}
+                  {{ m.created_at|date:"M j, g:i A" }}
+                </time>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+        <form method="post" class="thread-compose">
+          {% csrf_token %}
+          {{ message_form.body }}
+          <button type="submit" class="btn btn-primary">Send</button>
+        </form>
+        <p class="small muted thread-note">
+          <a href="{% url 'owner_complaints' %}">File a different complaint</a>
+        </p>
+      {% endif %}
+    </section>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var pane = document.getElementById('thread-messages');
+    if (pane) pane.scrollTop = pane.scrollHeight;
+  })();
+</script>
 {% endblock %}

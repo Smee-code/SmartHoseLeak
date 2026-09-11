@@ -461,6 +461,41 @@ before, or you will have a permanently offline line on the dashboard.
 
 
 ============================================================================
+12d. COMPLAINTS (CONVERSATIONS)
+============================================================================
+Dashboard -> Complaints is a message inbox, not a ticket table.
+
+  LEFT       every complaint as a conversation, newest activity at the top,
+             with the owner's name, the subject, its status, and a red
+             badge counting messages you have not read yet.
+  RIGHT      the conversation you clicked, oldest message first. Theirs on
+             the left, yours on the right.
+  BOTTOM     a box to write a reply. Sending also drops the message into
+             the owner's Notices, so they see it even if they do not open
+             the portal.
+
+  The Status dropdown at the top right of a conversation moves it between
+  Pending / In Progress / Resolved / Rejected. Changing status does NOT
+  send the owner a message - use the reply box for that.
+
+  Opening a conversation is what marks its messages as read, so the badge
+  clears by reading, not by replying.
+
+ONE CONVERSATION PER PROBLEM, NOT PER PERSON
+  If a household reports a leak in March and low pressure in June, those
+  are two conversations. That is deliberate: you can resolve the leak while
+  the pressure issue stays open, and the dashboard's "Pending complaints"
+  count stays meaningful. A household with two open problems appears twice
+  in the list.
+
+THE OWNER'S SIDE
+  Portal -> Complaints works the same way. With nothing selected, the right
+  pane is the form for reporting a new problem. Opening one of their own
+  conversations lets them reply to you. They can only ever see their own
+  household's threads.
+
+
+============================================================================
 13. KEY FACTS AND VALUES
 ============================================================================
   Project folder      D:\USB Drive\SmartHoseLeak
@@ -567,6 +602,11 @@ CHANGE LOG OF THIS GUIDE
              Lower Dakong Patag. Main valve placed at the centre of the
              municipality and given a permanent "Main valve" label plus a
              pulsing halo so it is easy to spot.
+
+11 Sep 2026  Added section 12d. Complaints are now threaded conversations
+             with a messenger-style inbox on both the facilitator and the
+             owner side, replacing the single-reply ticket screen. Existing
+             complaints were converted into threads automatically.
 
 11 Sep 2026  Confirmation messages ("... returned to live monitoring", and
              similar) now appear as toasts in the bottom-right corner

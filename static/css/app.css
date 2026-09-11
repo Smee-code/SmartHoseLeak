@@ -554,6 +554,116 @@ input[type=checkbox] { width: auto; margin-right: .4rem; }
 
 body.modal-open { overflow: hidden; }
 
+/* ---------- Complaint threads ----------
+   A list of conversations beside the open one. Below 900px only one pane is
+   shown at a time: the list, or the thread once one is opened. */
+
+.chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .3rem .7rem; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-muted); text-decoration: none; font-size: .84rem;
+}
+.chip:hover { background: var(--surface-2); color: var(--text); }
+.chip-on { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-strong); font-weight: 600; }
+.chip-count { font-size: .75rem; opacity: .8; }
+
+.thread-shell {
+  display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 1rem;
+  align-items: start;
+}
+
+.thread-list {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  overflow: hidden; max-height: 70vh; overflow-y: auto;
+}
+.thread-item {
+  display: flex; gap: .65rem; padding: .7rem .8rem;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none; color: var(--text);
+}
+.thread-item:last-child { border-bottom: 0; }
+.thread-item:hover { background: var(--surface-2); }
+.thread-item.is-active { background: var(--brand-soft); }
+.thread-avatar {
+  flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--brand); color: #fff;
+  display: grid; place-items: center; font-weight: 700; font-size: .9rem;
+}
+.thread-item-body { flex: 1 1 auto; min-width: 0; }
+.thread-item-top { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
+.thread-item-top strong { font-size: .92rem; }
+.thread-item-top time { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+.thread-item-sub {
+  display: block; font-size: .8rem; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.thread-item-foot { display: flex; align-items: center; gap: .4rem; margin-top: .25rem; }
+.pill-sm { font-size: .68rem; padding: .1rem .4rem; }
+
+.thread-pane {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; min-height: 60vh; min-width: 0;
+}
+.thread-empty {
+  margin: auto; text-align: center; color: var(--text-muted); padding: 2rem 1rem;
+}
+.thread-empty .ico { stroke: currentColor; margin-bottom: .5rem; }
+
+.thread-head {
+  display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  padding: .8rem 1rem; border-bottom: 1px solid var(--border);
+}
+.thread-head-main { flex: 1 1 auto; min-width: 0; }
+.thread-head h2 { margin: 0; font-size: 1.05rem; }
+.thread-head .sub { margin: .1rem 0 0; font-size: .82rem; color: var(--text-muted); }
+.thread-status { display: flex; gap: .4rem; align-items: center; }
+.thread-status select { width: auto; padding: .35rem .5rem; font-size: .85rem; }
+.thread-back { display: none; }
+
+.thread-context {
+  padding: .5rem 1rem; border-bottom: 1px solid var(--border);
+  background: var(--surface-2); font-size: .8rem; color: var(--text-muted);
+}
+
+.thread-messages {
+  flex: 1 1 auto; overflow-y: auto; max-height: 48vh;
+  padding: 1rem; display: flex; flex-direction: column; gap: .55rem;
+}
+.bubble-row { display: flex; }
+.bubble-row.from-them { justify-content: flex-start; }
+.bubble-row.from-me { justify-content: flex-end; }
+.bubble {
+  max-width: min(72%, 44rem);
+  padding: .55rem .75rem; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.from-me .bubble {
+  background: var(--brand); border-color: var(--brand); color: #fff;
+}
+.bubble p { margin: 0; font-size: .92rem; }
+.bubble time { display: block; margin-top: .2rem; font-size: .7rem; opacity: .75; }
+
+.thread-compose {
+  display: flex; gap: .5rem; align-items: flex-end;
+  padding: .75rem 1rem; border-top: 1px solid var(--border);
+}
+.thread-compose textarea { flex: 1 1 auto; resize: vertical; min-height: 44px; }
+.thread-note { padding: 0 1rem .75rem; margin: 0; }
+
+@media (max-width: 900px) {
+  .thread-shell { grid-template-columns: 1fr; }
+  /* One pane at a time: the list, or the thread once one is open. */
+  .thread-shell.thread-open .thread-list { display: none; }
+  .thread-shell:not(.thread-open) .thread-pane { display: none; }
+  .thread-back { display: inline-flex; }
+  .thread-list { max-height: none; }
+  .thread-messages { max-height: 55vh; }
+  .bubble { max-width: 85%; }
+}
+
 /* ---------- Toasts ----------
    Transient announcements (device online/offline). Fixed to the bottom-right
    on desktop, full width above the safe area on a phone. The container is

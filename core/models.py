@@ -497,6 +497,10 @@ class Complaint(models.Model):
         null=True, blank=True, related_name="complaint_responses",
     )
 
+    # Kept in step with the newest message so the inbox can be ordered by
+    # activity without a subquery per row.
+    last_message_at = models.DateTimeField(default=timezone.now, db_index=True)
+
     class Meta:
         ordering = ["-created_at"]
 
@@ -504,6 +508,60 @@ class Complaint(models.Model):
         if not self.reference:
             self.reference = f"CMP-{timezone.now():%y%m%d}-{secrets.token_hex(2).upper()}"
         super().save(*args, **kwargs)
+
+    @property
+    def awaiting_reply(self):
+        """True when the owner spoke last and nobody has answered."""
+        last = self.messages.order_by("-created_at").first()
+        return last is not None and last.from_owner
+
+    def unread_for_facilitator(self):
+        return self.messages.filter(from_owner=True, read_by_facilitator=False).count()
+
+    def unread_for_owner(self):
+        return self.messages.filter(from_owner=False, read_by_owner=False).count()
+
+
+class ComplaintMessage(models.Model):
+    """
+    One message in a complaint thread.
+
+    The complaint itself is the conversation: it keeps the subject, the
+    category and the status, so a household with two problems still has two
+    threads that can be resolved independently. Messages are the back and
+    forth inside one of them.
+
+    from_owner rather than comparing author to the household's user, because
+    an owner's login can be deleted or re-issued while their messages stay.
+    """
+
+    complaint = models.ForeignKey(Complaint, on_delete=models.CASCADE, related_name="messages")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="complaint_messages",
+    )
+    from_owner = models.BooleanField(
+        help_text="True if written by the household, False if by the facilitator."
+    )
+    body = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    # One flag per side rather than a timestamp per reader: a thread only
+    # ever has two parties, and this keeps the unread badges a simple count.
+    read_by_facilitator = models.BooleanField(default=False)
+    read_by_owner = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Touch the thread so the inbox can sort on it.
+        Complaint.objects.filter(pk=self.complaint_id).update(last_message_at=self.created_at)
+
+    def __str__(self):
+        who = "owner" if self.from_owner else "facilitator"
+        return f"{self.complaint.reference} - {who} at {self.created_at:%Y-%m-%d %H:%M}"
 
     def __str__(self):
         return f"{self.reference} - {self.subject}"

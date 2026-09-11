@@ -7,7 +7,14 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 
-from .models import Complaint, Household, Notification, Segment, WaterSource
+from .models import (
+    Complaint,
+    ComplaintMessage,
+    Household,
+    Notification,
+    Segment,
+    WaterSource,
+)
 
 
 def check_within_municipality(form, lat, lng):
@@ -148,8 +155,41 @@ class ComplaintForm(forms.ModelForm):
         }
 
 
+class ComplaintMessageForm(forms.ModelForm):
+    """One message added to a complaint thread, by either side."""
+
+    class Meta:
+        model = ComplaintMessage
+        fields = ["body"]
+        labels = {"body": ""}
+        widgets = {
+            "body": forms.Textarea(
+                attrs={"rows": 2, "placeholder": "Write a message...", "class": "thread-input"}
+            )
+        }
+
+    def clean_body(self):
+        body = (self.cleaned_data.get("body") or "").strip()
+        if not body:
+            raise forms.ValidationError("Write something before sending.")
+        return body
+
+
+class ComplaintStatusForm(forms.ModelForm):
+    """Facilitator changing where a complaint stands, without writing a reply."""
+
+    class Meta:
+        model = Complaint
+        fields = ["status"]
+
+
 class ComplaintResponseForm(forms.ModelForm):
-    """Facilitator reply to a complaint."""
+    """
+    Legacy single-reply form.
+
+    Superseded by ComplaintMessageForm now that complaints are threads; kept
+    only so older code paths and the Django admin keep working.
+    """
 
     class Meta:
         model = Complaint
