@@ -71,7 +71,9 @@
         </div>
       {% else %}
         <header class="thread-head">
-          <a class="btn btn-sm thread-back" href="{% url 'complaint_list' %}">&larr; Inbox</a>
+          <a class="thread-back" href="{% url 'complaint_list' %}" aria-label="Back to the inbox">
+            <span aria-hidden="true">&larr;</span>
+          </a>
           <div class="thread-head-main">
             <h2>{{ complaint.household.owner_name }}</h2>
             <p class="sub">

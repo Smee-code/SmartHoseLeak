@@ -629,15 +629,30 @@ body.modal-open { overflow: hidden; }
 .thread-empty .ico { stroke: currentColor; margin-bottom: .5rem; }
 
 .thread-head {
-  display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
   padding: .8rem 1rem; border-bottom: 1px solid var(--border);
 }
-.thread-head-main { flex: 1 1 auto; min-width: 0; }
+/* flex-basis keeps the title on the same line as the back arrow instead of
+   being wrapped onto its own row by a wide neighbour. */
+.thread-head-main { flex: 1 1 11rem; min-width: 0; }
 .thread-head h2 { margin: 0; font-size: 1.05rem; }
 .thread-head .sub { margin: .1rem 0 0; font-size: .82rem; color: var(--text-muted); }
 .thread-status { display: flex; gap: .4rem; align-items: center; }
 .thread-status select { width: auto; padding: .35rem .5rem; font-size: .85rem; }
-.thread-back { display: none; }
+
+/* Hidden on desktop, where the list is already beside the thread. On narrow
+   screens it is a compact circle sitting immediately left of the title, the
+   way a phone detail screen usually reads - not a wide button on its own
+   line above the heading. */
+.thread-back {
+  display: none;
+  flex: 0 0 auto; width: 32px; height: 32px;
+  align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 50%;
+  background: var(--surface); color: var(--text);
+  text-decoration: none; font-size: 1.05rem; line-height: 1;
+}
+.thread-back:hover { background: var(--surface-2); }
 
 .thread-context {
   padding: .5rem 1rem; border-bottom: 1px solid var(--border);

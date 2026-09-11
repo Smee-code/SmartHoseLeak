@@ -61,7 +61,9 @@
         </div>
       {% else %}
         <header class="thread-head">
-          <a class="btn btn-sm thread-back" href="{% url 'owner_complaints' %}">&larr; Back</a>
+          <a class="thread-back" href="{% url 'owner_complaints' %}" aria-label="Back to my complaints">
+            <span aria-hidden="true">&larr;</span>
+          </a>
           <div class="thread-head-main">
             <h2>{{ complaint.subject }}</h2>
             <p class="sub">
