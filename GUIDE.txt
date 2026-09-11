@@ -481,6 +481,12 @@ Dashboard -> Complaints is a message inbox, not a ticket table.
   Opening a conversation is what marks its messages as read, so the badge
   clears by reading, not by replying.
 
+  The search box at the top of the list narrows it as you type, matching the
+  owner's name or the household ID. It searches within whichever status chip
+  is selected, so pick "All" first if you cannot find someone. Press Escape
+  to clear it. The list scrolls on its own once there are more conversations
+  than fit, and the search box stays pinned at the top while it does.
+
 ONE CONVERSATION PER PROBLEM, NOT PER PERSON
   If a household reports a leak in March and low pressure in June, those
   are two conversations. That is deliberate: you can resolve the leak while

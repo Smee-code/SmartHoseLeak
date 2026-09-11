@@ -491,6 +491,41 @@
   var autoOpen = $('[data-modal-autoopen]');
   if (autoOpen) openModal(autoOpen);
 
+  /* ------------------------------------------------- conversation search */
+
+  // Filters the rows already rendered rather than asking the server, so it
+  // narrows within whatever status filter is active and responds on every
+  // keystroke. Fine at this scale; if the list ever outgrows one page this
+  // has to move server-side, because it can only match what was sent.
+
+  var threadSearch = $('[data-thread-search]');
+  if (threadSearch) {
+    var searchable = $$('.thread-item[data-search]');
+    var noMatch = $('[data-search-empty]');
+
+    var runSearch = function () {
+      var term = threadSearch.value.trim().toLowerCase();
+      var shown = 0;
+
+      searchable.forEach(function (item) {
+        var hit = !term || item.getAttribute('data-search').indexOf(term) !== -1;
+        item.hidden = !hit;
+        if (hit) shown += 1;
+      });
+
+      if (noMatch) noMatch.hidden = !(term && shown === 0);
+    };
+
+    threadSearch.addEventListener('input', runSearch);
+    threadSearch.addEventListener('search', runSearch);   // the native clear (x)
+    threadSearch.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        threadSearch.value = '';
+        runSearch();
+      }
+    });
+  }
+
   /* --------------------------------------------------------------- toasts */
 
   var toastBox = null;

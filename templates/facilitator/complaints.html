@@ -29,9 +29,21 @@
   <div class="thread-shell {% if complaint %}thread-open{% endif %}">
 
     <aside class="thread-list" aria-label="Conversations">
+      {% comment %}
+        Filters the list already on screen, so it narrows within whatever
+        status chip is selected rather than fighting it.
+      {% endcomment %}
+      <div class="thread-search">
+        <label class="sr-only" for="thread-search">Search conversations</label>
+        <input type="search" id="thread-search" autocomplete="off"
+               placeholder="Search owner or household ID"
+               data-thread-search>
+      </div>
+
       {% for t in threads %}
         <a class="thread-item {% if complaint and t.pk == complaint.pk %}is-active{% endif %}"
-           href="{% url 'complaint_thread' t.pk %}">
+           href="{% url 'complaint_thread' t.pk %}"
+           data-search="{{ t.household.owner_name|lower }} {{ t.household.household_id|lower }}">
           <span class="thread-avatar" aria-hidden="true">{{ t.household.owner_name|first|upper }}</span>
           <span class="thread-item-body">
             <span class="thread-item-top">
@@ -48,6 +60,7 @@
       {% empty %}
         <p class="empty">No complaints yet.</p>
       {% endfor %}
+      <p class="empty" data-search-empty hidden>No conversation matches that.</p>
     </aside>
 
     <section class="thread-pane">
