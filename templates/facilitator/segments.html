@@ -7,13 +7,53 @@
       <h1>Supply lines and distance markers</h1>
       <p class="sub">Each line is one sensor module on the ESP32. The markers decide the reported leak location.</p>
     </div>
+    <div class="btn-row">
+      <a class="btn btn-primary btn-sm" href="#" data-modal-open="line-modal">Add hose line</a>
+    </div>
+  </div>
+
+  {% comment %}
+    The water source anchors every distance marker, so it belongs on the same
+    page as the lines rather than buried in a settings screen.
+  {% endcomment %}
+  <div class="card" style="margin-bottom:1.2rem">
+    <div class="card-head">
+      <h2>Water source (start of the main line)</h2>
+      {% if source.has_location %}
+        <span class="pill pill-ok">On the map</span>
+      {% else %}
+        <span class="pill pill-muted">Location not set</span>
+      {% endif %}
+    </div>
+    <p class="muted small" style="margin-top:-.35rem">
+      Every distance marker below is measured from this point &mdash; it is the
+      0&nbsp;m mark. Setting its coordinates puts it on the leak map.
+    </p>
+
+    <form method="post">
+      {% csrf_token %}
+      {# Tells the view this POST is the source form, not the add-line one. #}
+      <input type="hidden" name="form_kind" value="source">
+      {% if source_form.non_field_errors %}
+        <div class="message message-error">{{ source_form.non_field_errors }}</div>
+      {% endif %}
+      {% include "_form_field.html" with field=source_form.name %}
+      <div class="field-pair">
+        {% include "_form_field.html" with field=source_form.latitude %}
+        {% include "_form_field.html" with field=source_form.longitude %}
+      </div>
+      {% include "_form_field.html" with field=source_form.notes %}
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary btn-sm">Save water source</button>
+      </div>
+    </form>
   </div>
 
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>Module</th><th>Name</th><th class="num">Start marker</th><th class="num">End marker</th>
+          <th>Module</th><th>Colour</th><th>Name</th><th class="num">Start marker</th><th class="num">End marker</th>
           <th class="num">Length</th><th class="num">Households</th><th>Status</th><th>Map coords</th><th></th>
         </tr>
       </thead>
@@ -21,6 +61,10 @@
         {% for segment in segments %}
           <tr>
             <td><strong>M{{ segment.module_index }}</strong></td>
+            <td>
+              <span class="swatch" style="background:{{ segment.color }}" aria-hidden="true"></span>
+              <span class="small muted">{{ segment.get_color_display }}</span>
+            </td>
             <td>{{ segment.name }}</td>
             <td class="num">{{ segment.start_m|floatformat:"-1" }} m</td>
             <td class="num">{{ segment.end_m|floatformat:"-1" }} m</td>
@@ -35,8 +79,26 @@
               {% endif %}
             </td>
             <td class="right">
+              {% comment %}
+                One shared edit dialog and one shared delete dialog are filled
+                from these attributes, rather than a pair rendered per row.
+                The Edit href still works if JavaScript does not load.
+              {% endcomment %}
               <div class="btn-row" style="justify-content:flex-end">
-                <a class="btn btn-sm" href="{% url 'segment_edit' segment.pk %}">Edit</a>
+                <a class="btn btn-sm" href="{% url 'segment_edit' segment.pk %}"
+                   data-edit-segment
+                   data-action="{% url 'segment_edit' segment.pk %}"
+                   data-module="M{{ segment.module_index }}"
+                   data-name="{{ segment.name }}"
+                   data-color="{{ segment.color }}"
+                   data-start="{{ segment.start_m|stringformat:'g' }}"
+                   data-end="{{ segment.end_m|stringformat:'g' }}"
+                   data-startlat="{{ segment.start_lat|default_if_none:'' }}"
+                   data-startlng="{{ segment.start_lng|default_if_none:'' }}"
+                   data-endlat="{{ segment.end_lat|default_if_none:'' }}"
+                   data-endlng="{{ segment.end_lng|default_if_none:'' }}"
+                   data-note="{{ segment.maintenance_note }}"
+                   data-active="{{ segment.is_active|yesno:'1,0' }}">Edit</a>
                 <form method="post" action="{% url 'segment_maintenance' segment.pk %}">
                   {% csrf_token %}
                   <input type="hidden" name="next" value="{% url 'segment_list' %}">
@@ -44,6 +106,14 @@
                     {% if segment.status == 'MAINTENANCE' %}End maintenance{% else %}Maintenance{% endif %}
                   </button>
                 </form>
+                <button type="button" class="btn btn-sm btn-danger"
+                        data-delete-segment
+                        data-action="{% url 'segment_delete' segment.pk %}"
+                        data-module="M{{ segment.module_index }}"
+                        data-name="{{ segment.name }}"
+                        data-rollups="{{ segment.rollup_count }}"
+                        data-events="{{ segment.event_count }}"
+                        data-households="{{ segment.household_count }}">Delete</button>
               </div>
             </td>
           </tr>
@@ -84,6 +154,173 @@
       The device API key is shown in the Django admin under Devices. Paste it into
       <span class="mono">DEVICE_API_KEY</span> in the ESP32 sketch.
     </p>
+  </div>
+</div>
+
+{% comment %}
+  Add-line dialog. The module number is assigned by the server, so it is shown
+  rather than asked for - it has to match the module the firmware reports.
+{% endcomment %}
+<div class="modal-backdrop" id="line-modal" hidden
+     {% if create_form_errors %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="line-modal-title">
+    <form method="post" action="{% url 'segment_create' %}">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="line-modal-title">Add hose line</h2>
+          <p class="sub">One line per sensor module on the ESP32.</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        {% if create_form.non_field_errors %}
+          <div class="message message-error">{{ create_form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="field">
+          <label>Module</label>
+          <p class="assigned-id mono">M{{ next_module_index }}</p>
+          <span class="helptext">
+            Assigned automatically. The ESP32 must report a module
+            {{ next_module_index }} for this line to receive readings.
+          </span>
+        </div>
+
+        {% include "_form_field.html" with field=create_form.name %}
+
+        <div class="field">
+          <label>Map colour</label>
+          <div class="swatch-row">
+            {% for choice in create_form.color %}
+              <label class="swatch-option">
+                {{ choice.tag }}
+                <span class="swatch swatch-lg" style="background:{{ choice.data.value }}"></span>
+                <span class="swatch-name">{{ choice.choice_label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          <span class="helptext">Used for this line and its households on the leak map.</span>
+          {{ create_form.color.errors }}
+        </div>
+
+        <div class="field-pair">
+          {% include "_form_field.html" with field=create_form.start_m %}
+          {% include "_form_field.html" with field=create_form.end_m %}
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Add line</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% comment %}Shared edit dialog, filled from the clicked row.{% endcomment %}
+<div class="modal-backdrop" id="line-edit-modal" hidden
+     {% if edit_form_errors %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="line-edit-title">
+    <form method="post" id="line-edit-form"
+          action="{% if edit_segment %}{% url 'segment_edit' edit_segment.pk %}{% endif %}">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="line-edit-title">Edit hose line</h2>
+          <p class="sub" data-edit-subtitle>
+            {% if edit_segment %}M{{ edit_segment.module_index }}{% endif %}
+          </p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        {% if edit_form.non_field_errors %}
+          <div class="message message-error">{{ edit_form.non_field_errors }}</div>
+        {% endif %}
+
+        {% include "_form_field.html" with field=edit_form.name %}
+
+        <div class="field">
+          <label>Map colour</label>
+          <div class="swatch-row">
+            {% for choice in edit_form.color %}
+              <label class="swatch-option">
+                {{ choice.tag }}
+                <span class="swatch swatch-lg" style="background:{{ choice.data.value }}"></span>
+                <span class="swatch-name">{{ choice.choice_label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          {{ edit_form.color.errors }}
+        </div>
+
+        <div class="field-pair">
+          {% include "_form_field.html" with field=edit_form.start_m %}
+          {% include "_form_field.html" with field=edit_form.end_m %}
+        </div>
+
+        <div class="field-pair">
+          {% include "_form_field.html" with field=edit_form.start_lat %}
+          {% include "_form_field.html" with field=edit_form.start_lng %}
+        </div>
+        <div class="field-pair">
+          {% include "_form_field.html" with field=edit_form.end_lat %}
+          {% include "_form_field.html" with field=edit_form.end_lng %}
+        </div>
+
+        {% include "_form_field.html" with field=edit_form.maintenance_note %}
+        {% include "_form_field.html" with field=edit_form.is_active %}
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% comment %}
+  Shared delete confirmation. A line owns its readings, so removing one throws
+  away that line's entire pressure history - the dialog says so in numbers.
+{% endcomment %}
+<div class="modal-backdrop" id="line-delete-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="line-delete-title"
+       style="max-width:480px">
+    <form method="post" id="line-delete-form" action="">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="line-delete-title">Delete hose line?</h2>
+          <p class="sub" data-delete-subtitle></p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p>This cannot be undone. Deleting <strong data-delete-name></strong> permanently removes:</p>
+        <ul class="delete-list" data-delete-list></ul>
+        <p class="small" data-delete-households></p>
+        <p class="small muted">
+          If the sensor is only being repaired, use <strong>Maintenance</strong> instead &mdash;
+          that silences its alerts and keeps every reading.
+        </p>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-danger">Delete line</button>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}

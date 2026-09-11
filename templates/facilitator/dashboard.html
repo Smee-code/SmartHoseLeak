@@ -35,7 +35,7 @@
       <div class="stat-label">Pending complaints</div>
     </div>
     <div class="stat">
-      <div class="stat-value">
+      <div class="stat-value" data-device-status>
         {% for device in devices %}{% if device.is_online %}Online{% else %}Offline{% endif %}{% empty %}&mdash;{% endfor %}
       </div>
       <div class="stat-label">
@@ -46,6 +46,40 @@
       </div>
     </div>
   </section>
+
+  {% comment %}
+    Shown only while nothing has reported in. The address is echoed back from
+    the request rather than derived from the machine's interfaces: whatever
+    host reached this page demonstrably works on this network.
+  {% endcomment %}
+  {% if not devices.0.last_seen %}
+    <section class="card setup-hint" style="margin-top:1.2rem">
+      <div class="card-head"><h2>Device setup</h2></div>
+      <p class="muted small" style="margin-bottom:.6rem">
+        No readings have arrived yet. On the ESP32's settings page
+        (<span class="mono">/wifi</span>), set the <b>Server address</b> to:
+      </p>
+
+      {% if ingest_url_is_loopback %}
+        <p class="pill pill-warn" style="display:inline-flex">Not usable by the device</p>
+        <p class="small" style="margin-top:.5rem">
+          You opened this dashboard as <span class="mono">{{ ingest_url }}</span>.
+          That address means <em>this computer only</em>, so the ESP32 can never reach it.
+          Start the server with
+          <span class="mono">python manage.py runserver 0.0.0.0:8000</span>, then reopen this
+          page using the computer's network address &mdash; run <span class="mono">ipconfig</span>
+          and use the IPv4 Address that has a Default Gateway listed. This panel will then show
+          the line to copy.
+        </p>
+      {% else %}
+        <p class="mono ingest-url">{{ ingest_url }}</p>
+        <p class="small muted">
+          Copy it exactly, including the trailing slash. The device saves it in its own memory,
+          so this only needs doing again if this computer's address changes.
+        </p>
+      {% endif %}
+    </section>
+  {% endif %}
 
   <h2 style="margin-top:1.6rem">Live supply lines</h2>
   <p class="muted small">Updates automatically. Pressure is shown in bar, with the PSI equivalent below it.</p>
@@ -108,10 +142,18 @@
       <div id="map-schematic"></div>
       <p class="map-note" id="map-note"></p>
       <div class="legend">
+        <span class="legend-head">Status (ring):</span>
         <span><i style="background:#17794c"></i>Normal</span>
         <span><i style="background:#a8620b"></i>Low supply / maintenance</span>
         <span><i style="background:#b3261e"></i>Possible leak</span>
         <span><i style="background:#6b7785"></i>Offline</span>
+      </div>
+      <div class="legend">
+        <span class="legend-head">Supply line (fill):</span>
+        {% for segment in segments %}
+          <span><i style="background:{{ segment.color }};border-radius:50%"></i>M{{ segment.module_index }}</span>
+        {% endfor %}
+        <span><i style="background:#7e22ce;border-radius:2px"></i>Main valve</span>
       </div>
     </div>
 
@@ -205,10 +247,17 @@
 
 {% block scripts %}
 {{ map_segments|json_script:"segments-data" }}
+{{ map_households|json_script:"households-data" }}
+{{ map_source|json_script:"source-data" }}
 <script>
   window.SHL_SEGMENTS = JSON.parse(document.getElementById('segments-data').textContent);
+  window.SHL_HOUSEHOLDS = JSON.parse(document.getElementById('households-data').textContent);
+  window.SHL_SOURCE = JSON.parse(document.getElementById('source-data').textContent);
+  // Official municipal outline (NAMRIA / PSA via geoBoundaries), served
+  // locally so the map still frames the right place without the CDN.
+  window.SHL_BOUNDARY_URL = "{% static 'data/sison.geojson' %}";
 </script>
-<script src="{% static 'js/map.js' %}"></script>
-<script src="{% static 'js/chart.js' %}"></script>
+<script src="{% static 'js/map.js' %}?v={{ ASSET_VERSION }}"></script>
+<script src="{% static 'js/chart.js' %}?v={{ ASSET_VERSION }}"></script>
 <script>SHL.startPolling();</script>
 {% endblock %}

@@ -85,7 +85,7 @@
 
 {% block scripts %}
 {% if segment %}
-  <script src="{% static 'js/chart.js' %}"></script>
+  <script src="{% static 'js/chart.js' %}?v={{ ASSET_VERSION }}"></script>
   <script>SHL.startPolling();</script>
 {% endif %}
 {% endblock %}

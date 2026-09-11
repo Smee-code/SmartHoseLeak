@@ -107,6 +107,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{% static 'js/chart.js' %}"></script>
+<script src="{% static 'js/chart.js' %}?v={{ ASSET_VERSION }}"></script>
 <script>SHL.startPolling();</script>
 {% endblock %}

@@ -56,6 +56,64 @@
     });
   }
 
+  /* ------------------------------------------------------- side navigation */
+
+  /* Below the drawer breakpoint the sidebar is off-canvas and needs a toggle.
+     Above it the sidebar is always visible and none of this runs, so the
+     drawer state is cleared whenever the viewport grows past the breakpoint. */
+
+  var sidenav = $('#sidenav');
+  var navToggle = $('#nav-toggle');
+  var navScrim = $('#sidenav-scrim');
+  var navClose = $('#sidenav-close');
+  var drawerQuery = window.matchMedia('(max-width: 1024px)');
+
+  function setNav(open) {
+    if (!sidenav) return;
+    sidenav.classList.toggle('is-open', open);
+    if (navScrim) navScrim.hidden = !open;
+    if (navToggle) navToggle.setAttribute('aria-expanded', String(open));
+    document.body.classList.toggle('nav-open', open);
+  }
+
+  if (sidenav && navToggle) {
+    navToggle.addEventListener('click', function () {
+      var opening = !sidenav.classList.contains('is-open');
+      setNav(opening);
+      if (opening) {
+        var first = $('a', sidenav);
+        if (first) first.focus();
+      }
+    });
+
+    if (navClose) {
+      navClose.addEventListener('click', function () {
+        setNav(false);
+        navToggle.focus();
+      });
+    }
+    if (navScrim) navScrim.addEventListener('click', function () { setNav(false); });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && sidenav.classList.contains('is-open')) {
+        setNav(false);
+        navToggle.focus();
+      }
+    });
+
+    // Following a link in the drawer should not leave it open behind the
+    // next page in browsers that restore scroll/DOM state on back.
+    $$('a', sidenav).forEach(function (link) {
+      link.addEventListener('click', function () { setNav(false); });
+    });
+
+    // Rotating a tablet to landscape can cross the breakpoint while the
+    // drawer is open; drop the drawer state so the sticky sidebar returns.
+    var onBreakpoint = function (event) { if (!event.matches) setNav(false); };
+    if (drawerQuery.addEventListener) drawerQuery.addEventListener('change', onBreakpoint);
+    else if (drawerQuery.addListener) drawerQuery.addListener(onBreakpoint);
+  }
+
   /* ------------------------------------------------------------- user menu */
 
   var menuBtn = $('#usermenu-btn');
@@ -192,6 +250,311 @@
 
   /* ------------------------------------------------------------ live poll */
 
+  /* ---------------------------------------------------------------- modal */
+
+  // Progressive enhancement: [data-modal-open="id"] is an ordinary link to the
+  // standalone form page. With JS it opens the inline modal instead, so the
+  // page still works if this script fails to load.
+
+  var openModalEl = null;
+  var lastFocused = null;
+
+  function focusables(root) {
+    return $$('a[href], button:not([disabled]), input:not([type=hidden]), select, textarea, [tabindex]:not([tabindex="-1"])', root)
+      .filter(function (el) { return el.offsetParent !== null; });
+  }
+
+  function closeModal() {
+    if (!openModalEl) return;
+    openModalEl.hidden = true;
+    document.body.classList.remove('modal-open');
+    if (lastFocused && lastFocused.focus) lastFocused.focus();
+    openModalEl = null;
+    lastFocused = null;
+  }
+
+  function openModal(el) {
+    if (!el) return;
+    lastFocused = document.activeElement;
+    el.hidden = false;
+    openModalEl = el;
+    document.body.classList.add('modal-open');
+    var first = focusables(el)[0];
+    if (first) first.focus();
+  }
+
+  SHL.openModal = openModal;
+  SHL.closeModal = closeModal;
+
+  $$('[data-modal-open]').forEach(function (trigger) {
+    trigger.addEventListener('click', function (event) {
+      var target = document.getElementById(trigger.getAttribute('data-modal-open'));
+      if (!target) return;           // no modal on this page: follow the link
+      event.preventDefault();
+      openModal(target);
+    });
+  });
+
+  $$('[data-modal-close]').forEach(function (btn) {
+    btn.addEventListener('click', function (event) {
+      event.preventDefault();
+      closeModal();
+    });
+  });
+
+  $$('.modal-backdrop').forEach(function (backdrop) {
+    backdrop.addEventListener('mousedown', function (event) {
+      // Only a click on the backdrop itself, not one that started inside the
+      // dialog and drifted out while selecting text.
+      if (event.target === backdrop) closeModal();
+    });
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (!openModalEl) return;
+    if (event.key === 'Escape') {
+      closeModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+
+    // Keep focus inside the dialog while it is open.
+    var items = focusables(openModalEl);
+    if (!items.length) return;
+    var first = items[0];
+    var last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  /* ------------------------------------------- row-driven household dialogs */
+
+  // One edit dialog and one delete dialog are shared by every row and filled
+  // from the clicked row's data attributes. Rendering a pair per row would
+  // otherwise put fifty forms in a twenty-five row page.
+
+  function setValue(id, value) {
+    var field = document.getElementById(id);
+    if (field) field.value = value === undefined || value === null ? '' : value;
+  }
+
+  $$('[data-edit-household]').forEach(function (trigger) {
+    trigger.addEventListener('click', function (event) {
+      var modal = $('#household-edit-modal');
+      var form = $('#household-edit-form');
+      if (!modal || !form) return;          // no dialog here: follow the link
+      event.preventDefault();
+
+      form.setAttribute('action', trigger.getAttribute('data-action'));
+      setValue('edit_owner_name', trigger.getAttribute('data-owner'));
+      setValue('edit_address', trigger.getAttribute('data-address'));
+      setValue('edit_contact_number', trigger.getAttribute('data-contact'));
+      setValue('edit_segment', trigger.getAttribute('data-segment'));
+      setValue('edit_account_status', trigger.getAttribute('data-status'));
+      setValue('edit_latitude', trigger.getAttribute('data-lat'));
+      setValue('edit_longitude', trigger.getAttribute('data-lng'));
+      setValue('edit_notes', trigger.getAttribute('data-notes'));
+
+      var subtitle = $('[data-edit-subtitle]', modal);
+      if (subtitle) subtitle.textContent = trigger.getAttribute('data-hid');
+
+      openModal(modal);
+    });
+  });
+
+  $$('[data-delete-household]').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      var modal = $('#household-delete-modal');
+      var form = $('#household-delete-form');
+      if (!modal || !form) return;
+      form.setAttribute('action', trigger.getAttribute('data-action'));
+
+      var hid = trigger.getAttribute('data-hid');
+      var owner = trigger.getAttribute('data-owner');
+      var subtitle = $('[data-delete-subtitle]', modal);
+      if (subtitle) subtitle.textContent = hid + ' · ' + owner;
+      var name = $('[data-delete-name]', modal);
+      if (name) name.textContent = hid + ' (' + owner + ')';
+
+      // Spell out what goes with it. Counts come from the row so the dialog
+      // never claims records that are not there.
+      var list = $('[data-delete-list]', modal);
+      if (list) {
+        var items = [];
+        var complaints = Number(trigger.getAttribute('data-complaints') || 0);
+        var notices = Number(trigger.getAttribute('data-notices') || 0);
+        var login = trigger.getAttribute('data-login');
+        items.push(complaints + (complaints === 1 ? ' complaint' : ' complaints'));
+        items.push(notices + (notices === 1 ? ' notice' : ' notices'));
+        if (login) items.push('the Owner Portal login “' + login + '”');
+        list.innerHTML = '';
+        items.forEach(function (text) {
+          var li = document.createElement('li');
+          li.textContent = text;
+          list.appendChild(li);
+        });
+      }
+
+      openModal(modal);
+    });
+  });
+
+  /* ----------------------------------------------- row-driven line dialogs */
+
+  function setChecked(root, name, value) {
+    var radio = root.querySelector('input[name="' + name + '"][value="' + value + '"]');
+    if (radio) radio.checked = true;
+  }
+
+  $$('[data-edit-segment]').forEach(function (trigger) {
+    trigger.addEventListener('click', function (event) {
+      var modal = $('#line-edit-modal');
+      var form = $('#line-edit-form');
+      if (!modal || !form) return;           // no dialog here: follow the link
+      event.preventDefault();
+
+      form.setAttribute('action', trigger.getAttribute('data-action'));
+      setValue('edit_name', trigger.getAttribute('data-name'));
+      setValue('edit_start_m', trigger.getAttribute('data-start'));
+      setValue('edit_end_m', trigger.getAttribute('data-end'));
+      setValue('edit_start_lat', trigger.getAttribute('data-startlat'));
+      setValue('edit_start_lng', trigger.getAttribute('data-startlng'));
+      setValue('edit_end_lat', trigger.getAttribute('data-endlat'));
+      setValue('edit_end_lng', trigger.getAttribute('data-endlng'));
+      setValue('edit_maintenance_note', trigger.getAttribute('data-note'));
+
+      // Colour is a radio group and is_active a checkbox, so neither takes a
+      // plain .value assignment.
+      setChecked(modal, 'color', trigger.getAttribute('data-color'));
+      var active = document.getElementById('edit_is_active');
+      if (active) active.checked = trigger.getAttribute('data-active') === '1';
+
+      var subtitle = $('[data-edit-subtitle]', modal);
+      if (subtitle) subtitle.textContent = trigger.getAttribute('data-module');
+
+      openModal(modal);
+    });
+  });
+
+  $$('[data-delete-segment]').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      var modal = $('#line-delete-modal');
+      var form = $('#line-delete-form');
+      if (!modal || !form) return;
+      form.setAttribute('action', trigger.getAttribute('data-action'));
+
+      var module = trigger.getAttribute('data-module');
+      var name = trigger.getAttribute('data-name');
+      var subtitle = $('[data-delete-subtitle]', modal);
+      if (subtitle) subtitle.textContent = module + ' · ' + name;
+      var target = $('[data-delete-name]', modal);
+      if (target) target.textContent = module + ' — ' + name;
+
+      var rollups = Number(trigger.getAttribute('data-rollups') || 0);
+      var events = Number(trigger.getAttribute('data-events') || 0);
+      var list = $('[data-delete-list]', modal);
+      if (list) {
+        list.innerHTML = '';
+        [rollups + (rollups === 1 ? ' minute of pressure history' : ' minutes of pressure history'),
+         events + (events === 1 ? ' leak event' : ' leak events')]
+          .forEach(function (text) {
+            var li = document.createElement('li');
+            li.textContent = text;
+            list.appendChild(li);
+          });
+      }
+
+      // Households survive the delete, so say what actually happens to them
+      // rather than leaving the facilitator to guess.
+      var households = Number(trigger.getAttribute('data-households') || 0);
+      var note = $('[data-delete-households]', modal);
+      if (note) {
+        note.textContent = households
+          ? households + (households === 1 ? ' household is' : ' households are') +
+            ' served by this line. They are kept, but become Unassigned and stop ' +
+            'receiving alerts until you move them to another line.'
+          : 'No households are assigned to this line.';
+      }
+
+      openModal(modal);
+    });
+  });
+
+  // Reopened by the server after a validation error, so the typed values and
+  // the messages stay in front of the user instead of on a separate page.
+  var autoOpen = $('[data-modal-autoopen]');
+  if (autoOpen) openModal(autoOpen);
+
+  /* --------------------------------------------------------------- toasts */
+
+  var toastBox = null;
+
+  function toastContainer() {
+    if (toastBox) return toastBox;
+    toastBox = document.createElement('div');
+    toastBox.className = 'toasts';
+    // polite: announced at the next pause rather than interrupting a screen
+    // reader mid-sentence. Device state is important, not urgent.
+    toastBox.setAttribute('aria-live', 'polite');
+    toastBox.setAttribute('role', 'status');
+    document.body.appendChild(toastBox);
+    return toastBox;
+  }
+
+  // SHL.toast({title, body, type: ok|warn|danger|info, timeout: ms})
+  // timeout 0 keeps it until dismissed.
+  SHL.toast = function (options) {
+    var opts = options || {};
+    var el = document.createElement('div');
+    el.className = 'toast toast-' + (opts.type || 'info');
+
+    var dot = document.createElement('span');
+    dot.className = 'toast-dot';
+    dot.setAttribute('aria-hidden', 'true');
+
+    var text = document.createElement('div');
+    text.className = 'toast-text';
+
+    var title = document.createElement('div');
+    title.className = 'toast-title';
+    title.textContent = opts.title || '';
+    text.appendChild(title);
+
+    if (opts.body) {
+      var body = document.createElement('div');
+      body.className = 'toast-body';
+      body.textContent = opts.body;
+      text.appendChild(body);
+    }
+
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'toast-close';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.innerHTML = '&times;';
+
+    var timer = null;
+    function dismiss() {
+      if (timer) clearTimeout(timer);
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }
+    close.addEventListener('click', dismiss);
+
+    el.appendChild(dot);
+    el.appendChild(text);
+    el.appendChild(close);
+    toastContainer().appendChild(el);
+
+    var ms = opts.timeout === undefined ? 8000 : opts.timeout;
+    if (ms > 0) timer = setTimeout(dismiss, ms);
+    return dismiss;
+  };
+
   var liveHandlers = [];
   SHL.onLive = function (handler) { liveHandlers.push(handler); };
 
@@ -223,6 +586,48 @@
         pollTimer = setTimeout(poll, delay);
       });
   }
+
+  /* ------------------------------------------------- device online/offline */
+
+  // null until the first payload: the very first reading establishes what
+  // "current" is, so opening a page on an already-offline device does not
+  // announce a transition that did not happen.
+  var deviceOnline = null;
+
+  SHL.onLive(function (data) {
+    var device = data.device;
+    if (!device) return;
+
+    var online = !!device.online;
+
+    // Update the dashboard's device badge in place, so it agrees with the
+    // toast instead of staying stale until the next reload.
+    $$('[data-device-status]').forEach(function (el) {
+      el.textContent = online ? 'Online' : 'Offline';
+    });
+
+    if (deviceOnline === null) {
+      deviceOnline = online;
+      return;
+    }
+    if (online === deviceOnline) return;
+    deviceOnline = online;
+
+    if (online) {
+      SHL.toast({
+        type: 'ok',
+        title: 'Device is online',
+        body: 'Readings are arriving from the ESP32 again.'
+      });
+    } else {
+      SHL.toast({
+        type: 'danger',
+        title: 'Device went offline',
+        body: 'No readings received recently. Check the board’s power and Wi-Fi.',
+        timeout: 12000
+      });
+    }
+  });
 
   SHL.startPolling = function () {
     if (pollTimer) return;

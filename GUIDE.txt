@@ -1,0 +1,589 @@
+============================================================================
+SMART HOSE LEAK DETECTION SYSTEM - OPERATOR GUIDE
+============================================================================
+Keep this open when you are setting up. Everything you need to run the
+system, connect the ESP32, and fix the things that usually go wrong.
+
+Last updated: 11 September 2026
+
+
+============================================================================
+0. THE 60-SECOND VERSION
+============================================================================
+1. Open a terminal in D:\USB Drive\SmartHoseLeak
+2. Run:   .venv\Scripts\activate
+3. Run:   python manage.py runserver 0.0.0.0:8000
+4. Read the two addresses it prints. Open the "On the network" one.
+5. Log in as  facilitator / facilitator123
+6. Power the ESP32. Within ~10 seconds the dashboard should say Online.
+
+If it says Offline, go to section 7.
+
+
+============================================================================
+1. HOW THE PIECES FIT TOGETHER
+============================================================================
+  ESP32  --(WiFi, every 2s)-->  Django server on your laptop  -->  Dashboard
+                                       (the database)              (browser)
+
+  - The ESP32 PUSHES readings. The server never asks for them.
+  - "Online" is not detected. It just means a reading arrived in the last
+    10 seconds. A powered board with the wrong server address looks exactly
+    the same as an unplugged board.
+  - The leak decision and the SMS happen ON THE BOARD. They keep working
+    even with the server off, the WiFi down, or no internet at all.
+  - The server owns history, households, complaints and notifications.
+
+Two things are both called "the dashboard". Do not mix them up:
+  - Django dashboard   http://<laptop-ip>:8000/dashboard/   (the real system)
+  - The ESP32's own page   http://<device-ip>/              (live values only)
+
+
+============================================================================
+2. STARTING THE SYSTEM
+============================================================================
+Open Command Prompt in the project folder, then:
+
+    .venv\Scripts\activate
+    python manage.py runserver 0.0.0.0:8000
+
+IMPORTANT: the "0.0.0.0:8000" part is not optional.
+Plain "python manage.py runserver" listens on this computer ONLY. The ESP32
+cannot reach it, your phone cannot reach it, and the dashboard will sit at
+Offline forever. The command warns you if you forget.
+
+It prints something like:
+
+    Addresses for this session
+      On this computer   http://127.0.0.1:8000/dashboard/
+      On the network     http://172.20.10.2:8000/dashboard/
+
+      ESP32 Server address (paste into the device's /wifi page):
+          http://172.20.10.2:8000/api/ingest/
+
+Use the "On the network" address in your browser. Copy the last line into
+the ESP32 when the network changes (section 5).
+
+Windows Firewall may ask for permission the first time. Click ALLOW.
+To stop the server: press Ctrl+C in that terminal window.
+
+
+============================================================================
+3. LOGINS
+============================================================================
+  Facilitator (full dashboard)      facilitator / facilitator123
+  Household owner (owner portal)    hh001 / demo12345
+
+  ESP32 settings page (/wifi)       admin / leakadmin
+  ESP32 setup hotspot               LeakDetect-Setup / leakdetect123
+
+Households hh002-hh006 have generated passwords that cannot be recovered.
+To give an owner a new one: log in as facilitator, open the household, and
+use the reset-password button on their record.
+
+CHANGE "leakadmin" AND "leakdetect123" BEFORE THE DEFENCE. They are the
+shipped defaults and are written in the firmware source.
+
+
+============================================================================
+4. CONNECTING THE ESP32 TO A NEW WIFI NETWORK
+============================================================================
+The WiFi name and password are NOT in the code. They live in the board's
+own memory, so this needs a phone, not a laptop.
+
+IF THE OLD NETWORK IS GONE (you moved location):
+  1. Just power the board on and wait about 2-3 minutes.
+     It tries the saved network, fails 5 times, and then raises its own
+     hotspot automatically.
+  2. On your phone, join the WiFi network:  LeakDetect-Setup
+     Password:  leakdetect123
+  3. A setup page should pop up by itself. If not, open a browser and go to
+     http://192.168.4.1/
+  4. Pick the new network from the list, type its password, press Save.
+  5. The board reboots and joins. THE HOTSPOT DISAPPEARING MEANS IT WORKED.
+
+IF THE BOARD IS STILL REACHABLE AND YOU WANT TO SWITCH NETWORKS:
+  Open http://<device-ip>/wifi , log in with admin / leakadmin, choose the
+  new network, Save. Or press "Forget saved network" to force setup mode.
+
+IF THE NETWORK LIST IS EMPTY:
+  Press "Rescan networks". If it is still empty, use the "Or type the
+  network name" box - typing the name always works and skips the scan.
+
+
+============================================================================
+5. TELLING THE ESP32 WHERE THE SERVER IS
+============================================================================
+This is separate from WiFi, and it is the #1 reason the dashboard stays
+Offline after moving to a new place.
+
+Your laptop's address CHANGES when it joins a different network. The board
+must be told the new one. This does NOT need a reflash any more.
+
+  1. Start the server (section 2) and read the "ESP32 Server address" line.
+     Or open the Django dashboard - if no readings have arrived it shows a
+     "Device setup" panel with the exact line to copy.
+  2. On your phone or laptop, open   http://<device-ip>/wifi
+     Log in with  admin / leakadmin
+  3. Put the address in the "Server address" box, e.g.
+         http://172.20.10.2:8000/api/ingest/
+  4. Leave the WiFi fields BLANK and press Save.
+     It saves without rebooting and the next upload uses it.
+
+Notes:
+  - It must start with http:// and end with /api/ingest/
+  - Never use 127.0.0.1 or localhost. On the ESP32 those mean the ESP32
+    itself. The page will refuse them.
+  - The board remembers this address after a power cut.
+
+
+============================================================================
+6. FINDING YOUR LAPTOP'S IP ADDRESS
+============================================================================
+Easiest: it is printed when you start the server (section 2).
+
+By hand:
+    ipconfig
+
+Look for the section "Wireless LAN adapter Wi-Fi:" and read its
+IPv4 Address.
+
+WATCH OUT: this laptop shows TWO addresses. The extra one (192.168.137.1)
+belongs to a dormant Windows hotspot adapter and DOES NOT WORK.
+The correct one is the one that has a "Default Gateway" listed under it.
+
+From a phone with no laptop access: install Fing (free) and scan the
+network - the laptop appears as LAPTOP-MAG82PTI with its IP. On an iPhone
+hotspot the phone is always 172.20.10.1 and the laptop is usually
+172.20.10.2.
+
+
+============================================================================
+7. WHEN THE DASHBOARD SAYS OFFLINE
+============================================================================
+Work down this list in order. Most of the time it is #1 or #2.
+
+1. IS THE SERVER LISTENING ON THE NETWORK?
+   Run:  netstat -ano | findstr :8000
+   You want:  0.0.0.0:8000        LISTENING
+   If it says 127.0.0.1:8000, stop the server and restart it with
+   "0.0.0.0:8000" (section 2).
+
+2. IS THE SERVER ADDRESS ON THE BOARD CORRECT?
+   Compare the address in section 2 against what the board has. Open
+   http://<device-ip>/status and look at "server_url".
+
+3. ARE THEY ON THE SAME WIFI?
+   The ESP32 and the laptop must be on the same network. A phone hotspot
+   counts, as long as both joined it.
+
+4. WHAT DOES THE SERIAL MONITOR SAY? (section 8)
+   [UPLOAD] OK                 -> working, problem is elsewhere
+   [UPLOAD] REJECTED 401       -> wrong API key
+   [UPLOAD] Failed: ...        -> cannot reach the laptop; check 1-3
+   [UPLOAD] Skipped - WiFi ... -> not on WiFi; see section 4
+
+5. FIREWALL
+   Windows Firewall may be blocking Python. Test from your PHONE: open
+   http://<laptop-ip>:8000/ - if the login page loads, the network path is
+   fine and the problem is on the board.
+
+
+============================================================================
+8. THE SERIAL MONITOR (Arduino IDE)
+============================================================================
+Plug the ESP32 into USB, then:
+    Tools -> Serial Monitor      (or Ctrl+Shift+M)
+    Set the baud rate to 115200  (bottom-right dropdown)
+    Set Tools -> Port to the ESP32's COM port
+
+Lines worth knowing:
+    [WIFI] Connected. Dashboard: http://192.168.1.42/   <- the board's IP
+    [WIFI] Scan result: 7 network(s)                    <- WiFi scan worked
+    [UPLOAD] OK                                         <- server receiving
+    [UPLOAD] REJECTED 401 ...                           <- wrong API key
+    [M1] P=2.41 bar | Q=4.20 L/min | K=0.320 | Status:  <- live readings
+
+
+============================================================================
+9. CALIBRATION AND TEST COMMANDS (typed into the Serial Monitor)
+============================================================================
+CALIBRATION - do this before trusting any leak alert.
+The leak test compares measured flow against Q = K x sqrt(P). Until a
+module is calibrated its K is 0 and leak detection is not meaningful.
+
+    C1        start calibrating module 1   (C2 / C3 for the others)
+    A         capture a point (vary the flow between captures)
+    F         finish and compute K
+
+SIMULATION - inject fake readings without water running:
+    S1,1.2,4.5    module 1: pretend 1.2 bar and 4.5 L/min
+    R1            module 1 back to the real sensor
+    R             all modules back to real sensors
+
+Simulated readings are flagged in the dashboard, so they cannot be mistaken
+for real data.
+
+
+============================================================================
+10. FLASHING THE FIRMWARE
+============================================================================
+Sketch to open in the Arduino IDE:
+    C:\Users\elisa roluna\Downloads\water_leak_detection_3modules_gsm_wifi\
+        water_leak_detection_3modules_gsm_wifi.ino
+
+  (The same file is kept in the repo under firmware\ . Keep the two in sync
+   or they will drift apart.)
+
+Board:  ESP32 Dev Module          Baud: 115200
+
+BEFORE UPLOADING:
+    Tools -> Erase All Flash Before Sketch Upload = DISABLED
+    If this is enabled, the upload wipes the saved WiFi credentials and
+    server address, and you have to redo section 4.
+
+Current size: about 83% of program storage, 15% of RAM. That is fine, but
+there is not a lot of headroom left for big new features.
+
+IF THE UPLOAD FAILS WITH "Failed to extract libcrypto-3.dll":
+    That is not a code error - the C: drive is full and esptool cannot
+    unpack itself. See section 12.
+
+
+============================================================================
+11. USEFUL COMMANDS
+============================================================================
+Run these from D:\USB Drive\SmartHoseLeak with the venv activated.
+
+    .venv\Scripts\activate                    turn the venv on
+    python manage.py runserver 0.0.0.0:8000   start the system
+    python manage.py migrate                  apply database changes
+    python manage.py createsuperuser          make an admin login
+    python manage.py setup_demo               rebuild demo data (SEE BELOW)
+    python manage.py mark_offline             log an offline event now
+    python manage.py prune_rollups            delete history over 90 days
+
+    ipconfig                                  find your IP
+    netstat -ano | findstr :8000              check what is listening
+
+WARNING about setup_demo: it regenerates the device API key. If you run it,
+the ESP32's key no longer matches and you must update the sketch and
+reflash. Do not run it casually.
+
+GIT (repo: https://github.com/Smee-code/SmartHoseLeak - private)
+    git status                    what has changed
+    git add -A
+    git commit -m "message"
+    git push                      send it to GitHub
+
+
+============================================================================
+12. OTHER PROBLEMS AND FIXES
+============================================================================
+"This site can't be reached" / ERR_CONNECTION_REFUSED
+    The server is not listening on the network. Section 7, step 1.
+
+Chrome forces https:// and the server log fills with "code 400, message Bad
+request version" garbage
+    Chrome is upgrading the address to HTTPS. The dev server only speaks
+    HTTP. Type the address WITH "http://" in front. If it still happens:
+    Chrome -> Settings -> Privacy and security -> Security ->
+    turn OFF "Always use secure connections". An Incognito window is a
+    quick test.
+
+The page looks broken - giant icons, no layout
+    The service worker served an old stylesheet. Press Ctrl+Shift+R.
+    If it persists: F12 -> Application -> Service Workers -> Unregister,
+    then reload. (The cache is now named after the file contents, so this
+    should not recur.)
+
+The C: drive is full / upload fails / compiler "out of memory"
+    Clear the temp folder: press Win+R, type %TEMP%, Enter, Ctrl+A, Delete.
+    Close the Arduino IDE first. Skip any file that is in use.
+    For more space: Disk Cleanup -> "Clean up system files" ->
+    Windows Update Cleanup.
+
+Dashboard shows leaks on lines with 0.00 L/min
+    The modules are not calibrated (K = 0). See section 9. Also check the
+    pressure sensor wiring if readings sit at their maximum.
+
+The device page shows the wrong upload result
+    http://<device-ip>/status shows server_url and server_upload, which is
+    the fastest way to see what the board is actually trying to do.
+
+
+============================================================================
+12b. HOUSEHOLDS, COORDINATES AND THE LEAK MAP
+============================================================================
+ADDING A HOUSEHOLD
+  Dashboard -> Households -> "Add household". It opens a dialog.
+  The Household ID is assigned automatically (HH-001, HH-002, ...) - you no
+  longer type it. The dialog shows which one it will get.
+
+EDITING A HOUSEHOLD
+  Dashboard -> Households -> "Edit" on the row. It opens a dialog with the
+  current details already filled in. The Household ID is fixed and is not
+  editable.
+
+DELETING A HOUSEHOLD
+  Dashboard -> Households -> "Delete" on the row. A confirmation dialog
+  lists exactly what goes with it before you commit:
+
+      - that household's complaints
+      - that household's notices
+      - the owner's Owner Portal login
+
+  All of it is permanent; there is no undo in the dashboard. Pressure
+  readings and leak events are NOT affected, because those are recorded
+  against the supply line rather than the household.
+
+  If you only want to stop an owner using the system, set their Account
+  status to Inactive with Edit instead of deleting them - that keeps the
+  record and its history.
+
+COORDINATES
+  Latitude and longitude are optional. Fill them in and the household
+  appears as a pin on the leak map. Leave BOTH blank if not yet surveyed -
+  one without the other is rejected.
+
+  Format: decimal degrees, e.g.  9.6620  and  125.5290
+  Sison is roughly latitude 9.61 to 9.70, longitude 125.44 to 125.54.
+
+  Anything outside the municipality is refused, because a mistyped digit
+  puts the household hundreds of kilometres away and on the map it just
+  looks like a pin in the sea rather than an obvious mistake.
+
+  To get a coordinate: stand at the house, open Google Maps on your phone,
+  long-press your location, and copy the two numbers it shows.
+
+THE WATER SOURCE (start of the main line)
+  Dashboard -> Lines -> the box at the top of the page.
+  This is the 0 m mark that every distance marker is measured from. Give it
+  a name ("Main valve", "Spring box"), its coordinates, and an optional note
+  like "beside the barangay hall". It then shows on the map as a blue
+  square. Same coordinate rules as households.
+
+THE LEAK MAP
+  It draws the real municipal boundary of Sison (dashed blue outline) from
+  the official NAMRIA / PSA data, so the map is always framed on the right
+  place even before anything has been surveyed.
+
+  - The main valve / water source is a PURPLE square with a pulsing ring and
+    a permanent "Main valve" label. Purple is used for nothing else, so it
+    is the easiest thing on the map to find.
+  - Households with coordinates appear as round pins that carry TWO pieces
+    of information at once:
+        the FILL colour says which supply line serves it
+            M1 = cyan, M2 = indigo, M3 = pink
+        the RING colour says what state that line is in
+            green = normal, amber = low supply / maintenance,
+            red = possible leak, grey = offline
+    So households on the same line always look alike, even when every line
+    happens to be in the same state.
+  - Each supply line is drawn as ONE branch leaving the main valve and
+    running through every household on that line, in its line colour:
+        [valve] --- M1 --o--o--o
+                \-- M2 --o--o
+                 \- M3 --o--o
+    Three branches, all starting at the valve. Households are strung along
+    their branch nearest-to-the-valve first, so adding a household or
+    changing a coordinate re-draws the run automatically - there is nothing
+    to maintain by hand.
+
+    The branch shows WHICH line serves each house, not the route the pipe
+    physically takes in the ground.
+  - Supply lines appear as thick coloured lines, but ONLY once you put
+    coordinates on them (Dashboard -> Lines -> Edit on that line).
+  - "Switch to offline schematic" draws the hose run as a diagram instead.
+    That view needs no internet and is the safe choice on a weak signal.
+
+  Map tiles come from the internet. With no connection the map goes blank
+  and the schematic is the one to use.
+
+
+============================================================================
+12c. ADDING A HOSE LINE
+============================================================================
+Dashboard -> Lines -> "Add hose line". It opens a dialog asking for:
+
+    Module      assigned automatically (M1, M2, M3, M4 ...). Shown, not typed.
+    Name        e.g. "Line 4 - Lower Patag to Riverside"
+    Map colour  pick one of eight swatches
+    Start / End markers, in metres from the main valve
+
+The colour is what the line and all its households are drawn in on the leak
+map, so each line stays identifiable even when every line is in the same
+state. You can change it later with Edit. The next unused colour is
+pre-selected so two new lines never come out looking alike.
+
+EDITING A LINE
+  "Edit" on the row opens a dialog with the current values filled in -
+  name, map colour, distance markers, optional coordinates, maintenance
+  note and whether the line is active.
+
+DELETING A LINE
+  "Delete" on the row asks for confirmation first and names exactly what
+  goes: that line's minutes of pressure history and its leak events. Both
+  are permanent.
+
+  Households on the line are NOT deleted. They become Unassigned and stop
+  receiving alerts until you move them to another line.
+
+  If a sensor is only being repaired, use Maintenance instead of Delete -
+  it silences that line's alerts and keeps every reading.
+
+IMPORTANT - ADDING A LINE DOES NOT ADD A SENSOR.
+A new line reads OFFLINE until the ESP32 actually reports readings for that
+module number. The firmware is currently built for THREE modules
+(NUM_MODULES 3 in the sketch). To make a fourth line live you would have to
+wire a fourth pressure + flow sensor pair and raise NUM_MODULES, which also
+means finding free pins - the ADC1 pins and interrupt-capable pins in
+section 13 are the constraint.
+
+So: add a line in the dashboard when you have added the hardware, not
+before, or you will have a permanently offline line on the dashboard.
+
+
+============================================================================
+13. KEY FACTS AND VALUES
+============================================================================
+  Project folder      D:\USB Drive\SmartHoseLeak
+  GitHub              https://github.com/Smee-code/SmartHoseLeak (private)
+  Database            db.sqlite3   (NOT in GitHub - back it up yourself)
+
+  Device ID           esp32-01
+  Device API key      Tu-8U_8etJh_y4Fy_4Ao4vVzg431iCobAZs00KaKoog
+                      (in the sketch and in Django admin -> Devices;
+                       can be regenerated there if it ever leaks)
+
+  Upload interval     every 2 seconds
+  Offline after       10 seconds without a reading
+  Dashboard refresh   every 2 seconds
+
+  Sensor pins         Pressure GPIO 34, 35, 32   (must stay ADC1)
+                      Flow     GPIO 27, 26, 25
+  GSM module          RX GPIO16, TX GPIO17, own 3.7-4.2V power supply
+
+  Supply lines        M1 = 0-15 m, M2 = 15-30 m, M3 = 30-50 m from the
+                      main valve
+
+
+============================================================================
+14. STILL TO DO
+============================================================================
+  [ ] Calibrate all three modules (K is 0 on all of them right now)
+  [ ] Check pressure sensor wiring - readings have been sitting near 9 bar
+      with no flow, which looks like the sensor maximum rather than a real
+      value
+  [ ] Change SETUP_AP_PASSWORD and CONFIG_PASSWORD from their defaults
+  [ ] Set OWNER_PHONE_NUMBER in the sketch to the real number
+      (currently the placeholder +639171234567)
+  [ ] Add coordinates to the supply lines so they appear on the map as
+      lines, not just household pins
+  [ ] Decide where the main valve really is. It is currently at the centre
+      of the municipality (9.647119, 125.495095), which is about 2.7 km from
+      the households. The monitored run is only 50 m, so the map implies a
+      main line far longer than the real one. If you want it at the head of
+      the run instead, use:  9.637250 , 125.517620
+      Change it at Dashboard -> Lines.
+  [ ] Replace the household coordinates with real surveyed ones. All seven
+      currently have PLACEHOLDER positions around Brgy. Lower Dakong Patag -
+      they are inside the municipality and near the right village, but they
+      were calculated, not measured. Walk to each house, long-press your
+      location in Google Maps, and paste the real numbers in.
+
+
+============================================================================
+15. IF THE SYSTEM EVER NEEDS MORE THAN 3 LINES  (noted, not built)
+============================================================================
+Decided 11 Sep 2026. NOTHING HAS BEEN IMPLEMENTED - this is here so the
+reasoning is not lost.
+
+THE PLAN: one ESP32 board per zone.
+    lines 1-3 on board A, lines 4-6 on board B, and so on.
+Each board is registered separately in the dashboard with its own API key.
+Adding a line then means adding or reusing a board - no existing board is
+opened, re-flashed or disturbed.
+
+WHY NOT JUST ONE BIGGER BOARD:
+One ESP32 tops out at about five lines. Pressure sensors must sit on ADC1
+pins (32, 33, 34, 35, 36, 39) because ADC2 stops working while WiFi is on,
+and flow sensors need interrupt-capable pins, which rules out 34-39.
+
+WHAT IS ALREADY IN PLACE:
+The server side needs no changes. Devices already exist as records, each
+with its own API key, every line already belongs to a device, and line
+numbers are unique PER DEVICE - so "M1" on board A and "M1" on board B are
+already two different lines.
+
+WHAT IS STILL MISSING:
+Only the firmware. It is hardcoded to three modules. A related idea, also
+not built, is to have each board ask the server at boot which modules it is
+running and remember the answer in flash - the same way it already remembers
+the WiFi network and the server address. That would remove re-flashing
+entirely: wire the sensor, add the line in the dashboard, reboot that one
+board.
+
+FOR NOW: adding a line in the dashboard without the matching sensor and
+firmware module just creates a row that reads OFFLINE forever.
+
+
+============================================================================
+CHANGE LOG OF THIS GUIDE
+============================================================================
+11 Sep 2026  First version. Covers startup, WiFi setup, server address,
+             troubleshooting, calibration, commands and key values.
+             Reflects: server address now configurable from the device's
+             own /wifi page (no reflash needed); runserver prints the LAN
+             address; offline threshold lowered from 60s to 10s.
+
+11 Sep 2026  Added section 12b. Household IDs are now assigned
+             automatically, the add-household form is a dialog with
+             latitude/longitude fields, coordinates are checked against the
+             municipal boundary, and the leak map is larger and draws the
+             real outline of Sison.
+
+11 Sep 2026  The water source (start of the main line) can now be placed on
+             the map from Dashboard -> Lines, and appears there as a blue
+             square alongside the household pins.
+
+11 Sep 2026  All seven households given placeholder coordinates around Brgy.
+             Lower Dakong Patag. Main valve placed at the centre of the
+             municipality and given a permanent "Main valve" label plus a
+             pulsing halo so it is easy to spot.
+
+11 Sep 2026  Hose lines can now be edited and deleted from the Lines table,
+             both through dialogs. The delete dialog names the history and
+             events that go with the line, and warns that its households
+             become Unassigned.
+
+11 Sep 2026  Added section 15, recording the agreed plan for scaling past
+             three lines (one board per zone). Noted only - not built.
+
+11 Sep 2026  Fixed the leak map escaping its card on a narrow window: the
+             map library stacks its own layers above everything, so it was
+             painting over the top bar and the navigation drawer. All
+             application chrome now sits above it, and the map re-measures
+             itself whenever its container changes size.
+
+11 Sep 2026  Households can now be edited and deleted from the Households
+             table, both through dialogs. The delete dialog names the
+             complaints, notices and login that go with the household.
+
+11 Sep 2026  Added section 12c. New hose lines can now be created from
+             Dashboard -> Lines, each with its own map colour chosen from a
+             swatch picker. The map reads those stored colours instead of
+             three hardcoded ones.
+
+11 Sep 2026  Leak map now draws one branch per supply line from the valve
+             through that line's households, instead of a separate spur to
+             each house. Households are ordered nearest-to-the-valve first.
+
+11 Sep 2026  Main valve marker changed to purple (it was brand blue and hard
+             to pick out). Households now carry their supply line as a fill
+             colour and their status as a ring colour, and a dashed line in
+             the line's colour joins each household to the valve. Fixed
+             map.js being served from a stale cache - it was the only script
+             without a version stamp, so map changes were not reaching the
+             browser.
+============================================================================

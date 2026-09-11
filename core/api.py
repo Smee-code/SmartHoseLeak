@@ -10,6 +10,7 @@ import json
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -284,7 +285,11 @@ def _segment_payload(segment):
         "calibrating": latest.calibrating if latest else False,
         "simulated": latest.simulated if latest else False,
         "updated_at": latest.updated_at.isoformat() if latest else None,
-        "households": segment.households.filter(
+        # Annotated by live(); the fallback keeps this helper correct if it is
+        # ever called with a plain Segment.
+        "households": getattr(segment, "active_household_count", None)
+        if getattr(segment, "active_household_count", None) is not None
+        else segment.households.filter(
             account_status=Household.AccountStatus.ACTIVE
         ).count(),
         "coords": {
@@ -304,8 +309,18 @@ def live(request):
     if not request.user.is_authenticated:
         return JsonResponse({"ok": False, "error": "authentication required"}, status=403)
 
-    segments = Segment.objects.filter(is_active=True).select_related("latest", "device").prefetch_related(
-        "households"
+    # The active-household count is annotated rather than prefetched: calling
+    # .filter() on a prefetched relation ignores the prefetch and issues one
+    # COUNT per segment, so the old prefetch was paid for and then wasted.
+    segments = (
+        Segment.objects.filter(is_active=True)
+        .select_related("latest", "device")
+        .annotate(
+            active_household_count=Count(
+                "households",
+                filter=Q(households__account_status=Household.AccountStatus.ACTIVE),
+            )
+        )
     )
 
     # Household owners see only their own supply line.
@@ -342,12 +357,23 @@ def live(request):
     else:
         unread = Notification.objects.filter(recipient=household, read_at__isnull=True).count()
 
+    # Device reachability, so the dashboards can announce it changing rather
+    # than only showing it on a reload. Reported for owners too: their line
+    # reads OFFLINE for the same reason, and they deserve the explanation.
+    devices = list(Device.objects.all())
+    last_seen = max((d.last_seen for d in devices if d.last_seen), default=None)
+
     return JsonResponse(
         {
             "ok": True,
             "segments": payload,
             "open_events": open_events,
             "unread": unread,
+            "device": {
+                "online": any(d.is_online for d in devices),
+                "last_seen": last_seen.isoformat() if last_seen else None,
+                "ever_seen": last_seen is not None,
+            },
             "server_time": timezone.now().isoformat(),
             "poll_ms": settings.LIVE_POLL_INTERVAL_MS,
         }

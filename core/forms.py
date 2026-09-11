@@ -3,10 +3,60 @@
 import secrets
 
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 
-from .models import Complaint, Household, Notification, Segment
+from .models import Complaint, Household, Notification, Segment, WaterSource
+
+
+def check_within_municipality(form, lat, lng):
+    """
+    Flag coordinates that fall outside the served municipality.
+
+    A transposed or missing digit lands hundreds of kilometres away, and on
+    the map that reads as a pin in the sea rather than an obvious mistake.
+    Shared by every form that takes a location.
+    """
+    if lat is None or lng is None:
+        return
+    south, west, north, east = settings.MUNICIPALITY_BOUNDS
+    margin = settings.MUNICIPALITY_BOUNDS_MARGIN_DEG
+    if not (south - margin <= lat <= north + margin):
+        form.add_error(
+            "latitude",
+            f"That is outside {settings.MUNICIPALITY_NAME}. "
+            f"Expected roughly {south:.2f} to {north:.2f}.",
+        )
+    if not (west - margin <= lng <= east + margin):
+        form.add_error(
+            "longitude",
+            f"That is outside {settings.MUNICIPALITY_NAME}. "
+            f"Expected roughly {west:.2f} to {east:.2f}.",
+        )
+
+
+class WaterSourceForm(forms.ModelForm):
+    """Where the main line starts. Every distance marker is measured from it."""
+
+    class Meta:
+        model = WaterSource
+        fields = ["name", "latitude", "longitude", "notes"]
+        widgets = {
+            "latitude": forms.NumberInput(attrs={"step": "any", "placeholder": "9.6620"}),
+            "longitude": forms.NumberInput(attrs={"step": "any", "placeholder": "125.5290"}),
+            "notes": forms.TextInput(attrs={"placeholder": "e.g. beside the barangay hall"}),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        lat, lng = cleaned.get("latitude"), cleaned.get("longitude")
+        if (lat is None) != (lng is None):
+            missing = "longitude" if lng is None else "latitude"
+            self.add_error(missing, "Enter both latitude and longitude, or leave both blank.")
+            return cleaned
+        check_within_municipality(self, lat, lng)
+        return cleaned
 
 User = get_user_model()
 
@@ -29,19 +79,26 @@ class HouseholdForm(forms.ModelForm):
 
     class Meta:
         model = Household
+        # household_id is deliberately absent: it is assigned sequentially by
+        # Household.save(). Editing keeps the id it was given.
         fields = [
-            "household_id",
             "owner_name",
             "address",
             "contact_number",
             "segment",
             "account_status",
+            "latitude",
+            "longitude",
             "notes",
         ]
         widgets = {
             "address": forms.TextInput(),
             "notes": forms.Textarea(attrs={"rows": 3}),
             "contact_number": forms.TextInput(attrs={"placeholder": "+639171234567"}),
+            # step=any allows full decimal precision; a plain number input
+            # otherwise rejects anything with decimals in some browsers.
+            "latitude": forms.NumberInput(attrs={"step": "any", "placeholder": "9.7167"}),
+            "longitude": forms.NumberInput(attrs={"step": "any", "placeholder": "125.5333"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -51,6 +108,19 @@ class HouseholdForm(forms.ModelForm):
         if self.instance.pk and self.instance.user_id:
             # The account already exists; do not offer to create a second one.
             del self.fields["create_account"]
+
+    def clean(self):
+        cleaned = super().clean()
+        lat = cleaned.get("latitude")
+        lng = cleaned.get("longitude")
+        # One without the other cannot be plotted, and silently ignoring the
+        # half that was filled in would look like the value was not saved.
+        if (lat is None) != (lng is None):
+            missing = "longitude" if lng is None else "latitude"
+            self.add_error(missing, "Enter both latitude and longitude, or leave both blank.")
+            return cleaned
+        check_within_municipality(self, lat, lng)
+        return cleaned
 
     def generate_credentials(self):
         """Build a unique username and a temporary password for the owner."""
@@ -159,6 +229,7 @@ class SegmentForm(forms.ModelForm):
         model = Segment
         fields = [
             "name",
+            "color",
             "start_m",
             "end_m",
             "start_lat",
@@ -171,6 +242,9 @@ class SegmentForm(forms.ModelForm):
         help_texts = {
             "start_lat": "Optional. Fill all four coordinates to draw this line on the map view.",
         }
+        widgets = {
+            "color": forms.RadioSelect(attrs={"class": "swatch-input"}),
+        }
 
     def clean(self):
         cleaned = super().clean()
@@ -178,6 +252,51 @@ class SegmentForm(forms.ModelForm):
         if start is not None and end is not None and end <= start:
             self.add_error("end_m", "The end marker must be further from the valve than the start marker.")
         return cleaned
+
+
+class SegmentCreateForm(forms.ModelForm):
+    """
+    Adding a new hose line.
+
+    Narrower than SegmentForm on purpose: a brand-new line has no readings,
+    no maintenance note and nothing to deactivate, so those fields would only
+    be noise. The module number and the device are assigned automatically.
+    """
+
+    class Meta:
+        model = Segment
+        fields = ["name", "color", "start_m", "end_m"]
+        labels = {
+            "start_m": "Start marker (metres from the valve)",
+            "end_m": "End marker (metres from the valve)",
+        }
+        widgets = {
+            "color": forms.RadioSelect(attrs={"class": "swatch-input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.device = kwargs.pop("device", None)
+        super().__init__(*args, **kwargs)
+        if self.device is not None and not self.instance.pk:
+            # Offer the next unused colour rather than always the first one,
+            # so two lines added in a row do not come out looking identical.
+            self.fields["color"].initial = Segment.next_color(self.device)
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("start_m"), cleaned.get("end_m")
+        if start is not None and end is not None and end <= start:
+            self.add_error("end_m", "The end marker must be further from the valve than the start marker.")
+        return cleaned
+
+    def save(self, commit=True):
+        segment = super().save(commit=False)
+        if self.device is not None:
+            segment.device = self.device
+            segment.module_index = Segment.next_module_index(self.device)
+        if commit:
+            segment.save()
+        return segment
 
 
 class MaintenanceForm(forms.Form):

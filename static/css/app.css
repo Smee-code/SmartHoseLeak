@@ -60,6 +60,28 @@
 
 * { box-sizing: border-box; }
 
+/* ---------- Stacking order ----------
+   Leaflet gives its own panes z-index 400 and its zoom/attribution controls
+   1000, and those are not ours to change. Every piece of application chrome
+   therefore has to sit above 1000, or the map paints over the top bar, the
+   navigation drawer and even dialogs - which is exactly what happened on a
+   narrow window with the drawer open.
+
+     1100  top bar
+     1150  user menu panel (above the bar it hangs from)
+     1200  navigation scrim
+     1300  navigation drawer
+     1400  toasts
+     1500  modal backdrop and dialogs
+     1700  skip link (must beat everything, it is the escape hatch)
+
+   Keep new layers on this ladder rather than inventing nearby numbers. */
+
+/* The hidden attribute only sets display:none at user-agent priority, so any
+   rule that sets display on the same element silently defeats it - leaving a
+   "hidden" full-screen overlay that still swallows clicks. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);
@@ -82,7 +104,7 @@ a { color: var(--brand); }
 .right { text-align: right; }
 
 .skip-link {
-  position: absolute; left: -999px; top: 0; z-index: 100;
+  position: absolute; left: -999px; top: 0; z-index: 1700;
   background: var(--brand); color: #fff; padding: .6rem 1rem; border-radius: 0 0 8px 0;
 }
 .skip-link:focus { left: 0; }
@@ -112,6 +134,13 @@ a { color: var(--brand); }
 .split { display: grid; gap: 1rem; grid-template-columns: 1.6fr 1fr; align-items: start; }
 @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
 
+/* Grid and flex children default to min-width:auto, so a wide table or chart
+   inside one stretches the child to its content width and pushes the whole
+   page past the viewport - the .table-wrap scrollbar never gets a chance to
+   engage. Pinning min-width:0 is what makes the inner scroller work. */
+.grid > *, .split > *, .tiles > *, .stats > *, .readouts > * { min-width: 0; }
+.table-wrap, .chart-wrap { max-width: 100%; }
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -125,28 +154,94 @@ a { color: var(--brand); }
 }
 .card-head h2, .card-head h3 { margin: 0; }
 
+/* ---------- App shell: side navigation + content column ----------
+   Two columns on desktop. Below --shell-bp the sidebar leaves the flow and
+   becomes an off-canvas drawer, so the content column is full width on a
+   phone and no horizontal scrolling is introduced. */
+
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.appshell { display: flex; align-items: flex-start; min-height: 100vh; }
+
+/* min-width:0 is what stops a wide table or chart inside the content column
+   from forcing the whole flex row wider than the viewport. */
+.appmain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 100vh; }
+
+.sidenav {
+  flex: 0 0 250px; width: 250px;
+  position: sticky; top: 0;
+  height: 100vh; height: 100dvh;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+
+.sidenav-head {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  padding: .85rem .9rem; border-bottom: 1px solid var(--border);
+}
+/* Scoped one level deeper than .icon-btn, which sets display:inline-flex and
+   would otherwise win on source order and leave these visible on desktop. */
+.sidenav .sidenav-close { display: none; flex: 0 0 auto; }
+
+.brand { display: flex; align-items: center; gap: .55rem; text-decoration: none; color: var(--text); min-width: 0; }
+.brand strong { display: block; font-size: .98rem; line-height: 1.1; }
+.brand small { display: block; font-size: .74rem; color: var(--text-muted); }
+/* The brand lives in the sidebar on desktop; the topbar copy is for narrow
+   screens, where the sidebar is hidden behind the toggle. */
+.brand-topbar { display: none; }
+
+.sidenav-nav { padding: .6rem .55rem 1rem; display: flex; flex-direction: column; gap: .1rem; }
+.sidenav-group {
+  margin: .9rem .55rem .3rem; font-size: .7rem; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted);
+}
+.sidenav-group:first-child { margin-top: .2rem; }
+
+.sidenav-nav a {
+  display: flex; align-items: center; gap: .65rem;
+  padding: .55rem .6rem; border-radius: var(--radius-sm);
+  text-decoration: none; color: var(--text-muted);
+  font-size: .92rem; font-weight: 500;
+  border-left: 3px solid transparent;
+}
+.sidenav-nav a > span:first-of-type { flex: 1 1 auto; min-width: 0; }
+.sidenav-nav a:hover { background: var(--surface-2); color: var(--text); }
+.sidenav-nav a[aria-current="page"] {
+  background: var(--brand-soft); color: var(--brand-strong);
+  border-left-color: var(--brand); font-weight: 600;
+}
+.ico {
+  width: 19px; height: 19px; flex: 0 0 19px;
+  fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+.sidenav-foot {
+  margin-top: auto; padding: .75rem .9rem;
+  border-top: 1px solid var(--border); background: var(--surface);
+}
+.sidenav-user { margin: 0; font-size: .88rem; font-weight: 600; }
+.sidenav-meta { margin: 0; font-size: .78rem; color: var(--text-muted); }
+
+.sidenav-scrim {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(8, 18, 27, .5); backdrop-filter: blur(1px);
+}
+
 /* ---------- Top bar ---------- */
 
 .topbar {
-  position: sticky; top: 0; z-index: 40;
+  position: sticky; top: 0; z-index: 1100;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 .topbar-inner {
   max-width: 1240px; margin: 0 auto; padding: .5rem 1rem;
-  display: flex; align-items: center; gap: 1rem;
+  display: flex; align-items: center; gap: .75rem; min-height: 52px;
 }
-.brand { display: flex; align-items: center; gap: .55rem; text-decoration: none; color: var(--text); }
-.brand strong { display: block; font-size: .98rem; line-height: 1.1; }
-.brand small { display: block; font-size: .74rem; color: var(--text-muted); }
-
-.mainnav { display: flex; gap: .15rem; flex: 1; flex-wrap: wrap; }
-.mainnav a {
-  padding: .42rem .7rem; border-radius: 8px; text-decoration: none;
-  color: var(--text-muted); font-size: .9rem; font-weight: 500; white-space: nowrap;
-}
-.mainnav a:hover { background: var(--surface-2); color: var(--text); }
-.mainnav a[aria-current="page"] { background: var(--brand-soft); color: var(--brand-strong); }
+.topbar .navtoggle { display: none; flex: 0 0 auto; font-size: 1.1rem; }
 
 .topbar-actions { display: flex; align-items: center; gap: .4rem; margin-left: auto; }
 
@@ -163,7 +258,7 @@ a { color: var(--brand); }
 
 .usermenu { position: relative; }
 .usermenu-panel {
-  position: absolute; right: 0; top: calc(100% + .4rem); min-width: 210px; z-index: 50;
+  position: absolute; right: 0; top: calc(100% + .4rem); min-width: 210px; z-index: 1150;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: .6rem;
 }
@@ -303,6 +398,171 @@ input[type=checkbox] { width: auto; margin-right: .4rem; }
 .stat-value { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .stat-label { font-size: .82rem; color: var(--text-muted); }
 
+/* ---------- Modal ----------
+   Centred on desktop, a bottom sheet on a phone so the form sits above the
+   thumb and the on-screen keyboard does not push it out of view. Scrolls
+   internally rather than growing past the viewport. */
+
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 1500;
+  background: rgba(8, 18, 27, .55);
+  display: grid; place-items: center;
+  padding: 1rem;
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: min(620px, 100%);
+  max-height: calc(100vh - 2rem);
+  display: flex; flex-direction: column;
+  animation: shl-modal-in .18s ease;
+}
+.modal-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem;
+  padding: .9rem 1.1rem; border-bottom: 1px solid var(--border);
+}
+.modal-head h2 { margin: 0; font-size: 1.08rem; }
+.modal-head .sub { margin: .15rem 0 0; font-size: .85rem; color: var(--text-muted); }
+/* The form, not the head/body/foot, is .modal's child, so it has to carry the
+   flex column too - otherwise the body cannot scroll and a tall form pushes
+   the Save button off the bottom of the screen. */
+.modal > form { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.modal-body { padding: 1rem 1.1rem; overflow-y: auto; min-height: 0; }
+.modal-foot {
+  display: flex; justify-content: flex-end; gap: .5rem; flex-wrap: wrap;
+  padding: .85rem 1.1rem; border-top: 1px solid var(--border);
+}
+
+/* ---------- Colour swatch picker ---------- */
+
+.swatch {
+  display: inline-block; width: 13px; height: 13px; border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, .25); vertical-align: -2px; margin-right: .35rem;
+}
+.swatch-lg { width: 26px; height: 26px; border-radius: 5px; margin: 0; }
+
+.swatch-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.swatch-option {
+  display: flex; flex-direction: column; align-items: center; gap: .25rem;
+  padding: .4rem .45rem; border: 2px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; background: var(--surface); min-width: 62px;
+}
+.swatch-option:hover { background: var(--surface-2); }
+/* The radio itself is hidden, but only visually - it stays focusable and
+   keyboard-selectable, and the focus ring is drawn on the label instead. */
+.swatch-option input {
+  position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0;
+}
+.swatch-option:has(input:checked) {
+  border-color: var(--brand); background: var(--brand-soft);
+}
+.swatch-option:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
+.swatch-name { font-size: .72rem; color: var(--text-muted); }
+.swatch-option:has(input:checked) .swatch-name { color: var(--brand-strong); font-weight: 600; }
+
+/* What a delete takes with it. */
+.delete-list { margin: .4rem 0 .9rem; padding-left: 1.2rem; }
+.delete-list li { margin-bottom: .2rem; }
+
+/* A value the system assigns, shown where its input used to be. */
+.assigned-id {
+  margin: 0; padding: .55rem .7rem;
+  background: var(--surface-2); border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-weight: 600; color: var(--text);
+}
+
+/* Two-up rows inside the modal that collapse on a narrow screen. */
+.field-pair { display: grid; gap: 0 .75rem; grid-template-columns: 1fr 1fr; }
+@media (max-width: 520px) { .field-pair { grid-template-columns: 1fr; } }
+
+@keyframes shl-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(.99); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .modal { animation: none; } }
+
+@media (max-width: 560px) {
+  .modal-backdrop { padding: 0; place-items: end stretch; }
+  .modal {
+    width: 100%; max-height: 92vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    border-bottom: 0;
+  }
+  .modal-foot { padding-bottom: calc(.85rem + env(safe-area-inset-bottom, 0px)); }
+  .modal-foot .btn { flex: 1 1 auto; }
+}
+
+body.modal-open { overflow: hidden; }
+
+/* ---------- Toasts ----------
+   Transient announcements (device online/offline). Fixed to the bottom-right
+   on desktop, full width above the safe area on a phone. The container is
+   click-through so it never blocks the page underneath; the toasts themselves
+   are not. */
+
+.toasts {
+  position: fixed; z-index: 1400;
+  right: 1rem; bottom: 1rem;
+  width: min(360px, calc(100vw - 2rem));
+  display: flex; flex-direction: column; gap: .5rem;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex; align-items: flex-start; gap: .6rem;
+  background: var(--surface);
+  border: 1px solid var(--border); border-left: 4px solid var(--info);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  padding: .7rem .85rem;
+  animation: shl-toast-in .22s ease;
+}
+.toast-ok { border-left-color: var(--ok); }
+.toast-warn { border-left-color: var(--warn); }
+.toast-danger { border-left-color: var(--danger); }
+
+.toast-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: .35rem; flex: 0 0 10px; }
+.toast-ok .toast-dot { background: var(--ok); }
+.toast-warn .toast-dot { background: var(--warn); }
+.toast-danger .toast-dot { background: var(--danger); }
+.toast-info .toast-dot { background: var(--info); }
+
+.toast-text { flex: 1 1 auto; min-width: 0; }
+.toast-title { font-weight: 600; font-size: .92rem; }
+.toast-body { color: var(--text-muted); font-size: .84rem; margin-top: .1rem; }
+.toast-close {
+  background: none; border: 0; color: var(--text-muted); cursor: pointer;
+  font-size: 1.1rem; line-height: 1; padding: 0 .1rem; flex: 0 0 auto;
+}
+.toast-close:hover { color: var(--text); }
+
+@keyframes shl-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+@media (max-width: 560px) {
+  .toasts {
+    left: .75rem; right: .75rem; width: auto;
+    bottom: calc(.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ---------- Device setup hint ---------- */
+
+.setup-hint { border-left: 4px solid var(--brand); }
+.ingest-url {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: .6rem .75rem; margin: 0 0 .6rem;
+  font-size: .95rem; user-select: all;      /* one tap/click selects the whole line */
+  overflow-wrap: anywhere;                   /* never widens the card on a phone */
+}
+
 /* ---------- Tables ---------- */
 
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
@@ -320,13 +580,61 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 /* ---------- Map ---------- */
 
 #map-panel { position: relative; }
-#leak-map { height: 380px; border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2); }
+/* Tall enough to see the whole municipality and still pick out individual
+   households; capped so it cannot swallow a laptop screen. */
+#leak-map {
+  height: clamp(420px, 58vh, 720px);
+  border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2);
+}
+@media (max-width: 720px) { #leak-map { height: clamp(340px, 52vh, 460px); } }
 #map-schematic { padding: .5rem 0; }
+
+/* Water source marker. Square, so it is still distinguishable from the round
+   household and line markers without relying on colour, and larger with a
+   pulsing halo and a permanent label because it is the anchor point the whole
+   system's distances are measured from. */
+/* Violet, deliberately outside the status palette. Households and lines are
+   green / amber / red / grey, and the map itself is green land and blue
+   water, so none of those reads as "not a reading". Violet belongs to
+   nothing else on screen, which is the whole point. */
+.src-pin { position: relative; }
+.src-pin-dot {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 22px; height: 22px;
+  background: #7e22ce; border: 3px solid #fff; border-radius: 4px;
+  box-shadow: 0 0 0 2px rgba(8, 24, 38, .6), 0 2px 8px rgba(0, 0, 0, .45);
+}
+.src-pin-halo {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(126, 34, 206, .32);
+  animation: shl-src-pulse 2.4s ease-out infinite;
+}
+@keyframes shl-src-pulse {
+  0%   { transform: translate(-50%, -50%) scale(.6); opacity: .9; }
+  70%  { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .src-pin-halo { animation: none; opacity: .5; }
+}
+
+/* Always-visible label, readable over both light and dark map tiles. */
+.leaflet-tooltip.src-tip {
+  background: #7e22ce; color: #fff;
+  border: 0; border-radius: 5px;
+  font-weight: 700; font-size: .78rem; padding: .2rem .5rem;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, .5);
+  white-space: nowrap;
+}
+.leaflet-tooltip.src-tip::before { border-right-color: #7e22ce; }
 .map-note {
   font-size: .8rem; color: var(--text-muted); margin-top: .5rem;
   display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
 }
-.legend { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .8rem; color: var(--text-muted); margin-top: .6rem; }
+.legend { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .8rem; color: var(--text-muted); margin-top: .6rem; align-items: center; }
+.legend + .legend { margin-top: .35rem; }
+.legend-head { font-weight: 650; color: var(--text); }
 .legend span { display: inline-flex; align-items: center; gap: .32rem; }
 .legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 
@@ -393,16 +701,87 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .big-readout .unit { font-size: 1.1rem; color: var(--text-muted); font-weight: 500; }
 .big-readout .alt { color: var(--text-muted); font-size: .95rem; margin-top: .2rem; }
 
+/* =========================================================================
+   Responsive
+   Signed-out pages have no sidebar, so they show the brand in the top bar at
+   every width.
+   ========================================================================= */
+
+.appshell-plain .brand-topbar { display: flex; }
+
+/* ---- Laptop: narrow the rail rather than dropping it ---- */
+@media (max-width: 1180px) {
+  .sidenav { flex-basis: 214px; width: 214px; }
+  .sidenav-nav a { font-size: .89rem; gap: .55rem; }
+}
+
+/* ---- Tablet and below: sidebar becomes an off-canvas drawer ---- */
+@media (max-width: 1024px) {
+  .appshell { display: block; }
+  .appmain { min-height: 0; }
+
+  .sidenav {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    z-index: 1300; flex-basis: auto; width: min(82vw, 300px);
+    height: 100%; border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+    transition: transform .22s ease;
+    box-shadow: var(--shadow);
+  }
+  .sidenav.is-open { transform: none; }
+
+  .brand-topbar { display: flex; }
+  .topbar .navtoggle,
+  .sidenav .sidenav-close { display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Locked while the drawer is open so the page behind cannot scroll. */
+  body.nav-open { overflow: hidden; }
+}
+
+/* ---- Phone ---- */
 @media (max-width: 720px) {
-  .topbar-inner { flex-wrap: wrap; gap: .5rem; }
-  .mainnav { order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: .2rem; }
-  .brand small { display: none; }
+  .topbar-inner { padding: .45rem .75rem; gap: .5rem; }
+  .wrap, .wrap-narrow { padding: 1rem .75rem 2.5rem; }
+  .messages { padding: 0 .75rem; }
+
   .readouts { grid-template-columns: 1fr; }
-  .wrap, .wrap-narrow { padding-top: 1rem; }
+  .split { grid-template-columns: 1fr; }
+  .page-head { align-items: flex-start; }
+  h1 { font-size: 1.35rem; }
+
+  /* Full-width actions read better than a cramped row of small buttons. */
+  .btn-row .btn { flex: 1 1 auto; }
+  .filters .field { min-width: 0; flex: 1 1 160px; }
+  .definition { grid-template-columns: 1fr; gap: .1rem .5rem; }
+  .definition dd { margin-bottom: .5rem; }
+}
+
+/* ---- Small phone ---- */
+@media (max-width: 460px) {
+  body { font-size: 14.5px; }
+  .brand small { display: none; }
+  .brand strong { font-size: .92rem; }
+  #conn-pill { display: none; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .stat-value { font-size: 1.45rem; }
+  .big-readout .value { font-size: 2.5rem; }
+  .tile, .card { padding: .85rem; }
+  .notice { padding: .7rem .8rem; }
+}
+
+/* Touch devices: give tap targets room without affecting mouse layouts. */
+@media (hover: none) and (pointer: coarse) {
+  .sidenav-nav a { padding-top: .68rem; padding-bottom: .68rem; }
+  .icon-btn { width: 38px; height: 38px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidenav { transition: none; }
 }
 
 @media print {
-  .topbar, .sitefoot, .btn-row, .messages, .filters { display: none !important; }
+  .topbar, .sidenav, .sidenav-scrim, .sitefoot, .btn-row, .messages, .filters { display: none !important; }
+  .appshell { display: block; }
   body { background: #fff; }
   .card, .table-wrap { box-shadow: none; border-color: #999; }
 }

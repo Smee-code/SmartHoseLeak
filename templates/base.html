@@ -9,7 +9,7 @@
   <link rel="manifest" href="{% url 'manifest' %}">
   <link rel="icon" href="{% static 'img/icon.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'img/icon-192.png' %}">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ ASSET_VERSION }}">
   {% block head %}{% endblock %}
   <script>
     // Applied before first paint so the page never flashes the wrong theme.
@@ -28,99 +28,177 @@
 
 <a class="skip-link" href="#main">Skip to main content</a>
 
-<header class="topbar">
-  <div class="topbar-inner">
-    <a class="brand" href="{% url 'home' %}">
-      <img src="{% static 'img/icon.svg' %}" alt="" width="32" height="32">
-      <span>
-        <strong>Smart Hose Leak</strong>
-        <small>Detection System</small>
-      </span>
-    </a>
+{# Icon sprite. Stroke-based so both themes inherit currentColor. #}
+<svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M3.6 17a9 9 0 1 1 16.8 0"/><path d="M12 13.5 16 9"/><circle cx="12" cy="17" r="1.6"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5"/><path d="M6 9.8V20h12V9.8"/><path d="M10 20v-5h4v5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4.5 21 19.5H3z"/><path d="M12 10v4"/><circle cx="12" cy="16.8" r=".9" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 15a2.5 2.5 0 0 1-2.5 2.5H9L4 21V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9"/><path d="M10.4 20a2 2 0 0 0 3.2 0"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H14a4 4 0 0 1 0 8h-4a4 4 0 0 0 0 8h.5" transform="translate(0 -2)"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 17v-5"/><path d="M13 17V8"/><path d="M18 17v-8"/></symbol>
+</svg>
 
-    {% if user.is_authenticated %}
-      <nav class="mainnav" aria-label="Main">
+<div class="appshell{% if not user.is_authenticated %} appshell-plain{% endif %}">
+
+  {% if user.is_authenticated %}
+    <aside class="sidenav" id="sidenav" aria-label="Main navigation">
+      <div class="sidenav-head">
+        <a class="brand" href="{% url 'home' %}">
+          <img src="{% static 'img/icon.svg' %}" alt="" width="32" height="32">
+          <span>
+            <strong>Smart Hose Leak</strong>
+            <small>Detection System</small>
+          </span>
+        </a>
+        <button type="button" class="icon-btn sidenav-close" id="sidenav-close" aria-label="Close navigation">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <nav class="sidenav-nav" aria-label="Sections">
         {% if is_facilitator %}
-          <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>Dashboard</a>
-          <a href="{% url 'pressure_monitor' %}" {% if request.resolver_match.url_name == 'pressure_monitor' %}aria-current="page"{% endif %}>Pressure</a>
-          <a href="{% url 'household_list' %}" {% if 'household' in request.resolver_match.url_name %}aria-current="page"{% endif %}>Households</a>
-          <a href="{% url 'event_list' %}" {% if 'event' in request.resolver_match.url_name %}aria-current="page"{% endif %}>Alerts</a>
+          <p class="sidenav-group">Monitoring</p>
+          <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg><span>Dashboard</span>
+          </a>
+          <a href="{% url 'pressure_monitor' %}" {% if request.resolver_match.url_name == 'pressure_monitor' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>Pressure</span>
+          </a>
+          <a href="{% url 'event_list' %}" {% if 'event' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-alert"></use></svg><span>Alerts</span>
+          </a>
+
+          <p class="sidenav-group">Management</p>
+          <a href="{% url 'household_list' %}" {% if 'household' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-home"></use></svg><span>Households</span>
+          </a>
+          <a href="{% url 'segment_list' %}" {% if 'segment' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>Lines</span>
+          </a>
           <a href="{% url 'complaint_list' %}" {% if 'complaint' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            Complaints{% if pending_complaint_count %} <span class="badge">{{ pending_complaint_count }}</span>{% endif %}
+            <svg class="ico" aria-hidden="true"><use href="#i-chat"></use></svg><span>Complaints</span>
+            {% if pending_complaint_count %}<span class="badge">{{ pending_complaint_count }}</span>{% endif %}
           </a>
-          <a href="{% url 'notification_center' %}" {% if request.resolver_match.url_name == 'notification_center' %}aria-current="page"{% endif %}>Notices</a>
-          <a href="{% url 'segment_list' %}" {% if 'segment' in request.resolver_match.url_name %}aria-current="page"{% endif %}>Lines</a>
-          <a href="{% url 'reports' %}" {% if request.resolver_match.url_name == 'reports' %}aria-current="page"{% endif %}>Reports</a>
+          <a href="{% url 'notification_center' %}" {% if request.resolver_match.url_name == 'notification_center' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>Notices</span>
+          </a>
+          <a href="{% url 'reports' %}" {% if request.resolver_match.url_name == 'reports' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-chart"></use></svg><span>Reports</span>
+          </a>
         {% else %}
-          <a href="{% url 'owner_home' %}" {% if request.resolver_match.url_name == 'owner_home' %}aria-current="page"{% endif %}>Home</a>
-          <a href="{% url 'owner_pressure' %}" {% if request.resolver_match.url_name == 'owner_pressure' %}aria-current="page"{% endif %}>My Pressure</a>
-          <a href="{% url 'owner_notifications' %}" {% if request.resolver_match.url_name == 'owner_notifications' %}aria-current="page"{% endif %}>
-            Notices{% if unread_count %} <span class="badge">{{ unread_count }}</span>{% endif %}
+          <a href="{% url 'owner_home' %}" {% if request.resolver_match.url_name == 'owner_home' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-home"></use></svg><span>Home</span>
           </a>
-          <a href="{% url 'owner_complaints' %}" {% if request.resolver_match.url_name == 'owner_complaints' %}aria-current="page"{% endif %}>Complaints</a>
+          <a href="{% url 'owner_pressure' %}" {% if request.resolver_match.url_name == 'owner_pressure' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>My Pressure</span>
+          </a>
+          <a href="{% url 'owner_notifications' %}" {% if request.resolver_match.url_name == 'owner_notifications' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>Notices</span>
+            {% if unread_count %}<span class="badge">{{ unread_count }}</span>{% endif %}
+          </a>
+          <a href="{% url 'owner_complaints' %}" {% if request.resolver_match.url_name == 'owner_complaints' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-chat"></use></svg><span>Complaints</span>
+          </a>
         {% endif %}
       </nav>
+
+      <div class="sidenav-foot">
+        {% comment %}
+          The role is already obvious from the nav above, and for the
+          facilitator it repeats the display name verbatim. Show the
+          household id for owners and the login for everyone else.
+        {% endcomment %}
+        <p class="sidenav-user">{{ user.get_full_name|default:user.username }}</p>
+        <p class="sidenav-meta">{% if household %}{{ household.household_id }}{% else %}&#64;{{ user.username }}{% endif %}</p>
+      </div>
+    </aside>
+
+    <div class="sidenav-scrim" id="sidenav-scrim" hidden></div>
+  {% endif %}
+
+  <div class="appmain">
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        {% if user.is_authenticated %}
+          <button type="button" class="icon-btn navtoggle" id="nav-toggle"
+                  aria-label="Open navigation" aria-expanded="false" aria-controls="sidenav">
+            <span aria-hidden="true">&#9776;</span>
+          </button>
+        {% endif %}
+
+        <a class="brand brand-topbar" href="{% url 'home' %}">
+          <img src="{% static 'img/icon.svg' %}" alt="" width="32" height="32">
+          <span>
+            <strong>Smart Hose Leak</strong>
+            <small>Detection System</small>
+          </span>
+        </a>
+
+        <div class="topbar-actions">
+          <span id="conn-pill" class="pill pill-muted" title="Connection quality">&#8226; checking</span>
+          <button type="button" id="theme-toggle" class="icon-btn" aria-label="Switch between light and dark mode">
+            <span aria-hidden="true" data-theme-icon>&#9789;</span>
+          </button>
+          {% if user.is_authenticated %}
+            <div class="usermenu">
+              <button type="button" class="icon-btn" id="usermenu-btn" aria-expanded="false" aria-controls="usermenu-panel">
+                <span class="avatar">{{ user.username|first|upper }}</span>
+              </button>
+              <div class="usermenu-panel" id="usermenu-panel" hidden>
+                <p class="usermenu-name">{{ user.get_full_name|default:user.username }}</p>
+                <p class="usermenu-role">{{ user.get_role_display }}</p>
+                {% if household %}<p class="usermenu-role">{{ household.household_id }}</p>{% endif %}
+                <a href="{% url 'password_change' %}">Change password</a>
+                {% if user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
+                <form method="post" action="{% url 'logout' %}">{% csrf_token %}
+                  <button type="submit" class="linklike">Sign out</button>
+                </form>
+              </div>
+            </div>
+          {% else %}
+            <a class="btn btn-primary btn-sm" href="{% url 'login' %}">Sign in</a>
+          {% endif %}
+        </div>
+      </div>
+    </header>
+
+    {% if messages %}
+      <div class="messages" role="status">
+        {% for message in messages %}
+          <div class="message message-{{ message.tags|default:'info' }}">
+            <span>{{ message }}</span>
+            <button type="button" class="message-close" aria-label="Dismiss">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
     {% endif %}
 
-    <div class="topbar-actions">
-      <span id="conn-pill" class="pill pill-muted" title="Connection quality">&#8226; checking</span>
-      <button type="button" id="theme-toggle" class="icon-btn" aria-label="Switch between light and dark mode">
-        <span aria-hidden="true" data-theme-icon>&#9789;</span>
-      </button>
-      {% if user.is_authenticated %}
-        <div class="usermenu">
-          <button type="button" class="icon-btn" id="usermenu-btn" aria-expanded="false" aria-controls="usermenu-panel">
-            <span class="avatar">{{ user.username|first|upper }}</span>
-          </button>
-          <div class="usermenu-panel" id="usermenu-panel" hidden>
-            <p class="usermenu-name">{{ user.get_full_name|default:user.username }}</p>
-            <p class="usermenu-role">{{ user.get_role_display }}</p>
-            {% if household %}<p class="usermenu-role">{{ household.household_id }}</p>{% endif %}
-            <a href="{% url 'password_change' %}">Change password</a>
-            {% if user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
-            <form method="post" action="{% url 'logout' %}">{% csrf_token %}
-              <button type="submit" class="linklike">Sign out</button>
-            </form>
-          </div>
+    {% if user.is_authenticated and user.must_change_password and request.resolver_match.url_name != 'password_change' %}
+      <div class="messages">
+        <div class="message message-warning">
+          <span>You are still using a temporary password.
+            <a href="{% url 'password_change' %}">Change it now</a>.</span>
         </div>
-      {% else %}
-        <a class="btn btn-primary btn-sm" href="{% url 'login' %}">Sign in</a>
-      {% endif %}
-    </div>
-  </div>
-</header>
-
-{% if messages %}
-  <div class="messages" role="status">
-    {% for message in messages %}
-      <div class="message message-{{ message.tags|default:'info' }}">
-        <span>{{ message }}</span>
-        <button type="button" class="message-close" aria-label="Dismiss">&times;</button>
       </div>
-    {% endfor %}
+    {% endif %}
+
+    <main id="main">{% block content %}{% endblock %}</main>
+
+    <footer class="sitefoot">
+      <p><strong>{{ SITE_NAME }}</strong></p>
+      <p>{{ SITE_LOCALE }}</p>
+      <p class="muted">A capstone project of the College of Information Technology Education,
+         North Eastern Mindanao State University &mdash; Cantilan Campus.</p>
+    </footer>
+
   </div>
-{% endif %}
-
-{% if user.is_authenticated and user.must_change_password and request.resolver_match.url_name != 'password_change' %}
-  <div class="messages">
-    <div class="message message-warning">
-      <span>You are still using a temporary password.
-        <a href="{% url 'password_change' %}">Change it now</a>.</span>
-    </div>
-  </div>
-{% endif %}
-
-<main id="main">{% block content %}{% endblock %}</main>
-
-<footer class="sitefoot">
-  <p><strong>{{ SITE_NAME }}</strong></p>
-  <p>{{ SITE_LOCALE }}</p>
-  <p class="muted">A capstone project of the College of Information Technology Education,
-     North Eastern Mindanao State University &mdash; Cantilan Campus.</p>
-</footer>
+</div>
 
 <script>window.SHL = {pollMs: {{ LIVE_POLL_INTERVAL_MS }}};</script>
-<script src="{% static 'js/app.js' %}"></script>
+<script src="{% static 'js/app.js' %}?v={{ ASSET_VERSION }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

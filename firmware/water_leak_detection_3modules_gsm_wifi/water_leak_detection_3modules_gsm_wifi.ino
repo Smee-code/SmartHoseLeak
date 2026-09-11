@@ -207,7 +207,11 @@ HardwareSerial GSM_SERIAL(2);              // ESP32 UART2
 // "localhost" and 127.0.0.1 will NOT work - those mean the ESP32 itself.
 // DEVICE_API_KEY is printed by `python manage.py setup_demo` and is also in
 // the Django admin under Devices.
-#define SERVER_URL "http://192.168.1.14:8000/api/ingest/" // <-- CHECK THIS
+// FALLBACK ONLY. The address actually used is the one saved through the setup
+// page (stored in flash), so moving to a new network needs a phone, not a
+// reflash. This value is used only until something is saved there, or after
+// "Forget saved network" wipes it.
+#define DEFAULT_SERVER_URL "http://192.168.1.21:8000/api/ingest/"
 #define DEVICE_ID "esp32-01"
 #define DEVICE_API_KEY "Tu-8U_8etJh_y4Fy_4Ao4vVzg431iCobAZs00KaKoog" // <-- UPDATE THIS
 
@@ -220,6 +224,7 @@ Preferences wifiPrefs;
 
 String cfgSSID = ""; // credentials currently in use (from NVS or defaults)
 String cfgPassword = "";
+String cfgServerUrl = ""; // where readings are POSTed (from NVS or the default)
 
 unsigned long lastWifiRetryMillis = 0;
 bool wifiEverConnected = false;
@@ -663,11 +668,11 @@ void uploadReadings()
   HTTPClient http;
   http.setTimeout(HTTP_TIMEOUT_MS);
 
-  if (!http.begin(SERVER_URL))
+  if (!http.begin(cfgServerUrl))
   {
     lastUploadOk = false;
-    lastUploadResult = "bad SERVER_URL";
-    Serial.println("[UPLOAD] Failed to parse SERVER_URL.");
+    lastUploadResult = "bad server address";
+    Serial.printf("[UPLOAD] Failed to parse server address \"%s\".\n", cfgServerUrl.c_str());
     return;
   }
 
@@ -719,7 +724,22 @@ void loadWiFiConfig()
   wifiPrefs.begin(WIFI_PREFS_NAMESPACE, true); // read-only
   cfgSSID = wifiPrefs.getString("ssid", "");
   cfgPassword = wifiPrefs.getString("pass", "");
+  cfgServerUrl = wifiPrefs.getString("srv", "");
   wifiPrefs.end();
+
+  // The server lives on a laptop with a DHCP address, so it moves whenever the
+  // network changes. Keeping it in flash beside the credentials means a new
+  // location needs a phone and the setup page, not a laptop and a reflash.
+  if (cfgServerUrl.length() == 0)
+  {
+    cfgServerUrl = DEFAULT_SERVER_URL;
+    Serial.printf("[UPLOAD] No saved server address - using compiled default %s\n",
+                  cfgServerUrl.c_str());
+  }
+  else
+  {
+    Serial.printf("[UPLOAD] Loaded saved server address %s\n", cfgServerUrl.c_str());
+  }
 
   if (cfgSSID.length() == 0)
   {
@@ -750,12 +770,22 @@ void saveWiFiConfig(const String &ssid, const String &password)
   Serial.printf("[WIFI] Saved network \"%s\" to flash.\n", ssid.c_str());
 }
 
+// Saved separately from the credentials: changing where readings go should not
+// require retyping the WiFi password, and does not need a reboot.
+void saveServerUrl(const String &url)
+{
+  wifiPrefs.begin(WIFI_PREFS_NAMESPACE, false);
+  wifiPrefs.putString("srv", url);
+  wifiPrefs.end();
+  Serial.printf("[UPLOAD] Saved server address %s to flash.\n", url.c_str());
+}
+
 void clearWiFiConfig()
 {
   wifiPrefs.begin(WIFI_PREFS_NAMESPACE, false);
-  wifiPrefs.clear();
+  wifiPrefs.clear(); // credentials AND the saved server address
   wifiPrefs.end();
-  Serial.println("[WIFI] Cleared saved network from flash.");
+  Serial.println("[WIFI] Cleared saved network and server address from flash.");
 }
 
 // Minimal escaping so an SSID containing quotes or angle brackets cannot break
@@ -835,6 +865,14 @@ void startSetupAP()
 {
   apMode = true;
   WiFi.mode(WIFI_AP_STA);
+
+  // Stop the station from retrying the network we just gave up on. The driver
+  // keeps re-associating in the background otherwise, and scanNetworks()
+  // returns WIFI_SCAN_FAILED for as long as a connect is in progress - which
+  // is what leaves the setup page's network list empty. false/false = do not
+  // power down the radio (the AP needs it) and do not erase stored config.
+  WiFi.disconnect(false, false);
+
   WiFi.softAP(SETUP_AP_SSID, SETUP_AP_PASSWORD);
   delay(200);
 
@@ -899,12 +937,143 @@ bool requireConfigAuth()
   return false;
 }
 
-// Scans for nearby networks and renders the setup form. The scan blocks for
-// roughly 2-4 seconds; that is acceptable because it only runs when someone
-// actually opens the page, not on the sampling path.
-String buildWifiPage(const String &message)
+// ---------------------------------------------------------------------------
+// NEARBY-NETWORK SCAN
+// ---------------------------------------------------------------------------
+// scanNetworks() blocks for 2-4 seconds and stalls the sampling loop for that
+// long, so results are cached and reused for SCAN_CACHE_TTL_MS. Reloading the
+// setup page, or being bounced back to it by a validation error, then costs
+// nothing. "Rescan" forces a fresh sweep.
+
+#define SCAN_CACHE_SIZE 20
+#define SCAN_CACHE_TTL_MS 30000
+
+struct ScanEntry
 {
+  String ssid;
+  int32_t rssi;
+  bool open;
+};
+
+ScanEntry scanCache[SCAN_CACHE_SIZE];
+uint8_t scanCacheCount = 0;
+unsigned long scanCacheMillis = 0;
+int lastScanStatus = 0; // raw scanNetworks() result: <0 failed, 0 none found
+
+// Returns true when scanCache holds usable results.
+bool refreshScanCache(bool force)
+{
+  unsigned long now = millis();
+  if (!force && scanCacheCount > 0 && (now - scanCacheMillis) < SCAN_CACHE_TTL_MS)
+  {
+    return true;
+  }
+
+  // An association attempt in progress makes the scan fail outright. In setup
+  // mode there is nothing worth keeping, so drop it first.
+  if (apMode && WiFi.status() != WL_CONNECTED)
+  {
+    WiFi.disconnect(false, false);
+    delay(80);
+  }
+
+  WiFi.scanDelete();
   int found = WiFi.scanNetworks();
+
+  // WIFI_SCAN_FAILED (-2) is common on the first attempt right after the AP
+  // comes up, because the radio is still settling. One retry clears it.
+  if (found < 0)
+  {
+    Serial.printf("[WIFI] Scan failed (%d) - retrying once...\n", found);
+    delay(250);
+    WiFi.scanDelete();
+    found = WiFi.scanNetworks();
+  }
+
+  lastScanStatus = found;
+  Serial.printf("[WIFI] Scan result: %d network(s).\n", found);
+
+  if (found <= 0)
+  {
+    scanCacheCount = 0;
+    WiFi.scanDelete();
+    return false;
+  }
+
+  scanCacheCount = 0;
+  for (int i = 0; i < found && scanCacheCount < SCAN_CACHE_SIZE; i++)
+  {
+    String s = WiFi.SSID(i);
+    if (s.length() == 0)
+      continue; // hidden network - must be typed manually
+
+    int32_t rssi = WiFi.RSSI(i);
+    bool isOpen = (WiFi.encryptionType(i) == WIFI_AUTH_OPEN);
+
+    // A repeater or mesh broadcasts the same SSID on several channels. Keep
+    // one entry per name, carrying the strongest radio.
+    int existing = -1;
+    for (uint8_t j = 0; j < scanCacheCount; j++)
+    {
+      if (scanCache[j].ssid == s)
+      {
+        existing = j;
+        break;
+      }
+    }
+    if (existing >= 0)
+    {
+      if (rssi > scanCache[existing].rssi)
+      {
+        scanCache[existing].rssi = rssi;
+        scanCache[existing].open = isOpen;
+      }
+      continue;
+    }
+
+    scanCache[scanCacheCount].ssid = s;
+    scanCache[scanCacheCount].rssi = rssi;
+    scanCache[scanCacheCount].open = isOpen;
+    scanCacheCount++;
+  }
+
+  // Strongest first - insertion sort, at most SCAN_CACHE_SIZE entries.
+  for (uint8_t a = 1; a < scanCacheCount; a++)
+  {
+    ScanEntry key = scanCache[a];
+    int b = (int)a - 1;
+    while (b >= 0 && scanCache[b].rssi < key.rssi)
+    {
+      scanCache[b + 1] = scanCache[b];
+      b--;
+    }
+    scanCache[b + 1] = key;
+  }
+
+  scanCacheMillis = millis();
+  WiFi.scanDelete();
+  return scanCacheCount > 0;
+}
+
+// Plain-language signal strength - more useful on a phone than raw dBm.
+const char *signalWord(int32_t rssi)
+{
+  if (rssi >= -60)
+    return "strong";
+  if (rssi >= -70)
+    return "good";
+  if (rssi >= -80)
+    return "weak";
+  return "very weak";
+}
+
+// Renders the setup form from the cached scan. forceRescan=true sweeps again.
+// No default argument here on purpose: the IDE generates prototypes for .ino
+// functions and drops defaults, which turns every one-argument call into a
+// compile error.
+String buildWifiPage(const String &message, bool forceRescan)
+{
+  bool haveScan = refreshScanCache(forceRescan);
 
   String html = "<!DOCTYPE html><html><head>";
   html += "<meta name='viewport' content='width=device-width,initial-scale=1'>";
@@ -918,6 +1087,7 @@ String buildWifiPage(const String &message)
   html += "button{margin-top:16px;padding:10px 16px;background:#1a3c5e;color:#fff;border:0;";
   html += "cursor:pointer;}";
   html += ".msg{background:#fdecea;color:#c0392b;padding:10px;max-width:420px;margin-bottom:12px;}";
+  html += ".warn{background:#fbeeda;color:#8a5a0b;padding:10px;font-size:13px;}";
   html += ".note{color:#555;font-size:12px;margin-top:14px;max-width:420px;}";
   html += "</style></head><body>";
 
@@ -944,19 +1114,35 @@ String buildWifiPage(const String &message)
 
   html += "<form method='POST' action='/wifi/save'>";
   html += "<label for='ssid_select'>Nearby networks</label>";
-  html += "<select id='ssid_select' name='ssid_select'>";
-  html += "<option value=''>-- select a network --</option>";
-  for (int i = 0; i < found; i++)
+
+  if (haveScan)
   {
-    String s = WiFi.SSID(i);
-    if (s.length() == 0)
-      continue; // hidden network - must be typed manually
-    html += "<option value='" + htmlEscape(s) + "'>" + htmlEscape(s);
-    html += " (" + String(WiFi.RSSI(i)) + " dBm";
-    html += (WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? ", open" : ", secured";
-    html += ")</option>";
+    html += "<select id='ssid_select' name='ssid_select'>";
+    html += "<option value=''>-- select a network --</option>";
+    for (uint8_t i = 0; i < scanCacheCount; i++)
+    {
+      html += "<option value='" + htmlEscape(scanCache[i].ssid) + "'>";
+      html += htmlEscape(scanCache[i].ssid);
+      html += " (" + String(signalWord(scanCache[i].rssi));
+      html += scanCache[i].open ? ", open" : "";
+      html += ")</option>";
+    }
+    html += "</select>";
   }
-  html += "</select>";
+  else
+  {
+    // Previously this rendered an empty dropdown with no explanation, which
+    // looked like "there are no networks here" even when the scan had simply
+    // failed. Say which it was, and point at the field that always works.
+    html += "<div class='warn'>";
+    html += (lastScanStatus < 0)
+                ? "The scan did not complete. This happens if the radio is busy; "
+                  "press Rescan, or just type the network name below."
+                : "No networks were found nearby. Move closer to the router, "
+                  "press Rescan, or type the network name below.";
+    html += "</div>";
+  }
+  html += "<p class='note' style='margin:6px 0 0'><a href='/wifi?rescan=1'>Rescan networks</a></p>";
 
   html += "<label for='ssid'>Or type the network name</label>";
   html += "<input type='text' id='ssid' name='ssid' ";
@@ -965,7 +1151,19 @@ String buildWifiPage(const String &message)
   html += "<label for='password'>Password</label>";
   html += "<input type='password' id='password' name='password'>";
 
-  html += "<button type='submit'>Save &amp; reboot</button>";
+  // Where readings are sent. Kept on the same form so one visit can fix both
+  // the network and the server after a move.
+  html += "<hr style='margin:18px 0;border:0;border-top:1px solid #ddd'>";
+  html += "<label for='server'>Server address</label>";
+  html += "<input type='text' id='server' name='server' value='";
+  html += htmlEscape(cfgServerUrl);
+  html += "'>";
+  html += "<p class='note' style='margin-top:6px'>The address of the computer running the ";
+  html += "dashboard, ending in <b>/api/ingest/</b>. Open the dashboard on this phone and ";
+  html += "the Device setup panel shows the exact line to paste. Leave the network fields ";
+  html += "blank to change only this - the device will not reboot.</p>";
+
+  html += "<button type='submit'>Save</button>";
   html += "</form>";
 
   html += "<form method='POST' action='/wifi/forget'>";
@@ -992,7 +1190,8 @@ void handleWifiPage()
 {
   if (!requireConfigAuth())
     return;
-  webServer.send(200, "text/html", buildWifiPage(""));
+  // /wifi?rescan=1 bypasses the cache; a plain /wifi reuses it.
+  webServer.send(200, "text/html", buildWifiPage("", webServer.hasArg("rescan")));
 }
 
 void handleWifiSave()
@@ -1007,10 +1206,59 @@ void handleWifiSave()
     ssid = webServer.arg("ssid_select");
   String password = webServer.arg("password");
 
+  String server = webServer.arg("server");
+  server.trim();
+
+  // Catch the two mistakes that produce a board which looks connected but
+  // silently never delivers: a bare IP, and localhost. 127.0.0.1 means the
+  // ESP32 itself, so it can never reach the laptop that way.
+  if (server.length() > 0)
+  {
+    if (!server.startsWith("http://") && !server.startsWith("https://"))
+    {
+      webServer.send(400, "text/html",
+                     buildWifiPage("The server address must start with http:// - for example "
+                                   "http://192.168.1.21:8000/api/ingest/",
+                                   false));
+      return;
+    }
+    if (server.indexOf("127.0.0.1") >= 0 || server.indexOf("localhost") >= 0)
+    {
+      webServer.send(400, "text/html",
+                     buildWifiPage("127.0.0.1 and localhost mean this device, not your computer. "
+                                   "Use the computer's address on the network.",
+                                   false));
+      return;
+    }
+  }
+
+  bool serverChanged = (server.length() > 0 && server != cfgServerUrl);
+  if (serverChanged)
+  {
+    saveServerUrl(server);
+    cfgServerUrl = server;
+  }
+
+  // Server-only change: nothing about the network moved, so there is no reason
+  // to reboot and drop the readings mid-run.
   if (ssid.length() == 0)
   {
-    webServer.send(400, "text/html",
-                   buildWifiPage("Pick a network from the list or type a name."));
+    if (!serverChanged)
+    {
+      webServer.send(400, "text/html",
+                     buildWifiPage("Nothing to save. Pick a network, or enter a new server address.",
+                                   false));
+      return;
+    }
+
+    String ok = "<!DOCTYPE html><html><head>";
+    ok += "<meta name='viewport' content='width=device-width,initial-scale=1'>";
+    ok += "<title>Saved</title></head><body style='font-family:Arial,sans-serif;padding:20px;'>";
+    ok += "<h2>Server address saved</h2><p>Readings now go to <b>" + htmlEscape(cfgServerUrl) + "</b>.</p>";
+    ok += "<p>No reboot needed - the next upload uses it. Check the dashboard, or ";
+    ok += "<a href='/'>this device's own page</a>, where the last upload result is shown.</p>";
+    ok += "<p><a href='/wifi'>&larr; Back to settings</a></p></body></html>";
+    webServer.send(200, "text/html", ok);
     return;
   }
 
@@ -1065,6 +1313,7 @@ String buildStatusJSON()
   json += "\"setup_mode\":" + String(apMode ? "true" : "false") + ",";
   json += "\"ssid\":\"" + htmlEscape(cfgSSID) + "\",";
   json += "\"ip\":\"" + (apMode ? WiFi.softAPIP().toString() : WiFi.localIP().toString()) + "\",";
+  json += "\"server_url\":\"" + htmlEscape(cfgServerUrl) + "\",";
   json += "\"server_upload_ok\":" + String(lastUploadOk ? "true" : "false") + ",";
   json += "\"server_upload\":\"" + htmlEscape(lastUploadResult) + "\",";
   json += "\"modules\":[";

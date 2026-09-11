@@ -43,13 +43,17 @@ ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "*") if not DEBUG else ["*"]
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 
 INSTALLED_APPS = [
+    # core is listed first so its management commands win over the built-in
+    # ones of the same name. It overrides runserver purely to print the LAN
+    # address the ESP32 needs; the command still behaves exactly as Django's,
+    # static file serving included (see core/management/commands/runserver.py).
+    "core",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "core",
 ]
 
 MIDDLEWARE = [
@@ -134,11 +138,28 @@ MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 SITE_NAME = "Smart Hose Leak Detection System"
 SITE_LOCALE = "Brgy. Lower Dakong Patag, Sison, Surigao del Norte"
 
+# Bounding box of the municipality, from the official NAMRIA / PSA outline in
+# static/data/sison.geojson. Household coordinates are checked against it so a
+# mistyped value cannot silently drop a household in the sea. The margin allows
+# for a tap just outside the surveyed edge without being so wide that a wrong
+# digit slips through.
+MUNICIPALITY_NAME = "Sison, Surigao del Norte"
+MUNICIPALITY_BOUNDS = (9.61325, 125.43605, 9.69744, 125.54105)  # S, W, N, E
+MUNICIPALITY_BOUNDS_MARGIN_DEG = 0.05  # about 5.5 km
+
 # A segment whose last reading is older than this is shown as offline.
-DEVICE_OFFLINE_AFTER_SECONDS = int(env("DEVICE_OFFLINE_AFTER_SECONDS", "60"))
+#
+# The firmware posts every UPLOAD_INTERVAL_MS (2 s), so 10 s is five missed
+# uploads - enough margin to ride out a dropped packet or a WiFi hiccup without
+# flapping, while still noticing a genuinely dead board in about ten seconds
+# rather than a minute. Raise it if the link is poor enough to cause false
+# offline reports; it is the single value that decides detection speed.
+DEVICE_OFFLINE_AFTER_SECONDS = int(env("DEVICE_OFFLINE_AFTER_SECONDS", "10"))
 
 # Minute rollups older than this are pruned by `manage.py prune_rollups`.
 ROLLUP_RETENTION_DAYS = int(env("ROLLUP_RETENTION_DAYS", "90"))
 
-# How often the dashboards poll /api/live/ (milliseconds).
-LIVE_POLL_INTERVAL_MS = int(env("LIVE_POLL_INTERVAL_MS", "3000"))
+# How often the dashboards poll /api/live/ (milliseconds). Matched to the
+# firmware's upload interval: polling faster than the device posts only costs
+# requests without showing anything new.
+LIVE_POLL_INTERVAL_MS = int(env("LIVE_POLL_INTERVAL_MS", "2000"))

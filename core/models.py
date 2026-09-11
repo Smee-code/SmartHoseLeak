@@ -6,11 +6,13 @@ Each pair monitors one stretch of hose, so a "module" on the device maps to
 exactly one Segment row here. Everything else hangs off that mapping.
 """
 
+import re
 import secrets
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
 BAR_TO_PSI = 14.5037738
@@ -59,9 +61,11 @@ class Device(models.Model):
 
     @property
     def is_online(self):
+        # Same window the dashboards use to call a reading stale, so the device
+        # badge and the per-line status can never contradict each other.
         if not self.last_seen:
             return False
-        return (timezone.now() - self.last_seen).total_seconds() < 60
+        return (timezone.now() - self.last_seen).total_seconds() < settings.DEVICE_OFFLINE_AFTER_SECONDS
 
     def __str__(self):
         return self.label or self.device_id
@@ -101,11 +105,53 @@ class Segment(models.Model):
     maintenance_note = models.CharField(max_length=200, blank=True)
     is_active = models.BooleanField(default=True)
 
+    # How this line and its households are drawn on the leak map. Kept apart
+    # from the status palette so line identity is never mistaken for an alarm.
+    COLOR_CHOICES = [
+        ("#0891b2", "Cyan"),
+        ("#4338ca", "Indigo"),
+        ("#be185d", "Pink"),
+        ("#0f766e", "Teal"),
+        ("#c2410c", "Burnt orange"),
+        ("#4d7c0f", "Olive"),
+        ("#7e22ce", "Purple"),
+        ("#1e293b", "Slate"),
+    ]
+    DEFAULT_COLOR_CYCLE = [c for c, _ in COLOR_CHOICES]
+
+    color = models.CharField(
+        max_length=7, choices=COLOR_CHOICES, default="#0891b2",
+        help_text="Colour used for this line and its households on the leak map.",
+    )
+
     class Meta:
         ordering = ["module_index"]
         constraints = [
             models.UniqueConstraint(fields=["device", "module_index"], name="unique_module_per_device"),
         ]
+
+    @classmethod
+    def next_module_index(cls, device):
+        """
+        The next free module number on this device.
+
+        Uses the highest in use rather than a count, so deleting a line from
+        the middle does not hand its module number to a new one while the
+        firmware is still reporting against it.
+        """
+        highest = cls.objects.filter(device=device).aggregate(
+            top=models.Max("module_index")
+        )["top"]
+        return (highest or 0) + 1
+
+    @classmethod
+    def next_color(cls, device):
+        """First palette colour not already used on this device."""
+        taken = set(cls.objects.filter(device=device).values_list("color", flat=True))
+        for candidate in cls.DEFAULT_COLOR_CYCLE:
+            if candidate not in taken:
+                return candidate
+        return cls.DEFAULT_COLOR_CYCLE[0]  # more lines than colours: reuse
 
     @property
     def length_m(self):
@@ -193,18 +239,37 @@ class ReadingRollup(models.Model):
 class Household(models.Model):
     """A registered water subscriber, maintained by the facilitator."""
 
+    ID_PREFIX = "HH-"
+    ID_DIGITS = 3
+
     class AccountStatus(models.TextChoices):
         ACTIVE = "active", "Active"
         INACTIVE = "inactive", "Inactive"
         DISCONNECTED = "disconnected", "Disconnected"
 
-    household_id = models.CharField(max_length=32, unique=True)
+    household_id = models.CharField(
+        max_length=32, unique=True, blank=True,
+        help_text="Assigned automatically (HH-001, HH-002, ...) when left blank.",
+    )
     owner_name = models.CharField(max_length=120)
     address = models.CharField(max_length=255)
     contact_number = models.CharField(max_length=20)
     segment = models.ForeignKey(
         Segment, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="households", help_text="Supply line assignment.",
+    )
+
+    # Optional, so a household can be registered before anyone has stood at the
+    # tap with a phone. Both must be present for the pin to be drawn.
+    latitude = models.FloatField(
+        null=True, blank=True,
+        validators=[MinValueValidator(-90), MaxValueValidator(90)],
+        help_text="Decimal degrees, e.g. 9.7167. Leave blank if not yet surveyed.",
+    )
+    longitude = models.FloatField(
+        null=True, blank=True,
+        validators=[MinValueValidator(-180), MaxValueValidator(180)],
+        help_text="Decimal degrees, e.g. 125.5333.",
     )
     account_status = models.CharField(
         max_length=20, choices=AccountStatus.choices, default=AccountStatus.ACTIVE
@@ -219,8 +284,102 @@ class Household(models.Model):
     class Meta:
         ordering = ["household_id"]
 
+    @classmethod
+    def next_household_id(cls):
+        """
+        The next free sequential id, e.g. HH-007.
+
+        Taken from the highest existing number rather than the row count, so
+        removing a household from the middle of the range does not cause the
+        next one to collide with an id already in use.
+
+        Note it is the highest *existing* id: delete the newest household and
+        its number is handed out again. That is fine while records are only
+        removed by mistake, but if ids ever end up on printed receipts, this
+        should become a stored counter instead.
+
+        Ids that do not match the pattern are ignored, so one typed by hand
+        cannot break the sequence.
+        """
+        pattern = re.compile(rf"^{re.escape(cls.ID_PREFIX)}(\d+)$")
+        highest = 0
+        for existing in cls.objects.values_list("household_id", flat=True):
+            match = pattern.match(existing or "")
+            if match:
+                highest = max(highest, int(match.group(1)))
+        return f"{cls.ID_PREFIX}{highest + 1:0{cls.ID_DIGITS}d}"
+
+    def save(self, *args, **kwargs):
+        """
+        Assign an id on first save when one was not supplied.
+
+        The retry covers the gap between reading the highest id and writing
+        the row: two facilitators saving at the same moment would otherwise
+        both be handed the same number and the second would fail.
+        """
+        if self.household_id:
+            return super().save(*args, **kwargs)
+
+        for attempt in range(5):
+            self.household_id = self.next_household_id()
+            try:
+                with transaction.atomic():
+                    return super().save(*args, **kwargs)
+            except IntegrityError:
+                if attempt == 4:
+                    raise
+                # Force an INSERT on the next attempt rather than an UPDATE
+                # against a primary key the failed save may have set.
+                self.pk = None
+
     def __str__(self):
         return f"{self.household_id} - {self.owner_name}"
+
+
+class WaterSource(models.Model):
+    """
+    Where the monitored hose run begins: the main valve or tank.
+
+    Distance markers on every segment are measured from this point, so it is
+    the anchor the whole system's leak locations are expressed against. A
+    single row - there is one main line per installation - kept as a model
+    rather than a setting so the facilitator can move it from the dashboard
+    without anyone editing a file.
+    """
+
+    name = models.CharField(
+        max_length=120, default="Main valve",
+        help_text="What is at this point, e.g. 'Main valve' or 'Spring box'.",
+    )
+    latitude = models.FloatField(
+        null=True, blank=True,
+        validators=[MinValueValidator(-90), MaxValueValidator(90)],
+        help_text="Decimal degrees, e.g. 9.6620.",
+    )
+    longitude = models.FloatField(
+        null=True, blank=True,
+        validators=[MinValueValidator(-180), MaxValueValidator(180)],
+        help_text="Decimal degrees, e.g. 125.5290.",
+    )
+    notes = models.CharField(max_length=200, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "water source"
+        verbose_name_plural = "water source"
+
+    @classmethod
+    def get(cls):
+        """The single row, created on first use so no fixture is needed."""
+        source, _ = cls.objects.get_or_create(pk=1)
+        return source
+
+    @property
+    def has_location(self):
+        return self.latitude is not None and self.longitude is not None
+
+    def __str__(self):
+        return self.name
 
 
 class LeakEvent(models.Model):

@@ -9,7 +9,9 @@
     </div>
     <div class="btn-row">
       <a class="btn btn-sm" href="{% url 'export_csv' 'households' %}">Export CSV</a>
-      <a class="btn btn-primary btn-sm" href="{% url 'household_create' %}">Add household</a>
+      {# Falls back to the standalone page if JavaScript is unavailable. #}
+      <a class="btn btn-primary btn-sm" href="{% url 'household_create' %}"
+         data-modal-open="household-modal">Add household</a>
     </div>
   </div>
 
@@ -56,7 +58,36 @@
               </span>
             </td>
             <td class="small mono">{% if household.user %}{{ household.user.username }}{% else %}<span class="muted">none</span>{% endif %}</td>
-            <td class="right"><a class="btn btn-sm" href="{% url 'household_edit' household.pk %}">Edit</a></td>
+            {% comment %}
+              One shared edit dialog and one shared delete dialog are filled
+              from these attributes on click, rather than rendering a pair of
+              dialogs per row - 25 rows would otherwise mean 50 forms in the
+              page. The href stays a working link for the no-JavaScript case.
+            {% endcomment %}
+            <td class="right">
+              <div class="btn-row" style="justify-content:flex-end;flex-wrap:nowrap">
+                <a class="btn btn-sm" href="{% url 'household_edit' household.pk %}"
+                   data-edit-household
+                   data-action="{% url 'household_edit' household.pk %}"
+                   data-hid="{{ household.household_id }}"
+                   data-owner="{{ household.owner_name }}"
+                   data-address="{{ household.address }}"
+                   data-contact="{{ household.contact_number }}"
+                   data-segment="{{ household.segment_id|default_if_none:'' }}"
+                   data-status="{{ household.account_status }}"
+                   data-lat="{{ household.latitude|default_if_none:'' }}"
+                   data-lng="{{ household.longitude|default_if_none:'' }}"
+                   data-notes="{{ household.notes }}">Edit</a>
+                <button type="button" class="btn btn-sm btn-danger"
+                        data-delete-household
+                        data-action="{% url 'household_delete' household.pk %}"
+                        data-hid="{{ household.household_id }}"
+                        data-owner="{{ household.owner_name }}"
+                        data-login="{% if household.user %}{{ household.user.username }}{% endif %}"
+                        data-complaints="{{ household.complaint_count }}"
+                        data-notices="{{ household.notification_count }}">Delete</button>
+              </div>
+            </td>
           </tr>
         {% empty %}
           <tr><td colspan="8" class="empty">No households match this filter.</td></tr>
@@ -76,5 +107,154 @@
       {% endif %}
     </div>
   {% endif %}
+</div>
+
+{% comment %}
+  Add-household dialog. The form posts to the same view the standalone page
+  uses, so validation and account creation behave identically; on error the
+  view re-renders this page with the modal reopened and the values intact.
+{% endcomment %}
+<div class="modal-backdrop" id="household-modal" hidden
+     {% if create_form_errors %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="household-modal-title">
+    <form method="post" action="{% url 'household_create' %}">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="household-modal-title">Add household</h2>
+          <p class="sub">Coordinates are optional, and place the household on the leak map.</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        {% if create_form.non_field_errors %}
+          <div class="message message-error">{{ create_form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="field">
+          <label>Household ID</label>
+          <p class="assigned-id mono">{{ next_household_id }}</p>
+          <span class="helptext">Assigned automatically when you save.</span>
+        </div>
+
+        {% include "_form_field.html" with field=create_form.owner_name %}
+        {% include "_form_field.html" with field=create_form.address %}
+        {% include "_form_field.html" with field=create_form.contact_number %}
+
+        <div class="field-pair">
+          {% include "_form_field.html" with field=create_form.segment %}
+          {% include "_form_field.html" with field=create_form.account_status %}
+        </div>
+
+        <div class="field-pair">
+          {% include "_form_field.html" with field=create_form.latitude %}
+          {% include "_form_field.html" with field=create_form.longitude %}
+        </div>
+
+        {% include "_form_field.html" with field=create_form.notes %}
+        {% if create_form.create_account %}
+          {% include "_form_field.html" with field=create_form.create_account %}
+        {% endif %}
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save household</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% comment %}
+  Shared edit dialog. Its action and field values are set from the clicked
+  row; when a save fails validation the server re-renders it bound instead,
+  with the errors in place.
+{% endcomment %}
+<div class="modal-backdrop" id="household-edit-modal" hidden
+     {% if edit_form_errors %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="household-edit-title">
+    <form method="post" id="household-edit-form"
+          action="{% if edit_household %}{% url 'household_edit' edit_household.pk %}{% endif %}">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="household-edit-title">Edit household</h2>
+          <p class="sub" data-edit-subtitle>
+            {% if edit_household %}{{ edit_household.household_id }}{% endif %}
+          </p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        {% if edit_form.non_field_errors %}
+          <div class="message message-error">{{ edit_form.non_field_errors }}</div>
+        {% endif %}
+
+        {% include "_form_field.html" with field=edit_form.owner_name %}
+        {% include "_form_field.html" with field=edit_form.address %}
+        {% include "_form_field.html" with field=edit_form.contact_number %}
+
+        <div class="field-pair">
+          {% include "_form_field.html" with field=edit_form.segment %}
+          {% include "_form_field.html" with field=edit_form.account_status %}
+        </div>
+
+        <div class="field-pair">
+          {% include "_form_field.html" with field=edit_form.latitude %}
+          {% include "_form_field.html" with field=edit_form.longitude %}
+        </div>
+
+        {% include "_form_field.html" with field=edit_form.notes %}
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% comment %}
+  Shared delete confirmation. Names what else disappears, because complaints,
+  notices and the owner's login all go with the household and none of that is
+  recoverable from this screen.
+{% endcomment %}
+<div class="modal-backdrop" id="household-delete-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="household-delete-title"
+       style="max-width:460px">
+    <form method="post" id="household-delete-form" action="">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="household-delete-title">Delete household?</h2>
+          <p class="sub" data-delete-subtitle></p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p>This cannot be undone. Deleting <strong data-delete-name></strong> also removes:</p>
+        <ul class="delete-list" data-delete-list></ul>
+        <p class="small muted">
+          Readings and leak events are recorded against the supply line, not the
+          household, so the pressure history for this line is not affected.
+        </p>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-danger">Delete household</button>
+      </div>
+    </form>
+  </div>
 </div>
 {% endblock %}

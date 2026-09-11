@@ -7,11 +7,18 @@
    be worse than showing nothing.
 */
 
-const CACHE = 'shl-shell-v1';
+/* The cache name carries a fingerprint of the cached files (see
+   core.context_processors.asset_version). Editing app.css or app.js changes
+   the name, so this worker installs a fresh cache and activate() deletes the
+   stale one - without it, cache-first would keep serving the old stylesheet
+   indefinitely. */
+const CACHE = 'shl-shell-{{ ASSET_VERSION }}';
+/* Precached with the same ?v= the pages request, so these entries are the
+   ones the fetch handler actually matches. */
 const SHELL = [
-  '/static/css/app.css',
-  '/static/js/app.js',
-  '/static/js/chart.js',
+  '/static/css/app.css?v={{ ASSET_VERSION }}',
+  '/static/js/app.js?v={{ ASSET_VERSION }}',
+  '/static/js/chart.js?v={{ ASSET_VERSION }}',
   '/static/img/icon.svg',
   '/offline/'
 ];

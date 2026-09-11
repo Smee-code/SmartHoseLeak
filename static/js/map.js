@@ -23,10 +23,21 @@
   var toggleBtn = document.getElementById('map-toggle');
 
   var segments = window.SHL_SEGMENTS || [];
+  var households = window.SHL_HOUSEHOLDS || [];
+  var source = window.SHL_SOURCE || null;
   var leafletMap = null;
   var leafletLayers = {};
   var mode = 'schematic';
   var userForced = false;
+
+  // Each line carries its own colour, chosen by the facilitator on the Lines
+  // page, so households on the same line read as a group. A household's fill
+  // says WHICH LINE serves it; its ring says WHAT STATE that line is in.
+  var MODULE_FALLBACK = '#64748b';   // unassigned household
+
+  function lineColor(entity) {
+    return (entity && entity.color) || MODULE_FALLBACK;
+  }
 
   var STATUS_LABEL = {
     NORMAL: 'Normal',
@@ -37,9 +48,14 @@
   };
 
   function hasCoordinates() {
-    return segments.some(function (segment) {
+    var lines = segments.some(function (segment) {
       return segment.coords && segment.coords.start && segment.coords.end;
     });
+    // Surveyed households alone are enough to justify a real map, even before
+    // anyone has put coordinates on the supply lines themselves - and so is
+    // the municipal outline, which gives the map something to show while the
+    // survey is still being done.
+    return lines || households.length > 0 || !!window.SHL_BOUNDARY_URL;
   }
 
   function setNote(text) {
@@ -164,6 +180,47 @@
     });
   }
 
+  // Draws the municipal outline and frames the map on it. Runs after the
+  // markers so the fit below is not overridden, and fails quietly: a missing
+  // boundary file should cost the outline, not the whole map.
+  function addBoundary(hasOwnBounds) {
+    var url = window.SHL_BOUNDARY_URL;
+    if (!url || !leafletMap) return;
+
+    fetch(url, { credentials: 'same-origin' })
+      .then(function (response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+      })
+      .then(function (geojson) {
+        var layer = window.L.geoJSON(geojson, {
+          style: {
+            color: '#0b6ea8',
+            weight: 2,
+            opacity: 0.85,
+            fillColor: '#0b6ea8',
+            fillOpacity: 0.06,
+            dashArray: '5 4'
+          },
+          interactive: false      // never steal a click from a household pin
+        }).addTo(leafletMap);
+
+        var props = (geojson.features && geojson.features[0] &&
+                     geojson.features[0].properties) || {};
+        if (props.name) {
+          layer.bindTooltip(props.name + ', ' + (props.province || ''), {
+            permanent: false, sticky: true
+          });
+        }
+
+        // Only take over the view when there is nothing of our own to frame.
+        if (!hasOwnBounds) leafletMap.fitBounds(layer.getBounds(), { padding: [20, 20] });
+      })
+      .catch(function () {
+        // Boundary unavailable: the map is still usable, just without it.
+      });
+  }
+
   function buildLeaflet() {
     var bounds = [];
     leafletMap = window.L.map(mapNode, { scrollWheelZoom: false });
@@ -193,8 +250,132 @@
       bounds.push(segment.coords.start, segment.coords.end);
     });
 
-    if (bounds.length) leafletMap.fitBounds(bounds, { padding: [30, 30] });
-    else leafletMap.setView([9.7167, 125.5333], 13);
+    // The water source: the 0 m mark every distance is measured from. Drawn as
+    // a filled square so it reads as infrastructure at a glance, distinct from
+    // the round household pins and the round line markers.
+    if (source && source.coords && source.coords[0] !== null && source.coords[1] !== null) {
+      var sourceIcon = window.L.divIcon({
+        className: 'src-pin',
+        // A pulsing halo behind a large ringed marker: the one thing on the
+        // map that should be findable at a glance from across the room.
+        html: '<span class="src-pin-halo" aria-hidden="true"></span>' +
+              '<span class="src-pin-dot" aria-hidden="true"></span>',
+        iconSize: [34, 34],
+        iconAnchor: [17, 17]
+      });
+      window.L.marker(source.coords, {
+        icon: sourceIcon,
+        zIndexOffset: 1000,
+        title: source.name
+      })
+        .addTo(leafletMap)
+        .bindTooltip(source.name, {
+          permanent: true,          // always readable, not only on hover
+          direction: 'right',
+          offset: [14, 0],
+          className: 'src-tip'
+        })
+        .bindPopup(
+          '<strong>' + escapeHtml(source.name) + '</strong><br>' +
+          'Start of the main line (0 m)' +
+          (source.notes ? '<br>' + escapeHtml(source.notes) : '')
+        );
+      bounds.push(source.coords);
+    }
+
+    // One branch per supply line: the valve, then that line's households in
+    // order of how far they are from it. Drawn before the pins so the pins
+    // sit on top of the run rather than under it.
+    //
+    // Three branches all starting at the valve, rather than one continuous
+    // pipe - the households on a line are what the line is defined by, so a
+    // branch ends at its last household.
+    var haveSource = source && source.coords &&
+                     source.coords[0] !== null && source.coords[1] !== null;
+
+    function metresBetween(a, b) {
+      // Equirectangular approximation: plenty at barangay distances and it
+      // avoids trigonometry on every comparison while sorting.
+      var latScale = 110574;
+      var lngScale = 111320 * Math.cos(a[0] * Math.PI / 180);
+      var dy = (b[0] - a[0]) * latScale;
+      var dx = (b[1] - a[1]) * lngScale;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    if (haveSource) {
+      var byModule = {};
+      households.forEach(function (house) {
+        if (!house.coords || house.coords[0] === null || house.coords[1] === null) return;
+        if (house.module === null || house.module === undefined) return;
+        (byModule[house.module] = byModule[house.module] || []).push(house);
+      });
+
+      Object.keys(byModule).forEach(function (module) {
+        var group = byModule[module].slice().sort(function (a, b) {
+          return metresBetween(source.coords, a.coords) -
+                 metresBetween(source.coords, b.coords);
+        });
+
+        var path = [source.coords].concat(group.map(function (h) { return h.coords; }));
+        var colour = lineColor(group[0]);   // every household on a line shares it
+
+        // A wider translucent casing under the line, so it stays readable
+        // over dark tiles, forest green and pale roads alike.
+        window.L.polyline(path, {
+          color: '#ffffff', weight: 7, opacity: 0.75, interactive: false
+        }).addTo(leafletMap);
+
+        window.L.polyline(path, {
+          color: colour, weight: 3.5, opacity: 0.95, lineJoin: 'round', lineCap: 'round'
+        })
+          .addTo(leafletMap)
+          .bindTooltip('M' + module + ' &mdash; ' + group.length + ' household(s)', { sticky: true });
+      });
+    }
+
+    // Household pins. Fill = which supply line, ring = that line's status, so
+    // the grouping survives every line being in the same state at once.
+    households.forEach(function (house) {
+      if (!house.coords || house.coords[0] === null || house.coords[1] === null) return;
+      var pin = window.L.circleMarker(house.coords, {
+        radius: 7,
+        color: window.SHL.statusColor(house.status),
+        weight: 3,
+        fillColor: lineColor(house),
+        fillOpacity: 1
+      }).addTo(leafletMap);
+
+      pin.bindPopup(
+        '<strong>' + escapeHtml(house.household_id) + '</strong><br>' +
+        escapeHtml(house.owner_name) + '<br>' +
+        escapeHtml(house.address) +
+        (house.segment
+          ? '<br>Line: M' + escapeHtml(house.module) + ' &mdash; ' + escapeHtml(house.segment) +
+            '<br>Status: ' + escapeHtml(STATUS_LABEL[house.status] || house.status)
+          : '')
+      );
+      bounds.push(house.coords);
+    });
+
+    if (bounds.length) {
+      // The monitored run is only ~50 m end to end, so the pins sit in a
+      // tight cluster. 17 is close enough to separate neighbouring houses
+      // while still stopping a single pin from filling the whole panel.
+      leafletMap.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 });
+    } else {
+      // Sison town centre, until addBoundary() reframes on the municipality.
+      leafletMap.setView([9.6590, 125.5269], 12);
+    }
+    addBoundary(bounds.length > 0);
+  }
+
+  // Popups are built as HTML strings, so anything typed by the facilitator is
+  // escaped before it goes in.
+  function escapeHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function bindPopup(segment) {
@@ -231,6 +412,27 @@
     else setTimeout(function () { leafletMap.invalidateSize(); }, 60);
     setNote('Interactive map. Tap a line for its current readings.');
     if (toggleBtn) toggleBtn.textContent = 'Switch to offline schematic';
+  }
+
+  // Leaflet measures its container once and caches the result. Nothing tells
+  // it when that box changes - resizing the window, or crossing the 1024px
+  // breakpoint where the sidebar stops taking 250px of the row - so the map
+  // keeps drawing at its old size and the tiles no longer line up with the
+  // card. invalidateSize() re-measures; it is debounced because a drag-resize
+  // fires continuously.
+  var sizeTimer = null;
+  function refreshMapSize() {
+    if (!leafletMap || mode !== 'leaflet') return;
+    clearTimeout(sizeTimer);
+    sizeTimer = setTimeout(function () { leafletMap.invalidateSize(); }, 120);
+  }
+
+  if (mapNode && window.ResizeObserver) {
+    // Watches the element itself, so it also catches layout changes that do
+    // not resize the window - the drawer opening, a card above it growing.
+    new window.ResizeObserver(refreshMapSize).observe(mapNode);
+  } else {
+    window.addEventListener('resize', refreshMapSize);
   }
 
   function decide() {
