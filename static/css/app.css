@@ -271,6 +271,61 @@ a { color: var(--brand); }
 }
 .usermenu-panel a:hover, .usermenu-panel .linklike:hover { background: var(--surface-2); }
 
+/* ---------- Site footer ----------
+   margin-top:auto pins it to the bottom of the content column on short pages
+   (.appmain is a flex column with min-height:100vh), instead of floating
+   halfway up. The inner blocks share .wrap's 1240px measure so the footer
+   text lines up with the page content above it rather than starting flush
+   against the sidebar. */
+
+.sitefoot {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1.75rem 1rem 1.5rem;
+  font-size: .85rem;
+  color: var(--text-muted);
+}
+.sitefoot-inner { max-width: 1240px; margin: 0 auto; }
+
+/* Identity on the left, where it is deployed on the right. Wraps to stacked
+   blocks when the column is too narrow to hold both. */
+.sitefoot-top {
+  display: flex; flex-wrap: wrap; gap: 1rem 2.5rem;
+  align-items: flex-start; justify-content: space-between;
+}
+.sitefoot-brand { display: flex; align-items: flex-start; gap: .7rem; min-width: 0; }
+.sitefoot-brand img { flex: 0 0 auto; }
+.sitefoot-brand strong {
+  display: block; color: var(--text); font-size: .98rem; font-weight: 650; line-height: 1.3;
+}
+.sitefoot-brand span { display: block; margin-top: .1rem; }
+
+.sitefoot-meta { margin: 0; min-width: 0; }
+.sitefoot-meta dt {
+  font-size: .7rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-muted); opacity: .8;
+}
+.sitefoot-meta dd { margin: .15rem 0 0; color: var(--text); }
+
+/* Hairline rather than a full border: it separates the credit line without
+   drawing a second hard rule right under the one at the top of the footer. */
+.sitefoot-base {
+  display: flex; flex-wrap: wrap; gap: .4rem 1.5rem;
+  align-items: baseline; justify-content: space-between;
+  margin-top: 1.25rem; padding-top: .9rem;
+  border-top: 1px solid var(--border);
+  font-size: .8rem;
+}
+.sitefoot-base p { margin: 0; max-width: 70ch; }
+.sitefoot-copy { white-space: nowrap; opacity: .75; }
+
+@media (max-width: 720px) {
+  .sitefoot { padding: 1.35rem .75rem 1.2rem; }
+  .sitefoot-top { gap: 1rem; }
+  .sitefoot-base { margin-top: 1rem; }
+}
+
 /* ---------- Messages ---------- */
 
 .messages { max-width: 1240px; margin: .8rem auto 0; padding: 0 1rem; display: grid; gap: .5rem; }
@@ -397,6 +452,7 @@ input[type=checkbox] { width: auto; margin-right: .4rem; }
 }
 .stat-value { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .stat-label { font-size: .82rem; color: var(--text-muted); }
+.device-ip { display: block; margin-top: .15rem; font-family: var(--mono); font-size: .8rem; }
 
 /* ---------- Modal ----------
    Centred on desktop, a bottom sheet on a phone so the form sits above the

@@ -610,15 +610,20 @@ def complaint_detail(request, pk):
     form = ComplaintResponseForm(request.POST or None, instance=complaint)
 
     if request.method == "POST" and form.is_valid():
+        # Only a newly typed reply counts. A blank box keeps the existing
+        # response (see the form), so without this a status-only change would
+        # re-stamp the timestamp and send the owner a duplicate notice.
+        new_reply = getattr(form, "new_reply", False)
+
         updated = form.save(commit=False)
-        if updated.response:
+        if new_reply:
             updated.responded_at = timezone.now()
             updated.responded_by = request.user
         updated.save()
 
-        # Mirror the reply into the owner notification inbox so they see it
-        # in the same place as every other message from the facilitator.
-        if updated.response:
+        if new_reply:
+            # Mirror the reply into the owner notification inbox so they see
+            # it in the same place as every other message from the facilitator.
             Notification.objects.create(
                 kind=Notification.Kind.TARGETED,
                 title=f"Reply to your complaint {updated.reference}",
@@ -627,7 +632,11 @@ def complaint_detail(request, pk):
                 recipient=updated.household,
                 segment=updated.household.segment,
             )
-        messages.success(request, "Complaint updated and the owner has been notified.")
+            messages.success(request, "Reply sent. The owner has been notified.")
+        else:
+            messages.success(
+                request, f"Complaint marked as {updated.get_status_display()}."
+            )
         return redirect("complaint_detail", pk=pk)
 
     return render(request, "facilitator/complaint_detail.html", {"complaint": complaint, "form": form})

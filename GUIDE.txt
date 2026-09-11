@@ -401,6 +401,22 @@ THE LEAK MAP
   and the schematic is the one to use.
 
 
+FINDING THE DEVICE'S OWN ADDRESS
+  The Device status box on the dashboard shows the ESP32's IP underneath
+  "just now". Click it to open the board's own page. It updates by itself
+  when the board moves to a different network.
+
+  DO NOT CONFUSE THE TWO ADDRESSES:
+      192.168.1.9:8000   your laptop - the dashboard, /admin/
+      192.168.1.13       the ESP32 - its own page and /wifi settings
+  The board serves on the normal web port, so no ":8000" on its address.
+  Asking Django for /wifi just gives a 404, because that page lives on the
+  board, not on the server.
+
+  The IP is also in Dashboard -> Lines, in the Devices table ("Last IP"),
+  and the Serial Monitor prints it at boot.
+
+
 ============================================================================
 12c. ADDING A HOSE LINE
 ============================================================================
@@ -551,6 +567,17 @@ CHANGE LOG OF THIS GUIDE
              Lower Dakong Patag. Main valve placed at the centre of the
              municipality and given a permanent "Main valve" label plus a
              pulsing halo so it is easy to spot.
+
+11 Sep 2026  Confirmation messages ("... returned to live monitoring", and
+             similar) now appear as toasts in the bottom-right corner
+             instead of a bar across the page. They pause while the mouse
+             is over them, and anything containing a password or username
+             stays until you dismiss it, so a temporary password can never
+             disappear before it is written down.
+
+11 Sep 2026  The Device status box on the dashboard now shows the ESP32's IP
+             address as a link to the board's own page, kept current by the
+             live poll.
 
 11 Sep 2026  Hose lines can now be edited and deleted from the Lines table,
              both through dialogs. The delete dialog names the history and

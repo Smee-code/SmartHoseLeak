@@ -176,8 +176,13 @@
       </div>
     {% endif %}
 
+    {% comment %}
+      data-keep-inline: this is a standing condition, not a one-off event, so
+      it stays on the page until the password is actually changed rather than
+      floating away as a toast.
+    {% endcomment %}
     {% if user.is_authenticated and user.must_change_password and request.resolver_match.url_name != 'password_change' %}
-      <div class="messages">
+      <div class="messages" data-keep-inline>
         <div class="message message-warning">
           <span>You are still using a temporary password.
             <a href="{% url 'password_change' %}">Change it now</a>.</span>
@@ -188,10 +193,28 @@
     <main id="main">{% block content %}{% endblock %}</main>
 
     <footer class="sitefoot">
-      <p><strong>{{ SITE_NAME }}</strong></p>
-      <p>{{ SITE_LOCALE }}</p>
-      <p class="muted">A capstone project of the College of Information Technology Education,
-         North Eastern Mindanao State University &mdash; Cantilan Campus.</p>
+      <div class="sitefoot-inner">
+        <div class="sitefoot-top">
+          <div class="sitefoot-brand">
+            <img src="{% static 'img/icon.svg' %}" alt="" width="30" height="30">
+            <div>
+              <strong>{{ SITE_NAME }}</strong>
+              <span>Automated leak detection and water supply monitoring</span>
+            </div>
+          </div>
+
+          <dl class="sitefoot-meta">
+            <dt>Deployment</dt>
+            <dd>{{ SITE_LOCALE }}</dd>
+          </dl>
+        </div>
+
+        <div class="sitefoot-base">
+          <p>A capstone project of the College of Information Technology Education,
+             North Eastern Mindanao State University &mdash; Cantilan Campus.</p>
+          <p class="sitefoot-copy">&copy; {% now "Y" %}</p>
+        </div>
+      </div>
     </footer>
 
   </div>

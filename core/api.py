@@ -363,6 +363,13 @@ def live(request):
     devices = list(Device.objects.all())
     last_seen = max((d.last_seen for d in devices if d.last_seen), default=None)
 
+    # The address the board last posted from. Worth surfacing: it is how the
+    # facilitator reaches the device's own settings page, and it changes
+    # whenever the network does.
+    reporting = max(
+        (d for d in devices if d.last_seen), key=lambda d: d.last_seen, default=None
+    )
+
     return JsonResponse(
         {
             "ok": True,
@@ -373,6 +380,7 @@ def live(request):
                 "online": any(d.is_online for d in devices),
                 "last_seen": last_seen.isoformat() if last_seen else None,
                 "ever_seen": last_seen is not None,
+                "ip": reporting.last_ip if reporting else None,
             },
             "server_time": timezone.now().isoformat(),
             "poll_ms": settings.LIVE_POLL_INTERVAL_MS,

@@ -147,6 +147,7 @@
     });
   });
 
+
   /* -------------------------------------------------- connection quality
      Decides whether the dashboard may load Leaflet tiles. Three signals,
      cheapest first: offline flag, the Network Information API, then an
@@ -538,22 +539,80 @@
     close.setAttribute('aria-label', 'Dismiss');
     close.innerHTML = '&times;';
 
+    var ms = opts.timeout === undefined ? 8000 : opts.timeout;
     var timer = null;
+
     function dismiss() {
       if (timer) clearTimeout(timer);
       if (el.parentNode) el.parentNode.removeChild(el);
     }
     close.addEventListener('click', dismiss);
 
+    // Pause the countdown while the pointer is over the toast, so a message
+    // being read - or copied from - does not vanish mid-sentence.
+    el.addEventListener('mouseenter', function () {
+      if (timer) { clearTimeout(timer); timer = null; }
+    });
+    el.addEventListener('mouseleave', function () {
+      if (ms > 0 && !timer) timer = setTimeout(dismiss, ms);
+    });
+
     el.appendChild(dot);
     el.appendChild(text);
     el.appendChild(close);
     toastContainer().appendChild(el);
 
-    var ms = opts.timeout === undefined ? 8000 : opts.timeout;
     if (ms > 0) timer = setTimeout(dismiss, ms);
     return dismiss;
   };
+
+  /* ------------------------------------------- server messages as toasts */
+
+  // Django renders its messages framework into .messages blocks. They are
+  // real markup rather than data so the page still works without this
+  // script; here they are lifted into toasts and the inline block removed.
+  //
+  // [data-keep-inline] opts a block out - the temporary-password banner is
+  // a standing warning, not a one-off event, and should not float away.
+
+  var TAG_TO_TOAST = {
+    success: 'ok',
+    error: 'danger',
+    warning: 'warn',
+    info: 'info',
+    debug: 'info'
+  };
+
+  $$('.messages').forEach(function (block) {
+    if (block.hasAttribute('data-keep-inline')) return;
+
+    var converted = 0;
+    $$('.message', block).forEach(function (node) {
+      var body = $('span', node);
+      var content = (body || node).textContent.trim();
+      if (!content) return;
+
+      // Any message carrying a credential has to be read and written down,
+      // so it waits to be dismissed rather than timing out. Same for
+      // anything that went wrong - those are not glanceable.
+      var type = 'info';
+      Object.keys(TAG_TO_TOAST).forEach(function (tag) {
+        if (node.classList.contains('message-' + tag)) type = TAG_TO_TOAST[tag];
+      });
+      var sticky = type === 'danger' || type === 'warn' ||
+                   /password|username|api key/i.test(content);
+
+      SHL.toast({
+        type: type,
+        title: content,
+        // Long text needs longer on screen; capped so it cannot linger.
+        timeout: sticky ? 0 : Math.min(14000, 5000 + content.length * 45)
+      });
+      converted += 1;
+    });
+
+    if (converted) block.remove();
+  });
 
   var liveHandlers = [];
   SHL.onLive = function (handler) { liveHandlers.push(handler); };
@@ -604,6 +663,21 @@
     // toast instead of staying stale until the next reload.
     $$('[data-device-status]').forEach(function (el) {
       el.textContent = online ? 'Online' : 'Offline';
+    });
+
+    // The board's address, kept current by the poll. Hidden until it has
+    // reported at least once, so it never shows a stale or empty address.
+    $$('[data-device-ip]').forEach(function (wrap) {
+      var text = $('[data-device-ip-text]', wrap);
+      var link = $('[data-device-ip-link]', wrap);
+      if (!device.ip) {
+        wrap.hidden = true;
+        return;
+      }
+      wrap.hidden = false;
+      if (text) text.textContent = device.ip;
+      // Port 80 on the board, not the server's 8000.
+      if (link) link.setAttribute('href', 'http://' + device.ip + '/');
     });
 
     if (deviceOnline === null) {

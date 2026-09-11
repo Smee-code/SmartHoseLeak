@@ -154,7 +154,35 @@ class ComplaintResponseForm(forms.ModelForm):
     class Meta:
         model = Complaint
         fields = ["status", "response"]
-        widgets = {"response": forms.Textarea(attrs={"rows": 4})}
+        widgets = {
+            "response": forms.Textarea(
+                attrs={"rows": 4, "placeholder": "Write your reply to the household owner..."}
+            )
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The reply that was already sent is shown above the form, so echoing
+        # it back into the box only makes it look like the message failed to
+        # send. Start empty; status keeps its value because that is a current
+        # state rather than something being composed.
+        self.new_reply = False
+        if not self.is_bound:
+            self.initial["response"] = ""
+
+    def clean_response(self):
+        """
+        An empty box means "no new reply", not "delete the reply I sent".
+
+        Now that the box starts empty, changing only the status would
+        otherwise submit a blank response and silently wipe the message the
+        owner has already received.
+        """
+        value = (self.cleaned_data.get("response") or "").strip()
+        self.new_reply = bool(value)
+        if not value and self.instance.pk:
+            return self.instance.response
+        return value
 
 
 class NotificationForm(forms.Form):

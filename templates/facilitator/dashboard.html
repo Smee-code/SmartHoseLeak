@@ -43,6 +43,16 @@
         {% for device in devices %}
           {% if device.last_seen %}<br><span class="small" data-ago="{{ device.last_seen|date:'c' }}"></span>{% endif %}
         {% endfor %}
+        {% comment %}
+          The board's own address, and a link to its settings page. This is
+          the thing you need when the server address has to be changed, and
+          it moves whenever the network does - so it is kept live by the
+          poll rather than only being right at page load.
+        {% endcomment %}
+        <span class="device-ip" data-device-ip hidden>
+          <a href="#" data-device-ip-link target="_blank" rel="noopener"
+             title="Open the device's own page"><span data-device-ip-text></span></a>
+        </span>
       </div>
     </div>
   </section>
