@@ -489,10 +489,11 @@ ONE CONVERSATION PER PROBLEM, NOT PER PERSON
   in the list.
 
 THE OWNER'S SIDE
-  Portal -> Complaints works the same way. With nothing selected, the right
-  pane is the form for reporting a new problem. Opening one of their own
-  conversations lets them reply to you. They can only ever see their own
-  household's threads.
+  Portal -> Complaints works the same way. The "New complaint" button at the
+  top right opens a dialog asking for a category, a subject and a
+  description; submitting it drops them straight into the new conversation.
+  Opening one of their own conversations lets them reply to you. They can
+  only ever see their own household's threads.
 
 
 ============================================================================

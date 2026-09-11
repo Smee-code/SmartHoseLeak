@@ -955,6 +955,9 @@ def owner_complaints(request, household, pk=None):
             "complaint": complaint,
             "messages_list": complaint.messages.select_related("author") if complaint else None,
             "message_form": message_form,
+            # ?new=1 is where the button's plain-link fallback lands, and it
+            # opens the dialog on arrival so the two paths behave alike.
+            "show_new_form": request.GET.get("new") == "1",
         },
     )
 

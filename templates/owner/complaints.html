@@ -7,6 +7,11 @@
       <h1>My complaints</h1>
       <p class="sub">Report a problem with your water supply and follow the reply.</p>
     </div>
+    <div class="btn-row">
+      {% comment %}Falls back to the plain page if JavaScript is unavailable.{% endcomment %}
+      <a class="btn btn-primary" href="{% url 'owner_complaints' %}?new=1"
+         data-modal-open="complaint-modal">New complaint</a>
+    </div>
   </div>
 
   <div class="thread-shell {% if complaint %}thread-open{% endif %}">
@@ -37,23 +42,16 @@
 
     <section class="thread-pane">
       {% if not complaint %}
-        {% comment %}No thread open: the pane is the form for starting one.{% endcomment %}
-        <header class="thread-head">
-          <div class="thread-head-main">
-            <h2>Report a problem</h2>
-            <p class="sub">The facilitator is notified as soon as you send it.</p>
-          </div>
-        </header>
-        <form method="post" style="padding:1rem">
-          {% csrf_token %}
-          {% if form.non_field_errors %}
-            <div class="message message-error">{{ form.non_field_errors }}</div>
+        <div class="thread-empty">
+          <svg class="ico" aria-hidden="true" style="width:30px;height:30px"><use href="#i-chat"></use></svg>
+          {% if threads %}
+            <p>Select a complaint to read it, or start a new one.</p>
+          {% else %}
+            <p>You have not reported anything yet.</p>
           {% endif %}
-          {% include "_form_field.html" with field=form.category %}
-          {% include "_form_field.html" with field=form.subject %}
-          {% include "_form_field.html" with field=form.body %}
-          <button type="submit" class="btn btn-primary">Submit complaint</button>
-        </form>
+          <a class="btn btn-primary btn-sm" href="{% url 'owner_complaints' %}?new=1"
+             data-modal-open="complaint-modal">New complaint</a>
+        </div>
       {% else %}
         <header class="thread-head">
           <a class="btn btn-sm thread-back" href="{% url 'owner_complaints' %}">&larr; Back</a>
@@ -90,11 +88,44 @@
           {{ message_form.body }}
           <button type="submit" class="btn btn-primary">Send</button>
         </form>
-        <p class="small muted thread-note">
-          <a href="{% url 'owner_complaints' %}">File a different complaint</a>
-        </p>
       {% endif %}
     </section>
+  </div>
+</div>
+
+{% comment %}
+  New-complaint dialog. Posts to the list URL rather than the current one, so
+  it behaves the same whether or not a thread happens to be open.
+{% endcomment %}
+<div class="modal-backdrop" id="complaint-modal" hidden
+     {% if form.errors or show_new_form %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="complaint-modal-title">
+    <form method="post" action="{% url 'owner_complaints' %}">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="complaint-modal-title">Report a problem</h2>
+          <p class="sub">The facilitator is notified as soon as you send it.</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        {% if form.non_field_errors %}
+          <div class="message message-error">{{ form.non_field_errors }}</div>
+        {% endif %}
+        {% include "_form_field.html" with field=form.category %}
+        {% include "_form_field.html" with field=form.subject %}
+        {% include "_form_field.html" with field=form.body %}
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Submit complaint</button>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}
