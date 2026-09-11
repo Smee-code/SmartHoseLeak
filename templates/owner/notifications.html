@@ -6,28 +6,69 @@
   <div class="page-head">
     <div>
       <h1>Notices</h1>
-      <p class="sub">Alerts and announcements for {{ household.household_id }}.</p>
+      <p class="sub">
+        Alerts and announcements for {{ household.household_id }}.
+        {% if new_count %}<strong>{{ new_count }} new.</strong>{% endif %}
+      </p>
     </div>
   </div>
 
-  <div class="notice-list">
-    {% for notification in page %}
-      <div class="notice" data-kind="{{ notification.kind }}"
-           data-unread="{% if not notification.read_at %}true{% else %}false{% endif %}">
-        <div class="notice-head">
-          <p class="notice-title">{{ notification.title }}</p>
-          <span class="notice-time">{{ notification.created_at|date:"M j, Y g:i A" }}</span>
-        </div>
-        <p class="notice-body" style="white-space:pre-wrap">{{ notification.body }}</p>
-        <p class="small muted" style="margin:.4rem 0 0">
-          {{ notification.get_kind_display }}
-          {% if notification.segment %} &middot; {{ notification.segment.name }}{% endif %}
-        </p>
-      </div>
-    {% empty %}
-      <p class="empty">You have no notices yet.</p>
-    {% endfor %}
-  </div>
+  {% comment %}
+    A timeline: one rail down the page, an icon per notice marking what kind
+    it is, grouped under the day it arrived. The icon carries the meaning,
+    so the kind no longer has to be spelled out in a line of grey text.
+  {% endcomment %}
+  {% for group in groups %}
+    <p class="feed-day">{{ group.label }}</p>
+    <ol class="feed">
+      {% for n in group.items %}
+        <li class="feed-item" data-kind="{{ n.kind }}" {% if n.was_unread %}data-new="true"{% endif %}>
+          <span class="feed-node" aria-hidden="true">
+            <svg class="ico">
+              {% if n.kind == 'automatic' %}<use href="#i-alert"></use>
+              {% elif n.kind == 'broadcast' %}<use href="#i-bell"></use>
+              {% else %}<use href="#i-chat"></use>{% endif %}
+            </svg>
+          </span>
+
+          <div class="feed-card">
+            <div class="feed-top">
+              <h2 class="feed-title">
+                {% if n.complaint %}
+                  <a href="{% url 'owner_complaint_thread' n.complaint.pk %}">{{ n.title }}</a>
+                {% else %}
+                  {{ n.title }}
+                {% endif %}
+              </h2>
+              <time datetime="{{ n.created_at|date:'c' }}" title="{{ n.created_at|date:'M j, Y g:i A' }}">
+                {{ n.created_at|date:"g:i A" }}
+              </time>
+            </div>
+
+            <p class="feed-body">{{ n.body|linebreaksbr }}</p>
+
+            <p class="feed-meta">
+              {% if n.was_unread %}<span class="tag tag-new">New</span>{% endif %}
+              {% if n.segment %}<span class="tag">{{ n.segment.name }}</span>{% endif %}
+              {% if n.complaint %}
+                <a class="tag tag-link" href="{% url 'owner_complaint_thread' n.complaint.pk %}">
+                  Open conversation &rarr;
+                </a>
+              {% endif %}
+            </p>
+          </div>
+        </li>
+      {% endfor %}
+    </ol>
+  {% empty %}
+    <div class="card empty-state">
+      <svg class="ico" aria-hidden="true" style="width:30px;height:30px"><use href="#i-bell"></use></svg>
+      <p>You have no notices yet.</p>
+      <p class="small muted">
+        Alerts about your supply line, and replies from the facilitator, appear here.
+      </p>
+    </div>
+  {% endfor %}
 
   {% if page.has_other_pages %}
     <div class="pager">

@@ -843,6 +843,80 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ---------- Timeline / notifications ---------- */
 
+/* ---------- Notice feed ----------
+   A single rail down the left with an icon node per entry, grouped by day.
+   The icon says what kind of notice it is, which frees the card from having
+   to spell that out in a line of grey text under every message. */
+
+.feed-day {
+  margin: 1.4rem 0 .5rem;
+  font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.feed-day:first-of-type { margin-top: .25rem; }
+
+.feed { list-style: none; margin: 0; padding: 0; position: relative; }
+/* The rail sits behind the nodes and stops at the last one rather than
+   running past it. */
+.feed::before {
+  content: ""; position: absolute; left: 15px; top: 8px; bottom: 8px;
+  width: 2px; background: var(--border);
+}
+.feed-item { position: relative; display: flex; gap: .8rem; padding-bottom: .7rem; }
+
+.feed-node {
+  position: relative; z-index: 1; flex: 0 0 32px;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--surface-2); border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+  color: var(--text-muted);
+}
+.feed-node .ico { width: 16px; height: 16px; }
+.feed-item[data-kind="automatic"] .feed-node { background: var(--danger-soft); color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+.feed-item[data-kind="broadcast"] .feed-node { background: var(--brand-soft); color: var(--brand-strong); box-shadow: 0 0 0 1px var(--brand); }
+.feed-item[data-kind="targeted"] .feed-node { background: var(--ok-soft); color: var(--ok); box-shadow: 0 0 0 1px var(--ok); }
+
+.feed-card {
+  flex: 1 1 auto; min-width: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: .7rem .85rem;
+}
+.feed-item[data-new="true"] .feed-card {
+  border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.feed-top { display: flex; gap: .6rem; align-items: baseline; justify-content: space-between; }
+.feed-title { margin: 0; font-size: .93rem; font-weight: 650; line-height: 1.35; }
+.feed-title a { color: inherit; text-decoration: none; }
+.feed-title a:hover { color: var(--brand); text-decoration: underline; }
+.feed-top time { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+
+.feed-body { margin: .3rem 0 0; font-size: .88rem; color: var(--text-muted); }
+
+.feed-meta { display: flex; flex-wrap: wrap; gap: .35rem; margin: .55rem 0 0; }
+.tag {
+  display: inline-flex; align-items: center;
+  padding: .12rem .45rem; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-size: .72rem; color: var(--text-muted);
+}
+.tag-new { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 700; }
+.tag-link { color: var(--brand); text-decoration: none; }
+.tag-link:hover { background: var(--brand-soft); border-color: var(--brand); }
+
+.empty-state { text-align: center; padding: 2.25rem 1.25rem; color: var(--text-muted); }
+.empty-state .ico { stroke: currentColor; margin-bottom: .5rem; }
+.empty-state p { margin: 0 0 .25rem; }
+
+@media (max-width: 560px) {
+  .feed-item { gap: .6rem; }
+  .feed::before { left: 13px; }
+  .feed-node { flex-basis: 28px; width: 28px; height: 28px; }
+  .feed-node .ico { width: 14px; height: 14px; }
+  .feed-top { flex-wrap: wrap; }
+}
+
 .notice-list { display: grid; gap: .7rem; }
 .notice {
   background: var(--surface); border: 1px solid var(--border);

@@ -453,6 +453,13 @@ class Notification(models.Model):
     segment = models.ForeignKey(
         Segment, on_delete=models.SET_NULL, null=True, blank=True, related_name="notifications"
     )
+    # Set on notices that mirror a complaint reply, so the notice can link
+    # straight to the conversation instead of being a dead copy of it.
+    # CASCADE: if the thread is deleted, a notice pointing into it is noise.
+    complaint = models.ForeignKey(
+        "Complaint", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="notifications",
+    )
     event = models.ForeignKey(
         LeakEvent, on_delete=models.SET_NULL, null=True, blank=True, related_name="notifications"
     )

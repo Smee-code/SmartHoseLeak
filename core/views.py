@@ -17,7 +17,7 @@ from django.db.models import Avg, Count, Max, Q
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
 
 from .forms import (
@@ -684,6 +684,7 @@ def complaint_reply(request, pk):
             sent_by=request.user,
             recipient=complaint.household,
             segment=complaint.household.segment,
+            complaint=complaint,
         )
 
     messages.success(request, "Reply sent. The owner has been notified.")
@@ -873,13 +874,47 @@ def owner_home(request, household):
 
 @owner_required
 def owner_notifications(request, household):
-    notifications = household.notifications.select_related("segment")
+    notifications = household.notifications.select_related("segment", "complaint")
     page = Paginator(notifications, 20).get_page(request.GET.get("page"))
-    # Opening the inbox marks what is on screen as read.
-    unread_ids = [n.id for n in page if n.read_at is None]
-    if unread_ids:
-        Notification.objects.filter(id__in=unread_ids).update(read_at=timezone.now())
-    return render(request, "owner/notifications.html", {"page": page, "household": household})
+
+    # Read before marking: once these are flagged read the template can no
+    # longer tell which ones were new on this visit, and "new since you last
+    # looked" is the most useful thing the page can show.
+    was_unread = {n.id for n in page if n.read_at is None}
+
+    # Grouped by day so a long list reads as a timeline rather than a wall.
+    today = timezone.localdate()
+    yesterday = today - timezone.timedelta(days=1)
+    groups = []
+    for notification in page:
+        day = timezone.localtime(notification.created_at).date()
+        if day == today:
+            label = "Today"
+        elif day == yesterday:
+            label = "Yesterday"
+        else:
+            # Django's formatter rather than strftime: %-d is not portable to
+            # Windows, and this stays locale-aware.
+            label = formats.date_format(day, "F j, Y")
+        notification.was_unread = notification.id in was_unread
+        if groups and groups[-1]["label"] == label:
+            groups[-1]["items"].append(notification)
+        else:
+            groups.append({"label": label, "items": [notification]})
+
+    if was_unread:
+        Notification.objects.filter(id__in=was_unread).update(read_at=timezone.now())
+
+    return render(
+        request,
+        "owner/notifications.html",
+        {
+            "page": page,
+            "groups": groups,
+            "household": household,
+            "new_count": len(was_unread),
+        },
+    )
 
 
 @owner_required
