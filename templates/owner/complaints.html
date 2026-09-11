@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 {% block title %}My complaints - {{ SITE_NAME }}{% endblock %}
+
+{% comment %}
+  No footer here: this page ends in the message box, and on a phone a footer
+  underneath pushes it off the bottom of the screen.
+{% endcomment %}
+{% block footer %}{% endblock %}
+
 {% block content %}
 <div class="wrap">
   <div class="page-head">

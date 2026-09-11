@@ -192,6 +192,12 @@
 
     <main id="main">{% block content %}{% endblock %}</main>
 
+    {% comment %}
+      Wrapped in a block so a page can drop it. The conversation screens end
+      in a message box that should sit at the bottom of the screen; a footer
+      under it pushes the compose field up and out of reach on a phone.
+    {% endcomment %}
+    {% block footer %}
     <footer class="sitefoot">
       <div class="sitefoot-inner">
         <div class="sitefoot-top">
@@ -216,6 +222,7 @@
         </div>
       </div>
     </footer>
+    {% endblock %}
 
   </div>
 </div>
