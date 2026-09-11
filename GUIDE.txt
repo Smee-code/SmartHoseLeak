@@ -307,6 +307,14 @@ Dashboard shows leaks on lines with 0.00 L/min
     The modules are not calibrated (K = 0). See section 9. Also check the
     pressure sensor wiring if readings sit at their maximum.
 
+The map fills with yellow "Access blocked" tiles
+    OpenStreetMap could not tell which app was asking and served a blocked
+    image instead of the map. Fixed in the settings (SECURE_REFERRER_POLICY),
+    but your browser will have cached the blocked images - press
+    Ctrl+Shift+R once to clear them.
+    If it ever comes back: the map is optional. Press "Switch to offline
+    schematic" and carry on; the schematic needs no internet at all.
+
 The device page shows the wrong upload result
     http://<device-ip>/status shows server_url and server_upload, which is
     the fastest way to see what the board is actually trying to do.

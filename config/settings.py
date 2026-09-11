@@ -143,6 +143,18 @@ SITE_LOCALE = "Brgy. Lower Dakong Patag, Sison, Surigao del Norte"
 # mistyped value cannot silently drop a household in the sea. The margin allows
 # for a tap just outside the surveyed edge without being so wide that a wrong
 # digit slips through.
+# Django defaults this to "same-origin", which strips the Referer from every
+# cross-origin request. OpenStreetMap's tile servers use the Referer to tell
+# which app is asking, and answer an unidentified request with an "Access
+# blocked" image - served as HTTP 200, so the map fills with blocked tiles
+# and nothing reports an error.
+#
+# strict-origin-when-cross-origin sends only the origin (no path, no query) to
+# other sites, and nothing at all when downgrading HTTPS to HTTP. That is
+# enough for the tile server to identify us without leaking which page of the
+# dashboard the facilitator happens to be on.
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+
 MUNICIPALITY_NAME = "Sison, Surigao del Norte"
 MUNICIPALITY_BOUNDS = (9.61325, 125.43605, 9.69744, 125.54105)  # S, W, N, E
 MUNICIPALITY_BOUNDS_MARGIN_DEG = 0.05  # about 5.5 km
