@@ -256,6 +256,13 @@ IF THE UPLOAD FAILS WITH "Failed to extract libcrypto-3.dll":
 Run these from D:\USB Drive\SmartHoseLeak with the venv activated.
 
     .venv\Scripts\activate                    turn the venv on
+
+  ALWAYS ACTIVATE THE VENV FIRST. Without it, "python" is the system Python,
+  which has a different Django version installed (4.2 rather than the 5.2
+  this project expects). It mostly works, but not always, and the differences
+  are the kind that appear at the worst moment.
+  To check which one you are on: python -c "import django; print(django.get_version())"
+
     python manage.py runserver 0.0.0.0:8000   start the system
     python manage.py migrate                  apply database changes
     python manage.py createsuperuser          make an admin login

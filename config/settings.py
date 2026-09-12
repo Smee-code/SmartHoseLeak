@@ -103,30 +103,16 @@ else:
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
             "OPTIONS": {
-                # SQLite allows one writer at a time. The ESP32 posts readings
-                # every two seconds while every open dashboard polls just as
-                # often, and the database sits on a USB drive where writes are
-                # slow - so those collide and the loser raises "database is
-                # locked", losing that batch of readings.
-                #
-                # WAL lets readers carry on while a write is in progress,
-                # which removes almost all of the contention. synchronous
-                # NORMAL is the matching setting: still crash-safe under WAL,
-                # without an fsync per transaction, which is what hurts most
-                # on removable media.
-                "init_command": (
-                    "PRAGMA journal_mode=WAL;"
-                    "PRAGMA synchronous=NORMAL;"
-                    "PRAGMA temp_store=MEMORY;"
-                ),
                 # Wait for a busy database rather than failing at once. The
                 # default is 5 seconds; a slow USB write under load can take
-                # longer than that.
+                # longer than that. Supported by every Django version.
+                #
+                # The rest of the tuning - WAL and friends - is applied in
+                # core/apps.py on each new connection instead of through
+                # OPTIONS, because the "init_command" and "transaction_mode"
+                # keys only exist from Django 5.1 and this project gets run
+                # against 4.2 as well.
                 "timeout": 30,
-                # Take the write lock when the transaction starts instead of
-                # upgrading midway, which is where SQLite deadlocks between
-                # two writers.
-                "transaction_mode": "IMMEDIATE",
             },
         }
     }
