@@ -6,3 +6,8 @@ db.sqlite3
 staticfiles/
 *.log
 .DS_Store
+
+# SQLite WAL sidecar files
+db.sqlite3-wal
+db.sqlite3-shm
+db.sqlite3-journal

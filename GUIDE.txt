@@ -307,6 +307,14 @@ Dashboard shows leaks on lines with 0.00 L/min
     The modules are not calibrated (K = 0). See section 9. Also check the
     pressure sensor wiring if readings sit at their maximum.
 
+The server log shows "database is locked" and a POST /api/ingest/ 500
+    That batch of readings was dropped because two things tried to write at
+    the same moment. Fixed in the settings by switching the database to WAL
+    mode, which lets reading and writing happen together.
+    If it ever returns, the usual cause is the database file being on slow
+    or failing storage - it lives on the USB drive. Copying the project to
+    the internal drive would make it far less likely.
+
 The map fills with yellow "Access blocked" tiles
     OpenStreetMap could not tell which app was asking and served a blocked
     image instead of the map. Fixed in the settings (SECURE_REFERRER_POLICY),
