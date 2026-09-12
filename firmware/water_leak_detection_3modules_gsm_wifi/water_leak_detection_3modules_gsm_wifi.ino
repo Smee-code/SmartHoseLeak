@@ -144,6 +144,17 @@ const uint8_t PRESSURE_PINS[NUM_MODULES] = {34, 35, 32};
 #define ADC_MAX_COUNT 4095.0
 #define ADC_VREF 3.3
 
+// The ESP32's ADC is noisy enough that one reading is not worth much; these
+// are averaged per sample, the same approach as sensor_test.ino.
+#define PRESSURE_SAMPLES 16
+#define PRESSURE_SAMPLE_GAP_US 500
+
+// Raw-count thresholds for spotting a mis-wired sensor. A live transducer
+// idles around 414 counts (0.5 V through the divider), so a reading near zero
+// means no sensor rather than no pressure.
+#define ADC_DEAD_BELOW 20
+#define ADC_SATURATED_ABOVE 4075
+
 // ---- Timing ----
 #define SAMPLE_INTERVAL_MS 1000
 #define FILTER_HISTORY_SIZE 5
@@ -284,6 +295,20 @@ struct ModuleState
 
   // Prevents sending one SMS per sample while an alarm condition persists
   bool leakNotified;
+
+  // Raw ADC state, kept so the sensor can be diagnosed without a multimeter.
+  // A correctly wired transducer reads ~0.5 V at zero pressure, which converts
+  // to 0.00 bar - exactly what an unplugged pin also reports. Only the raw
+  // count tells those two apart, so it is carried through to the serial line,
+  // the device's own page and /status.
+  int lastAdcRaw;
+  float lastVAdc;
+  float lastVSensor;
+  uint8_t adcWarnState; // 0 = fine, 1 = reads ~0, 2 = saturated
+
+  // The filter history starts empty; seeding it with the first real reading
+  // stops the first few samples being dragged toward zero by the blanks.
+  bool primed;
 };
 
 ModuleState modules[NUM_MODULES];
@@ -341,18 +366,67 @@ float emaFilter(float previousEMA, float newSample, float alpha)
 // SENSOR READING FUNCTIONS
 // ============================================================================
 
-float readPressureRaw(uint8_t pin)
+// Reads one module's pressure transducer and returns bar.
+//
+// Averages several ADC samples rather than taking one: a single ESP32 read
+// can swing by hundreds of counts, and averaging is what makes the readings
+// in sensor_test.ino steady. The raw count and both voltages are kept on the
+// module so they can be reported - without them a dead sensor and a sensor at
+// zero pressure are indistinguishable, because both end up as 0.00 bar.
+float readPressureBar(ModuleState &m)
 {
-  int adcCount = analogRead(pin);
-  float vAtPin = (adcCount / ADC_MAX_COUNT) * ADC_VREF;
-  float vSensorOut = vAtPin / DIVIDER_RATIO;
+  long sum = 0;
+  for (uint8_t i = 0; i < PRESSURE_SAMPLES; i++)
+  {
+    sum += analogRead(m.pressurePin);
+    delayMicroseconds(PRESSURE_SAMPLE_GAP_US);
+  }
 
-  float pressureBar = (vSensorOut - SENSOR_VOUT_MIN) *
+  float raw = sum / (float)PRESSURE_SAMPLES;
+  m.lastAdcRaw = (int)(raw + 0.5f);
+  m.lastVAdc = (raw / ADC_MAX_COUNT) * ADC_VREF;
+  m.lastVSensor = m.lastVAdc / DIVIDER_RATIO;
+
+  float pressureBar = (m.lastVSensor - SENSOR_VOUT_MIN) *
                       (PRESSURE_MAX_BAR / (SENSOR_VOUT_MAX - SENSOR_VOUT_MIN));
 
   if (pressureBar < 0)
     pressureBar = 0;
   return pressureBar;
+}
+
+// Warns about the two wiring faults that look like a valid zero reading.
+// Only fires when the condition changes, so a genuine fault is stated once
+// instead of scrolling the monitor every second.
+void checkPressureWiring(ModuleState &m)
+{
+  uint8_t state = 0;
+  if (m.lastAdcRaw < ADC_DEAD_BELOW)
+    state = 1;
+  else if (m.lastAdcRaw > ADC_SATURATED_ABOVE)
+    state = 2;
+
+  if (state == m.adcWarnState)
+    return;
+  m.adcWarnState = state;
+
+  if (state == 1)
+  {
+    Serial.printf("  ! M%d pressure ADC reads ~0 (raw %d). Sensor unpowered, signal wire "
+                  "loose, or wrong pin. A working sensor idles near %.0f counts.\n",
+                  m.id, m.lastAdcRaw,
+                  SENSOR_VOUT_MIN * DIVIDER_RATIO / ADC_VREF * ADC_MAX_COUNT);
+  }
+  else if (state == 2)
+  {
+    Serial.printf("  ! M%d pressure ADC saturated (raw %d). Voltage above the 3.3 V the ADC "
+                  "accepts - check the divider resistors.\n",
+                  m.id, m.lastAdcRaw);
+  }
+  else
+  {
+    Serial.printf("  M%d pressure sensor reading normally again (raw %d).\n", m.id, m.lastAdcRaw);
+  }
 }
 
 float computeFlowRateLPM(uint32_t pulses, unsigned long elapsedMillis)
@@ -1327,6 +1401,10 @@ String buildStatusJSON()
     json += "\"pressure_bar\":" + String(m.pressureEMA, 2) + ",";
     json += "\"flow_lpm\":" + String(m.flowEMA, 2) + ",";
     json += "\"k_conductance\":" + String(m.K_CONDUCTANCE, 4) + ",";
+    // Raw ADC on the status page too, so the sensors can be checked from a
+    // phone on site without opening the Serial Monitor.
+    json += "\"adc_raw\":" + String(m.lastAdcRaw) + ",";
+    json += "\"v_sensor\":" + String(m.lastVSensor, 3) + ",";
     json += "\"status\":\"" + String(statusToString(m.currentStatus)) + "\",";
     json += "\"calibrating\":" + String(m.calibrationMode ? "true" : "false") + ",";
     json += "\"simulated\":" + String(m.simulationMode ? "true" : "false");
@@ -1442,9 +1520,18 @@ void initModule(uint8_t index, uint8_t flowPin, uint8_t pressurePin, void (*isr)
   m.candidateStatus = STATUS_NORMAL;
   m.consecutiveCount = 0;
   m.leakNotified = false;
+  m.lastAdcRaw = 0;
+  m.lastVAdc = 0;
+  m.lastVSensor = 0;
+  m.adcWarnState = 0;
+  m.primed = false;
 
   pinMode(flowPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(flowPin), isr, FALLING);
+
+  // Set per pin as well as globally, matching sensor_test.ino exactly, so the
+  // attenuation cannot differ between the two sketches.
+  analogSetPinAttenuation(pressurePin, ADC_11db);
 }
 
 // ============================================================================
@@ -1578,24 +1665,42 @@ void loop()
     {
       ModuleState &m = modules[i];
 
-      // --- Read & filter pressure ---
-      float rawPressure = m.simulationMode ? m.simPressure : readPressureRaw(m.pressurePin);
-      m.pressureHistory[m.historyIndex] = rawPressure;
-      float medianPressure = medianFilter(m.pressureHistory, FILTER_HISTORY_SIZE);
-      m.pressureEMA = emaFilter(m.pressureEMA, medianPressure, EMA_ALPHA);
+      // --- Read pressure and flow ---
+      float rawPressure = m.simulationMode ? m.simPressure : readPressureBar(m);
 
-      // --- Read & filter flow ---
       noInterrupts();
       uint32_t pulses = m.flowPulseCount;
       m.flowPulseCount = 0;
       interrupts();
 
       float rawFlow = m.simulationMode ? m.simFlow : computeFlowRateLPM(pulses, elapsed);
+
+      // First real sample fills the whole history. Without this the median of
+      // a part-empty buffer is 0 for the first few seconds, so the board
+      // reports - and uploads - pressures well below what it is measuring.
+      if (!m.primed)
+      {
+        for (uint8_t h = 0; h < FILTER_HISTORY_SIZE; h++)
+        {
+          m.pressureHistory[h] = rawPressure;
+          m.flowHistory[h] = rawFlow;
+        }
+        m.primed = true;
+      }
+
+      // --- Filter ---
+      m.pressureHistory[m.historyIndex] = rawPressure;
+      float medianPressure = medianFilter(m.pressureHistory, FILTER_HISTORY_SIZE);
+      m.pressureEMA = emaFilter(m.pressureEMA, medianPressure, EMA_ALPHA);
+
       m.flowHistory[m.historyIndex] = rawFlow;
       float medianFlow = medianFilter(m.flowHistory, FILTER_HISTORY_SIZE);
       m.flowEMA = emaFilter(m.flowEMA, medianFlow, EMA_ALPHA);
 
       m.historyIndex = (m.historyIndex + 1) % FILTER_HISTORY_SIZE;
+
+      if (!m.simulationMode)
+        checkPressureWiring(m);
 
       // --- Classification + hysteresis ---
       SystemStatus candidate = classify(m, m.pressureEMA, m.flowEMA);
@@ -1605,8 +1710,13 @@ void loop()
       checkAndNotifyLeak(m);
 
       // --- Report ---
-      Serial.printf("[M%d] P=%.2f bar | Q=%.2f L/min | K=%.3f | Status: %s%s%s\n",
-                    m.id, m.pressureEMA, m.flowEMA, m.K_CONDUCTANCE,
+      // The raw ADC count and the sensor voltage are on the line because
+      // 0.00 bar is what both a working sensor at rest and a disconnected one
+      // report. raw tells them apart: ~414 means wired and idle, ~0 means no
+      // signal at all.
+      Serial.printf("[M%d] P=%.2f bar (%.1f psi) | Q=%.2f L/min | raw=%4d  Vadc=%.3f  Vsens=%.3f | K=%.3f | %s%s%s\n",
+                    m.id, m.pressureEMA, m.pressureEMA * 14.5038, m.flowEMA,
+                    m.lastAdcRaw, m.lastVAdc, m.lastVSensor, m.K_CONDUCTANCE,
                     statusToString(m.currentStatus),
                     m.calibrationMode ? "  (CALIBRATING)" : "",
                     m.simulationMode ? "  (SIMULATED INPUT)" : "");
