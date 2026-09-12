@@ -306,6 +306,10 @@ struct ModuleState
   float lastVSensor;
   uint8_t adcWarnState; // 0 = fine, 1 = reads ~0, 2 = saturated
 
+  // This sensor's own reading with no water in the line, used as its 0 bar.
+  // Defaults to the datasheet's 0.5 V until 'Z' measures the real one.
+  float zeroVSensor;
+
   // The filter history starts empty; seeding it with the first real reading
   // stops the first few samples being dragged toward zero by the blanks.
   bool primed;
@@ -375,24 +379,78 @@ float emaFilter(float previousEMA, float newSample, float alpha)
 // zero pressure are indistinguishable, because both end up as 0.00 bar.
 float readPressureBar(ModuleState &m)
 {
-  long sum = 0;
+  long sumRaw = 0;
+  long sumMilliVolts = 0;
   for (uint8_t i = 0; i < PRESSURE_SAMPLES; i++)
   {
-    sum += analogRead(m.pressurePin);
+    sumRaw += analogRead(m.pressurePin);
+    // analogReadMilliVolts applies the calibration burned into the chip at
+    // the factory. Converting the raw count by hand assumes a perfectly
+    // linear 0-3.3 V ADC, which the ESP32's is not - it reads low, worst at
+    // the bottom of the range, which is exactly where a pressure sensor
+    // sits when there is no water.
+    sumMilliVolts += analogReadMilliVolts(m.pressurePin);
     delayMicroseconds(PRESSURE_SAMPLE_GAP_US);
   }
 
-  float raw = sum / (float)PRESSURE_SAMPLES;
-  m.lastAdcRaw = (int)(raw + 0.5f);
-  m.lastVAdc = (raw / ADC_MAX_COUNT) * ADC_VREF;
+  m.lastAdcRaw = (int)(sumRaw / (float)PRESSURE_SAMPLES + 0.5f);
+  m.lastVAdc = (sumMilliVolts / (float)PRESSURE_SAMPLES) / 1000.0f;
   m.lastVSensor = m.lastVAdc / DIVIDER_RATIO;
 
-  float pressureBar = (m.lastVSensor - SENSOR_VOUT_MIN) *
+  // Measured against this module's own zero point rather than the datasheet's
+  // 0.5 V. Sensors vary, and a module resting slightly below 0.5 V would
+  // otherwise have to climb past it before reporting any pressure at all,
+  // losing the bottom of its range.
+  float pressureBar = (m.lastVSensor - m.zeroVSensor) *
                       (PRESSURE_MAX_BAR / (SENSOR_VOUT_MAX - SENSOR_VOUT_MIN));
 
   if (pressureBar < 0)
     pressureBar = 0;
   return pressureBar;
+}
+
+// Records what each sensor reads with no water in the line, so that becomes
+// its 0.00 bar. Run it with the system depressurised.
+void zeroPressureSensors(int8_t onlyIndex)
+{
+  wifiPrefs.begin(WIFI_PREFS_NAMESPACE, false);
+  for (uint8_t i = 0; i < NUM_MODULES; i++)
+  {
+    if (onlyIndex >= 0 && onlyIndex != (int8_t)i)
+      continue;
+
+    ModuleState &m = modules[i];
+    readPressureBar(m); // refresh lastVSensor before taking it as the zero
+
+    if (m.lastAdcRaw < ADC_DEAD_BELOW)
+    {
+      Serial.printf("[ZERO] M%d skipped - ADC reads %d, so there is no sensor to zero.\n",
+                    m.id, m.lastAdcRaw);
+      continue;
+    }
+
+    m.zeroVSensor = m.lastVSensor;
+    char key[8];
+    snprintf(key, sizeof(key), "z%u", (unsigned)m.id);
+    wifiPrefs.putFloat(key, m.zeroVSensor);
+
+    m.primed = false; // re-seed the filters against the new zero
+    Serial.printf("[ZERO] M%d zero set at %.3f V (raw %d). Saved.\n",
+                  m.id, m.zeroVSensor, m.lastAdcRaw);
+  }
+  wifiPrefs.end();
+}
+
+void loadZeroOffsets()
+{
+  wifiPrefs.begin(WIFI_PREFS_NAMESPACE, true);
+  for (uint8_t i = 0; i < NUM_MODULES; i++)
+  {
+    char key[8];
+    snprintf(key, sizeof(key), "z%u", (unsigned)modules[i].id);
+    modules[i].zeroVSensor = wifiPrefs.getFloat(key, SENSOR_VOUT_MIN);
+  }
+  wifiPrefs.end();
 }
 
 // Warns about the two wiring faults that look like a valid zero reading.
@@ -1525,6 +1583,7 @@ void initModule(uint8_t index, uint8_t flowPin, uint8_t pressurePin, void (*isr)
   m.lastVSensor = 0;
   m.adcWarnState = 0;
   m.primed = false;
+  m.zeroVSensor = SENSOR_VOUT_MIN; // replaced by loadZeroOffsets() if one was saved
 
   pinMode(flowPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(flowPin), isr, FALLING);
@@ -1548,6 +1607,8 @@ void setup()
   initModule(0, FLOW_PINS[0], PRESSURE_PINS[0], flowPulseISR0);
   initModule(1, FLOW_PINS[1], PRESSURE_PINS[1], flowPulseISR1);
   initModule(2, FLOW_PINS[2], PRESSURE_PINS[2], flowPulseISR2);
+
+  loadZeroOffsets();
 
   GSM_SERIAL.begin(GSM_BAUD, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
   delay(3000); // SIM800L needs a few seconds to boot/register on the network
@@ -1575,6 +1636,8 @@ void setup()
 
   Serial.println("Send 'C1'/'C2'/'C3' to calibrate that module.");
   Serial.println("  While calibrating: 'A' = capture point, 'F' = finish & compute K");
+  Serial.println("Send 'Z' with NO WATER in the line to set the zero point for all");
+  Serial.println("  modules, or 'Z2' for one. Do this once per sensor; it is saved.");
   Serial.println("Send 'S<module>,<pressure>,<flow>' e.g. S1,1.2,4.5 to inject");
   Serial.println("  simulated readings for testing. Send 'R<module>' or 'R' (all)");
   Serial.println("  to return to real sensor readings.");
@@ -1630,6 +1693,20 @@ void loop()
         modules[idx].simulationMode = true;
         Serial.printf("[SIMULATION] Module %d - Injecting P=%.2f bar, Q=%.2f L/min\n", idx + 1, p, q);
       }
+    }
+    else if (cmd == 'Z')
+    {
+      // 'Z' zeroes every module, 'Z2' just that one. Run with no water in
+      // the line - whatever the sensors read now becomes their 0.00 bar.
+      int8_t only = -1;
+      if (isDigit(Serial.peek()))
+      {
+        char digit = Serial.read();
+        only = digit - '1';
+        if (only < 0 || only >= NUM_MODULES)
+          only = -1;
+      }
+      zeroPressureSensors(only);
     }
     else if (cmd == 'R')
     {
