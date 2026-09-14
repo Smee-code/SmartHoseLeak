@@ -20,6 +20,8 @@ from django.contrib.staticfiles.management.commands.runserver import (
     Command as StaticfilesRunserverCommand,
 )
 
+from core import discovery
+
 
 def primary_lan_ip():
     """
@@ -43,7 +45,26 @@ def primary_lan_ip():
 class Command(StaticfilesRunserverCommand):
     def inner_run(self, *args, **options):
         self._print_addresses()
+        self._start_discovery()
         super().inner_run(*args, **options)
+
+    def _start_discovery(self):
+        """
+        Answer devices asking where the server is.
+
+        Only when bound to all interfaces: on localhost nothing else can
+        reach us anyway, and advertising an address no device can use would
+        be worse than staying quiet.
+        """
+        if self.addr not in ("0.0.0.0", "::", ""):
+            return
+
+        if discovery.start(self.port):
+            self.stdout.write(
+                "  Devices can find this server by themselves "
+                f"(UDP {discovery.DISCOVERY_PORT})."
+            )
+            self.stdout.write("")
 
     def _print_addresses(self):
         port = self.port

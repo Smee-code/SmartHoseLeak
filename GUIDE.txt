@@ -114,6 +114,28 @@ IF THE NETWORK LIST IS EMPTY:
 ============================================================================
 5. TELLING THE ESP32 WHERE THE SERVER IS
 ============================================================================
+IN MOST CASES YOU NO LONGER HAVE TO. The board asks the network where the
+server is and remembers the answer.
+
+  - At boot, if it has never been told an address, it asks.
+  - While running, if three uploads in a row fail to reach anything, it asks
+    again - about six seconds - and adopts the new address if one replies.
+    It will not ask more than once every 30 seconds.
+  - Whatever it finds is saved, so it comes back up already pointed at the
+    right place.
+
+This is why the startup banner says "Devices can find this server by
+themselves". It only works when the server is started with 0.0.0.0:8000;
+bound to localhost there is nothing for a device to find.
+
+Watch for this in the Serial Monitor:
+    [DISCOVER] Server found at http://192.168.1.21:8000/api/ingest/
+    [DISCOVER] No server answered on this network.
+
+Set it by hand when the board is on a different network from the laptop, or
+when you want it pointed somewhere specific:
+
+
 This is separate from WiFi, and it is the #1 reason the dashboard stays
 Offline after moving to a new place.
 
@@ -637,6 +659,12 @@ CHANGE LOG OF THIS GUIDE
              with a messenger-style inbox on both the facilitator and the
              owner side, replacing the single-reply ticket screen. Existing
              complaints were converted into threads automatically.
+
+14 Sep 2026  The ESP32 now finds the server by itself. The laptop's address
+             changes whenever it joins a different network, and the board
+             used to keep posting to the old one until someone noticed and
+             retyped it. It now asks the network, and re-asks whenever
+             uploads stop getting through. See section 5.
 
 11 Sep 2026  Confirmation messages ("... returned to live monitoring", and
              similar) now appear as toasts in the bottom-right corner

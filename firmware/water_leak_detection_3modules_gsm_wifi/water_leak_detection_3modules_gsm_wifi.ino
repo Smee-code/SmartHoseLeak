@@ -122,6 +122,7 @@
 #include <DNSServer.h>
 #include <Preferences.h>
 #include <HTTPClient.h>
+#include <WiFiUDP.h>
 
 // ============================================================================
 // USER CONFIGURATION
@@ -229,6 +230,20 @@ HardwareSerial GSM_SERIAL(2);              // ESP32 UART2
 #define UPLOAD_INTERVAL_MS 2000 // how often to POST readings
 #define HTTP_TIMEOUT_MS 5000    // give up on a POST after this long
 
+// ---- Finding the server by itself ----
+// The laptop running the dashboard gets its address from whatever router it
+// joins, so that address changes. Rather than being retyped every time, the
+// board asks the network where the server is and remembers the answer.
+#define DISCOVERY_PORT 18830
+#define DISCOVERY_PROBE "SHL-DISCOVER?"
+#define DISCOVERY_REPLY_WAIT_MS 700
+// Three failures is about six seconds - long enough not to react to one
+// dropped packet, short enough to recover before anyone notices.
+#define DISCOVERY_AFTER_FAILURES 3
+// Never faster than this, so a genuinely absent server means one quiet probe
+// every half minute rather than a broadcast storm.
+#define DISCOVERY_MIN_GAP_MS 30000
+
 WebServer webServer(WEB_SERVER_PORT);
 DNSServer dnsServer;
 Preferences wifiPrefs;
@@ -328,6 +343,12 @@ unsigned long lastUploadMillis = 0;
 // dashboard and in /status so a failing uplink is visible without a laptop.
 String lastUploadResult = "not attempted yet";
 bool lastUploadOk = false;
+
+// Consecutive failed uploads, and when we last asked the network where the
+// server is. Together these decide when to go looking for a moved server.
+uint8_t uploadFailStreak = 0;
+unsigned long lastDiscoveryMillis = 0;
+String lastDiscoveryResult = "not needed yet";
 
 // ============================================================================
 // INTERRUPT SERVICE ROUTINES - one per module (ISRs can't take parameters)
@@ -775,6 +796,88 @@ String buildPayload()
   return json;
 }
 
+// Asks the network where the dashboard is and adopts the answer.
+//
+// Broadcasts a short probe; the server replies with the URL to post to. The
+// result is saved to flash, so the board only has to do this once per move
+// and comes back up already pointed at the right place.
+//
+// Returns true when a new address was adopted.
+bool discoverServer()
+{
+  if (apMode || WiFi.status() != WL_CONNECTED)
+    return false;
+
+  lastDiscoveryMillis = millis();
+
+  WiFiUDP udp;
+  if (!udp.begin(0)) // any free local port
+  {
+    lastDiscoveryResult = "could not open a socket";
+    return false;
+  }
+
+  IPAddress broadcast = WiFi.localIP();
+  broadcast[3] = 255; // this subnet's broadcast address
+
+  udp.beginPacket(broadcast, DISCOVERY_PORT);
+  udp.print(DISCOVERY_PROBE);
+  udp.endPacket();
+
+  unsigned long deadline = millis() + DISCOVERY_REPLY_WAIT_MS;
+  while ((long)(millis() - deadline) < 0)
+  {
+    int size = udp.parsePacket();
+    if (size <= 0)
+    {
+      delay(10);
+      continue;
+    }
+
+    char buffer[192];
+    int read = udp.read(buffer, sizeof(buffer) - 1);
+    if (read <= 0)
+      continue;
+    buffer[read] = '\0';
+
+    // The reply is {"ingest":"http://..."}. Pulling the one value out by
+    // hand keeps the sketch free of a JSON library for a single field.
+    String body(buffer);
+    int keyAt = body.indexOf("\"ingest\"");
+    if (keyAt < 0)
+      continue;
+    int start = body.indexOf('"', body.indexOf(':', keyAt)) + 1;
+    int end = body.indexOf('"', start);
+    if (start <= 0 || end <= start)
+      continue;
+
+    String found = body.substring(start, end);
+    if (!found.startsWith("http://") && !found.startsWith("https://"))
+      continue;
+
+    udp.stop();
+
+    if (found == cfgServerUrl)
+    {
+      lastDiscoveryResult = "server confirmed the address already in use";
+      return false;
+    }
+
+    Serial.printf("[DISCOVER] Server found at %s (was %s)\n",
+                  found.c_str(), cfgServerUrl.c_str());
+    cfgServerUrl = found;
+    saveServerUrl(found);
+    lastDiscoveryResult = "adopted " + found;
+    uploadFailStreak = 0;
+    return true;
+  }
+
+  udp.stop();
+  lastDiscoveryResult = "no server answered";
+  Serial.println("[DISCOVER] No server answered on this network.");
+  return false;
+}
+
 // Posts the current readings. Every failure is recorded in lastUploadResult
 // and otherwise ignored: the leak decision and the SMS are made here on the
 // device, so neither waits on the network or on the server being up.
@@ -812,6 +915,15 @@ void uploadReadings()
   http.addHeader("X-Device-Key", DEVICE_API_KEY);
 
   int code = http.POST(buildPayload());
+
+  // A reply of any kind means we are talking to the right machine, so only a
+  // transport failure counts toward going to look for a moved server. A 401
+  // is the wrong key, not the wrong address, and rediscovering would not
+  // help.
+  if (code > 0)
+    uploadFailStreak = 0;
+  else if (uploadFailStreak < 255)
+    uploadFailStreak++;
 
   if (code == 200)
   {
@@ -1446,6 +1558,7 @@ String buildStatusJSON()
   json += "\"ssid\":\"" + htmlEscape(cfgSSID) + "\",";
   json += "\"ip\":\"" + (apMode ? WiFi.softAPIP().toString() : WiFi.localIP().toString()) + "\",";
   json += "\"server_url\":\"" + htmlEscape(cfgServerUrl) + "\",";
+  json += "\"server_discovery\":\"" + htmlEscape(lastDiscoveryResult) + "\",";
   json += "\"server_upload_ok\":" + String(lastUploadOk ? "true" : "false") + ",";
   json += "\"server_upload\":\"" + htmlEscape(lastUploadResult) + "\",";
   json += "\"modules\":[";
@@ -1632,6 +1745,11 @@ void setup()
   {
     startSetupAP(); // no saved network, or it is out of range
   }
+  // Nothing saved yet: ask the network rather than sitting on the
+  // compiled-in default, which is only right by luck.
+  if (cfgServerUrl == DEFAULT_SERVER_URL)
+    discoverServer();
+
   setupWebServer(); // dashboard on a normal network, setup page on the AP
 
   Serial.println("Send 'C1'/'C2'/'C3' to calibrate that module.");
@@ -1808,5 +1926,14 @@ void loop()
   {
     lastUploadMillis = now;
     uploadReadings();
+
+    // Uploads failing to reach anything usually means the dashboard's
+    // machine changed address. Ask the network where it went, rather than
+    // posting into the void until somebody notices.
+    if (uploadFailStreak >= DISCOVERY_AFTER_FAILURES &&
+        (now - lastDiscoveryMillis) >= DISCOVERY_MIN_GAP_MS)
+    {
+      discoverServer();
+    }
   }
 }
