@@ -1613,14 +1613,58 @@ void handleWebRoot()
   html += ".NORMAL{color:#1a7a3c;font-weight:bold;}";
   html += ".LOW{color:#b8860b;font-weight:bold;}";
   html += ".LEAK{color:#c0392b;font-weight:bold;background:#fdecea;}";
+  // The connection panel: labels down the left, values on the right.
+  html += "table.info{margin-bottom:18px;}";
+  html += "table.info th{width:130px;background:#eef3f8;color:#1a3c5e;}";
+  html += ".muted{color:#666;font-size:13px;}";
+  html += ".mono{font-family:Consolas,monospace;font-size:13px;word-break:break-all;}";
+  html += ".good{color:#1a7a3c;} .bad{color:#c0392b;}";
+  html += "a{color:#1a3c5e;}";
   html += "</style></head><body>";
   html += "<h1>Water Leak Detection - Live Status</h1>";
-  html += "<p>Auto-refreshes every 3 seconds. WiFi: ";
-  html += (WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected");
-  html += " &nbsp;|&nbsp; Server upload: <b style=\"color:";
-  html += (lastUploadOk ? "#1a7a3c" : "#c0392b");
-  html += "\">" + htmlEscape(lastUploadResult) + "</b>";
-  html += "</p>";
+
+  // Which network the board is on, and where it is sending readings. Both
+  // change without anyone touching the board - the network when it is moved,
+  // the server address when the laptop's own address moves - so this is the
+  // first thing to check when the dashboard stops updating.
+  bool online = (WiFi.status() == WL_CONNECTED);
+  html += "<table class='info'>";
+
+  html += "<tr><th>Network</th><td>";
+  if (online)
+  {
+    html += "<b>" + htmlEscape(WiFi.SSID()) + "</b>";
+    long rssi = WiFi.RSSI();
+    html += " &nbsp;<span class='muted'>" + String(signalWord(rssi));
+    html += " signal, " + String(rssi) + " dBm</span>";
+  }
+  else
+  {
+    html += "<span class='bad'>Not connected</span>";
+    if (cfgSSID.length())
+      html += " <span class='muted'>(trying " + htmlEscape(cfgSSID) + ")</span>";
+  }
+  html += "</td></tr>";
+
+  html += "<tr><th>This device</th><td>";
+  html += online ? WiFi.localIP().toString() : String("-");
+  html += " &nbsp;<span class='muted'>signal strength and address come from the router</span>";
+  html += "</td></tr>";
+
+  html += "<tr><th>Sending to</th><td>";
+  html += "<span class='mono'>" + htmlEscape(cfgServerUrl) + "</span>";
+  html += "</td></tr>";
+
+  html += "<tr><th>Last upload</th><td><b class='";
+  html += (lastUploadOk ? "good" : "bad");
+  html += "'>" + htmlEscape(lastUploadResult) + "</b>";
+  if (!lastUploadOk)
+    html += " &nbsp;<span class='muted'>last search: " + htmlEscape(lastDiscoveryResult) + "</span>";
+  html += "</td></tr>";
+
+  html += "</table>";
+  html += "<p class='muted'>Auto-refreshes every 3 seconds. "
+          "<a href='/wifi'>Change network or server address</a></p>";
   html += "<table><tr><th>Module</th><th>Pressure (bar)</th><th>Flow (L/min)</th><th>K</th><th>Status</th></tr>";
 
   for (uint8_t i = 0; i < NUM_MODULES; i++)

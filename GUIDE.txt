@@ -446,6 +446,20 @@ THE LEAK MAP
   and the schematic is the one to use.
 
 
+THE DEVICE'S OWN PAGE
+  http://<device-ip>/ shows, above the live readings:
+
+      Network       which WiFi it joined, and how strong the signal is
+      This device   its own IP address
+      Sending to    the server address it is posting readings to
+      Last upload   whether the most recent one worked, and if not, what
+                    happened the last time it went looking for the server
+
+  That is the fastest way to answer "why is the dashboard not updating" -
+  it tells you in one screen whether the problem is the WiFi, the server
+  address, or neither. It refreshes itself every 3 seconds.
+
+
 FINDING THE DEVICE'S OWN ADDRESS
   The Device status box on the dashboard shows the ESP32's IP underneath
   "just now". Click it to open the board's own page. It updates by itself
