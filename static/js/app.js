@@ -423,6 +423,7 @@
       setValue('edit_name', trigger.getAttribute('data-name'));
       setValue('edit_start_m', trigger.getAttribute('data-start'));
       setValue('edit_end_m', trigger.getAttribute('data-end'));
+      setValue('edit_low_pressure_bar', trigger.getAttribute('data-lowbar'));
       setValue('edit_start_lat', trigger.getAttribute('data-startlat'));
       setValue('edit_start_lng', trigger.getAttribute('data-startlng'));
       setValue('edit_end_lat', trigger.getAttribute('data-endlat'));
@@ -787,7 +788,12 @@
         } else if (segment.status === 'OFFLINE') {
           note.textContent = 'No readings received. Check device power and Wi-Fi.';
         } else if (segment.status === 'LOW_SUPPLY') {
-          note.textContent = 'Pressure below the normal operating threshold.';
+          // Naming the figure turns a verdict into something checkable:
+          // the facilitator can see at a glance whether the line is genuinely
+          // weak or the threshold is simply set too high for this line.
+          note.textContent = segment.low_pressure_bar
+            ? 'Pressure is under this line’s ' + fmt(segment.low_pressure_bar, 2) + ' bar threshold.'
+            : 'Pressure below the normal operating threshold.';
         } else {
           note.textContent = segment.simulated ? 'Simulated input.' : '';
         }

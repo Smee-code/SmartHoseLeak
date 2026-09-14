@@ -300,6 +300,7 @@ class SegmentForm(forms.ModelForm):
             "color",
             "start_m",
             "end_m",
+            "low_pressure_bar",
             "start_lat",
             "start_lng",
             "end_lat",
@@ -308,10 +309,15 @@ class SegmentForm(forms.ModelForm):
             "is_active",
         ]
         help_texts = {
+            "low_pressure_bar": (
+                "Below this, the line reports Low Water Supply. The device picks the "
+                "new value up within seconds - no re-flashing."
+            ),
             "start_lat": "Optional. Fill all four coordinates to draw this line on the map view.",
         }
         widgets = {
             "color": forms.RadioSelect(attrs={"class": "swatch-input"}),
+            "low_pressure_bar": forms.NumberInput(attrs={"step": "0.05", "min": "0", "max": "12"}),
         }
 
     def clean(self):
@@ -320,6 +326,30 @@ class SegmentForm(forms.ModelForm):
         if start is not None and end is not None and end <= start:
             self.add_error("end_m", "The end marker must be further from the valve than the start marker.")
         return cleaned
+
+    def clean_low_pressure_bar(self):
+        """
+        Warn about a threshold that would make the line useless.
+
+        Both mistakes are easy to make and neither announces itself: set it
+        at 0 and a line can drain to nothing without ever raising Low Water
+        Supply, while a gravity-fed line set above about 4 bar would have to
+        be 40 m below its source to ever read "normal", so it alarms forever
+        and the facilitator learns to ignore it.
+        """
+        value = self.cleaned_data["low_pressure_bar"]
+        if value <= 0:
+            raise forms.ValidationError(
+                "A threshold of 0 can never be crossed, so this line would never "
+                "report low supply. Use at least 0.05 bar."
+            )
+        if value > 4:
+            raise forms.ValidationError(
+                "That is higher than a gravity-fed line normally reaches, so it would "
+                "report low supply permanently. Rural systems usually sit between "
+                "0.3 and 2 bar."
+            )
+        return value
 
 
 class SegmentCreateForm(forms.ModelForm):

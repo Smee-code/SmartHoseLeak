@@ -250,8 +250,31 @@ def ingest(request):
             "events": events,
             "errors": errors,
             "server_time": now.isoformat(),
+            "config": _device_config(segments),
         }
     )
+
+
+def _device_config(segments):
+    """
+    The tunable settings, sent back on every batch of readings.
+
+    The device decides LOW/NORMAL/LEAK itself - it has to, because it must
+    keep working when the WiFi drops - but the figures it decides against
+    belong to the site, not to the firmware. Returning them on the reply the
+    board is already waiting for means a facilitator can retune a line from
+    the dashboard and see it take effect within seconds, with no laptop, no
+    cable and no re-flashing.
+
+    Keyed by module index as a string because that is what JSON gives us
+    back. Built from the segments already loaded above, so this costs no
+    extra queries.
+    """
+    return {
+        str(index): {"low_pressure_bar": round(segment.low_pressure_bar, 3)}
+        for index, segment in segments.items()
+        if segment.is_active
+    }
 
 
 def _segment_payload(segment):
@@ -274,6 +297,7 @@ def _segment_payload(segment):
         "status_label": dict(Segment.Status.choices).get(effective, effective),
         "stored_status": segment.status,
         "stale": stale,
+        "low_pressure_bar": segment.low_pressure_bar,
         "start_m": segment.start_m,
         "end_m": segment.end_m,
         "location_label": segment.location_label,

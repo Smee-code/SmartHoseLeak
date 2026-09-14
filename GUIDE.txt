@@ -4,7 +4,7 @@ SMART HOSE LEAK DETECTION SYSTEM - OPERATOR GUIDE
 Keep this open when you are setting up. Everything you need to run the
 system, connect the ESP32, and fix the things that usually go wrong.
 
-Last updated: 11 September 2026
+Last updated: 14 September 2026
 
 
 ============================================================================
@@ -245,6 +245,61 @@ SIMULATION - inject fake readings without water running:
 
 Simulated readings are flagged in the dashboard, so they cannot be mistaken
 for real data.
+
+
+============================================================================
+9b. SETTING THE LOW-WATER-SUPPLY THRESHOLD  (from the dashboard, no reflash)
+============================================================================
+Each supply line has its own pressure threshold. Below it, that line is
+reported as Low Water Supply. You change it in the browser and the board
+picks it up on its next upload - within about 2 seconds. Nothing is flashed
+and nothing is restarted.
+
+TO CHANGE IT
+  1. Dashboard -> Lines
+  2. Click Edit on the line
+  3. "Low supply below" - type the value in bar
+  4. Save changes
+
+The Lines table shows every line's current threshold, in bar and psi. The
+board's own page (http://<esp32-ip>) shows it too, in the "Low below" column
+right next to the live pressure, so you can see on site whether a LOW SUPPLY
+reading is a weak line or a threshold set too high for it.
+
+WHAT VALUE TO USE
+Pressure and height are the same thing in a gravity system: 1 bar is about
+10 metres of drop from the source tank down to the sensor. So the right
+threshold is different for every line, and it depends on your site, not on
+the code.
+
+  under 0.2 bar    effectively no water
+  0.2 - 0.3 bar    a trickle
+  0.3 - 0.5 bar    usable but low
+  0.5 - 2.0 bar    normal for a gravity-fed rural system
+  over 4 bar       unusual for gravity - a pump, or a closed valve
+
+The default is 0.3 bar, which is about 3 m of head - the minimum pressure
+rural gravity systems are designed around. It is a safe starting point, not
+an answer.
+
+TO FIND THE REAL VALUE FOR A LINE
+  1. Zero the sensors first (section 9, the Z command). Until that is done
+     the pressure figures are the sensor's own resting voltage, not water,
+     and any threshold is being compared against a meaningless number.
+  2. Run the line normally for a full day - morning, midday, evening.
+  3. Find the lowest pressure seen during a stretch when everybody agreed
+     the water was fine.
+  4. Set the threshold 20-30% below that.
+
+That way "low supply" means "lower than this line has ever been while
+working", which is the only definition that will not cry wolf.
+
+NOTES
+  - The form refuses 0 (could never trigger) and anything above 4 bar (would
+    trigger forever on a gravity line).
+  - The board keeps the last value it was told, in flash. If the WiFi drops
+    or the board reboots, it carries on using your figure - not the default.
+  - A board that has never reached a server uses 0.3 bar.
 
 
 ============================================================================
@@ -562,6 +617,37 @@ THE OWNER'S SIDE
 
 
 ============================================================================
+12e. SHOWING THE SYSTEM ON A PHONE WITHOUT DEPLOYING IT
+============================================================================
+
+IF THE PHONE IS ON THE SAME WIFI - nothing special needed
+  1. Start the server with  python manage.py runserver 0.0.0.0:8000
+     (the 0.0.0.0 matters; plain runserver is reachable only by the laptop)
+  2. Open the "On the network" address it prints, on the phone.
+  Works for anyone in the room, no accounts, no setup.
+
+IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
+  1. Leave the server running.
+  2. In VS Code: PORTS tab -> Forward a Port -> type 8000 -> Enter
+  3. Sign in with GitHub when asked.
+  4. Right-click the new row -> Port Visibility -> Public.
+     Skip this and visitors hit a Microsoft login instead of your system.
+  5. Copy the Forwarded Address (looks like
+     https://xxxxx-8000.asse.devtunnels.ms) and open it on the phone.
+
+  The URL changes every time you forward the port again. Django is already
+  set up to accept it whichever address it gets, so there is nothing to edit.
+
+  Leave the ESP32 pointed at the LAN address, not the tunnel. The board
+  speaks plain HTTP and finds the server by broadcasting on the local
+  network; neither of those crosses the internet. Board on the LAN, viewers
+  on the tunnel - both work at the same time.
+
+  Close the port (the X on the row) when you are done. While it is Public
+  the login page is on the open internet.
+
+
+============================================================================
 13. KEY FACTS AND VALUES
 ============================================================================
   Project folder      D:\USB Drive\SmartHoseLeak
@@ -572,6 +658,10 @@ THE OWNER'S SIDE
   Device API key      Tu-8U_8etJh_y4Fy_4Ao4vVzg431iCobAZs00KaKoog
                       (in the sketch and in Django admin -> Devices;
                        can be regenerated there if it ever leaks)
+
+  Low supply below    0.3 bar per line by default, set at Dashboard ->
+                      Lines -> Edit (section 9b). Sent to the board on every
+                      upload; no reflash.
 
   Upload interval     every 2 seconds
   Offline after       10 seconds without a reading
@@ -589,9 +679,12 @@ THE OWNER'S SIDE
 14. STILL TO DO
 ============================================================================
   [ ] Calibrate all three modules (K is 0 on all of them right now)
-  [ ] Check pressure sensor wiring - readings have been sitting near 9 bar
-      with no flow, which looks like the sensor maximum rather than a real
-      value
+  [ ] Zero the pressure sensors. Empty the line, then type Z in the Serial
+      Monitor. Until this is done all three read about 0.45 bar with no
+      water in the hose - that is the sensors' own resting voltage, not
+      pressure, and it makes an empty line look like a working one.
+  [ ] Set each line's low-supply threshold from a real measured day
+      (section 9b). All three are on the 0.3 bar default.
   [ ] Change SETUP_AP_PASSWORD and CONFIG_PASSWORD from their defaults
   [ ] Set OWNER_PHONE_NUMBER in the sketch to the real number
       (currently the placeholder +639171234567)
@@ -679,6 +772,19 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+14 Sep 2026  The low-water-supply threshold is now set per line from the
+             dashboard instead of being compiled into the sketch. The server
+             sends it back on the reply to every upload and the board keeps
+             it in flash, so tuning a line to its site takes a few seconds
+             in a browser and survives reboots and WiFi outages. The old
+             built-in value was 1.5 bar, which suited a pressurised
+             municipal main and reported a healthy gravity-fed line as low
+             supply forever; the new default is 0.3 bar. See section 9b.
+
+14 Sep 2026  The system can now be opened on a phone that is not on the same
+             WiFi, using VS Code's "Forward a Port", without deploying it
+             anywhere. See section 12e.
 
 11 Sep 2026  Confirmation messages ("... returned to live monitoring", and
              similar) now appear as toasts in the bottom-right corner

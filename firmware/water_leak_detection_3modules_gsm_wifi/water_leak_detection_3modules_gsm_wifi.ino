@@ -161,8 +161,21 @@ const uint8_t PRESSURE_PINS[NUM_MODULES] = {34, 35, 32};
 #define FILTER_HISTORY_SIZE 5
 #define EMA_ALPHA 0.2
 
-// ---- Detection thresholds (tune per rig / per module if needed) ----
-#define P_LOW_THRESHOLD_BAR 1.5
+// ---- Detection thresholds ----
+//
+// The low-supply threshold is now per module and set from the dashboard: the
+// server returns it on the reply to every upload and it is kept in flash, so
+// retuning a line to its site means editing a field in the browser, not
+// re-flashing the board. This figure is only the fallback used by a board
+// that has never yet heard from a server.
+//
+// 0.3 bar is about 3 m of head - the minimum residual pressure rural gravity
+// systems are designed around. The old 1.5 bar suited a pressurised municipal
+// main and reported a perfectly healthy gravity-fed line as low supply
+// forever.
+#define P_LOW_THRESHOLD_BAR_DEFAULT 0.3
+#define LOW_THRESHOLD_MIN_BAR 0.05
+#define LOW_THRESHOLD_MAX_BAR 12.0
 #define RESIDUAL_LEAK_THRESHOLD 0.18
 #define FLOW_ZERO_THRESHOLD_LPM 0.3
 #define STATIC_TEST_WINDOW_S 30
@@ -325,6 +338,12 @@ struct ModuleState
   // Defaults to the datasheet's 0.5 V until 'Z' measures the real one.
   float zeroVSensor;
 
+  // Below this pressure the line is reported as LOW SUPPLY. Owned by the
+  // server (see applyServerConfig) and mirrored in flash, so the board keeps
+  // using the facilitator's figure through a reboot or a WiFi outage rather
+  // than silently reverting to a compiled-in default.
+  float lowPressureBar;
+
   // The filter history starts empty; seeding it with the first real reading
   // stops the first few samples being dragged toward zero by the blanks.
   bool primed;
@@ -460,6 +479,101 @@ void zeroPressureSensors(int8_t onlyIndex)
                   m.id, m.zeroVSensor, m.lastAdcRaw);
   }
   wifiPrefs.end();
+}
+
+// ---------------------------------------------------------------------------
+// TUNABLE THRESHOLDS (set from the dashboard, mirrored in flash)
+// ---------------------------------------------------------------------------
+// The right low-supply threshold is a property of the site, not of the code:
+// a gravity line sits at roughly 1 bar per 10 m its source is above it, so
+// the correct figure differs per line and is only knowable once the line
+// exists. Holding it here - server-owned, flash-backed - means it can be
+// tuned from a phone on the barangay's own WiFi, and the board still applies
+// the last known figure while offline.
+
+void loadThresholds()
+{
+  wifiPrefs.begin(WIFI_PREFS_NAMESPACE, true); // read-only
+  for (uint8_t i = 0; i < NUM_MODULES; i++)
+  {
+    char key[8];
+    snprintf(key, sizeof(key), "lp%u", (unsigned)modules[i].id);
+    modules[i].lowPressureBar = wifiPrefs.getFloat(key, P_LOW_THRESHOLD_BAR_DEFAULT);
+  }
+  wifiPrefs.end();
+}
+
+// Saves only when the value actually moved. Flash has a finite erase budget
+// and this runs off a reply the board receives every couple of seconds, so
+// writing unconditionally would wear the partition out for no reason.
+void storeThreshold(ModuleState &m, float bar)
+{
+  if (fabs(bar - m.lowPressureBar) < 0.001f)
+    return;
+
+  Serial.printf("[CONFIG] M%u low-supply threshold %.2f -> %.2f bar (from server)\n",
+                (unsigned)m.id, m.lowPressureBar, bar);
+  m.lowPressureBar = bar;
+
+  char key[8];
+  snprintf(key, sizeof(key), "lp%u", (unsigned)m.id);
+  wifiPrefs.begin(WIFI_PREFS_NAMESPACE, false);
+  wifiPrefs.putFloat(key, bar);
+  wifiPrefs.end();
+}
+
+// Pulls one module's number out of the server's reply.
+//
+// A full JSON parser is not worth 30 KB of program space for one field, but
+// a naive search of the whole body would be worse than useless: it would
+// happily match a number that belongs to a different module. So this narrows
+// to the object for this module first - "config" then "<id>": { ... } - and
+// only searches for the key inside those braces.
+bool extractModuleFloat(const String &body, uint8_t moduleId, const char *key, float &out)
+{
+  int configAt = body.indexOf("\"config\"");
+  if (configAt < 0)
+    return false;
+
+  String moduleKey = String("\"") + String((unsigned)moduleId) + String("\":");
+  int moduleAt = body.indexOf(moduleKey, configAt);
+  if (moduleAt < 0)
+    return false;
+
+  int openBrace = body.indexOf('{', moduleAt);
+  int closeBrace = body.indexOf('}', openBrace);
+  if (openBrace < 0 || closeBrace < 0)
+    return false;
+
+  String fieldKey = String("\"") + String(key) + String("\":");
+  int fieldAt = body.indexOf(fieldKey, openBrace);
+  if (fieldAt < 0 || fieldAt > closeBrace)
+    return false;
+
+  out = body.substring(fieldAt + fieldKey.length(), closeBrace).toFloat();
+  return true;
+}
+
+// Applies whatever the server sent back with the last upload.
+//
+// Values are range-checked before being trusted. The board keeps running on
+// its own for hours at a time, so a corrupted or truncated reply must not be
+// able to leave it with a threshold of 0 (never alarms) or 99 (always does).
+void applyServerConfig(const String &body)
+{
+  for (uint8_t i = 0; i < NUM_MODULES; i++)
+  {
+    float bar;
+    if (!extractModuleFloat(body, modules[i].id, "low_pressure_bar", bar))
+      continue;
+    if (bar < LOW_THRESHOLD_MIN_BAR || bar > LOW_THRESHOLD_MAX_BAR)
+    {
+      Serial.printf("[CONFIG] M%u ignoring implausible threshold %.2f bar.\n",
+                    (unsigned)modules[i].id, bar);
+      continue;
+    }
+    storeThreshold(modules[i], bar);
+  }
 }
 
 void loadZeroOffsets()
@@ -617,7 +731,7 @@ SystemStatus classify(ModuleState &m, float pressure, float flow)
   // --- Pressure/flow curve residual test (requires calibration) ---
   if (haveCalibration)
   {
-    if (pressure < P_LOW_THRESHOLD_BAR)
+    if (pressure < m.lowPressureBar)
     {
       if (fabs(residualRatio) < RESIDUAL_LEAK_THRESHOLD)
       {
@@ -638,7 +752,7 @@ SystemStatus classify(ModuleState &m, float pressure, float flow)
   }
   else
   {
-    if (pressure < P_LOW_THRESHOLD_BAR)
+    if (pressure < m.lowPressureBar)
     {
       return STATUS_LOW_SUPPLY;
     }
@@ -929,6 +1043,10 @@ void uploadReadings()
   {
     lastUploadOk = true;
     lastUploadResult = "OK";
+    // The reply carries the settings the facilitator edited in the dashboard.
+    // Reading them here means there is no second request to make and no
+    // polling interval to choose - config arrives with the acknowledgement.
+    applyServerConfig(http.getString());
     Serial.println("[UPLOAD] OK");
   }
   else if (code == 401)
@@ -1572,6 +1690,7 @@ String buildStatusJSON()
     json += "\"pressure_bar\":" + String(m.pressureEMA, 2) + ",";
     json += "\"flow_lpm\":" + String(m.flowEMA, 2) + ",";
     json += "\"k_conductance\":" + String(m.K_CONDUCTANCE, 4) + ",";
+    json += "\"low_pressure_bar\":" + String(m.lowPressureBar, 3) + ",";
     // Raw ADC on the status page too, so the sensors can be checked from a
     // phone on site without opening the Serial Monitor.
     json += "\"adc_raw\":" + String(m.lastAdcRaw) + ",";
@@ -1665,7 +1784,12 @@ void handleWebRoot()
   html += "</table>";
   html += "<p class='muted'>Auto-refreshes every 3 seconds. "
           "<a href='/wifi'>Change network or server address</a></p>";
-  html += "<table><tr><th>Module</th><th>Pressure (bar)</th><th>Flow (L/min)</th><th>K</th><th>Status</th></tr>";
+  // "Low below" is shown beside the live pressure on purpose: a LOW SUPPLY
+  // verdict is only meaningful next to the figure it was judged against, and
+  // seeing both is how anyone on site can tell a genuinely weak line from a
+  // threshold set too high for it.
+  html += "<table><tr><th>Module</th><th>Pressure (bar)</th><th>Low below</th>";
+  html += "<th>Flow (L/min)</th><th>K</th><th>Status</th></tr>";
 
   for (uint8_t i = 0; i < NUM_MODULES; i++)
   {
@@ -1678,6 +1802,7 @@ void handleWebRoot()
 
     html += "<tr><td>Module " + String(m.id) + "</td>";
     html += "<td>" + String(m.pressureEMA, 2) + "</td>";
+    html += "<td class='muted'>" + String(m.lowPressureBar, 2) + "</td>";
     html += "<td>" + String(m.flowEMA, 2) + "</td>";
     html += "<td>" + String(m.K_CONDUCTANCE, 3) + "</td>";
     html += "<td class='" + cssClass + "'>" + String(statusToString(m.currentStatus));
@@ -1740,7 +1865,8 @@ void initModule(uint8_t index, uint8_t flowPin, uint8_t pressurePin, void (*isr)
   m.lastVSensor = 0;
   m.adcWarnState = 0;
   m.primed = false;
-  m.zeroVSensor = SENSOR_VOUT_MIN; // replaced by loadZeroOffsets() if one was saved
+  m.zeroVSensor = SENSOR_VOUT_MIN;                     // replaced by loadZeroOffsets() if one was saved
+  m.lowPressureBar = P_LOW_THRESHOLD_BAR_DEFAULT;      // replaced by loadThresholds(), then by the server
 
   pinMode(flowPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(flowPin), isr, FALLING);
@@ -1766,6 +1892,7 @@ void setup()
   initModule(2, FLOW_PINS[2], PRESSURE_PINS[2], flowPulseISR2);
 
   loadZeroOffsets();
+  loadThresholds();
 
   GSM_SERIAL.begin(GSM_BAUD, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
   delay(3000); // SIM800L needs a few seconds to boot/register on the network

@@ -54,7 +54,8 @@
       <thead>
         <tr>
           <th>Module</th><th>Colour</th><th>Name</th><th class="num">Start marker</th><th class="num">End marker</th>
-          <th class="num">Length</th><th class="num">Households</th><th>Status</th><th>Map coords</th><th></th>
+          <th class="num">Length</th><th class="num">Low below</th>
+          <th class="num">Households</th><th>Status</th><th>Map coords</th><th></th>
         </tr>
       </thead>
       <tbody>
@@ -68,7 +69,10 @@
             <td>{{ segment.name }}</td>
             <td class="num">{{ segment.start_m|floatformat:"-1" }} m</td>
             <td class="num">{{ segment.end_m|floatformat:"-1" }} m</td>
-            <td class="num">{{ segment.length_m|floatformat:"-1" }} m</td>
+            <td class="num">
+              {{ segment.low_pressure_bar|floatformat:"-2" }} bar
+              <span class="small muted">{{ segment.low_pressure_psi|floatformat:"-1" }} psi</span>
+            </td>
             <td class="num">{{ segment.household_count }}</td>
             <td><span class="pill pill-{{ segment.status }}">{{ segment.get_status_display }}</span></td>
             <td class="small">
@@ -93,6 +97,7 @@
                    data-color="{{ segment.color }}"
                    data-start="{{ segment.start_m|stringformat:'g' }}"
                    data-end="{{ segment.end_m|stringformat:'g' }}"
+                   data-lowbar="{{ segment.low_pressure_bar|stringformat:'g' }}"
                    data-startlat="{{ segment.start_lat|default_if_none:'' }}"
                    data-startlng="{{ segment.start_lng|default_if_none:'' }}"
                    data-endlat="{{ segment.end_lat|default_if_none:'' }}"
@@ -265,6 +270,8 @@
           {% include "_form_field.html" with field=edit_form.start_m %}
           {% include "_form_field.html" with field=edit_form.end_m %}
         </div>
+
+        {% include "_form_field.html" with field=edit_form.low_pressure_bar %}
 
         <div class="field-pair">
           {% include "_form_field.html" with field=edit_form.start_lat %}

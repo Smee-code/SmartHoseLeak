@@ -100,6 +100,29 @@ class Segment(models.Model):
     end_lat = models.FloatField(null=True, blank=True)
     end_lng = models.FloatField(null=True, blank=True)
 
+    # What counts as "too little water" on THIS line, in bar.
+    #
+    # It lives here rather than in the firmware because the right value is a
+    # property of the site, not of the code: a gravity-fed line sits at
+    # roughly 1 bar per 10 m the source is above it, so a line further down
+    # the hill is normally weaker than one near the tank and a single figure
+    # shared by all three would either nuisance-alarm on one or go blind on
+    # another. Keeping it per line, and editable here, means tuning the
+    # system to a barangay never means re-flashing the board.
+    #
+    # 0.3 bar is about 3 m of head, the minimum residual pressure rural
+    # gravity systems are designed around - a defensible starting point, but
+    # replace it with a figure measured on the line once one exists.
+    low_pressure_bar = models.FloatField(
+        default=0.3,
+        validators=[MinValueValidator(0.0), MaxValueValidator(12.0)],
+        verbose_name="Low supply below",
+        help_text=(
+            "Pressure in bar under which this line is reported as Low Water Supply. "
+            "Sent to the device automatically - no re-flashing needed."
+        ),
+    )
+
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OFFLINE)
     status_changed_at = models.DateTimeField(default=timezone.now)
     maintenance_note = models.CharField(max_length=200, blank=True)
@@ -156,6 +179,11 @@ class Segment(models.Model):
     @property
     def length_m(self):
         return round(self.end_m - self.start_m, 2)
+
+    @property
+    def low_pressure_psi(self):
+        """The same threshold in psi, for the gauges people actually own."""
+        return round(self.low_pressure_bar * BAR_TO_PSI, 1)
 
     @property
     def location_label(self):

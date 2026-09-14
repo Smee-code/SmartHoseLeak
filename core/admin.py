@@ -47,7 +47,10 @@ class DeviceAdmin(admin.ModelAdmin):
 class SegmentAdmin(admin.ModelAdmin):
     """The distance markers the paper relies on are edited here."""
 
-    list_display = ("module_index", "name", "device", "start_m", "end_m", "length_m", "status", "is_active")
+    list_display = (
+        "module_index", "name", "device", "start_m", "end_m", "length_m",
+        "low_pressure_bar", "status", "is_active",
+    )
     list_filter = ("status", "is_active", "device")
     list_editable = ("start_m", "end_m")
     search_fields = ("name",)
@@ -59,6 +62,14 @@ class SegmentAdmin(admin.ModelAdmin):
                 "fields": ("start_m", "end_m"),
                 "description": "Metres from the main valve. A leak on this module is reported "
                 "as lying between these two markers.",
+            },
+        ),
+        (
+            "Detection",
+            {
+                "fields": ("low_pressure_bar",),
+                "description": "Sent to the device on its next upload, so changes here take "
+                "effect within seconds without re-flashing the board.",
             },
         ),
         ("Map coordinates (optional)", {"fields": (("start_lat", "start_lng"), ("end_lat", "end_lng"))}),
