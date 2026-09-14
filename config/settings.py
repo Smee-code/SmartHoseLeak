@@ -42,6 +42,26 @@ DEBUG = env_bool("DEBUG", True)
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "*") if not DEBUG else ["*"]
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 
+# Showing the system on a phone without deploying it.
+#
+# A tunnel (VS Code "Forward a Port", ngrok, Cloudflare) publishes this
+# development server over HTTPS on a hostname that changes every session.
+# ALLOWED_HOSTS above already accepts it, but CSRF does not: for an HTTPS
+# request Django compares the Origin header against this list, and an
+# unlisted tunnel host makes every login and every form fail - with a CSRF
+# error that gives no hint that the tunnel is the cause.
+#
+# Trusting the tunnel providers' wildcards in DEBUG only keeps a demo
+# working through a URL nobody can predict in advance. Outside DEBUG this
+# stays exactly as configured, so a real deployment trusts nothing extra.
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS += [
+        "https://*.devtunnels.ms",       # VS Code Forward a Port
+        "https://*.ngrok-free.app",
+        "https://*.ngrok.io",
+        "https://*.trycloudflare.com",
+    ]
+
 INSTALLED_APPS = [
     # core is listed first so its management commands win over the built-in
     # ones of the same name. It overrides runserver purely to print the LAN
