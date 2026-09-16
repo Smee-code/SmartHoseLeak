@@ -544,6 +544,12 @@ THE LEAK MAP
     A hose with no board fitted is drawn DASHED - the pipe is there, nothing
     is watching it yet.
 
+    A LEAKING hose gets a RED OUTLINE and widens into a halo, while keeping
+    its own colour inside. The outline carries the alarm so both read at
+    once: you can still see whose hose it is while the red says something is
+    wrong with it. It appears within about two seconds of the device
+    reporting, without reloading the page.
+
     The line shows WHICH house a hose serves, not the route the pipe
     physically takes in the ground.
   - The hoses appear as soon as the households have coordinates. Nothing
@@ -834,6 +840,12 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+16 Sep 2026  A leaking hose is now drawn with a red outline on the leak map,
+             keeping its own colour inside so the household stays
+             identifiable. The hoses also repaint on the live poll - before
+             this they were painted once at load, so a leak reported two
+             seconds later did not show until the page was reloaded.
 
 16 Sep 2026  The "main valve" is now the "main source", and the leak map
              draws one hose per household straight from it, instead of

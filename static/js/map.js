@@ -27,6 +27,12 @@
   var source = window.SHL_SOURCE || null;
   var leafletMap = null;
   var leafletLayers = {};
+
+  // Each household's hose, keyed by the line it belongs to, so the live poll
+  // can restyle it in place. Without this the hoses were painted once at
+  // load and never again: a leak arriving two seconds later left the map
+  // showing a healthy white outline until somebody reloaded the page.
+  var hoseLayers = {};
   var mode = 'schematic';
   var userForced = false;
 
@@ -37,6 +43,31 @@
 
   function lineColor(entity) {
     return (entity && entity.color) || MODULE_FALLBACK;
+  }
+
+  /*
+   * How a household's hose is outlined, from its status alone.
+   *
+   * Normally white: the casing is there only to keep a coloured hose
+   * readable over dark tiles, forest green and pale roads alike. On a leak
+   * it turns red and widens into a halo.
+   *
+   * The alarm goes in the OUTLINE rather than the hose itself so both read
+   * at once - the hose keeps its own colour, so whose it is stays obvious,
+   * while the red says something is wrong with it. Recolouring the hose
+   * would throw away the household identity at the moment it matters most.
+   *
+   * One function, used by the first paint and by every live update, so the
+   * two cannot drift apart.
+   */
+  function casingStyle(status) {
+    var leaking = status === 'POSSIBLE_LEAK';
+    return {
+      color: leaking ? window.SHL.statusColor('POSSIBLE_LEAK') : '#ffffff',
+      weight: leaking ? 11 : 7,
+      opacity: leaking ? 0.9 : 0.75,
+      interactive: false
+    };
   }
 
   var STATUS_LABEL = {
@@ -299,14 +330,22 @@
         var path = [source.coords, house.coords];
         var colour = lineColor(house);
         var offline = house.status === 'OFFLINE';
+        var leaking = house.status === 'POSSIBLE_LEAK';
 
-        // A wider translucent casing under the line, so it stays readable
-        // over dark tiles, forest green and pale roads alike.
-        window.L.polyline(path, {
-          color: '#ffffff', weight: 7, opacity: 0.75, interactive: false
-        }).addTo(leafletMap);
+        // The casing under the line does double duty. Normally it is white,
+        // there only to keep the hose readable over dark tiles, forest green
+        // and pale roads alike. On a leak it turns red and widens into a
+        // halo.
+        //
+        // Putting the alarm in the OUTLINE rather than the line itself is
+        // what makes both readable at once: the hose keeps its own colour,
+        // so it is still obvious whose it is, while the red says something
+        // is wrong with it. Recolouring the line would have thrown away the
+        // household identity at exactly the moment it matters most.
+        var casing = window.L.polyline(path, casingStyle(house.status))
+          .addTo(leafletMap);
 
-        window.L.polyline(path, {
+        var hose = window.L.polyline(path, {
           color: colour,
           weight: 3.5,
           opacity: offline ? 0.55 : 0.95,
@@ -322,6 +361,10 @@
             (house.has_device === false ? '<br>no device fitted' : ''),
             { sticky: true }
           );
+
+        if (house.segment_id !== null && house.segment_id !== undefined) {
+          hoseLayers[house.segment_id] = { casing: casing, hose: hose, house: house };
+        }
       });
     }
 
@@ -477,6 +520,19 @@
         drawSchematic();
       } else if (leafletMap) {
         segments.forEach(function (segment) {
+          // A household's hose: the outline carries the alarm, the hose keeps
+          // its own colour. Repainted here rather than only at load, so a
+          // leak reported two seconds ago shows up without a reload.
+          var hoseLayer = hoseLayers[segment.id];
+          if (hoseLayer) {
+            hoseLayer.casing.setStyle(casingStyle(segment.status));
+            hoseLayer.hose.setStyle({
+              opacity: segment.status === 'OFFLINE' ? 0.55 : 0.95
+            });
+          }
+
+          // The line drawn from the line's own coordinates, where those are
+          // set. Status-coloured, since it carries no household identity.
           var layers = leafletLayers[segment.id];
           if (!layers) return;
           var color = window.SHL.statusColor(segment.status);

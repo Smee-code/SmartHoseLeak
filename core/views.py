@@ -168,6 +168,9 @@ def dashboard(request):
                 "owner_name": h.owner_name,
                 "address": h.address,
                 "segment": h.segment.name if h.segment else None,
+                # So the live poll can find this household's hose and restyle
+                # it when its status changes, without redrawing the map.
+                "segment_id": h.segment_id,
                 "module": h.segment.module_index if h.segment else None,
                 "color": h.segment.color if h.segment else None,
                 "status": h.segment.status if h.segment else "OFFLINE",
