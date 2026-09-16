@@ -399,6 +399,7 @@ def _segment_payload(segment):
         "has_device": segment.has_device,
         "device_id": segment.device.device_id if segment.device_id else None,
         "device_online": segment.device.is_online if segment.device_id else False,
+        "device_ip": segment.device.last_ip if segment.device_id else None,
         "maintenance_note": segment.maintenance_note,
         "pressure_bar": round(latest.pressure_bar, 2) if latest else None,
         "pressure_psi": latest.pressure_psi if latest else None,

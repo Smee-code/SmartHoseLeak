@@ -34,27 +34,16 @@
       <div class="stat-value">{{ pending_complaints }}</div>
       <div class="stat-label">Pending complaints</div>
     </div>
-    <div class="stat">
-      <div class="stat-value" data-device-status>
-        {% for device in devices %}{% if device.is_online %}Online{% else %}Offline{% endif %}{% empty %}&mdash;{% endfor %}
-      </div>
-      <div class="stat-label">
-        Device status
-        {% for device in devices %}
-          {% if device.last_seen %}<br><span class="small" data-ago="{{ device.last_seen|date:'c' }}"></span>{% endif %}
-        {% endfor %}
-        {% comment %}
-          The board's own address, and a link to its settings page. This is
-          the thing you need when the server address has to be changed, and
-          it moves whenever the network does - so it is kept live by the
-          poll rather than only being right at page load.
-        {% endcomment %}
-        <span class="device-ip" data-device-ip hidden>
-          <a href="#" data-device-ip-link target="_blank" rel="noopener"
-             title="Open the device's own page"><span data-device-ip-text></span></a>
-        </span>
-      </div>
-    </div>
+    {% comment %}
+      There was a single "Device status" tile here. It made sense when the
+      whole system was one board: one answer, one place to look. With a
+      board per household it could only ever describe one of them, so it was
+      either wrong or meaningless - and the Households table below already
+      answers the same question per house, which is the resolution that now
+      matters. The board's own address moved into that table's Device column
+      rather than being dropped, since it is what you need when the server
+      address has to be changed.
+    {% endcomment %}
   </section>
 
   {% comment %}
@@ -151,6 +140,15 @@
                 {% if segment.has_device %}
                   <span class="dot" data-field="device_dot" aria-hidden="true"></span>
                   <span class="small" data-field="device">checking</span>
+                  {% comment %}
+                    A link to the board's own page. Kept live by the poll
+                    rather than rendered once, because the address changes
+                    whenever the network does - and this is exactly the link
+                    somebody needs at the moment it has just changed.
+                  {% endcomment %}
+                  <a class="small mono device-ip" data-field="device_ip" href="#"
+                     target="_blank" rel="noopener"
+                     title="Open this board's own page" hidden></a>
                 {% else %}
                   <span class="pill pill-none">No device</span>
                 {% endif %}

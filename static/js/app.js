@@ -693,27 +693,10 @@
 
     var online = !!device.online;
 
-    // Update the dashboard's device badge in place, so it agrees with the
-    // toast instead of staying stale until the next reload.
-    $$('[data-device-status]').forEach(function (el) {
-      el.textContent = online ? 'Online' : 'Offline';
-    });
-
-    // The board's address, kept current by the poll. Hidden until it has
-    // reported at least once, so it never shows a stale or empty address.
-    $$('[data-device-ip]').forEach(function (wrap) {
-      var text = $('[data-device-ip-text]', wrap);
-      var link = $('[data-device-ip-link]', wrap);
-      if (!device.ip) {
-        wrap.hidden = true;
-        return;
-      }
-      wrap.hidden = false;
-      if (text) text.textContent = device.ip;
-      // Port 80 on the board, not the server's 8000.
-      if (link) link.setAttribute('href', 'http://' + device.ip + '/');
-    });
-
+    // The single "Device status" tile this used to keep current is gone -
+    // one board per household made one global answer meaningless, and each
+    // row now carries its own. The toast below stays: a board dropping off
+    // is worth interrupting for wherever the facilitator happens to be.
     if (deviceOnline === null) {
       deviceOnline = online;
       return;
@@ -843,6 +826,21 @@
         var live = segment.device_online && !segment.stale;
         deviceDot.className = 'dot ' + (live ? 'dot-live' : 'dot-down');
         setText('device', live ? 'live' : 'not reporting');
+      }
+
+      // A link to the board's own page. Hidden until it has reported at
+      // least once, so it never offers an address that goes nowhere - and
+      // kept current by the poll, because the address moves whenever the
+      // network does and that is precisely when the link is needed.
+      var ipLink = $('[data-field="device_ip"]', tile);
+      if (ipLink) {
+        if (segment.device_ip) {
+          ipLink.hidden = false;
+          ipLink.textContent = segment.device_ip;
+          ipLink.setAttribute('href', 'http://' + segment.device_ip + '/');
+        } else {
+          ipLink.hidden = true;
+        }
       }
 
       // The valve controls stay hidden until a board actually reports a

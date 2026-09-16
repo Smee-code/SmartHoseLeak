@@ -335,6 +335,17 @@ WHAT CHANGED ON SCREEN
     distance to record any more.
   - Lines are named after the household (HH-001 - Maria Santos).
 
+THE BOARD'S OWN PAGE
+  The device's IP address is shown under "live" in the Device column, as a
+  link. Click it to open that board's own page (WiFi settings, live
+  readings, valve state). It is kept current by the dashboard's live poll,
+  because the address changes whenever the network does - which is exactly
+  when you need it.
+
+  There is no longer a single "Device status" tile at the top of the
+  dashboard. With a board per household, one global answer could only
+  describe one of them; the Households table answers it per house.
+
 DEVICE COLUMN - THE THREE STATES
   No device       grey pill. No board fitted to this hose yet. This is the
                   rollout working as planned, not a fault.
@@ -921,6 +932,12 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+16 Sep 2026  The single "Device status" tile was removed from the facilitator
+             dashboard. It described one board, and there is now one per
+             household, so it could only ever be wrong or meaningless. The
+             board's IP address moved into the Households table's Device
+             column, still a live link to its own page.
 
 16 Sep 2026  Notices can now be sent as SMS as well as in the app, from one
              compose screen - writing it twice would have guaranteed the two
