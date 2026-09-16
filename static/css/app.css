@@ -626,6 +626,33 @@ body.modal-open { overflow: hidden; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .thread-item-foot { display: flex; align-items: center; gap: .4rem; margin-top: .25rem; }
+
+/* ---- Unread conversations -------------------------------------------------
+   Weight, colour and a dot, all at once. A list row already carries an
+   avatar, a name, a date, a subject and a status pill, and a small count
+   badge alongside all that is easy to scan past. The one question this list
+   has to answer without being read is "has somebody written to me".
+   -------------------------------------------------------------------------- */
+
+.thread-item.is-unread {
+  background: var(--brand-soft);
+  /* A left edge, so the unread ones line up as a column down the list
+     rather than each needing to be judged on its own. */
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.thread-item.is-unread .thread-item-top strong { font-weight: 800; }
+.thread-item.is-unread .thread-item-top time { color: var(--brand-strong); font-weight: 600; }
+.thread-item.is-unread .thread-item-sub { color: var(--text); font-weight: 600; }
+
+/* The open thread is by definition read, so the active state wins - otherwise
+   the row you are looking at would keep shouting for attention. */
+.thread-item.is-unread.is-active { box-shadow: none; }
+
+.unread-dot {
+  width: .5rem; height: .5rem; border-radius: 50%;
+  background: var(--brand); flex: 0 0 auto; margin-left: auto;
+}
+
 .pill-sm { font-size: .68rem; padding: .1rem .4rem; }
 
 .thread-pane {

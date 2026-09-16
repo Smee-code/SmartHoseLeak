@@ -950,6 +950,17 @@ household means another board, not another module on an existing one.
 
 ============================================================================
 12d. COMPLAINTS (CONVERSATIONS)
+
+UNREAD CONVERSATIONS
+  A thread nobody has opened yet is shown the way a message list shows one:
+  the row is tinted, has a blue bar down its left edge, the name and subject
+  are bold, and there is a red count plus a blue dot.
+
+  Opening it marks it read, and it goes plain. Nothing to click and nothing
+  to tidy up.
+
+  Only messages FROM THE OWNER count. Your own replies are not unread to you.
+
 ============================================================================
 Dashboard -> Complaints is a message inbox, not a ticket table.
 

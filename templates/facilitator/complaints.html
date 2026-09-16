@@ -41,9 +41,20 @@
       </div>
 
       {% for t in threads %}
-        <a class="thread-item {% if complaint and t.pk == complaint.pk %}is-active{% endif %}"
+        {% comment %}
+          An unread thread is set in bold and marked with a dot, the way a
+          message list does it. The small count badge on its own was too easy
+          to miss in a list where every row already carries a status pill -
+          and the one thing this list has to answer at a glance is "has
+          somebody written to me and not been answered".
+
+          Opening a thread marks it read, so the row it points at is never
+          bold: the queryset is lazy and renders after that update.
+        {% endcomment %}
+        <a class="thread-item{% if complaint and t.pk == complaint.pk %} is-active{% endif %}{% if t.unread %} is-unread{% endif %}"
            href="{% url 'complaint_thread' t.pk %}"
-           data-search="{{ t.household.owner_name|lower }} {{ t.household.household_id|lower }}">
+           data-search="{{ t.household.owner_name|lower }} {{ t.household.household_id|lower }}"
+           {% if t.unread %}aria-label="{{ t.household.owner_name }}, {{ t.unread }} unread message{{ t.unread|pluralize }}"{% endif %}>
           <span class="thread-avatar" aria-hidden="true">{{ t.household.owner_name|first|upper }}</span>
           <span class="thread-item-body">
             <span class="thread-item-top">
@@ -53,7 +64,10 @@
             <span class="thread-item-sub">{{ t.household.household_id }} &middot; {{ t.subject }}</span>
             <span class="thread-item-foot">
               <span class="pill pill-sm pill-{{ t.status }}">{{ t.get_status_display }}</span>
-              {% if t.unread %}<span class="badge">{{ t.unread }}</span>{% endif %}
+              {% if t.unread %}
+                <span class="badge">{{ t.unread }}</span>
+                <span class="unread-dot" aria-hidden="true"></span>
+              {% endif %}
             </span>
           </span>
         </a>
