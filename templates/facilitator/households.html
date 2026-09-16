@@ -20,19 +20,13 @@
       <label for="q">Search</label>
       <input type="search" id="q" name="q" value="{{ query }}" placeholder="ID, name, address or contact">
     </div>
-    <div class="field">
-      <label for="segment">Supply line</label>
-      <select id="segment" name="segment">
-        <option value="">All lines</option>
-        {% for segment in segments %}
-          <option value="{{ segment.pk }}" {% if segment_id == segment.pk|stringformat:"s" %}selected{% endif %}>
-            {{ segment.name }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
+    {% comment %}
+      There was a "Supply line" filter here. A line serves exactly one
+      household now, so narrowing the list by line narrowed it to one row -
+      the same thing the search box does, with more clicks.
+    {% endcomment %}
     <button type="submit" class="btn">Filter</button>
-    {% if query or segment_id %}<a class="btn" href="{% url 'household_list' %}">Clear</a>{% endif %}
+    {% if query %}<a class="btn" href="{% url 'household_list' %}">Clear</a>{% endif %}
   </form>
 
   <div class="table-wrap">
@@ -99,11 +93,11 @@
   {% if page.has_other_pages %}
     <div class="pager">
       {% if page.has_previous %}
-        <a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;q={{ query }}&amp;segment={{ segment_id }}">Previous</a>
+        <a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;q={{ query }}">Previous</a>
       {% endif %}
       <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
       {% if page.has_next %}
-        <a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;q={{ query }}&amp;segment={{ segment_id }}">Next</a>
+        <a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;q={{ query }}">Next</a>
       {% endif %}
     </div>
   {% endif %}
@@ -144,10 +138,7 @@
         {% include "_form_field.html" with field=create_form.address %}
         {% include "_form_field.html" with field=create_form.contact_number %}
 
-        <div class="field-pair">
-          {% include "_form_field.html" with field=create_form.segment %}
-          {% include "_form_field.html" with field=create_form.account_status %}
-        </div>
+        {% include "_form_field.html" with field=create_form.account_status %}
 
         <div class="field-pair">
           {% include "_form_field.html" with field=create_form.latitude %}
@@ -155,6 +146,45 @@
         </div>
 
         {% include "_form_field.html" with field=create_form.notes %}
+
+        {% comment %}
+          The hose line is not asked for. One house has one hose, so picking
+          it from a list of lines that each belong to exactly one other house
+          was a question with only one right answer.
+        {% endcomment %}
+        <fieldset class="channel-box">
+          <legend class="small">Hardware</legend>
+          <p class="helptext" style="margin-top:0">
+            A hose line is created for this household automatically.
+          </p>
+
+          <div class="field">
+            <label>{{ create_form.device_choice.label }}</label>
+            {% for choice in create_form.device_choice %}
+              <div class="check-row">{{ choice.tag }}
+                <label for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
+              </div>
+            {% endfor %}
+            {{ create_form.device_choice.errors }}
+          </div>
+
+          {% comment %}
+            Shown by app.js only for the option they picked. Both are in the
+            DOM so a failed submission still renders its own error, which a
+            hidden-by-template field would swallow.
+          {% endcomment %}
+          <div data-device-when="new" hidden>
+            {% include "_form_field.html" with field=create_form.device_label %}
+            <p class="helptext">
+              The Device ID and API key are generated when you save, and shown
+              on the Lines page whenever you need them.
+            </p>
+          </div>
+          <div data-device-when="existing" hidden>
+            {% include "_form_field.html" with field=create_form.existing_device %}
+          </div>
+        </fieldset>
+
         {% if create_form.create_account %}
           {% include "_form_field.html" with field=create_form.create_account %}
         {% endif %}
@@ -200,10 +230,7 @@
         {% include "_form_field.html" with field=edit_form.address %}
         {% include "_form_field.html" with field=edit_form.contact_number %}
 
-        <div class="field-pair">
-          {% include "_form_field.html" with field=edit_form.segment %}
-          {% include "_form_field.html" with field=edit_form.account_status %}
-        </div>
+        {% include "_form_field.html" with field=edit_form.account_status %}
 
         <div class="field-pair">
           {% include "_form_field.html" with field=edit_form.latitude %}

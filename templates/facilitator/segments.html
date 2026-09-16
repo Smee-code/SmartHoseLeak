@@ -138,35 +138,107 @@
     </table>
   </div>
 
+  {% comment %}
+    The boards, and the two things that have to be typed into each one.
+
+    Shown in full and kept readable rather than revealed once: the key goes
+    into the board by hand, and again into its replacement if one ever dies.
+    An owner password can be reset where a device key cannot - regenerating
+    one means walking back to the house.
+
+    Copy buttons, not selectable text. The key is 43 mixed-case characters
+    with dashes and underscores, and the realistic way it gets entered is on
+    a phone: copy here, join the board's hotspot, paste. Nobody types it.
+  {% endcomment %}
   <div class="card" style="margin-top:1.6rem">
-    <div class="card-head"><h2>Devices</h2></div>
+    <div class="card-head">
+      <h2>Devices</h2>
+      <form method="post" action="{% url 'device_create' %}" class="inline-form">
+        {% csrf_token %}
+        <input type="text" name="label" placeholder="Label (optional)" maxlength="120">
+        <button type="submit" class="btn btn-sm">Register a board</button>
+      </form>
+    </div>
     <div class="table-wrap">
-      <table>
-        <thead><tr><th>Device ID</th><th>Label</th><th>Status</th><th>Last seen</th><th>Last IP</th></tr></thead>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Device ID</th><th>Fitted to</th><th>API key</th>
+            <th>Status</th><th>Last seen</th><th class="right"></th>
+          </tr>
+        </thead>
         <tbody>
           {% for device in devices %}
             <tr>
-              <td class="mono">{{ device.device_id }}</td>
-              <td>{{ device.label }}</td>
+              <td>
+                <span class="mono">{{ device.device_id }}</span>
+                <button type="button" class="btn btn-sm btn-copy"
+                        data-copy="{{ device.device_id }}">Copy</button>
+                {% if device.label %}<div class="small muted">{{ device.label }}</div>{% endif %}
+              </td>
+              <td class="small">
+                {% with line=device.line %}
+                  {% if line %}
+                    {% if line.household %}
+                      <strong>{{ line.household.household_id }}</strong>
+                      <div class="muted">{{ line.household.owner_name }}</div>
+                    {% else %}{{ line.name }}{% endif %}
+                  {% else %}
+                    <span class="pill pill-none">Spare</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+              <td>
+                <span class="mono key-text">{{ device.api_key }}</span>
+                <button type="button" class="btn btn-sm btn-copy"
+                        data-copy="{{ device.api_key }}">Copy</button>
+              </td>
               <td>
                 {% if device.is_online %}<span class="pill pill-ok">online</span>
                 {% else %}<span class="pill pill-OFFLINE">offline</span>{% endif %}
               </td>
               <td class="small">
                 {% if device.last_seen %}<span data-ago="{{ device.last_seen|date:'c' }}"></span>
-                {% else %}<span class="muted">never</span>{% endif %}
+                {% else %}<span class="muted">never reported</span>{% endif %}
+                {% if device.last_ip %}
+                  <div><a class="small mono" href="http://{{ device.last_ip }}/"
+                          target="_blank" rel="noopener">{{ device.last_ip }}</a></div>
+                {% endif %}
               </td>
-              <td class="mono small">{{ device.last_ip|default:"&mdash;" }}</td>
+              <td class="right">
+                <div class="btn-row" style="justify-content:flex-end">
+                  <button type="button" class="btn btn-sm"
+                          data-newkey-device="{{ device.pk }}"
+                          data-action="{% url 'device_regenerate_key' device.pk %}"
+                          data-name="{{ device.device_id }}"
+                          data-line="{% with l=device.line %}{% if l %}{{ l.name }}{% endif %}{% endwith %}">New key</button>
+                  {% if not device.line %}
+                    <form method="post" action="{% url 'device_delete' device.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
             </tr>
           {% empty %}
-            <tr><td colspan="5" class="empty">No devices registered.</td></tr>
+            <tr>
+              <td colspan="6">
+                <p class="empty">
+                  No boards registered.<br>
+                  <span class="small">A board is normally registered while adding the
+                  household that owns it. Use &ldquo;Register a board&rdquo; above for a spare.</span>
+                </p>
+              </td>
+            </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
     <p class="small muted" style="margin-top:.8rem">
-      The device API key is shown in the Django admin under Devices. Paste it into
-      <span class="mono">DEVICE_API_KEY</span> in the ESP32 sketch.
+      To claim a board: copy its Device ID and API key, join its
+      <span class="mono">LeakDetect-Setup</span> hotspot, and paste them into the
+      setup page. Nothing needs re-flashing.
     </p>
   </div>
 </div>
@@ -324,6 +396,42 @@
       <div class="modal-foot">
         <button type="button" class="btn" data-modal-close>Cancel</button>
         <button type="submit" class="btn btn-danger">Delete line</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% comment %}
+  Issuing a new key silences a board until somebody physically walks to it,
+  so it is confirmed like a deletion rather than done on a single click. The
+  dialog names the household that goes quiet, because that is the cost and
+  the facilitator is the one who will hear about it.
+{% endcomment %}
+<div class="modal-backdrop" id="device-key-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="device-key-title"
+       style="max-width:480px">
+    <form method="post" id="device-key-form" action="">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="device-key-title">Issue a new API key?</h2>
+          <p class="sub" data-newkey-device-name></p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>The old key stops working immediately.</p>
+        <p data-newkey-consequence class="small"></p>
+        <p class="small muted">
+          Only do this if the key has been shared by mistake, or the board is being
+          replaced. To simply set up a board, copy the existing key instead.
+        </p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-danger">Issue new key</button>
       </div>
     </form>
   </div>

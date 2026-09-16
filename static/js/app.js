@@ -441,6 +441,91 @@
     });
   });
 
+  /*
+   * Copy a device id or key to the clipboard.
+   *
+   * The key is 43 mixed-case characters with dashes and underscores, and the
+   * realistic way it reaches a board is on a phone: copy here, join the
+   * board's hotspot, paste. Typing it is how a working board gets rejected
+   * with a 401 that looks exactly like a network fault.
+   */
+  /* Show only the fields that belong to the device option chosen. Both
+     stay in the DOM so a failed submission still renders its own error. */
+  (function () {
+    var radios = $$('input[name="device_choice"]');
+    if (!radios.length) return;
+
+    function sync() {
+      var chosen = radios.filter(function (r) { return r.checked; })[0];
+      var value = chosen ? chosen.value : 'none';
+      $$('[data-device-when]').forEach(function (block) {
+        block.hidden = block.getAttribute('data-device-when') !== value;
+      });
+    }
+    radios.forEach(function (radio) { radio.addEventListener('change', sync); });
+    sync();
+  })();
+
+  $$('[data-copy]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var value = button.getAttribute('data-copy') || '';
+      var done = function (ok) {
+        var original = button.textContent;
+        button.textContent = ok ? 'Copied' : 'Press Ctrl+C';
+        button.classList.toggle('is-copied', ok);
+        setTimeout(function () {
+          button.textContent = original;
+          button.classList.remove('is-copied');
+        }, 1600);
+      };
+
+      // navigator.clipboard needs a secure context, and this system is
+      // served over plain HTTP on a LAN by design - so the old selection
+      // route is the one that actually runs most of the time, not a
+      // curiosity to fall back to.
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(value).then(function () { done(true); },
+                                                  function () { done(false); });
+        return;
+      }
+      var scratch = document.createElement('textarea');
+      scratch.value = value;
+      scratch.setAttribute('readonly', '');
+      scratch.style.position = 'fixed';
+      scratch.style.opacity = '0';
+      document.body.appendChild(scratch);
+      scratch.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(scratch);
+      done(ok);
+    });
+  });
+
+  /* Issuing a new key silences a board until somebody walks to it, so it is
+     confirmed like a deletion and the dialog names what goes quiet. */
+  $$('[data-newkey-device]').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      var modal = $('#device-key-modal');
+      var form = $('#device-key-form');
+      if (!modal || !form) return;
+      form.setAttribute('action', trigger.getAttribute('data-action'));
+
+      var name = trigger.getAttribute('data-name');
+      var line = trigger.getAttribute('data-line');
+      var subtitle = $('[data-newkey-device-name]', modal);
+      if (subtitle) subtitle.textContent = name;
+
+      var consequence = $('[data-newkey-consequence]', modal);
+      if (consequence) {
+        consequence.textContent = line
+          ? line + ' will stop reporting until you enter the new key on the board.'
+          : 'This board is not fitted to a line yet, so nothing stops reporting.';
+      }
+      openModal(modal);
+    });
+  });
+
   $$('[data-delete-segment]').forEach(function (trigger) {
     trigger.addEventListener('click', function () {
       var modal = $('#line-delete-modal');

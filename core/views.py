@@ -231,8 +231,7 @@ def household_list(request, create_form=None, edit_form=None, edit_household=Non
     to a separate page.
     """
     query = request.GET.get("q", "").strip()
-    segment_id = request.GET.get("segment", "")
-    households = Household.objects.select_related("segment", "user")
+    households = Household.objects.select_related("segment", "segment__device", "user")
 
     if query:
         households = households.filter(
@@ -241,9 +240,6 @@ def household_list(request, create_form=None, edit_form=None, edit_household=Non
             | Q(address__icontains=query)
             | Q(contact_number__icontains=query)
         )
-    if segment_id:
-        households = households.filter(segment_id=segment_id)
-
     # Counted here so the delete dialog can say exactly what goes with the
     # household, rather than warning vaguely about "related records".
     # order_by is explicit because aggregating adds a GROUP BY, and Django
@@ -260,8 +256,6 @@ def household_list(request, create_form=None, edit_form=None, edit_household=Non
         {
             "page": page,
             "query": query,
-            "segment_id": segment_id,
-            "segments": Segment.objects.filter(is_active=True),
             "create_form": create_form or HouseholdForm(),
             "create_form_errors": bool(create_form and create_form.errors),
             # auto_id keeps the edit dialog's field ids distinct from the add
@@ -288,6 +282,27 @@ def household_form(request, pk=None):
 
     if request.method == "POST" and form.is_valid():
         record = form.save()
+
+        # A new household gets its hose line, and a board if one was asked
+        # for, in the same action. Registering a house, laying its hose and
+        # fitting its board are one event; three screens is how a house ends
+        # up on the books with no line and nobody notices for a week.
+        device = None
+        if household is None:
+            device = form.attach_hardware(record)
+
+        if device is not None:
+            # Shown in full, and it stays readable on the Lines page. The key
+            # has to be typed into the board by hand, and again into its
+            # replacement if it ever dies - an owner password can be reset
+            # where this cannot.
+            messages.success(
+                request,
+                f"Board {device.device_id} registered for {record.household_id}. "
+                f"Enter these on the board's setup page - Device ID: {device.device_id} "
+                f"/ API key: {device.api_key}. Both stay on the Lines page if you need them again.",
+            )
+
         if form.cleaned_data.get("create_account") and record.user_id is None:
             username, password = form.generate_credentials()
             user = User.objects.create_user(
@@ -452,6 +467,80 @@ def segment_list(request, create_form=None, edit_form=None, edit_segment=None):
             "edit_segment": edit_segment,
         },
     )
+
+
+@facilitator_required
+@require_POST
+def device_create(request):
+    """
+    Register a spare board.
+
+    The normal way to get a board onto the system is to add the household
+    that owns it. This is for the other case: buying two boards and claiming
+    one now, or preparing a replacement before walking to a house.
+
+    Nothing about the identity is taken from the request. The id and key are
+    issued by the model - a key a person can choose is a key they can reuse
+    across two boards, and two boards reporting as the same household
+    overwrite each other's readings with nothing to show for it.
+    """
+    device = Device.objects.create(label=request.POST.get("label", "").strip()[:120])
+    messages.success(
+        request,
+        f"Board {device.device_id} registered. Enter these on the board's setup page - "
+        f"Device ID: {device.device_id} / API key: {device.api_key}. "
+        f"Both stay on this page if you need them again.",
+    )
+    return redirect("segment_list")
+
+
+@facilitator_required
+@require_POST
+def device_regenerate_key(request, pk):
+    """
+    Issue a new key and invalidate the old one.
+
+    Separate from editing on purpose. The board goes silent the instant this
+    runs and stays silent until somebody walks to it and enters the new key,
+    so it is a decision with a cost, not a field being changed.
+    """
+    device = get_object_or_404(Device, pk=pk)
+    device.regenerate_key()
+
+    line = device.line
+    where = f" {line.name} will not report" if line else " That board will not report"
+    messages.warning(
+        request,
+        f"New key issued for {device.device_id}.{where} until you enter it on the "
+        f"board's setup page. New key: {device.api_key}",
+    )
+    return redirect("segment_list")
+
+
+@facilitator_required
+@require_POST
+def device_delete(request, pk):
+    """
+    Remove a board from the system.
+
+    Refused while it is fitted to a line: deleting it would silently detach
+    that household's hose and leave the dashboard reporting "No device" with
+    no explanation of where it went.
+    """
+    device = get_object_or_404(Device, pk=pk)
+    line = device.line
+    if line is not None:
+        messages.error(
+            request,
+            f"{device.device_id} is fitted to {line.name}. Detach it there first, "
+            "so that household does not silently lose its board.",
+        )
+        return redirect("segment_list")
+
+    device_id = device.device_id
+    device.delete()
+    messages.success(request, f"Board {device_id} removed.")
+    return redirect("segment_list")
 
 
 @facilitator_required

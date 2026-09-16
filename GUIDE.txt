@@ -356,6 +356,46 @@ DEVICE COLUMN - THE THREE STATES
   Those three are deliberately different. A house waiting for hardware and a
   house whose board has died must never look the same.
 
+ADDING A HOUSEHOLD, ITS HOSE AND ITS BOARD  (all in one)
+  Dashboard -> Households -> Add household.
+
+  The hose line is created for you and named after the household. You are
+  not asked to pick one: a line serves exactly one house, so there was only
+  ever one right answer.
+
+  Under "Hardware", choose one:
+    No device yet             the hose is laid, the board is not fitted.
+                              The dashboard shows "No device", which is the
+                              rollout working, not a fault.
+    Register a new board      a Device ID and API key are generated and
+                              shown when you save.
+    Use a board already       pick from boards that are not on another
+    registered                house's hose.
+
+  CLAIMING THE BOARD
+    1. Dashboard -> Lines -> Devices table. Find the board.
+    2. Press Copy next to the Device ID.
+    3. Join the board's "LeakDetect-Setup" hotspot on the same phone.
+    4. Paste it into the setup page. Do the same for the API key.
+    Nothing is re-flashed. The same sketch runs on every board.
+
+    Do NOT type the key by hand. It is 43 mixed-case characters with dashes
+    and underscores; a typo gives a 401 that looks exactly like a network
+    fault.
+
+  WHERE THE KEY LIVES
+    On the facilitator side, permanently, on the Lines page. It is never
+    typed and cannot be edited - only the server issues one. It stays
+    readable because it has to be entered again if the board is replaced,
+    and unlike an owner password it cannot simply be reset.
+
+  REPLACING A DEAD BOARD
+    Flash the same sketch to the spare, join its hotspot, and paste the SAME
+    Device ID and API key. The household keeps its history.
+    Only use "New key" if the key has actually leaked - the board goes
+    silent the moment you do, until somebody walks to it.
+
+
 ADDING A LINE
   Dashboard -> Lines -> Add hose line. It is created with NO device: a hose
   is laid long before a board is fitted to it. When the board arrives, open
@@ -932,6 +972,16 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+16 Sep 2026  Adding a household now creates its hose line and registers its
+             board in the same dialog, because that is one real event and
+             three screens is how a house ends up recorded with no line.
+             Device IDs and API keys are issued by the server, shown with
+             copy buttons on the Lines page, and can never be typed or
+             edited - "New key" is a separate confirmed action that names
+             the household about to go silent. The redundant "Supply line"
+             filter on the Households page was removed: it narrowed the list
+             to one row, which the search box already does. See section 9a.
 
 16 Sep 2026  The single "Device status" tile was removed from the facilitator
              dashboard. It described one board, and there is now one per

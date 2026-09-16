@@ -10,6 +10,7 @@ from django.utils.text import slugify
 from .models import (
     Complaint,
     ComplaintMessage,
+    Device,
     Household,
     Notification,
     Segment,
@@ -77,11 +78,39 @@ class HouseholdForm(forms.ModelForm):
     self sign-up on the owner portal.
     """
 
+    # What to do about hardware for this house. Asked here rather than on a
+    # separate screen because registering a household, laying its hose and
+    # fitting its board are one real-world event, and splitting them across
+    # three pages is how a house ends up recorded with no line at all.
+    DEVICE_NONE = "none"
+    DEVICE_NEW = "new"
+    DEVICE_EXISTING = "existing"
+
     create_account = forms.BooleanField(
         required=False,
         initial=True,
         label="Create an Owner Portal login for this household",
         help_text="A username and temporary password are generated and shown once after saving.",
+    )
+
+    device_choice = forms.ChoiceField(
+        required=False,
+        initial=DEVICE_NONE,
+        label="Device",
+        widget=forms.RadioSelect,
+        choices=[
+            (DEVICE_NONE, "No device yet"),
+            (DEVICE_NEW, "Register a new board"),
+            (DEVICE_EXISTING, "Use a board already registered"),
+        ],
+    )
+    device_label = forms.CharField(
+        required=False, max_length=120, label="Board label",
+        help_text="Optional. Something you can recognise it by.",
+    )
+    existing_device = forms.ModelChoiceField(
+        required=False, queryset=Device.objects.none(), label="Which board",
+        empty_label="Choose a board",
     )
 
     class Meta:
@@ -92,7 +121,6 @@ class HouseholdForm(forms.ModelForm):
             "owner_name",
             "address",
             "contact_number",
-            "segment",
             "account_status",
             "latitude",
             "longitude",
@@ -110,11 +138,24 @@ class HouseholdForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["segment"].queryset = Segment.objects.filter(is_active=True)
-        self.fields["segment"].empty_label = "Not assigned"
+
+        # Only boards not already on someone else's hose. A board serves one
+        # line, and offering a taken one would fail on a database constraint
+        # at save time with nothing useful to say about why.
+        self.fields["existing_device"].queryset = Device.objects.filter(
+            segments__isnull=True
+        ).order_by("device_id")
+
         if self.instance.pk and self.instance.user_id:
             # The account already exists; do not offer to create a second one.
             del self.fields["create_account"]
+
+        if self.instance.pk:
+            # Editing is for the household's own details. Its board is
+            # changed on the Lines page, where the consequences of swapping
+            # hardware sit next to the readings that go with it.
+            for name in ("device_choice", "device_label", "existing_device"):
+                del self.fields[name]
 
     def clean(self):
         cleaned = super().clean()
@@ -127,7 +168,39 @@ class HouseholdForm(forms.ModelForm):
             self.add_error(missing, "Enter both latitude and longitude, or leave both blank.")
             return cleaned
         check_within_municipality(self, lat, lng)
+
+        if cleaned.get("device_choice") == self.DEVICE_EXISTING and not cleaned.get("existing_device"):
+            self.add_error("existing_device", "Choose the board, or pick a different option.")
+
         return cleaned
+
+    def attach_hardware(self, household):
+        """
+        Give the household its hose line, and a board if one was asked for.
+
+        Called after save() rather than inside it, so a form that fails
+        validation never leaves a stray line behind with no house on it.
+        """
+        if household.segment is None:
+            household.segment = Segment.objects.create(
+                module_index=1,
+                name=f"{household.household_id} - {household.owner_name}",
+                color=Segment.next_color(),
+            )
+            household.save(update_fields=["segment"])
+
+        choice = self.cleaned_data.get("device_choice")
+        device = None
+        if choice == self.DEVICE_NEW:
+            device = Device.objects.create(label=self.cleaned_data.get("device_label", ""))
+        elif choice == self.DEVICE_EXISTING:
+            device = self.cleaned_data.get("existing_device")
+
+        if device is not None:
+            household.segment.device = device
+            household.segment.save(update_fields=["device"])
+
+        return device
 
     def generate_credentials(self):
         """Build a unique username and a temporary password for the owner."""
