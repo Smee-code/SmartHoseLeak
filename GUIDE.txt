@@ -534,6 +534,51 @@ A NOTE ON "FORGET SAVED NETWORK"
 
 
 ============================================================================
+9f. BENCH TESTING WITHOUT THE VALVE OR THE GSM MODULE
+============================================================================
+The sketch has two switches at the top for hardware that has not arrived:
+
+    #define VALVE_FITTED false
+    #define GSM_FITTED   false
+
+Leave both false until the hardware is actually wired. Set each to true when
+it is, and re-flash.
+
+WHY THIS MATTERS - IT IS NOT JUST TIDINESS
+  With no valve and VALVE_FITTED true, the board would close nothing, then
+  measure the pressure drift of an OPEN hose for five minutes and report it
+  as a leak. Phantom leaks are worse than no leak detection: they teach
+  everyone to ignore the alerts.
+
+  With no module and GSM_FITTED true, every AT command waits out a timeout
+  that never ends, inside a loop that is also serving the board's web page
+  and uploading readings.
+
+WHAT YOU GET WITH BOTH FALSE
+  - Three of the four tests still run: burst, night flow, and sustained low
+    flow. Only the sealed-line decay test is disabled, and it is the only one
+    that needs the valve.
+  - The dashboard shows the valve as "Not fitted" and hides the Test valve
+    button by itself. No configuration needed on that side.
+  - The board still boots faster - no 8-second valve travel, no 3-second GSM
+    wait.
+  - If the board ever cannot reach the server, the serial monitor prints
+    "[GSM] No module - would have sent: ..." so you can still see that the
+    fallback path was reached.
+  - On boot it prints a line confirming what it thinks is wired:
+        [HW] Valve NOT fitted (sealed-line test disabled), GSM NOT fitted.
+
+YOUR LAPTOP AS THE SERVER
+  That is the normal setup for now and needs nothing special:
+
+    python manage.py runserver 0.0.0.0:8000
+
+  The board finds the laptop by itself if the address changes (section 5),
+  so a new IP does not mean touching the board. Leave the Server address
+  field on the setup page alone.
+
+
+============================================================================
 9e. THE FOUR LEAK TESTS  (what the board actually does now)
 ============================================================================
 There is no calibration any more. The K = Q/sqrt(P) method is gone, along
@@ -1087,6 +1132,14 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+16 Sep 2026  Added VALVE_FITTED and GSM_FITTED to the sketch, both false,
+             for testing before the hardware arrives. Without them the board
+             would have measured the pressure drift of an open hose and
+             reported it as a leak, and would have blocked on AT commands to
+             a module that is not there. The dashboard's "Test valve" button
+             also did nothing: the server sent the request and the firmware
+             never read it. See section 9f.
 
 16 Sep 2026  Retired the calibration instructions in section 9 - they
              described C / A / F commands the sketch no longer has - and

@@ -132,6 +132,27 @@
 const uint8_t FLOW_PINS[NUM_MODULES] = {27};
 const uint8_t PRESSURE_PINS[NUM_MODULES] = {34};
 
+// ---- What is actually wired up ---------------------------------------------
+//
+// The valve and the GSM module arrive later than the sensors do, and a board
+// running on a bench with neither must behave correctly rather than almost
+// correctly. Two switches, because the failure modes are different and both
+// are quiet:
+//
+//   With no valve, the sealed-line test would close nothing, then measure the
+//   pressure drift of an OPEN hose and report it as a leak. Phantom leaks are
+//   worse than no leak detection: they teach everyone to ignore the alerts.
+//
+//   With no GSM module, every AT command waits for a reply that never comes.
+//   That is seconds of blocking per attempt, in a loop that is also meant to
+//   be serving a web page and uploading readings.
+//
+// Set each to true as the hardware goes in. The server already understands a
+// board that reports no valve - the dashboard shows "not fitted" and hides
+// the valve controls - so this needs no change on that side.
+#define VALVE_FITTED false
+#define GSM_FITTED false
+
 // ---- Motorised ball valve --------------------------------------------------
 //
 // Driven through a 2-channel relay module, never straight from a GPIO: the
@@ -523,6 +544,10 @@ String lastValveResult = "no test yet";
 // The night-flow test needs to know the hour, and an ESP32 has no clock of its
 // own. Until NTP answers, that test simply does not run: guessing the time
 // would raise alarms at random hours, which is worse than not running.
+// Answered once in setup() and remembered, so nothing later has to wait out
+// an AT timeout to find out.
+bool gsmReady = false;
+
 bool clockReady = false;
 bool fakeNightMode = false;          // serial command, for testing the window
 
@@ -748,8 +773,54 @@ bool extractModuleFloat(const String &body, uint8_t moduleId, const char *key, f
 // Values are range-checked before being trusted. The board keeps running on
 // its own for hours at a time, so a corrupted or truncated reply must not be
 // able to leave it with a threshold of 0 (never alarms) or 99 (always does).
+// Finds a true/false field inside one module's config object. Same narrow
+// search as extractModuleFloat, for the same reason.
+bool extractModuleBool(const String &body, uint8_t moduleId, const char *key, bool &out)
+{
+  int configAt = body.indexOf("\"config\"");
+  if (configAt < 0)
+    return false;
+
+  String moduleKey = String("\"") + String((unsigned)moduleId) + String("\":");
+  int moduleAt = body.indexOf(moduleKey, configAt);
+  if (moduleAt < 0)
+    return false;
+
+  int openBrace = body.indexOf('{', moduleAt);
+  int closeBrace = body.indexOf('}', openBrace);
+  if (openBrace < 0 || closeBrace < 0)
+    return false;
+
+  String fieldKey = String("\"") + String(key) + String("\":");
+  int fieldAt = body.indexOf(fieldKey, openBrace);
+  if (fieldAt < 0 || fieldAt > closeBrace)
+    return false;
+
+  // Stop at this field's own value. Searching as far as the closing brace
+  // would let a LATER field in the same object decide this one - a value of
+  // false next to any string containing "true" would read as true.
+  int valueFrom = fieldAt + fieldKey.length();
+  int comma = body.indexOf(',', valueFrom);
+  int valueTo = (comma >= 0 && comma < closeBrace) ? comma : closeBrace;
+
+  out = body.substring(valueFrom, valueTo).indexOf("true") >= 0;
+  return true;
+}
+
 void applyServerConfig(const String &body)
 {
+  // A valve test asked for from the dashboard. The board dials out and cannot
+  // be pushed to, so the request rides down on the reply to an upload it was
+  // already making - a couple of seconds at most. It is only acted on when a
+  // valve is actually fitted; the server hides the button otherwise.
+  bool wantTest = false;
+  if (VALVE_FITTED && extractModuleBool(body, modules[0].id, "run_valve_test", wantTest) && wantTest)
+  {
+    if (!valveTestRequested)
+      Serial.println("[VALVE] Test requested from the dashboard.");
+    valveTestRequested = true;
+  }
+
   for (uint8_t i = 0; i < NUM_MODULES; i++)
   {
     float bar;
@@ -932,6 +1003,13 @@ LeakSeverity severityFromFlow(float lpm)
 // opening a tap all have to keep working throughout.
 void runValveTest(ModuleState &m)
 {
+  // Without a valve there is nothing to seal, so there is nothing to measure.
+  // Running anyway would time a pressure drift on an open hose and call it a
+  // leak - which is exactly the reading this test exists to distinguish from
+  // one.
+  if (!VALVE_FITTED)
+    return;
+
   unsigned long now = millis();
 
   switch (valveStage)
@@ -1189,6 +1267,12 @@ const char *triggerToString(LeakTrigger t)
 // hide every real fault behind the boards that have no valve yet.
 const char *valveToString()
 {
+  // Distinct from "unknown" on purpose. No valve is the rig working as
+  // planned; a valve whose state cannot be read is a fault, and collapsing
+  // the two would hide every real fault behind the boards that have none.
+  if (!VALVE_FITTED)
+    return "not_fitted";
+
   switch (valveStage)
   {
   case VALVE_CLOSING:
@@ -1251,6 +1335,14 @@ bool gsmModulePresent()
 
 bool sendSMS(const String &number, const String &message)
 {
+  if (!GSM_FITTED || !gsmReady)
+  {
+    // Said out loud rather than silently skipped: during bench testing this
+    // line is the only evidence the fallback path was reached at all.
+    Serial.println("[GSM] No module - would have sent: " + message);
+    return false;
+  }
+
   while (GSM_SERIAL.available())
     GSM_SERIAL.read(); // flush stale data
 
@@ -2601,12 +2693,15 @@ void setup()
   // the relay in - so both are driven to the de-energised level first, then
   // the valve is deliberately opened. A power cut must never be able to leave
   // a household with the water shut off.
-  pinMode(VALVE_PIN_OPEN, OUTPUT);
-  pinMode(VALVE_PIN_CLOSE, OUTPUT);
-  valveRelaysOff();
-  valveDrive(true);
-  delay(VALVE_TRAVEL_MS);
-  valveStopAndRecord(true);
+  if (VALVE_FITTED)
+  {
+    pinMode(VALVE_PIN_OPEN, OUTPUT);
+    pinMode(VALVE_PIN_CLOSE, OUTPUT);
+    valveRelaysOff();
+    valveDrive(true);
+    delay(VALVE_TRAVEL_MS);
+    valveStopAndRecord(true);
+  }
 
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);
@@ -2616,22 +2711,38 @@ void setup()
   loadZeroOffsets();
   loadThresholds();
 
-  GSM_SERIAL.begin(GSM_BAUD, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
-  delay(3000); // SIM800L needs a few seconds to boot/register on the network
+  if (GSM_FITTED)
+  {
+    GSM_SERIAL.begin(GSM_BAUD, SERIAL_8N1, GSM_RX_PIN, GSM_TX_PIN);
+    delay(3000); // SIM800L needs a few seconds to boot/register
+  }
 
   lastSampleMillis = millis();
 
   Serial.println("============================================");
   Serial.println("  Water Leak Detection - per-household device");
   Serial.println("============================================");
-  if (gsmModulePresent())
+  // Checked once and remembered. Asking again later means waiting out an AT
+  // timeout inside a loop that is also serving a web page and uploading.
+  if (!GSM_FITTED)
   {
+    Serial.println("[GSM] Not fitted (GSM_FITTED false). The server sends the SMS;");
+    Serial.println("      the board only texts when it cannot reach the server.");
+  }
+  else if (gsmModulePresent())
+  {
+    gsmReady = true;
     Serial.println("[GSM] Module detected and responding.");
   }
   else
   {
-    Serial.println("[GSM] WARNING: module not responding to AT. Check wiring/power.");
+    Serial.println("[GSM] WARNING: module not responding to AT. Check wiring and power -");
+    Serial.println("      a SIM800L needs its own 3.7-4.2 V supply, not the ESP32's.");
   }
+
+  Serial.printf("[HW] Valve %s, GSM %s.\n",
+                VALVE_FITTED ? "fitted" : "NOT fitted (sealed-line test disabled)",
+                GSM_FITTED ? "fitted" : "NOT fitted");
 
   loadWiFiConfig();
   if (!connectWiFi())
