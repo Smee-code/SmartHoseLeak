@@ -472,7 +472,7 @@ class Household(models.Model):
 
 class WaterSource(models.Model):
     """
-    Where the monitored hose run begins: the main valve or tank.
+    Where every household's hose begins: the spring box, tank or main tap.
 
     Distance markers on every segment are measured from this point, so it is
     the anchor the whole system's leak locations are expressed against. A
@@ -482,8 +482,8 @@ class WaterSource(models.Model):
     """
 
     name = models.CharField(
-        max_length=120, default="Main valve",
-        help_text="What is at this point, e.g. 'Main valve' or 'Spring box'.",
+        max_length=120, default="Main source",
+        help_text="What is at this point, e.g. 'Main source', 'Spring box' or 'Reservoir'.",
     )
     latitude = models.FloatField(
         null=True, blank=True,

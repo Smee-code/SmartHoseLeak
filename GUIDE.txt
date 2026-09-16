@@ -500,44 +500,55 @@ COORDINATES
   To get a coordinate: stand at the house, open Google Maps on your phone,
   long-press your location, and copy the two numbers it shows.
 
-THE WATER SOURCE (start of the main line)
+THE MAIN SOURCE (where every hose starts)
   Dashboard -> Lines -> the box at the top of the page.
-  This is the 0 m mark that every distance marker is measured from. Give it
-  a name ("Main valve", "Spring box"), its coordinates, and an optional note
-  like "beside the barangay hall". It then shows on the map as a blue
-  square. Same coordinate rules as households.
+  This is the single point every household's hose runs from. Give it a name
+  ("Main source", "Spring box", "Reservoir tank"), its coordinates, and an
+  optional note like "beside the barangay hall". Same coordinate rules as
+  households.
+
+  It used to be called the main valve, back when it was the 0 m mark that
+  distance markers were measured from. There are no distance markers now,
+  and the valves that matter are the motorised ones on each household's
+  line - so calling this one a valve too would only confuse the two.
 
 THE LEAK MAP
   It draws the real municipal boundary of Sison (dashed blue outline) from
   the official NAMRIA / PSA data, so the map is always framed on the right
   place even before anything has been surveyed.
 
-  - The main valve / water source is a PURPLE square with a pulsing ring and
-    a permanent "Main valve" label. Purple is used for nothing else, so it
-    is the easiest thing on the map to find.
+  - The main source is a PURPLE square with a pulsing ring and a permanent
+    "Main source" label. Purple is used for nothing else, so it is the
+    easiest thing on the map to find.
   - Households with coordinates appear as round pins that carry TWO pieces
     of information at once:
-        the FILL colour says which supply line serves it
-            M1 = cyan, M2 = indigo, M3 = pink
+        the FILL colour is that household's own hose colour
+            one colour per household, shown in the legend under the map
         the RING colour says what state that line is in
             green = normal, amber = low supply / maintenance,
             red = possible leak, grey = offline
-    So households on the same line always look alike, even when every line
+    So a household keeps its identity on the map even when every line
     happens to be in the same state.
-  - Each supply line is drawn as ONE branch leaving the main valve and
-    running through every household on that line, in its line colour:
-        [valve] --- M1 --o--o--o
-                \-- M2 --o--o
-                 \- M3 --o--o
-    Three branches, all starting at the valve. Households are strung along
-    their branch nearest-to-the-valve first, so adding a household or
-    changing a coordinate re-draws the run automatically - there is nothing
-    to maintain by hand.
+  - Each household's hose is drawn as its OWN line, straight from the main
+    source to that house, in that household's colour:
 
-    The branch shows WHICH line serves each house, not the route the pipe
+        [source] ---- HH-001
+                 \--- HH-002
+                  \-- HH-003
+                   \- HH-004
+
+    One hose per house. They are NOT chained through each other: nothing is
+    shared, and a run visiting the houses in turn would draw plumbing that
+    does not exist and suggest a leak upstream affects everyone below it.
+
+    A hose with no board fitted is drawn DASHED - the pipe is there, nothing
+    is watching it yet.
+
+    The line shows WHICH house a hose serves, not the route the pipe
     physically takes in the ground.
-  - Supply lines appear as thick coloured lines, but ONLY once you put
-    coordinates on them (Dashboard -> Lines -> Edit on that line).
+  - The hoses appear as soon as the households have coordinates. Nothing
+    needs to be maintained by hand: add a household or move a coordinate and
+    the map redraws itself.
   - "Switch to offline schematic" draws the hose run as a diagram instead.
     That view needs no internet and is the safe choice on a weak signal.
 
@@ -580,20 +591,22 @@ FINDING THE DEVICE'S OWN ADDRESS
 ============================================================================
 Dashboard -> Lines -> "Add hose line". It opens a dialog asking for:
 
-    Module      assigned automatically (M1, M2, M3, M4 ...). Shown, not typed.
-    Name        e.g. "Line 4 - Lower Patag to Riverside"
+    Name        e.g. "HH-007 - Juan Cruz"
     Map colour  pick one of eight swatches
-    Start / End markers, in metres from the main valve
 
-The colour is what the line and all its households are drawn in on the leak
-map, so each line stays identifiable even when every line is in the same
+The line is created with NO device. A hose is laid long before a board is
+fitted to it; attach the board later from Edit once it exists.
+
+The colour is what that household's hose and pin are drawn in on the leak
+map, so each house stays identifiable even when every line is in the same
 state. You can change it later with Edit. The next unused colour is
 pre-selected so two new lines never come out looking alike.
 
 EDITING A LINE
   "Edit" on the row opens a dialog with the current values filled in -
-  name, map colour, distance markers, optional coordinates, maintenance
-  note and whether the line is active.
+  name, the device fitted to this line, map colour, the low-supply
+  threshold, optional coordinates, maintenance note and whether the line is
+  active.
 
 DELETING A LINE
   "Delete" on the row asks for confirmation first and names exactly what
@@ -739,7 +752,7 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
       decay), and the motorised valve. The server side is already built and
       accepts severity, trigger and valve_state.
   [ ] Buy and fit the motorised ball valves and 2-channel relays
-  [ ] Decide where the main valve really is. It is currently at the centre
+  [ ] Decide where the main source really is. It is currently at the centre
       of the municipality (9.647119, 125.495095), which is about 2.7 km from
       the households. The monitored run is only 50 m, so the map implies a
       main line far longer than the real one. If you want it at the head of
@@ -821,6 +834,13 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+16 Sep 2026  The "main valve" is now the "main source", and the leak map
+             draws one hose per household straight from it, instead of
+             chaining several houses onto one shared branch. A hose with no
+             board fitted is drawn dashed. Nothing is shared between
+             households any more, so a chained run was drawing plumbing that
+             does not exist.
 
 16 Sep 2026  One hose line per household, each with its own device,
              replacing three shared runs on one board. The dashboard shows a

@@ -6,8 +6,12 @@
     <div>
       <h1>{{ segment.name }}</h1>
       <p class="sub">
-        A leak detected on this module is reported as lying between the two distance markers below,
-        so measure them from the main valve and keep them accurate.
+        {% if segment.household %}
+          The hose running from the main source to {{ segment.household.household_id }}
+          ({{ segment.household.owner_name }}).
+        {% else %}
+          A hose line with no household assigned yet.
+        {% endif %}
       </p>
     </div>
   </div>

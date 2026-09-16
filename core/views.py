@@ -171,9 +171,12 @@ def dashboard(request):
                 "module": h.segment.module_index if h.segment else None,
                 "color": h.segment.color if h.segment else None,
                 "status": h.segment.status if h.segment else "OFFLINE",
+                # Lets the map draw an unfitted hose as a dashed line rather
+                # than one that looks monitored but never changes colour.
+                "has_device": bool(h.segment and h.segment.has_device),
                 "coords": [h.latitude, h.longitude],
             }
-            for h in Household.objects.select_related("segment")
+            for h in Household.objects.select_related("segment", "segment__device")
             .filter(
                 account_status=Household.AccountStatus.ACTIVE,
                 latitude__isnull=False,

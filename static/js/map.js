@@ -277,48 +277,28 @@
         })
         .bindPopup(
           '<strong>' + escapeHtml(source.name) + '</strong><br>' +
-          'Start of the main line (0 m)' +
+          'Every household&rsquo;s hose starts here' +
           (source.notes ? '<br>' + escapeHtml(source.notes) : '')
         );
       bounds.push(source.coords);
     }
 
-    // One branch per supply line: the valve, then that line's households in
-    // order of how far they are from it. Drawn before the pins so the pins
-    // sit on top of the run rather than under it.
+    // One hose per household, drawn straight from the main source to the
+    // house. Not a chain through several houses: nothing is shared any more,
+    // so a run visiting them in turn would draw plumbing that does not exist
+    // and imply that a leak upstream affects everyone below it.
     //
-    // Three branches all starting at the valve, rather than one continuous
-    // pipe - the households on a line are what the line is defined by, so a
-    // branch ends at its last household.
+    // Drawn before the pins so each pin sits on top of its own hose.
     var haveSource = source && source.coords &&
                      source.coords[0] !== null && source.coords[1] !== null;
 
-    function metresBetween(a, b) {
-      // Equirectangular approximation: plenty at barangay distances and it
-      // avoids trigonometry on every comparison while sorting.
-      var latScale = 110574;
-      var lngScale = 111320 * Math.cos(a[0] * Math.PI / 180);
-      var dy = (b[0] - a[0]) * latScale;
-      var dx = (b[1] - a[1]) * lngScale;
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-
     if (haveSource) {
-      var byModule = {};
       households.forEach(function (house) {
         if (!house.coords || house.coords[0] === null || house.coords[1] === null) return;
-        if (house.module === null || house.module === undefined) return;
-        (byModule[house.module] = byModule[house.module] || []).push(house);
-      });
 
-      Object.keys(byModule).forEach(function (module) {
-        var group = byModule[module].slice().sort(function (a, b) {
-          return metresBetween(source.coords, a.coords) -
-                 metresBetween(source.coords, b.coords);
-        });
-
-        var path = [source.coords].concat(group.map(function (h) { return h.coords; }));
-        var colour = lineColor(group[0]);   // every household on a line shares it
+        var path = [source.coords, house.coords];
+        var colour = lineColor(house);
+        var offline = house.status === 'OFFLINE';
 
         // A wider translucent casing under the line, so it stays readable
         // over dark tiles, forest green and pale roads alike.
@@ -327,10 +307,21 @@
         }).addTo(leafletMap);
 
         window.L.polyline(path, {
-          color: colour, weight: 3.5, opacity: 0.95, lineJoin: 'round', lineCap: 'round'
+          color: colour,
+          weight: 3.5,
+          opacity: offline ? 0.55 : 0.95,
+          // A hose with no board fitted is dashed: the pipe is there, nothing
+          // is watching it. That has to read as "not yet", not as a fault.
+          dashArray: house.has_device === false ? '6 6' : null,
+          lineJoin: 'round',
+          lineCap: 'round'
         })
           .addTo(leafletMap)
-          .bindTooltip('M' + module + ' &mdash; ' + group.length + ' household(s)', { sticky: true });
+          .bindTooltip(
+            escapeHtml(house.household_id) + ' &mdash; ' + escapeHtml(house.owner_name) +
+            (house.has_device === false ? '<br>no device fitted' : ''),
+            { sticky: true }
+          );
       });
     }
 
