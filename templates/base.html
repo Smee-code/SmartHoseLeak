@@ -198,28 +198,29 @@
       under it pushes the compose field up and out of reach on a phone.
     {% endcomment %}
     {% block footer %}
+    {% comment %}
+      One line, wrapping to two on a narrow screen.
+
+      It used to be four stacked blocks - brand, deployment, a rule, then the
+      university credit - which took more vertical space than some of the
+      panels above it. None of it is information anybody comes to the page
+      for: it is provenance, and provenance belongs on one line at the foot.
+
+      The tagline went entirely. "Automated leak detection and water supply
+      monitoring" restated the product name to somebody already inside the
+      product.
+    {% endcomment %}
     <footer class="sitefoot">
       <div class="sitefoot-inner">
-        <div class="sitefoot-top">
-          <div class="sitefoot-brand">
-            <img src="{% static 'img/icon.svg' %}" alt="" width="30" height="30">
-            <div>
-              <strong>{{ SITE_NAME }}</strong>
-              <span>Automated leak detection and water supply monitoring</span>
-            </div>
-          </div>
-
-          <dl class="sitefoot-meta">
-            <dt>Deployment</dt>
-            <dd>{{ SITE_LOCALE }}</dd>
-          </dl>
-        </div>
-
-        <div class="sitefoot-base">
-          <p>A capstone project of the College of Information Technology Education,
-             North Eastern Mindanao State University &mdash; Cantilan Campus.</p>
-          <p class="sitefoot-copy">&copy; {% now "Y" %}</p>
-        </div>
+        <span class="sitefoot-brand">
+          <img src="{% static 'img/icon.svg' %}" alt="" width="18" height="18">
+          <strong>{{ SITE_NAME }}</strong>
+        </span>
+        <span class="sitefoot-sep" aria-hidden="true">&middot;</span>
+        <span>{{ SITE_LOCALE }}</span>
+        <span class="sitefoot-sep" aria-hidden="true">&middot;</span>
+        <span>NEMSU Cantilan &mdash; College of Information Technology Education</span>
+        <span class="sitefoot-copy">&copy; {% now "Y" %}</span>
       </div>
     </footer>
     {% endblock %}
