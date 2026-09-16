@@ -1141,13 +1141,16 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .check-row input[type="checkbox"] { width: auto; margin: 0; }
 .check-row label { margin: 0; font-weight: 500; }
 
-/* The household list is scrollable rather than tall: at six households a
-   full list is fine, and at sixty it would push the message box off-screen
-   entirely. */
-.pick-list {
-  max-height: 190px; overflow-y: auto;
+/* Households wrap across the width rather than stacking in a scrolling box.
+   Seven of them took 190px and a scrollbar to show five; wrapping, they take
+   two rows and hide none. The cap only bites past roughly twenty, where a
+   full list would be the thing pushing the message box off the screen. */
+.pick-grid {
+  display: grid; gap: .1rem .9rem;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  max-height: 148px; overflow-y: auto;
   border: 1px solid var(--border); border-radius: var(--radius);
-  padding: .4rem .6rem; margin-top: .4rem; background: var(--surface);
+  padding: .45rem .6rem; margin-top: .4rem; background: var(--surface);
 }
 .pick-option { display: flex; align-items: center; gap: .5rem; padding: .22rem 0; font-weight: 400; }
 .pick-option input { width: auto; margin: 0; }
@@ -1155,14 +1158,19 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 /* Ticking "all households" makes the list irrelevant, not wrong - so it is
    dimmed and inert rather than hidden, which would make the options appear
    to vanish. */
-.pick-list.is-disabled { opacity: .45; pointer-events: none; }
+.pick-grid.is-disabled { opacity: .45; pointer-events: none; }
 
 .channel-box {
   border: 1px solid var(--border); border-radius: var(--radius);
   padding: .7rem .9rem; margin: 1rem 0;
 }
 .channel-box legend { padding: 0 .35rem; color: var(--text-muted); font-weight: 600; }
-.channel-box .helptext { margin: 0 0 .5rem 1.7rem; }
+
+/* The channels and the send button on one line: choosing where a notice goes
+   and sending it are one action, and stacking them put three rows and two
+   paragraphs between the message and the button. */
+.channel-row { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
+.channel-row .btn { margin-left: auto; }
 
 /* A message that will split into several texts is not an error - it costs
    more and may arrive out of order. Amber, not red. */

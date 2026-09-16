@@ -456,11 +456,11 @@ SETTING IT UP  (about 5 minutes)
 
 SENDING ONE BY HAND
   Dashboard -> Notices & SMS
-  1. Tick the households, or tick "All active households"
+  1. Tick the households, or tick "All active households". They are laid out
+     across the width, so all of them are visible without scrolling.
   2. Title and message
   3. Under "How to send it", tick "Show in the app", "Also send as SMS", or
-     both. At least one is required.
-  4. Send notice
+     both. At least one is required. Send notice is on the same line.
 
   A counter shows how many texts it will cost. Over 160 characters it is
   split into numbered parts.

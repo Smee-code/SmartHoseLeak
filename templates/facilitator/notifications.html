@@ -38,13 +38,20 @@
           <div class="message message-error"><span>{{ form.non_field_errors }}</span></div>
         {% endif %}
 
+        {% comment %}
+          Households wrap across the width instead of stacking in a scrolling
+          box. Seven of them took 190px and a scrollbar to show five; as a
+          wrapping grid they take two rows and hide nothing. The scroll only
+          comes back past about twenty, where a full list would be the thing
+          pushing the message box off the screen.
+        {% endcomment %}
         <div class="field">
           <label>{{ form.households.label }}</label>
           <div class="check-row">
             {{ form.to_all }}
             <label for="{{ form.to_all.id_for_label }}">{{ form.to_all.label }}</label>
           </div>
-          <div class="pick-list" data-household-picker>
+          <div class="pick-grid" data-household-picker>
             {% for choice in form.households %}
               <label class="pick-option">
                 {{ choice.tag }}
@@ -68,32 +75,41 @@
         <p class="small muted" data-sms-count
            data-limit="{{ sms_single_limit }}" hidden></p>
 
+        {% comment %}
+          The two channels on one line, with the explanation folded into one
+          sentence underneath rather than a paragraph under each box. They are
+          a single decision - where does this go - not two separate ones.
+        {% endcomment %}
         <fieldset class="channel-box">
           <legend class="small">How to send it</legend>
-          <div class="check-row">
-            {{ form.in_app }}
-            <label for="{{ form.in_app.id_for_label }}">{{ form.in_app.label }}</label>
+          <div class="channel-row">
+            <span class="check-row">
+              {{ form.in_app }}
+              <label for="{{ form.in_app.id_for_label }}">{{ form.in_app.label }}</label>
+            </span>
+            <span class="check-row">
+              {{ form.by_sms }}
+              <label for="{{ form.by_sms.id_for_label }}">{{ form.by_sms.label }}</label>
+            </span>
+            <button type="submit" class="btn btn-primary">Send notice</button>
           </div>
-          <p class="helptext">{{ form.in_app.help_text }}</p>
-          <div class="check-row">
-            {{ form.by_sms }}
-            <label for="{{ form.by_sms.id_for_label }}">{{ form.by_sms.label }}</label>
-          </div>
-          <p class="helptext">{{ form.by_sms.help_text }}</p>
+          <p class="helptext" style="margin:.4rem 0 0">
+            In the app it appears under Notices in their portal. By SMS it is texted to
+            each household&rsquo;s contact number.
+          </p>
         </fieldset>
-
-        <button type="submit" class="btn btn-primary">Send notice</button>
       </form>
 
-      <p class="small muted" style="margin-top:1rem">
-        Tip: when a repair will interrupt supply, mark that household's line as under
-        maintenance on the dashboard first, so the sensors do not raise a leak alert
-        during the work.
-      </p>
-      <p class="small muted">
-        Leak alerts are sent
-        {% if auto_sms_on %}automatically by SMS and in the app{% else %}in the app only
-        (automatic SMS is switched off){% endif %}, so you do not need to send those by hand.
+      {% comment %}
+        Both tips folded into one line. They are worth saying once, not worth
+        two paragraphs under every compose form.
+      {% endcomment %}
+      <p class="small muted" style="margin-top:.8rem">
+        Leak alerts go out
+        {% if auto_sms_on %}automatically, by SMS and in the app{% else %}in the app only
+        (automatic SMS is off){% endif %} &mdash; no need to send those by hand. Before a
+        repair that interrupts supply, mark that line as under maintenance first, so the
+        sensors do not raise a leak alert during the work.
       </p>
     </div>
 

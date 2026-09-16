@@ -317,7 +317,6 @@ class NotificationForm(forms.Form):
         widget=forms.CheckboxSelectMultiple,
         required=False,
         label="Send to",
-        help_text="Leave everything unticked and tick 'All active households' instead.",
     )
     to_all = forms.BooleanField(
         required=False, initial=False, label="All active households",
@@ -329,7 +328,7 @@ class NotificationForm(forms.Form):
     )
     body = forms.CharField(
         widget=forms.Textarea(attrs={
-            "rows": 5,
+            "rows": 3,
             "placeholder": "Include the expected restoration time if you know it.",
             "data-sms-counter": "true",
         })
@@ -337,11 +336,9 @@ class NotificationForm(forms.Form):
 
     in_app = forms.BooleanField(
         required=False, initial=True, label="Show in the app",
-        help_text="Appears under Notices in the household's portal.",
     )
     by_sms = forms.BooleanField(
         required=False, initial=False, label="Also send as SMS",
-        help_text="Texted to each household's contact number through the GSM module.",
     )
 
     def __init__(self, *args, **kwargs):
