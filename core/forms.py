@@ -286,20 +286,20 @@ class NotificationForm(forms.Form):
 
 class SegmentForm(forms.ModelForm):
     """
-    Distance markers and optional coordinates per monitored hose line.
+    One household's hose line: its board, its threshold, its route on the map.
 
-    start_m / end_m are what turn a module-level alert into the location the
-    facilitator actually walks to, so they are editable here as well as in
-    the Django admin.
+    Distance markers used to live here, back when three sensor pairs shared a
+    single run and a leak could only be narrowed to a stretch of it. Each
+    house now has its own hose and its own board, so a leak is attributed to
+    the household and there is no distance left to record.
     """
 
     class Meta:
         model = Segment
         fields = [
             "name",
+            "device",
             "color",
-            "start_m",
-            "end_m",
             "low_pressure_bar",
             "start_lat",
             "start_lng",
@@ -309,6 +309,11 @@ class SegmentForm(forms.ModelForm):
             "is_active",
         ]
         help_texts = {
+            "device": (
+                "The board fitted to this line. Leave blank until one is installed - "
+                "the dashboard then shows the line as awaiting hardware rather than "
+                "as a fault."
+            ),
             "low_pressure_bar": (
                 "Below this, the line reports Low Water Supply. The device picks the "
                 "new value up within seconds - no re-flashing."
@@ -319,13 +324,6 @@ class SegmentForm(forms.ModelForm):
             "color": forms.RadioSelect(attrs={"class": "swatch-input"}),
             "low_pressure_bar": forms.NumberInput(attrs={"step": "0.05", "min": "0", "max": "12"}),
         }
-
-    def clean(self):
-        cleaned = super().clean()
-        start, end = cleaned.get("start_m"), cleaned.get("end_m")
-        if start is not None and end is not None and end <= start:
-            self.add_error("end_m", "The end marker must be further from the valve than the start marker.")
-        return cleaned
 
     def clean_low_pressure_bar(self):
         """
@@ -358,40 +356,28 @@ class SegmentCreateForm(forms.ModelForm):
 
     Narrower than SegmentForm on purpose: a brand-new line has no readings,
     no maintenance note and nothing to deactivate, so those fields would only
-    be noise. The module number and the device are assigned automatically.
+    be noise. It is created with no device - the board is attached from Edit
+    once one is actually fitted to the hose.
     """
 
     class Meta:
         model = Segment
-        fields = ["name", "color", "start_m", "end_m"]
-        labels = {
-            "start_m": "Start marker (metres from the valve)",
-            "end_m": "End marker (metres from the valve)",
-        }
+        fields = ["name", "color"]
         widgets = {
             "color": forms.RadioSelect(attrs={"class": "swatch-input"}),
         }
 
     def __init__(self, *args, **kwargs):
-        self.device = kwargs.pop("device", None)
+        kwargs.pop("device", None)  # accepted and ignored; lines start unfitted
         super().__init__(*args, **kwargs)
-        if self.device is not None and not self.instance.pk:
+        if not self.instance.pk:
             # Offer the next unused colour rather than always the first one,
             # so two lines added in a row do not come out looking identical.
-            self.fields["color"].initial = Segment.next_color(self.device)
-
-    def clean(self):
-        cleaned = super().clean()
-        start, end = cleaned.get("start_m"), cleaned.get("end_m")
-        if start is not None and end is not None and end <= start:
-            self.add_error("end_m", "The end marker must be further from the valve than the start marker.")
-        return cleaned
+            self.fields["color"].initial = Segment.next_color(None)
 
     def save(self, commit=True):
         segment = super().save(commit=False)
-        if self.device is not None:
-            segment.device = self.device
-            segment.module_index = Segment.next_module_index(self.device)
+        segment.module_index = 1  # one board, one sensor pair, one house
         if commit:
             segment.save()
         return segment

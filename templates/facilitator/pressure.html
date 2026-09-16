@@ -18,8 +18,10 @@
       <article class="tile" data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}">
         <div class="tile-head">
           <div>
-            <div class="tile-title">M{{ segment.module_index }} &middot; {{ segment.name }}</div>
-            <div class="tile-sub">{{ segment.start_m|floatformat:"-1" }}&ndash;{{ segment.end_m|floatformat:"-1" }} m</div>
+            <div class="tile-title">{{ segment.name }}</div>
+            <div class="tile-sub">
+              {% if segment.household %}{{ segment.household.owner_name }}{% else %}No household{% endif %}
+            </div>
           </div>
           <span class="pill pill-{{ segment.status }}" data-field="status">{{ segment.get_status_display }}</span>
         </div>
@@ -60,7 +62,7 @@
               <td><a href="{% url 'household_detail' household.pk %}">{{ household.household_id }}</a></td>
               <td>{{ household.owner_name }}</td>
               <td>
-                {% if household.segment %}M{{ household.segment.module_index }} {{ household.segment.name }}
+                {% if household.segment %}{{ household.segment.name }}
                 {% else %}<span class="muted">Unassigned</span>{% endif %}
               </td>
               {% with latest=household.segment.latest %}

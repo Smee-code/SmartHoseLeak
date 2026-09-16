@@ -21,8 +21,10 @@
         <dt>Supply line</dt>
         <dd>
           {% if household.segment %}
-            M{{ household.segment.module_index }} {{ household.segment.name }}
-            <span class="muted small">({{ household.segment.location_label }})</span>
+            {{ household.segment.name }}
+            <span class="muted small">
+              {% if household.segment.has_device %}device fitted{% else %}awaiting device{% endif %}
+            </span>
           {% else %}<span class="muted">Unassigned</span>{% endif %}
         </dd>
         <dt>Account</dt><dd>{{ household.get_account_status_display }}</dd>

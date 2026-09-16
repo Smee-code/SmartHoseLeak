@@ -402,6 +402,16 @@ input[type=checkbox] { width: auto; margin-right: .4rem; }
 .pill-danger   { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
 .pill-info     { background: var(--info-soft); color: var(--info); border-color: var(--info); }
 
+/* A line with no board yet. Deliberately the quietest pill on the page: it
+   is the rollout working as planned, not a fault, and it must never compete
+   for attention with a line whose device has actually stopped answering. */
+.pill-none {
+  background: var(--surface-alt, #f1f5f9);
+  color: var(--text-muted);
+  border-color: var(--border);
+  font-weight: 500;
+}
+
 .badge {
   display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 999px; background: var(--danger); color: #fff; font-size: .7rem; font-weight: 700;
@@ -1055,4 +1065,40 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .appshell { display: block; }
   body { background: #fff; }
   .card, .table-wrap { box-shadow: none; border-color: #999; }
+}
+
+
+/* ---------------------------------------------------------------- live table
+   One row per household, replacing the per-line cards. Cards read well at
+   three lines and fail at twenty: the facilitator's question is "is anything
+   wrong anywhere", which is a scan down one column, not a hunt through a wall
+   of panels. Anything needing action is raised into Open alerts instead.
+   ------------------------------------------------------------------------ */
+
+.live-table td { vertical-align: middle; }
+.live-table .unit { font-size: .78rem; color: var(--text-muted); font-weight: 500; }
+.live-table .swatch { margin-right: .4rem; vertical-align: middle; }
+
+/* A row that needs attention is tinted along its whole width rather than
+   given a badge, so it is visible while scanning the pressure column - which
+   is where the eye actually is. */
+.live-table tr[data-status="POSSIBLE_LEAK"] { background: var(--danger-soft); }
+.live-table tr[data-status="LOW_SUPPLY"]    { background: var(--warn-soft); }
+.live-table tr[data-status="OFFLINE"] td    { opacity: .65; }
+
+/* Device heartbeat. Green is "reporting now", grey-red is "should be
+   reporting and is not". A line with no device gets no dot at all. */
+.dot {
+  display: inline-block; width: .55rem; height: .55rem;
+  border-radius: 50%; margin-right: .35rem; vertical-align: middle;
+  background: var(--text-muted);
+}
+.dot-live { background: var(--ok); }
+.dot-down { background: var(--danger); }
+
+@media (max-width: 720px) {
+  /* Below this the columns cannot all fit, and stacking them into cards
+     would undo the reason for a table: values that line up and compare.
+     Scrolling sideways keeps the comparison intact. */
+  .live-table { min-width: 660px; }
 }

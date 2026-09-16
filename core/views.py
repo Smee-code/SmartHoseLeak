@@ -80,11 +80,15 @@ def owner_required(view):
 
 def home(request):
     """Public-facing homepage, shown to both user types before login."""
-    segments = Segment.objects.filter(is_active=True).select_related("latest")
+    segments = (
+        Segment.objects.filter(is_active=True)
+        .select_related("latest", "device", "household")
+        .order_by("name")
+    )
     stats = {
         "households": Household.objects.filter(account_status=Household.AccountStatus.ACTIVE).count(),
         "segments": segments.count(),
-        "monitored_metres": sum(s.length_m for s in segments),
+        "monitored_lines": segments.count(),
         "open_alerts": LeakEvent.objects.filter(
             cleared_at__isnull=True, severity=LeakEvent.Severity.CRITICAL
         ).count(),
@@ -144,8 +148,6 @@ def dashboard(request):
                 "id": s.id,
                 "module": s.module_index,
                 "name": s.name,
-                "start_m": s.start_m,
-                "end_m": s.end_m,
                 "status": s.status,
                 "coords": {
                     "start": [s.start_lat, s.start_lng]
@@ -420,11 +422,12 @@ def segment_list(request, create_form=None, edit_form=None, edit_segment=None):
         {
             # Counted so the delete dialog can say exactly how much history
             # goes with the line rather than warning about it vaguely.
-            "segments": Segment.objects.select_related("device", "latest").annotate(
-                household_count=Count("households", distinct=True),
+            "segments": Segment.objects.select_related(
+                "device", "latest", "household"
+            ).annotate(
                 rollup_count=Count("rollups", distinct=True),
                 event_count=Count("events", distinct=True),
-            ),
+            ).order_by("name"),
             "devices": Device.objects.all(),
             "source": source,
             "source_form": source_form,
@@ -438,10 +441,6 @@ def segment_list(request, create_form=None, edit_form=None, edit_segment=None):
             "edit_form": edit_form or SegmentForm(auto_id="edit_%s"),
             "edit_form_errors": bool(edit_form and edit_form.errors),
             "edit_segment": edit_segment,
-            "next_module_index": (
-                Segment.next_module_index(Device.objects.first())
-                if Device.objects.exists() else 1
-            ),
         },
     )
 
@@ -451,17 +450,13 @@ def segment_create(request):
     """
     Add a hose line. Posted from the dialog on the Lines page.
 
-    Every line belongs to a device, and there is one device in this
-    deployment, so it is chosen rather than asked for. The module number is
-    assigned in the form, matching the position the firmware will report it
-    under.
+    Created without a device. A hose is dug and laid long before a board is
+    fitted to it, and requiring hardware up front would mean either refusing
+    to record real lines or attaching them to a board that is not there - the
+    second of which makes the dashboard report a fault on a line nobody has
+    installed yet. The board is attached from Edit once it arrives.
     """
-    device = Device.objects.first()
-    if device is None:
-        messages.error(request, "Register a device before adding hose lines.")
-        return redirect("segment_list")
-
-    form = SegmentCreateForm(request.POST or None, device=device, auto_id="new_%s")
+    form = SegmentCreateForm(request.POST or None, auto_id="new_%s")
     if request.method == "POST" and form.is_valid():
         segment = form.save()
         messages.success(
@@ -510,19 +505,52 @@ def segment_delete(request, pk):
     """
     segment = get_object_or_404(Segment, pk=pk)
 
-    label = f"M{segment.module_index} - {segment.name}"
+    label = segment.name
     rollups = segment.rollups.count()
     events = segment.events.count()
-    households = segment.households.count()
+    household = getattr(segment, "household", None)
 
     with transaction.atomic():
         segment.delete()
 
     detail = f"{rollups} minute(s) of history and {events} event(s) were removed"
-    if households:
-        detail += f"; {households} household(s) are now unassigned"
+    if household is not None:
+        detail += f"; {household.household_id} now has no hose line"
     messages.success(request, f"Deleted {label}. {detail}.")
     return redirect("segment_list")
+
+
+@facilitator_required
+@require_POST
+def segment_valve_test(request, pk):
+    """
+    Ask this household's device to run its sealed-line pressure test now.
+
+    The test is the only way to find a leak too small for the flow sensor to
+    register, and it normally runs itself at night. This is the manual
+    trigger for a demonstration, or for checking a line somebody has just
+    repaired without waiting hours for the next scheduled run.
+
+    Nothing is sent from here. The board dials out and is not reachable, so
+    the request is parked on the line and handed over on the reply to its
+    next upload - a couple of seconds at most.
+    """
+    segment = get_object_or_404(Segment, pk=pk)
+
+    if not segment.has_device:
+        messages.error(
+            request, f"{segment.name} has no device fitted, so there is no valve to test."
+        )
+        return redirect(request.POST.get("next") or "dashboard")
+
+    segment.valve_test_requested = True
+    segment.save(update_fields=["valve_test_requested"])
+    messages.success(
+        request,
+        f"Valve test requested for {segment.name}. The device will close the line "
+        "briefly, then reopen it on its own.",
+    )
+    return redirect(request.POST.get("next") or "dashboard")
 
 
 @facilitator_required

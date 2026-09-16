@@ -37,9 +37,17 @@
         {% for event in page %}
           <tr>
             <td class="nowrap small">{{ event.detected_at|date:"M j, Y g:i A" }}</td>
-            <td>M{{ event.segment.module_index }} {{ event.segment.name }}</td>
+            <td>
+              {% if event.segment.household %}
+                <strong>{{ event.segment.household.household_id }}</strong>
+                <span class="muted small">{{ event.segment.household.owner_name }}</span>
+              {% else %}{{ event.segment.name }}{% endif %}
+            </td>
             <td><span class="pill pill-{{ event.status }}">{{ event.get_status_display }}</span></td>
-            <td class="small nowrap">{{ event.location_label }}</td>
+            <td class="small">
+              {% if event.trigger != 'none' %}{{ event.get_trigger_display }}
+              {% else %}<span class="muted">&mdash;</span>{% endif %}
+            </td>
             <td class="num">{{ event.pressure_bar|floatformat:2 }} bar</td>
             <td class="num">{{ event.flow_lpm|floatformat:2 }}</td>
             <td class="small">

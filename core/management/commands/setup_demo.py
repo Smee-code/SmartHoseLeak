@@ -14,19 +14,15 @@ from core.models import Device, Household, Segment
 
 User = get_user_model()
 
-SEGMENTS = [
-    (1, "Line 1 - Main Valve to Upper Purok", 0, 15),
-    (2, "Line 2 - Upper Purok to Chapel Junction", 15, 30),
-    (3, "Line 3 - Chapel Junction to Lower Patag", 30, 50),
-]
-
+# One hose line is built per household below, so households no longer carry a
+# module number: each house has its own run from the main source.
 HOUSEHOLDS = [
-    ("HH-001", "Maria Santos", "Purok 1, Lower Dakong Patag", "+639171234501", 1),
-    ("HH-002", "Jose Dela Cruz", "Purok 1, Lower Dakong Patag", "+639171234502", 1),
-    ("HH-003", "Ana Reyes", "Purok 2, Lower Dakong Patag", "+639171234503", 2),
-    ("HH-004", "Pedro Lim", "Purok 2, Lower Dakong Patag", "+639171234504", 2),
-    ("HH-005", "Rosa Mendoza", "Purok 3, Lower Dakong Patag", "+639171234505", 3),
-    ("HH-006", "Danilo Cruz", "Purok 3, Lower Dakong Patag", "+639171234506", 3),
+    ("HH-001", "Maria Santos", "Purok 1, Lower Dakong Patag", "+639171234501"),
+    ("HH-002", "Jose Dela Cruz", "Purok 1, Lower Dakong Patag", "+639171234502"),
+    ("HH-003", "Ana Reyes", "Purok 2, Lower Dakong Patag", "+639171234503"),
+    ("HH-004", "Pedro Lim", "Purok 2, Lower Dakong Patag", "+639171234504"),
+    ("HH-005", "Rosa Mendoza", "Purok 3, Lower Dakong Patag", "+639171234505"),
+    ("HH-006", "Danilo Cruz", "Purok 3, Lower Dakong Patag", "+639171234506"),
 ]
 
 
@@ -42,22 +38,17 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        # The first household's line gets this board; the rest are created
+        # without hardware, which is the real state of the rollout and what
+        # the dashboard is built to show.
         device, created = Device.objects.get_or_create(
             device_id=options["device_id"],
             defaults={
-                "label": "ESP32 - 3 module rig",
-                "firmware_note": "3 flow + 3 pressure sensors, SIM800L SMS to facilitator",
+                "label": "ESP32 - household unit",
+                "firmware_note": "1 flow + 1 pressure sensor, motorised valve, SIM800L fallback",
             },
         )
         self.stdout.write(("Created device " if created else "Using device ") + device.device_id)
-
-        for index, name, start_m, end_m in SEGMENTS:
-            segment, made = Segment.objects.get_or_create(
-                device=device,
-                module_index=index,
-                defaults={"name": name, "start_m": start_m, "end_m": end_m},
-            )
-            self.stdout.write(f"  {'created' if made else 'exists '} M{index}: {segment.name} ({start_m}-{end_m} m)")
 
         password = options["password"] or secrets.token_urlsafe(8)
         facilitator, made = User.objects.get_or_create(
@@ -78,17 +69,22 @@ class Command(BaseCommand):
             self.stdout.write(f"Facilitator {facilitator.username} already exists (password unchanged).")
 
         if not options["no_households"]:
-            segments = {s.module_index: s for s in device.segments.all()}
-            for hid, owner, address, contact, module in HOUSEHOLDS:
+            colors = Segment.DEFAULT_COLOR_CYCLE
+            for position, (hid, owner, address, contact) in enumerate(HOUSEHOLDS):
                 household, made = Household.objects.get_or_create(
                     household_id=hid,
-                    defaults={
-                        "owner_name": owner,
-                        "address": address,
-                        "contact_number": contact,
-                        "segment": segments.get(module),
-                    },
+                    defaults={"owner_name": owner, "address": address, "contact_number": contact},
                 )
+                if household.segment is None:
+                    household.segment = Segment.objects.create(
+                        device=device if position == 0 else None,
+                        module_index=1,
+                        name=f"{hid} - {owner}",
+                        color=colors[position % len(colors)],
+                    )
+                    household.save(update_fields=["segment"])
+                    fitted = "with the board" if position == 0 else "no board yet"
+                    self.stdout.write(f"  line for {hid} ({fitted})")
                 if made and household.user is None:
                     owner_password = secrets.token_urlsafe(6)
                     username = hid.lower().replace("-", "")

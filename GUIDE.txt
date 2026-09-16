@@ -4,7 +4,7 @@ SMART HOSE LEAK DETECTION SYSTEM - OPERATOR GUIDE
 Keep this open when you are setting up. Everything you need to run the
 system, connect the ESP32, and fix the things that usually go wrong.
 
-Last updated: 14 September 2026
+Last updated: 16 September 2026
 
 
 ============================================================================
@@ -245,6 +245,50 @@ SIMULATION - inject fake readings without water running:
 
 Simulated readings are flagged in the dashboard, so they cannot be mistaken
 for real data.
+
+
+============================================================================
+9a. ONE HOSE LINE PER HOUSEHOLD
+============================================================================
+The system used to be three sensor pairs on one board, strung along a single
+run, with a leak reported as "somewhere between 15 m and 30 m". It is now one
+hose per household - main source straight to the house - with its own board.
+A leak is attributed to a HOUSEHOLD, not to a distance along a pipe.
+
+WHAT CHANGED ON SCREEN
+  - Dashboard shows one ROW per household instead of three big cards.
+  - Each row shows pressure, flow, valve, device and status.
+  - "Distance markers" and "Length" are gone everywhere. There is no
+    distance to record any more.
+  - Lines are named after the household (HH-001 - Maria Santos).
+
+DEVICE COLUMN - THE THREE STATES
+  No device       grey pill. No board fitted to this hose yet. This is the
+                  rollout working as planned, not a fault.
+  live            green dot. The board reported within the last 10 seconds.
+  not reporting   red dot. A board IS fitted and has gone quiet - power,
+                  WiFi, or the server being down. Somebody should look.
+
+  Those three are deliberately different. A house waiting for hardware and a
+  house whose board has died must never look the same.
+
+ADDING A LINE
+  Dashboard -> Lines -> Add hose line. It is created with NO device: a hose
+  is laid long before a board is fitted to it. When the board arrives, open
+  Edit on that line and pick it in the Device field.
+
+  One board can only be on one line. If you pick a board that is already on
+  another line, the save is refused.
+
+RIGHT NOW
+  Only HH-001 has the board. The other five lines exist with no device, which
+  is exactly what the dashboard is built to show.
+
+  The board is still running the THREE-MODULE sketch, so it posts modules 1,
+  2 and 3. Module 1 lands on HH-001's line; modules 2 and 3 are rejected with
+  "no segment configured for module 2/3" in the reply. That is harmless - the
+  readings you care about still arrive - and it stops once the per-household
+  firmware is flashed.
 
 
 ============================================================================
@@ -671,8 +715,8 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
                       Flow     GPIO 27, 26, 25
   GSM module          RX GPIO16, TX GPIO17, own 3.7-4.2V power supply
 
-  Supply lines        M1 = 0-15 m, M2 = 15-30 m, M3 = 30-50 m from the
-                      main valve
+  Hose lines          One per household, main source -> the house. No
+                      distance markers; a leak names a household (section 9a).
 
 
 ============================================================================
@@ -688,8 +732,13 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
   [ ] Change SETUP_AP_PASSWORD and CONFIG_PASSWORD from their defaults
   [ ] Set OWNER_PHONE_NUMBER in the sketch to the real number
       (currently the placeholder +639171234567)
-  [ ] Add coordinates to the supply lines so they appear on the map as
-      lines, not just household pins
+  [ ] Add coordinates to each household's hose line so the branches are
+      drawn on the map, not just the household pins
+  [ ] Rewrite the firmware for one household per board: 1 module, the four
+      new leak tests (burst / sustained low flow / night flow / valve-closed
+      decay), and the motorised valve. The server side is already built and
+      accepts severity, trigger and valve_state.
+  [ ] Buy and fit the motorised ball valves and 2-channel relays
   [ ] Decide where the main valve really is. It is currently at the centre
       of the municipality (9.647119, 125.495095), which is about 2.7 km from
       the households. The monitored run is only 50 m, so the map implies a
@@ -772,6 +821,17 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+16 Sep 2026  One hose line per household, each with its own device,
+             replacing three shared runs on one board. The dashboard shows a
+             row per household instead of three cards; distance markers and
+             "leak location" are gone, and a leak now names a household. A
+             line can exist with no device fitted, shown as "No device" and
+             kept visually distinct from a board that has stopped reporting.
+             Valve state and a "Test valve" button are built and appear once
+             a board reports a valve. Readings, alerts and rollups from the
+             old three-line geometry were discarded; households, complaints,
+             notices and logins were kept. See section 9a.
 
 14 Sep 2026  The low-water-supply threshold is now set per line from the
              dashboard instead of being compiled into the sketch. The server

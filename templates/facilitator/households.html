@@ -26,7 +26,7 @@
         <option value="">All lines</option>
         {% for segment in segments %}
           <option value="{{ segment.pk }}" {% if segment_id == segment.pk|stringformat:"s" %}selected{% endif %}>
-            M{{ segment.module_index }} {{ segment.name }}
+            {{ segment.name }}
           </option>
         {% endfor %}
       </select>
@@ -49,7 +49,7 @@
             <td class="small">{{ household.address }}</td>
             <td class="nowrap small">{{ household.contact_number }}</td>
             <td class="small">
-              {% if household.segment %}M{{ household.segment.module_index }} {{ household.segment.name }}
+              {% if household.segment %}{{ household.segment.name }}
               {% else %}<span class="muted">Unassigned</span>{% endif %}
             </td>
             <td>

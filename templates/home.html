@@ -32,10 +32,6 @@
       <div class="stat-label">Monitored supply lines</div>
     </div>
     <div class="stat">
-      <div class="stat-value">{{ stats.monitored_metres|floatformat:0 }} m</div>
-      <div class="stat-label">Hose line under monitoring</div>
-    </div>
-    <div class="stat">
       <div class="stat-value">{{ stats.households }}</div>
       <div class="stat-label">Registered households</div>
     </div>
@@ -85,18 +81,18 @@
             <table>
               <thead>
                 <tr>
-                  <th>Line</th>
-                  <th>Distance markers</th>
-                  <th>Length</th>
+                  <th>Household line</th>
+                  <th>Monitoring</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {% for segment in segments %}
                   <tr>
-                    <td><strong>M{{ segment.module_index }}</strong> {{ segment.name }}</td>
-                    <td class="nowrap">{{ segment.start_m|floatformat:"-1" }}&ndash;{{ segment.end_m|floatformat:"-1" }} m</td>
-                    <td class="num">{{ segment.length_m|floatformat:"-1" }} m</td>
+                    <td><strong>{{ segment.name }}</strong></td>
+                    <td class="nowrap">
+                      {% if segment.has_device %}Device fitted{% else %}<span class="muted">Awaiting device</span>{% endif %}
+                    </td>
                     <td><span class="pill pill-{{ segment.status }}">{{ segment.get_status_display }}</span></td>
                   </tr>
                 {% endfor %}

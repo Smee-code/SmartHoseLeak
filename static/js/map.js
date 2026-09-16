@@ -67,91 +67,91 @@
   function drawSchematic() {
     if (!schematicNode) return;
 
+    // A fan, not a ruler.
+    //
+    // This used to be a distance line: one horizontal run with the three
+    // modules laid along it at their marked metres. That drawing described
+    // the old rig honestly and describes the new one not at all - each house
+    // now has its own hose from the main source, and none of them share a
+    // length of pipe. Drawing them as a fan from a single source is the
+    // shape of the real plumbing, and it is also the shape of the question
+    // the facilitator is asking: which branch is in trouble.
     var width = 900;
-    var height = 210;
-    var padLeft = 70;
-    var padRight = 40;
-    var trackY = 96;
-    var maxMetres = Math.max.apply(null, segments.map(function (s) { return s.end_m; }).concat([1]));
-    var scale = (width - padLeft - padRight) / maxMetres;
-    var x = function (metres) { return padLeft + metres * scale; };
+    var rowHeight = 46;
+    var topPad = 34;
+    var height = Math.max(180, topPad * 2 + Math.max(segments.length, 1) * rowHeight);
+    var sourceX = 96;
+    var sourceY = height / 2;
+    var houseX = width - 150;
 
     var parts = [];
     parts.push(
       '<svg class="schematic" viewBox="0 0 ' + width + ' ' + height + '" ' +
       'preserveAspectRatio="xMidYMid meet" role="img" ' +
-      'aria-label="Schematic of the monitored hose lines with their current status">'
+      'aria-label="Each household’s hose line from the main source, with its current status">'
     );
 
-    // Main valve marker.
-    parts.push(
-      '<g>' +
-      '<rect x="' + (padLeft - 34) + '" y="' + (trackY - 17) + '" width="26" height="34" rx="5" ' +
-      'fill="var(--brand-soft)" stroke="var(--brand)" stroke-width="1.5"/>' +
-      '<text x="' + (padLeft - 21) + '" y="' + (trackY + 5) + '" text-anchor="middle" ' +
-      'font-size="13" fill="var(--brand-strong)">&#9678;</text>' +
-      '<text x="' + (padLeft - 21) + '" y="' + (trackY + 34) + '" text-anchor="middle" ' +
-      'font-size="10" fill="var(--text-muted)">Main valve</text>' +
-      '<text x="' + (padLeft - 21) + '" y="' + (trackY + 46) + '" text-anchor="middle" ' +
-      'font-size="10" fill="var(--text-muted)">0 m</text>' +
-      '</g>'
-    );
-
-    segments.forEach(function (segment) {
+    segments.forEach(function (segment, index) {
       var color = window.SHL.statusColor(segment.status);
-      var x1 = x(segment.start_m);
-      var x2 = x(segment.end_m);
-      var midX = (x1 + x2) / 2;
+      var y = topPad + index * rowHeight + rowHeight / 2;
+      var label = segment.household ? segment.household.id : segment.name;
+      var owner = segment.household ? segment.household.owner : '';
       var isLeak = segment.status === 'POSSIBLE_LEAK';
 
       parts.push('<g class="schematic-seg">');
-      parts.push('<title>M' + segment.module + ' ' + segment.name + ' - ' +
+      parts.push('<title>' + label + (owner ? ' - ' + owner : '') + ': ' +
                  (STATUS_LABEL[segment.status] || segment.status) + '</title>');
 
-      // The hose run itself.
+      // The hose: out of the source, then along to the house. Drawn as an
+      // elbow rather than a diagonal so parallel branches stay readable
+      // when a dozen of them leave the same point.
+      var elbowX = sourceX + 70;
       parts.push(
-        '<line x1="' + x1 + '" y1="' + trackY + '" x2="' + x2 + '" y2="' + trackY + '" ' +
-        'stroke="' + color + '" stroke-width="13" stroke-linecap="butt" opacity="' +
-        (segment.status === 'OFFLINE' ? 0.45 : 1) + '"/>'
+        '<path d="M' + sourceX + ',' + sourceY + ' L' + elbowX + ',' + sourceY +
+        ' L' + elbowX + ',' + y + ' L' + houseX + ',' + y + '" ' +
+        'fill="none" stroke="' + color + '" stroke-width="7" stroke-linecap="round" ' +
+        'stroke-linejoin="round" opacity="' + (segment.status === 'OFFLINE' ? 0.4 : 1) + '"/>'
       );
 
-      // Distance-marker ticks at both ends.
-      [[x1, segment.start_m], [x2, segment.end_m]].forEach(function (pair) {
+      // A line with no board is drawn dashed over the top: the hose exists,
+      // nothing is watching it. That reads as "not yet" rather than "fault".
+      if (segment.has_device === false) {
         parts.push(
-          '<line x1="' + pair[0] + '" y1="' + (trackY - 13) + '" x2="' + pair[0] + '" y2="' +
-          (trackY + 13) + '" stroke="var(--text-muted)" stroke-width="1.5"/>' +
-          '<text x="' + pair[0] + '" y="' + (trackY + 30) + '" text-anchor="middle" ' +
-          'font-size="10" fill="var(--text-muted)">' + pair[1] + ' m</text>'
+          '<path d="M' + elbowX + ',' + y + ' L' + houseX + ',' + y + '" fill="none" ' +
+          'stroke="var(--surface)" stroke-width="3" stroke-dasharray="5 5"/>'
         );
-      });
+      }
 
-      // Module label above the run.
       parts.push(
-        '<text x="' + midX + '" y="' + (trackY - 24) + '" text-anchor="middle" ' +
-        'font-size="11" font-weight="600" fill="var(--text)">M' + segment.module + '</text>'
+        '<circle cx="' + houseX + '" cy="' + y + '" r="8" fill="' + color + '" ' +
+        'stroke="var(--surface)" stroke-width="2"/>'
       );
       parts.push(
-        '<text x="' + midX + '" y="' + (trackY - 38) + '" text-anchor="middle" ' +
-        'font-size="10" fill="' + color + '" font-weight="600">' +
-        (STATUS_LABEL[segment.status] || segment.status) + '</text>'
+        '<text x="' + (houseX + 16) + '" y="' + (y + 4) + '" font-size="11" ' +
+        'font-weight="600" fill="var(--text)">' + label + '</text>'
       );
 
-      // A leak pin sits at the middle of the suspected span.
       if (isLeak) {
         parts.push(
-          '<g transform="translate(' + midX + ',' + (trackY + 46) + ')">' +
-          '<path d="M0,-12 C7,-12 12,-7 12,0 C12,8 0,20 0,20 C0,20 -12,8 -12,0 C-12,-7 -7,-12 0,-12 Z" ' +
-          'fill="' + color + '"/>' +
-          '<circle cx="0" cy="0" r="4.5" fill="#fff"/>' +
-          '</g>' +
-          '<text x="' + midX + '" y="' + (trackY + 80) + '" text-anchor="middle" ' +
-          'font-size="10" font-weight="600" fill="' + color + '">' +
-          segment.start_m + '-' + segment.end_m + ' m</text>'
+          '<circle cx="' + houseX + '" cy="' + y + '" r="14" fill="none" ' +
+          'stroke="' + color + '" stroke-width="2" opacity="0.55"/>'
         );
       }
 
       parts.push('</g>');
     });
+
+    // The source is drawn last so the branches pass behind it.
+    parts.push(
+      '<g>' +
+      '<rect x="' + (sourceX - 17) + '" y="' + (sourceY - 17) + '" width="34" height="34" rx="6" ' +
+      'fill="var(--brand-soft)" stroke="var(--brand)" stroke-width="1.5"/>' +
+      '<text x="' + sourceX + '" y="' + (sourceY + 5) + '" text-anchor="middle" ' +
+      'font-size="14" fill="var(--brand-strong)">&#9678;</text>' +
+      '<text x="' + sourceX + '" y="' + (sourceY + 34) + '" text-anchor="middle" ' +
+      'font-size="10" fill="var(--text-muted)">Main source</text>' +
+      '</g>'
+    );
 
     parts.push('</svg>');
     schematicNode.innerHTML = parts.join('');
@@ -381,10 +381,15 @@
   function bindPopup(segment) {
     var layers = leafletLayers[segment.id];
     if (!layers) return;
+    var title = segment.household
+      ? escapeHtml(segment.household.id) + ' &mdash; ' + escapeHtml(segment.household.owner)
+      : escapeHtml(segment.name);
     var html =
-      '<strong>M' + segment.module + ' &mdash; ' + segment.name + '</strong><br>' +
+      '<strong>' + title + '</strong><br>' +
       (STATUS_LABEL[segment.status] || segment.status) + '<br>' +
-      segment.start_m + '-' + segment.end_m + ' m from main valve<br>' +
+      (segment.has_device
+        ? (segment.device_online ? 'Device reporting' : 'Device not reporting')
+        : 'No device fitted') + '<br>' +
       (segment.pressure_bar === null || segment.pressure_bar === undefined
         ? 'No readings'
         : segment.pressure_bar + ' bar (' + segment.pressure_psi + ' psi), ' +

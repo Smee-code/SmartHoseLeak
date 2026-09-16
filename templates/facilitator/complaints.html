@@ -92,7 +92,7 @@
           <a href="{% url 'household_detail' complaint.household.pk %}">{{ complaint.household.household_id }}</a>
           &middot; {{ complaint.household.address }}
           {% if complaint.household.segment %}
-            &middot; M{{ complaint.household.segment.module_index }} {{ complaint.household.segment.name }}
+            &middot; {{ complaint.household.segment.name }}
           {% endif %}
           &middot; {{ complaint.household.contact_number }}
         </div>

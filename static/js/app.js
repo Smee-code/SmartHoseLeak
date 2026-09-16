@@ -421,8 +421,6 @@
 
       form.setAttribute('action', trigger.getAttribute('data-action'));
       setValue('edit_name', trigger.getAttribute('data-name'));
-      setValue('edit_start_m', trigger.getAttribute('data-start'));
-      setValue('edit_end_m', trigger.getAttribute('data-end'));
       setValue('edit_low_pressure_bar', trigger.getAttribute('data-lowbar'));
       setValue('edit_start_lat', trigger.getAttribute('data-startlat'));
       setValue('edit_start_lng', trigger.getAttribute('data-startlng'));
@@ -777,12 +775,36 @@
       setText('pressure_psi', segment.pressure_psi === null ? '--' : fmt(segment.pressure_psi, 1) + ' psi');
       setText('flow_lpm', fmt(segment.flow_lpm, 2));
       setText('updated', timeAgo(segment.updated_at));
-      setText('households', segment.households);
+      setText('valve', segment.has_device ? (segment.valve_label || '--') : '--');
+
+      // A line waiting for hardware is not the same as one whose board has
+      // stopped answering, so only lines that HAVE a device get a live/down
+      // indicator. The no-device case is rendered server-side and left alone.
+      var deviceDot = $('[data-field="device_dot"]', tile);
+      if (deviceDot) {
+        var live = segment.device_online && !segment.stale;
+        deviceDot.className = 'dot ' + (live ? 'dot-live' : 'dot-down');
+        setText('device', live ? 'live' : 'not reporting');
+      }
+
+      // The valve controls stay hidden until a board actually reports a
+      // valve. The hardware is on order, and a button that silently does
+      // nothing teaches people to distrust the ones that work.
+      var valveForm = $('[data-valve-form]', tile);
+      if (valveForm) {
+        valveForm.hidden = !segment.valve_state || segment.valve_state === 'not_fitted';
+      }
 
       var note = $('[data-field="note"]', tile);
       if (note) {
         if (segment.status === 'POSSIBLE_LEAK') {
-          note.textContent = 'Suspected leak ' + segment.location_label + '.';
+          // Which test fired matters more than the verdict: sustained low
+          // flow is as likely to be a tap left open as a leak, while night
+          // flow on a line the family says was idle is hard to explain away.
+          var detail = [];
+          if (segment.severity_label && segment.severity !== 'none') detail.push(segment.severity_label);
+          if (segment.trigger_label && segment.trigger !== 'none') detail.push(segment.trigger_label);
+          note.textContent = detail.length ? detail.join(' - ') : 'Suspected leak.';
         } else if (segment.status === 'MAINTENANCE') {
           note.textContent = segment.maintenance_note || 'Under maintenance - alerts paused.';
         } else if (segment.status === 'OFFLINE') {

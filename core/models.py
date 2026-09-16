@@ -73,11 +73,17 @@ class Device(models.Model):
 
 class Segment(models.Model):
     """
-    One monitored stretch of hose = one module on the ESP32.
+    One household's hose line: main source -> that house, with its own device.
 
-    start_m / end_m are the distance markers measured from the main valve.
-    A leak flagged on this module is reported as lying between them, which is
-    the honest resolution a three-sensor rig can actually deliver.
+    The rig started as three sensor pairs sharing one ESP32 along a single
+    run, which is why a line used to carry distance markers and a leak was
+    reported as lying between them. That only ever gave the facilitator a
+    stretch of hose to walk.
+
+    Each house now has its own hose from the source and its own board, so a
+    leak is attributed to a household instead of to a position. That is both
+    more useful - it names the door to knock on - and more honest, because
+    two sensors at one end of a pipe cannot locate a hole along it.
     """
 
     class Status(models.TextChoices):
@@ -87,11 +93,14 @@ class Segment(models.Model):
         MAINTENANCE = "MAINTENANCE", "Under Maintenance"
         OFFLINE = "OFFLINE", "Offline"
 
-    device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="segments")
-    module_index = models.PositiveSmallIntegerField(help_text="Module number on the ESP32 (1-3).")
+    device = models.ForeignKey(
+        Device, on_delete=models.SET_NULL, null=True, blank=True, related_name="segments",
+        help_text="The board fitted to this line. Blank until one is installed.",
+    )
+    module_index = models.PositiveSmallIntegerField(
+        default=1, help_text="Sensor module on the board. One per board now, so always 1."
+    )
     name = models.CharField(max_length=120)
-    start_m = models.FloatField(default=0, help_text="Metres from the main valve where this segment begins.")
-    end_m = models.FloatField(default=15, help_text="Metres from the main valve where this segment ends.")
 
     # Optional geography. When these are set the dashboard can draw the run on
     # a real Leaflet map; when blank, the schematic view is used instead.
@@ -122,6 +131,16 @@ class Segment(models.Model):
             "Sent to the device automatically - no re-flashing needed."
         ),
     )
+
+    # A one-shot request for the device to run its sealed-line pressure test.
+    #
+    # The board is not reachable from here - it sits behind the barangay's
+    # router and dials out - so a command cannot be pushed to it. Instead the
+    # request is parked here and handed over on the reply to the board's next
+    # upload, which is at most a couple of seconds away. The board clears it
+    # by reporting that the valve has started moving, so a request survives a
+    # dropped reply instead of being lost the moment it is sent.
+    valve_test_requested = models.BooleanField(default=False)
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OFFLINE)
     status_changed_at = models.DateTimeField(default=timezone.now)
@@ -168,17 +187,20 @@ class Segment(models.Model):
         return (highest or 0) + 1
 
     @classmethod
-    def next_color(cls, device):
-        """First palette colour not already used on this device."""
-        taken = set(cls.objects.filter(device=device).values_list("color", flat=True))
+    def next_color(cls, device=None):
+        """
+        First palette colour no other line is using.
+
+        Compared across every line, not per device: the colours exist so the
+        hoses can be told apart on one map, and two identical branches would
+        defeat that however they are wired.
+        """
+        taken = set(cls.objects.values_list("color", flat=True))
         for candidate in cls.DEFAULT_COLOR_CYCLE:
             if candidate not in taken:
                 return candidate
         return cls.DEFAULT_COLOR_CYCLE[0]  # more lines than colours: reuse
 
-    @property
-    def length_m(self):
-        return round(self.end_m - self.start_m, 2)
 
     @property
     def low_pressure_psi(self):
@@ -187,10 +209,82 @@ class Segment(models.Model):
 
     @property
     def location_label(self):
-        return f"between {self.start_m:g} m and {self.end_m:g} m from the main valve"
+        """
+        Where a leak on this line is. The household, not a distance.
+
+        Falls back to the line's own name while it has no household, so an
+        alert raised during installation still says something useful.
+        """
+        household = getattr(self, "household", None)
+        if household is None:
+            return f"on {self.name}"
+        return f"on {household.household_id}'s line ({household.owner_name})"
+
+    @property
+    def has_device(self):
+        """
+        Whether real hardware is fitted.
+
+        A household can be registered long before a board reaches it, and the
+        two states must not look alike: a line waiting for hardware is part
+        of the rollout, while a line whose board has stopped reporting is a
+        fault someone has to go and fix.
+        """
+        return self.device_id is not None
 
     def __str__(self):
-        return f"M{self.module_index} - {self.name}"
+        return self.name
+
+
+class ValveState(models.TextChoices):
+    """
+    What the motorised ball valve on the line is doing.
+
+    NOT_FITTED is deliberately distinct from UNKNOWN. A line with no valve is
+    working as designed and needs nothing; a line whose valve state cannot be
+    read is a fault. Collapsing the two would hide the second behind the
+    first for every household that has not been upgraded yet.
+    """
+
+    NOT_FITTED = "not_fitted", "Not fitted"
+    OPEN = "open", "Open"
+    CLOSED = "closed", "Closed (testing)"
+    MOVING = "moving", "Moving"
+    UNKNOWN = "unknown", "Unknown"
+
+
+class DeviceSeverity(models.TextChoices):
+    """
+    How bad the device thinks the leak is, from flow rate or decay speed.
+
+    Distinct from LeakEvent.Severity, which grades how much attention the
+    event needs. A minor drip can still be a warning worth acting on, so the
+    two are related but not the same scale.
+    """
+
+    NONE = "none", "None"
+    MINOR = "minor", "Minor"
+    MODERATE = "moderate", "Moderate"
+    MAJOR = "major", "Major"
+
+
+class Trigger(models.TextChoices):
+    """
+    Which of the device's tests fired.
+
+    Carried through to the dashboard because the tests answer different
+    questions, and the right response differs: a night-flow flag on a line
+    the family swears was idle is strong evidence, while sustained low flow
+    is just as likely to be a tap left open - which is why that alert asks
+    the owner to check their faucets before anyone is sent out.
+    """
+
+    NONE = "none", "-"
+    BURST = "burst", "Burst (flow spike + pressure crash)"
+    SUSTAINED = "sustained", "Sustained low flow"
+    NIGHT = "night", "Night flow"
+    DECAY = "decay", "Valve-closed pressure decay"
+    LOW_SUPPLY = "low_supply", "Low supply"
 
 
 class LatestReading(models.Model):
@@ -201,6 +295,15 @@ class LatestReading(models.Model):
     flow_lpm = models.FloatField(default=0)
     k_conductance = models.FloatField(default=0)
     device_status = models.CharField(max_length=20, default="NORMAL")
+
+    # Sent by firmware that supports them; the defaults keep a board running
+    # the older sketch reporting normally instead of failing to ingest.
+    severity = models.CharField(max_length=10, choices=DeviceSeverity.choices, default=DeviceSeverity.NONE)
+    trigger = models.CharField(max_length=12, choices=Trigger.choices, default=Trigger.NONE)
+    valve_state = models.CharField(
+        max_length=12, choices=ValveState.choices, default=ValveState.NOT_FITTED
+    )
+
     calibrating = models.BooleanField(default=False)
     simulated = models.BooleanField(default=False)
     updated_at = models.DateTimeField(default=timezone.now)
@@ -282,9 +385,12 @@ class Household(models.Model):
     owner_name = models.CharField(max_length=120)
     address = models.CharField(max_length=255)
     contact_number = models.CharField(max_length=20)
-    segment = models.ForeignKey(
+    # One hose runs from the main source to this house and nowhere else, so
+    # the line and the household are the same thing seen from two ends. Kept
+    # nullable because a household is registered before its hose is built.
+    segment = models.OneToOneField(
         Segment, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="households", help_text="Supply line assignment.",
+        related_name="household", help_text="This household's hose line.",
     )
 
     # Optional, so a household can be registered before anyone has stood at the
@@ -430,8 +536,13 @@ class LeakEvent(models.Model):
     severity = models.CharField(max_length=10, choices=Severity.choices, default=Severity.INFO)
     pressure_bar = models.FloatField(default=0)
     flow_lpm = models.FloatField(default=0)
-    location_from_m = models.FloatField(default=0)
-    location_to_m = models.FloatField(default=0)
+
+    # Which test fired and how bad the device judged it. Stored on the event
+    # rather than looked up later, because the live reading has moved on by
+    # the time anybody opens the log.
+    device_severity = models.CharField(max_length=10, choices=DeviceSeverity.choices, default=DeviceSeverity.NONE)
+    trigger = models.CharField(max_length=12, choices=Trigger.choices, default=Trigger.NONE)
+
     detected_at = models.DateTimeField(default=timezone.now, db_index=True)
     cleared_at = models.DateTimeField(null=True, blank=True)
     acknowledged_at = models.DateTimeField(null=True, blank=True)
@@ -450,7 +561,13 @@ class LeakEvent(models.Model):
 
     @property
     def location_label(self):
-        return f"{self.location_from_m:g}-{self.location_to_m:g} m from main valve"
+        """
+        Which household this event belongs to.
+
+        Reads off the segment rather than being copied in, so renaming a
+        household does not leave old alerts naming the previous owner.
+        """
+        return self.segment.location_label
 
     def __str__(self):
         return f"{self.segment} {self.status} @ {self.detected_at:%Y-%m-%d %H:%M}"

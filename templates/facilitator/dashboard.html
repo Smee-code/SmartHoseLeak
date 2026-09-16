@@ -91,54 +91,116 @@
     </section>
   {% endif %}
 
-  <h2 style="margin-top:1.6rem">Live supply lines</h2>
-  <p class="muted small">Updates automatically. Pressure is shown in bar, with the PSI equivalent below it.</p>
+  <h2 style="margin-top:1.6rem">Households</h2>
+  <p class="muted small">
+    One hose line per household, each with its own device. Updates automatically.
+  </p>
 
-  <section class="tiles" style="margin-top:.8rem">
-    {% for segment in segments %}
-      <article class="tile" data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}">
-        <div class="tile-head">
-          <div>
-            <div class="tile-title">M{{ segment.module_index }} &middot; {{ segment.name }}</div>
-            <div class="tile-sub">{{ segment.start_m|floatformat:"-1" }}&ndash;{{ segment.end_m|floatformat:"-1" }} m from the main valve</div>
-          </div>
-          <span class="pill pill-{{ segment.status }}" data-field="status">{{ segment.get_status_display }}</span>
-        </div>
+  {% comment %}
+    A row per household rather than a card per household. Cards read well at
+    three lines and stop working entirely at twenty: the facilitator's real
+    question is "is anything wrong anywhere", and that is a scan down one
+    column, not a hunt through a wall of panels. Anything that needs action
+    is raised into Open alerts beside the map.
 
-        <div class="readouts">
-          <div class="readout">
-            <div class="readout-label">Pressure</div>
-            <div class="readout-value"><span data-field="pressure_bar">--</span> <span class="readout-alt">bar</span></div>
-            <div class="readout-alt" data-field="pressure_psi">--</div>
-          </div>
-          <div class="readout">
-            <div class="readout-label">Flow rate</div>
-            <div class="readout-value"><span data-field="flow_lpm">--</span> <span class="readout-alt">L/min</span></div>
-            <div class="readout-alt"><span data-field="households">{{ segment.households.count }}</span> household(s)</div>
-          </div>
-        </div>
-
-        <p class="small" data-field="note" style="margin:.7rem 0 0;min-height:1.2em"></p>
-
-        <div class="tile-foot">
-          <span data-field="updated">no data yet</span>
-          <form method="post" action="{% url 'segment_maintenance' segment.pk %}">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{% url 'dashboard' %}">
-            <button type="submit" class="btn btn-sm">
-              {% if segment.status == 'MAINTENANCE' %}End maintenance{% else %}Mark maintenance{% endif %}
-            </button>
-          </form>
-        </div>
-      </article>
-    {% empty %}
-      <div class="card">
-        <p class="empty">
-          No supply lines configured yet.<br>
-          <span class="small">Run <code>python manage.py setup_demo</code> to create the device and its three lines.</span>
-        </p>
-      </div>
-    {% endfor %}
+    The table scrolls sideways on a phone rather than reflowing, so the
+    columns stay aligned and comparable - which is the only reason to use a
+    table at all.
+  {% endcomment %}
+  <section class="card" style="margin-top:.8rem">
+    <div class="table-wrap">
+      <table class="table live-table">
+        <thead>
+          <tr>
+            <th>Household</th>
+            <th class="num">Pressure</th>
+            <th class="num">Flow</th>
+            <th>Valve</th>
+            <th>Device</th>
+            <th>Status</th>
+            <th class="right"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for segment in segments %}
+            <tr data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}">
+              <td>
+                <span class="swatch" style="background:{{ segment.color }}" aria-hidden="true"></span>
+                {% if segment.household %}
+                  <strong>{{ segment.household.household_id }}</strong>
+                  <span class="muted">{{ segment.household.owner_name }}</span>
+                {% else %}
+                  <strong>{{ segment.name }}</strong>
+                  <span class="small muted">no household</span>
+                {% endif %}
+              </td>
+              <td class="num">
+                <span data-field="pressure_bar">--</span> <span class="unit">bar</span>
+                <div class="small muted" data-field="pressure_psi">--</div>
+              </td>
+              <td class="num">
+                <span data-field="flow_lpm">--</span> <span class="unit">L/min</span>
+              </td>
+              <td><span class="small" data-field="valve">--</span></td>
+              <td>
+                {% comment %}
+                  A line awaiting hardware and a line whose board has died
+                  must not look alike: the first is the rollout working as
+                  planned, the second is someone's water going unwatched.
+                {% endcomment %}
+                {% if segment.has_device %}
+                  <span class="dot" data-field="device_dot" aria-hidden="true"></span>
+                  <span class="small" data-field="device">checking</span>
+                {% else %}
+                  <span class="pill pill-none">No device</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="pill pill-{{ segment.status }}" data-field="status">
+                  {{ segment.get_status_display }}
+                </span>
+                <div class="small muted" data-field="note"></div>
+              </td>
+              <td class="right">
+                <div class="btn-row" style="justify-content:flex-end">
+                  {% if segment.has_device %}
+                    {% comment %}
+                      Built now, shown only once a board reports a valve. The
+                      hardware is ordered but not fitted, and a button that
+                      silently does nothing is worse than no button.
+                    {% endcomment %}
+                    <form method="post" action="{% url 'segment_valve_test' segment.pk %}"
+                          data-valve-form hidden>
+                      {% csrf_token %}
+                      <input type="hidden" name="next" value="{% url 'dashboard' %}">
+                      <button type="submit" class="btn btn-sm">Test valve</button>
+                    </form>
+                  {% endif %}
+                  <form method="post" action="{% url 'segment_maintenance' segment.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'dashboard' %}">
+                    <button type="submit" class="btn btn-sm">
+                      {% if segment.status == 'MAINTENANCE' %}End{% else %}Maintenance{% endif %}
+                    </button>
+                  </form>
+                </div>
+                <div class="small muted" data-field="updated">no data yet</div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7">
+                <p class="empty">
+                  No households with hose lines yet.<br>
+                  <span class="small">Add a household at Dashboard &rarr; Households;
+                  its hose line is created with it.</span>
+                </p>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <div class="split" style="margin-top:1.6rem">
@@ -158,12 +220,17 @@
         <span><i style="background:#b3261e"></i>Possible leak</span>
         <span><i style="background:#6b7785"></i>Offline</span>
       </div>
+      {% comment %}
+        Every board is module 1 now, so labelling the swatches by module made
+        the legend read "M1" six times. The household ID is what distinguishes
+        one hose from another, and what the pins are labelled with.
+      {% endcomment %}
       <div class="legend">
-        <span class="legend-head">Supply line (fill):</span>
+        <span class="legend-head">Hose line (fill):</span>
         {% for segment in segments %}
-          <span><i style="background:{{ segment.color }};border-radius:50%"></i>M{{ segment.module_index }}</span>
+          <span><i style="background:{{ segment.color }};border-radius:50%"></i>{% if segment.household %}{{ segment.household.household_id }}{% else %}{{ segment.name }}{% endif %}</span>
         {% endfor %}
-        <span><i style="background:#7e22ce;border-radius:2px"></i>Main valve</span>
+        <span><i style="background:#7e22ce;border-radius:2px"></i>Main source</span>
       </div>
     </div>
 
@@ -181,7 +248,6 @@
                 <span class="notice-time" data-ago="{{ event.detected_at|date:'c' }}"></span>
               </div>
               <p class="notice-body">
-                {{ event.location_label }} &mdash;
                 {{ event.pressure_bar|floatformat:2 }} bar, {{ event.flow_lpm|floatformat:2 }} L/min.
               </p>
               {% if not event.acknowledged_at %}
@@ -233,15 +299,27 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>When</th><th>Line</th><th>Status</th><th>Location</th><th class="num">Pressure</th><th class="num">Flow</th></tr>
+          <tr><th>When</th><th>Household</th><th>Status</th><th>What fired</th><th class="num">Pressure</th><th class="num">Flow</th></tr>
         </thead>
         <tbody>
           {% for event in recent_events %}
             <tr>
               <td class="nowrap">{{ event.detected_at|date:"M j, g:i A" }}</td>
-              <td>M{{ event.segment.module_index }} {{ event.segment.name }}</td>
+              <td>
+                {% if event.segment.household %}
+                  <strong>{{ event.segment.household.household_id }}</strong>
+                  <span class="muted small">{{ event.segment.household.owner_name }}</span>
+                {% else %}{{ event.segment.name }}{% endif %}
+              </td>
               <td><span class="pill pill-{{ event.status }}">{{ event.get_status_display }}</span></td>
-              <td class="nowrap small">{{ event.location_label }}</td>
+              <td class="small">
+                {% if event.trigger != 'none' %}
+                  {{ event.get_trigger_display }}
+                  {% if event.device_severity != 'none' %}
+                    <div class="muted">{{ event.get_device_severity_display }}</div>
+                  {% endif %}
+                {% else %}<span class="muted">&mdash;</span>{% endif %}
+              </td>
               <td class="num">{{ event.pressure_bar|floatformat:2 }} bar</td>
               <td class="num">{{ event.flow_lpm|floatformat:2 }}</td>
             </tr>

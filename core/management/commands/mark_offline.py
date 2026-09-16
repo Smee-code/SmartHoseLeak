@@ -32,8 +32,6 @@ class Command(BaseCommand):
                 status=Segment.Status.OFFLINE,
                 previous_status=segment.status,
                 severity=LeakEvent.Severity.WARNING,
-                location_from_m=segment.start_m,
-                location_to_m=segment.end_m,
             )
             segment.status = Segment.Status.OFFLINE
             segment.status_changed_at = timezone.now()

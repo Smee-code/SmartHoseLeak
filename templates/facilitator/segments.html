@@ -53,27 +53,37 @@
     <table>
       <thead>
         <tr>
-          <th>Module</th><th>Colour</th><th>Name</th><th class="num">Start marker</th><th class="num">End marker</th>
-          <th class="num">Length</th><th class="num">Low below</th>
-          <th class="num">Households</th><th>Status</th><th>Map coords</th><th></th>
+          <th>Colour</th><th>Household</th><th>Line name</th><th>Device</th>
+          <th class="num">Low below</th><th>Status</th><th>Map coords</th><th></th>
         </tr>
       </thead>
       <tbody>
         {% for segment in segments %}
           <tr>
-            <td><strong>M{{ segment.module_index }}</strong></td>
             <td>
               <span class="swatch" style="background:{{ segment.color }}" aria-hidden="true"></span>
               <span class="small muted">{{ segment.get_color_display }}</span>
             </td>
+            <td>
+              {% if segment.household %}
+                <strong>{{ segment.household.household_id }}</strong>
+                <div class="small muted">{{ segment.household.owner_name }}</div>
+              {% else %}
+                <span class="muted">Unassigned</span>
+              {% endif %}
+            </td>
             <td>{{ segment.name }}</td>
-            <td class="num">{{ segment.start_m|floatformat:"-1" }} m</td>
-            <td class="num">{{ segment.end_m|floatformat:"-1" }} m</td>
+            <td class="small">
+              {% if segment.device %}
+                {{ segment.device.device_id }}
+              {% else %}
+                <span class="pill pill-none">No device</span>
+              {% endif %}
+            </td>
             <td class="num">
               {{ segment.low_pressure_bar|floatformat:"-2" }} bar
               <span class="small muted">{{ segment.low_pressure_psi|floatformat:"-1" }} psi</span>
             </td>
-            <td class="num">{{ segment.household_count }}</td>
             <td><span class="pill pill-{{ segment.status }}">{{ segment.get_status_display }}</span></td>
             <td class="small">
               {% if segment.start_lat and segment.end_lat %}
@@ -92,11 +102,10 @@
                 <a class="btn btn-sm" href="{% url 'segment_edit' segment.pk %}"
                    data-edit-segment
                    data-action="{% url 'segment_edit' segment.pk %}"
-                   data-module="M{{ segment.module_index }}"
+                   data-module="{{ segment.name }}"
                    data-name="{{ segment.name }}"
                    data-color="{{ segment.color }}"
-                   data-start="{{ segment.start_m|stringformat:'g' }}"
-                   data-end="{{ segment.end_m|stringformat:'g' }}"
+                   data-device="{{ segment.device_id|default_if_none:'' }}"
                    data-lowbar="{{ segment.low_pressure_bar|stringformat:'g' }}"
                    data-startlat="{{ segment.start_lat|default_if_none:'' }}"
                    data-startlng="{{ segment.start_lng|default_if_none:'' }}"
@@ -114,11 +123,11 @@
                 <button type="button" class="btn btn-sm btn-danger"
                         data-delete-segment
                         data-action="{% url 'segment_delete' segment.pk %}"
-                        data-module="M{{ segment.module_index }}"
+                        data-module="{{ segment.name }}"
                         data-name="{{ segment.name }}"
                         data-rollups="{{ segment.rollup_count }}"
                         data-events="{{ segment.event_count }}"
-                        data-households="{{ segment.household_count }}">Delete</button>
+                        data-household="{% if segment.household %}{{ segment.household.household_id }}{% endif %}">Delete</button>
               </div>
             </td>
           </tr>
@@ -186,14 +195,11 @@
           <div class="message message-error">{{ create_form.non_field_errors }}</div>
         {% endif %}
 
-        <div class="field">
-          <label>Module</label>
-          <p class="assigned-id mono">M{{ next_module_index }}</p>
-          <span class="helptext">
-            Assigned automatically. The ESP32 must report a module
-            {{ next_module_index }} for this line to receive readings.
-          </span>
-        </div>
+        {% comment %}
+          The module number used to be chosen here, back when three sensor
+          pairs shared one board. One board now serves one house, so it is
+          always 1 and there is nothing to show or decide.
+        {% endcomment %}
 
         {% include "_form_field.html" with field=create_form.name %}
 
@@ -212,10 +218,6 @@
           {{ create_form.color.errors }}
         </div>
 
-        <div class="field-pair">
-          {% include "_form_field.html" with field=create_form.start_m %}
-          {% include "_form_field.html" with field=create_form.end_m %}
-        </div>
       </div>
 
       <div class="modal-foot">
@@ -237,7 +239,7 @@
         <div>
           <h2 id="line-edit-title">Edit hose line</h2>
           <p class="sub" data-edit-subtitle>
-            {% if edit_segment %}M{{ edit_segment.module_index }}{% endif %}
+            {% if edit_segment %}{{ edit_segment.name }}{% endif %}
           </p>
         </div>
         <button type="button" class="icon-btn" data-modal-close aria-label="Close">
@@ -266,11 +268,7 @@
           {{ edit_form.color.errors }}
         </div>
 
-        <div class="field-pair">
-          {% include "_form_field.html" with field=edit_form.start_m %}
-          {% include "_form_field.html" with field=edit_form.end_m %}
-        </div>
-
+        {% include "_form_field.html" with field=edit_form.device %}
         {% include "_form_field.html" with field=edit_form.low_pressure_bar %}
 
         <div class="field-pair">

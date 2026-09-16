@@ -18,12 +18,15 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .models import (
     Device,
+    DeviceSeverity,
     Household,
     LatestReading,
     LeakEvent,
     Notification,
     ReadingRollup,
     Segment,
+    Trigger,
+    ValveState,
     psi,
 )
 
@@ -60,18 +63,35 @@ def _authenticate_device(request):
     return Device.objects.filter(api_key=key).first()
 
 
+def _choice_or_default(raw, choices, default):
+    """
+    Accept a device's string only if it is one this server understands.
+
+    Firmware and server are flashed and deployed separately, so a board can
+    legitimately be ahead of or behind the server. Storing an unrecognised
+    value would put a string in the database that no template can render;
+    falling back keeps the reading usable and loses only the extra detail.
+    """
+    if not raw:
+        return default
+    value = str(raw).strip().lower()
+    return value if value in choices.values else default
+
+
 def _notify_households(segment, event):
     """
-    Raise in-app notices for every active household on the affected supply
-    line. SMS is not sent from here: the SIM800L on the device alerts the
-    facilitator directly, so the server owns only the in-app channel.
+    Raise the in-app notice for the household whose hose this is.
+
+    One hose per house means one recipient, but the lookup stays a queryset:
+    a line can legitimately have no household yet - a board on the bench
+    during installation - and that must post no notice rather than fail.
     """
     if event.status == Segment.Status.POSSIBLE_LEAK:
         title = f"Possible leak on {segment.name}"
         body = (
             f"An automated alert was raised on your supply line at "
             f"{timezone.localtime(event.detected_at):%b %d, %Y %I:%M %p}. "
-            f"The suspected leak is {event.location_label}. "
+            f"The alert was raised {event.location_label}. "
             f"Pressure was {event.pressure_bar:.2f} bar ({psi(event.pressure_bar)} psi) "
             f"with a flow of {event.flow_lpm:.2f} L/min. "
             f"Your water supply may be interrupted while the line is inspected."
@@ -117,7 +137,8 @@ def _notify_households(segment, event):
     )
 
 
-def _apply_status_change(segment, new_status, pressure_bar, flow_lpm):
+def _apply_status_change(segment, new_status, pressure_bar, flow_lpm,
+                         device_severity=DeviceSeverity.NONE, trigger=Trigger.NONE):
     """
     Record a transition as a LeakEvent and close the previous open one.
 
@@ -136,8 +157,8 @@ def _apply_status_change(segment, new_status, pressure_bar, flow_lpm):
         severity=SEVERITY_BY_STATUS.get(new_status, LeakEvent.Severity.INFO),
         pressure_bar=pressure_bar,
         flow_lpm=flow_lpm,
-        location_from_m=segment.start_m,
-        location_to_m=segment.end_m,
+        device_severity=device_severity,
+        trigger=trigger,
         detected_at=now,
     )
     if new_status == Segment.Status.NORMAL:
@@ -214,6 +235,18 @@ def ingest(request):
                 errors.append(f"module {module}: unknown status {raw_status!r}")
                 mapped_status = Segment.Status.NORMAL
 
+            # Fields the per-household firmware adds. Unknown or absent values
+            # fall back rather than being rejected, so a board still running
+            # the three-module sketch keeps reporting while it waits its turn
+            # to be reflashed.
+            severity = _choice_or_default(
+                entry.get("severity"), DeviceSeverity, DeviceSeverity.NONE
+            )
+            trigger = _choice_or_default(entry.get("trigger"), Trigger, Trigger.NONE)
+            valve_state = _choice_or_default(
+                entry.get("valve_state"), ValveState, ValveState.NOT_FITTED
+            )
+
             LatestReading.objects.update_or_create(
                 segment=segment,
                 defaults={
@@ -221,11 +254,24 @@ def ingest(request):
                     "flow_lpm": flow_lpm,
                     "k_conductance": k_value,
                     "device_status": mapped_status,
+                    "severity": severity,
+                    "trigger": trigger,
+                    "valve_state": valve_state,
                     "calibrating": bool(entry.get("calibrating")),
                     "simulated": bool(entry.get("simulated")),
                     "updated_at": now,
                 },
             )
+
+            # The board acknowledges a valve-test request by reporting that
+            # the valve has left the open position. Clearing it here rather
+            # than when the request was sent means a reply the board never
+            # received does not quietly drop the test.
+            if segment.valve_test_requested and valve_state in (
+                ValveState.CLOSED, ValveState.MOVING
+            ):
+                segment.valve_test_requested = False
+                segment.save(update_fields=["valve_test_requested"])
 
             rollup, _ = ReadingRollup.objects.get_or_create(segment=segment, minute=minute)
             rollup.fold(pressure_bar, flow_lpm, mapped_status == Segment.Status.POSSIBLE_LEAK)
@@ -234,7 +280,9 @@ def ingest(request):
             # A segment parked under maintenance by the facilitator keeps that
             # status until they clear it, so field repairs do not spam alerts.
             if segment.status != Segment.Status.MAINTENANCE and segment.status != mapped_status:
-                event = _apply_status_change(segment, mapped_status, pressure_bar, flow_lpm)
+                event = _apply_status_change(
+                    segment, mapped_status, pressure_bar, flow_lpm, severity, trigger
+                )
                 events.append({"module": module, "status": event.status, "id": event.id})
 
             accepted += 1
@@ -271,7 +319,10 @@ def _device_config(segments):
     extra queries.
     """
     return {
-        str(index): {"low_pressure_bar": round(segment.low_pressure_bar, 3)}
+        str(index): {
+            "low_pressure_bar": round(segment.low_pressure_bar, 3),
+            "run_valve_test": segment.valve_test_requested,
+        }
         for index, segment in segments.items()
         if segment.is_active
     }
@@ -279,6 +330,7 @@ def _device_config(segments):
 
 def _segment_payload(segment):
     latest = getattr(segment, "latest", None)
+    household = getattr(segment, "household", None)
     stale = latest is None or (
         timezone.now() - latest.updated_at
     ).total_seconds() > settings.DEVICE_OFFLINE_AFTER_SECONDS
@@ -298,24 +350,32 @@ def _segment_payload(segment):
         "stored_status": segment.status,
         "stale": stale,
         "low_pressure_bar": segment.low_pressure_bar,
-        "start_m": segment.start_m,
-        "end_m": segment.end_m,
         "location_label": segment.location_label,
+        "has_device": segment.has_device,
+        "device_id": segment.device.device_id if segment.device_id else None,
+        "device_online": segment.device.is_online if segment.device_id else False,
         "maintenance_note": segment.maintenance_note,
         "pressure_bar": round(latest.pressure_bar, 2) if latest else None,
         "pressure_psi": latest.pressure_psi if latest else None,
         "flow_lpm": round(latest.flow_lpm, 2) if latest else None,
-        "k": round(latest.k_conductance, 3) if latest else None,
+        "severity": latest.severity if latest else DeviceSeverity.NONE,
+        "severity_label": latest.get_severity_display() if latest else "",
+        "trigger": latest.trigger if latest else Trigger.NONE,
+        "trigger_label": latest.get_trigger_display() if latest else "",
+        "valve_state": latest.valve_state if latest else ValveState.NOT_FITTED,
+        "valve_label": latest.get_valve_state_display() if latest else "Not fitted",
         "calibrating": latest.calibrating if latest else False,
         "simulated": latest.simulated if latest else False,
         "updated_at": latest.updated_at.isoformat() if latest else None,
-        # Annotated by live(); the fallback keeps this helper correct if it is
-        # ever called with a plain Segment.
-        "households": getattr(segment, "active_household_count", None)
-        if getattr(segment, "active_household_count", None) is not None
-        else segment.households.filter(
-            account_status=Household.AccountStatus.ACTIVE
-        ).count(),
+        # The household this hose serves. A count would be meaningless now
+        # that it is always one, and the table shows who it is instead.
+        "household": {
+            "id": household.household_id,
+            "owner": household.owner_name,
+            "active": household.account_status == Household.AccountStatus.ACTIVE,
+        }
+        if household is not None
+        else None,
         "coords": {
             "start": [segment.start_lat, segment.start_lng]
             if segment.start_lat is not None and segment.start_lng is not None
@@ -333,18 +393,13 @@ def live(request):
     if not request.user.is_authenticated:
         return JsonResponse({"ok": False, "error": "authentication required"}, status=403)
 
-    # The active-household count is annotated rather than prefetched: calling
-    # .filter() on a prefetched relation ignores the prefetch and issues one
-    # COUNT per segment, so the old prefetch was paid for and then wasted.
+    # One household per line, so it joins rather than being counted. Pulling
+    # it in the same query keeps the live poll at a fixed cost instead of one
+    # extra lookup per household, which matters at a 2-second interval.
     segments = (
         Segment.objects.filter(is_active=True)
-        .select_related("latest", "device")
-        .annotate(
-            active_household_count=Count(
-                "households",
-                filter=Q(households__account_status=Household.AccountStatus.ACTIVE),
-            )
-        )
+        .select_related("latest", "device", "household")
+        .order_by("name")
     )
 
     # Household owners see only their own supply line.

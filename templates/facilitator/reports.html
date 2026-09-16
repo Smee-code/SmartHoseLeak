@@ -30,8 +30,10 @@
         <tbody>
           {% for row in per_segment %}
             <tr>
-              <td>M{{ row.segment.module_index }} {{ row.segment.name }}</td>
-              <td class="small nowrap">{{ row.segment.start_m|floatformat:"-1" }}&ndash;{{ row.segment.end_m|floatformat:"-1" }} m</td>
+              <td>{{ row.segment.name }}</td>
+              <td class="small nowrap">
+                {% if row.segment.household %}{{ row.segment.household.household_id }}{% else %}&mdash;{% endif %}
+              </td>
               <td class="num">{{ row.avg_pressure_bar }}</td>
               <td class="num">{{ row.avg_pressure_psi }}</td>
               <td class="num">{{ row.max_pressure_bar }}</td>

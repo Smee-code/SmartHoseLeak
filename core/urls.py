@@ -36,6 +36,7 @@ urlpatterns = [
     path("dashboard/lines/<int:pk>/edit/", views.segment_edit, name="segment_edit"),
     path("dashboard/lines/<int:pk>/delete/", views.segment_delete, name="segment_delete"),
     path("dashboard/lines/<int:pk>/maintenance/", views.segment_maintenance, name="segment_maintenance"),
+    path("dashboard/lines/<int:pk>/valve-test/", views.segment_valve_test, name="segment_valve_test"),
     path("dashboard/events/", views.event_list, name="event_list"),
     path("dashboard/events/<int:pk>/acknowledge/", views.event_acknowledge, name="event_acknowledge"),
     path("dashboard/complaints/", views.complaint_list, name="complaint_list"),

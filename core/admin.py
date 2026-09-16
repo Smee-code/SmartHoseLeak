@@ -29,7 +29,7 @@ class UserAdmin(BaseUserAdmin):
 class SegmentInline(admin.TabularInline):
     model = Segment
     extra = 0
-    fields = ("module_index", "name", "start_m", "end_m", "status", "is_active")
+    fields = ("module_index", "name", "status", "is_active")
 
 
 @admin.register(Device)
@@ -45,25 +45,14 @@ class DeviceAdmin(admin.ModelAdmin):
 
 @admin.register(Segment)
 class SegmentAdmin(admin.ModelAdmin):
-    """The distance markers the paper relies on are edited here."""
+    """One hose line per household, edited here or from Dashboard -> Lines."""
 
-    list_display = (
-        "module_index", "name", "device", "start_m", "end_m", "length_m",
-        "low_pressure_bar", "status", "is_active",
-    )
+    list_display = ("name", "device", "low_pressure_bar", "status", "is_active")
     list_filter = ("status", "is_active", "device")
-    list_editable = ("start_m", "end_m")
+    list_editable = ("low_pressure_bar",)
     search_fields = ("name",)
     fieldsets = (
         (None, {"fields": ("device", "module_index", "name", "is_active")}),
-        (
-            "Distance markers",
-            {
-                "fields": ("start_m", "end_m"),
-                "description": "Metres from the main valve. A leak on this module is reported "
-                "as lying between these two markers.",
-            },
-        ),
         (
             "Detection",
             {
@@ -99,7 +88,7 @@ class HouseholdAdmin(admin.ModelAdmin):
 
 @admin.register(LeakEvent)
 class LeakEventAdmin(admin.ModelAdmin):
-    list_display = ("detected_at", "segment", "status", "severity", "location_label", "cleared_at")
+    list_display = ("detected_at", "segment", "status", "severity", "device_severity", "trigger", "cleared_at")
     list_filter = ("status", "severity", "segment")
     date_hierarchy = "detected_at"
 
