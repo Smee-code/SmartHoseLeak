@@ -39,18 +39,44 @@
         {% endif %}
 
         {% comment %}
-          Households wrap across the width instead of stacking in a scrolling
-          box. Seven of them took 190px and a scrollbar to show five; as a
-          wrapping grid they take two rows and hide nothing. The scroll only
-          comes back past about twenty, where a full list would be the thing
-          pushing the message box off the screen.
+          A token field: type to filter, chosen households sit in the box as
+          removable chips.
+
+          A grid of checkboxes was fine at seven and stops working at fifty -
+          finding one household becomes hunting, and the compose form grows
+          with the barangay. A modal would have solved the space but hidden
+          the choice behind a dialog, so you could not see who you had picked
+          while writing the message.
+
+          The real checkboxes below are what the form actually posts, and they
+          stay in the page. With no JavaScript they are simply visible and
+          work as they always did; the token field is built on top of them and
+          only replaces them once it is running. Nothing depends on the
+          enhancement having loaded.
         {% endcomment %}
-        <div class="field">
-          <label>{{ form.households.label }}</label>
+        <div class="field" data-recipients>
+          <label id="send-to-label">{{ form.households.label }}</label>
+
+          {% comment %}
+            Sending to everyone is the common case - a scheduled interruption
+            concerns the whole barangay - so it is one click at the top rather
+            than something reached by selecting every chip in turn.
+          {% endcomment %}
           <div class="check-row">
             {{ form.to_all }}
             <label for="{{ form.to_all.id_for_label }}">{{ form.to_all.label }}</label>
           </div>
+
+          <div class="token-field" data-token-field hidden>
+            <div class="token-chips" data-token-chips></div>
+            <input type="text" class="token-input" data-token-input
+                   placeholder="Type a name or household ID&hellip;"
+                   autocomplete="off" role="combobox" aria-expanded="false"
+                   aria-controls="recipient-options" aria-labelledby="send-to-label">
+            <ul class="token-menu" id="recipient-options" role="listbox"
+                data-token-menu hidden></ul>
+          </div>
+
           <div class="pick-grid" data-household-picker>
             {% for choice in form.households %}
               <label class="pick-option">
@@ -61,6 +87,8 @@
               <p class="empty small">No active households yet.</p>
             {% endfor %}
           </div>
+
+          <p class="small muted" data-token-summary hidden aria-live="polite"></p>
           {{ form.households.errors }}
         </div>
 

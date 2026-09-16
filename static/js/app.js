@@ -855,26 +855,199 @@
     update();
   })();
 
-  /* --------------------------------------------------- household picker */
+  /* --------------------------------------------------- recipient picker */
 
   /*
-   * "All active households" and a list of specific ones are alternatives,
-   * not things to combine. Disabling the list while it is ticked says so
-   * without an error message after the fact.
+   * A token field over the real checkboxes.
+   *
+   * The checkboxes are what the form posts and they never go away - this
+   * hides them and drives them. With no JavaScript the plain grid is simply
+   * visible and works as it always did, so nothing depends on this having
+   * loaded.
+   *
+   * A grid was fine at seven households and stops working at fifty: finding
+   * one becomes hunting, and the compose form grows with the barangay. A
+   * modal would have fixed the space but hidden the choice behind a dialog,
+   * so you could not see who you had picked while writing the message.
    */
   (function () {
-    var all = $('#id_to_all');
-    var picker = $('[data-household-picker]');
-    if (!all || !picker) return;
+    var root = $('[data-recipients]');
+    if (!root) return;
 
-    function sync() {
-      picker.classList.toggle('is-disabled', all.checked);
-      Array.prototype.forEach.call(picker.querySelectorAll('input'), function (box) {
-        box.disabled = all.checked;
+    var all = $('#id_to_all');
+    var grid = $('[data-household-picker]', root);
+    var field = $('[data-token-field]', root);
+    var chips = $('[data-token-chips]', root);
+    var input = $('[data-token-input]', root);
+    var menu = $('[data-token-menu]', root);
+    var summary = $('[data-token-summary]', root);
+    if (!grid || !field || !input || !menu) return;
+
+    var boxes = $$('input[type="checkbox"]', grid);
+    if (!boxes.length) return;
+
+    // Take over only now that everything needed is present. Hiding the grid
+    // any earlier would leave no way to choose if the rest failed.
+    grid.hidden = true;
+    field.hidden = false;
+    if (summary) summary.hidden = false;
+
+    var options = boxes.map(function (box) {
+      var label = box.closest('label');
+      return { box: box, text: (label ? label.textContent : '').trim() };
+    });
+
+    var activeIndex = -1;
+
+    function chosen() {
+      return options.filter(function (o) { return o.box.checked; });
+    }
+
+    function renderChips() {
+      chips.innerHTML = '';
+      chosen().forEach(function (option) {
+        var chip = document.createElement('span');
+        chip.className = 'token-chip';
+        chip.textContent = option.text;
+
+        var remove = document.createElement('button');
+        remove.type = 'button';           // never submit the form
+        remove.className = 'token-x';
+        remove.setAttribute('aria-label', 'Remove ' + option.text);
+        remove.textContent = '×';
+        remove.addEventListener('click', function () {
+          option.box.checked = false;
+          renderChips();
+          input.focus();
+        });
+
+        chip.appendChild(remove);
+        chips.appendChild(chip);
+      });
+
+      if (summary) {
+        var count = chosen().length;
+        summary.textContent = all && all.checked
+          ? 'Sending to every active household.'
+          : count
+            ? count + ' household' + (count === 1 ? '' : 's') + ' selected.'
+            : 'Nobody selected yet.';
+      }
+    }
+
+    function closeMenu() {
+      menu.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      activeIndex = -1;
+    }
+
+    function matches() {
+      var query = input.value.trim().toLowerCase();
+      return options.filter(function (o) {
+        return !o.box.checked && (!query || o.text.toLowerCase().indexOf(query) >= 0);
       });
     }
-    all.addEventListener('change', sync);
-    sync();
+
+    function openMenu() {
+      var found = matches();
+      menu.innerHTML = '';
+
+      if (!found.length) {
+        var none = document.createElement('li');
+        none.className = 'token-none';
+        none.textContent = input.value.trim()
+          ? 'No household matches that.'
+          : 'Everyone is already selected.';
+        menu.appendChild(none);
+      } else {
+        found.forEach(function (option, index) {
+          var item = document.createElement('li');
+          item.className = 'token-opt';
+          item.setAttribute('role', 'option');
+          item.textContent = option.text;
+          // mousedown, not click: blur would close the menu first and the
+          // click would land on nothing.
+          item.addEventListener('mousedown', function (event) {
+            event.preventDefault();
+            pick(option);
+          });
+          item.addEventListener('mouseenter', function () { highlight(index); });
+          menu.appendChild(item);
+        });
+      }
+
+      menu.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      highlight(found.length ? 0 : -1);
+    }
+
+    function highlight(index) {
+      activeIndex = index;
+      $$('.token-opt', menu).forEach(function (item, i) {
+        item.classList.toggle('is-active', i === index);
+        item.setAttribute('aria-selected', i === index ? 'true' : 'false');
+      });
+    }
+
+    function pick(option) {
+      option.box.checked = true;
+      input.value = '';
+      renderChips();
+      openMenu();
+    }
+
+    input.addEventListener('focus', openMenu);
+    input.addEventListener('input', openMenu);
+
+    input.addEventListener('keydown', function (event) {
+      var found = matches();
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (menu.hidden) { openMenu(); return; }
+        var step = event.key === 'ArrowDown' ? 1 : -1;
+        highlight((activeIndex + step + found.length) % found.length);
+      } else if (event.key === 'Enter') {
+        // Only swallow Enter when it is choosing something. Otherwise it
+        // should still submit the form, the way Enter does everywhere else.
+        if (!menu.hidden && activeIndex >= 0 && found[activeIndex]) {
+          event.preventDefault();
+          pick(found[activeIndex]);
+        }
+      } else if (event.key === 'Escape') {
+        closeMenu();
+      } else if (event.key === 'Backspace' && input.value === '') {
+        // Backspace on an empty box removes the last chip, which is what
+        // every other token field does.
+        var picked = chosen();
+        if (picked.length) {
+          picked[picked.length - 1].box.checked = false;
+          renderChips();
+        }
+      }
+    });
+
+    input.addEventListener('blur', function () {
+      // A tick, so a click on an option is not cancelled by the blur.
+      setTimeout(closeMenu, 120);
+    });
+
+    /*
+     * "All active households" and picking individuals are alternatives, not
+     * things to combine. Disabling one while the other is on says so without
+     * an error message after the fact.
+     */
+    function syncAll() {
+      if (!all) return;
+      field.classList.toggle('is-disabled', all.checked);
+      input.disabled = all.checked;
+      boxes.forEach(function (box) { box.disabled = all.checked; });
+      if (all.checked) closeMenu();
+      renderChips();
+    }
+
+    if (all) all.addEventListener('change', syncAll);
+    renderChips();
+    syncAll();
   })();
 
   /* ----------------------------------------------------------- tile render */

@@ -109,7 +109,18 @@ def _get(path, params):
         raise SmsUnavailable(f"gateway gave an unreadable answer: {exc}") from exc
 
 
-def describe_gateway():
+# The account lookup is cached because this runs on every render of the
+# Notices page, and Semaphore rate-limits it hard - hard enough that two
+# lookups a minute apart were refused during testing.
+#
+# A balance does not move between page loads, and being told "too many
+# attempts" instead of a number is worse than a number five minutes old. The
+# cost of the staleness is that a top-up takes up to this long to show.
+_gateway_cache = {"at": 0.0, "value": None}
+GATEWAY_CACHE_SECONDS = 300
+
+
+def describe_gateway(force=False):
     """
     One honest sentence about whether a text can be sent right now.
 
@@ -126,10 +137,28 @@ def describe_gateway():
             "sign up at semaphore.co to get one."
         )
 
+    now = time.monotonic()
+    if not force and _gateway_cache["value"] is not None:
+        if now - _gateway_cache["at"] < GATEWAY_CACHE_SECONDS:
+            return _gateway_cache["value"]
+
+    result = _describe_gateway_uncached()
+    _gateway_cache["at"] = now
+    _gateway_cache["value"] = result
+    return result
+
+
+def _describe_gateway_uncached():
     try:
         account = _get("account", {"apikey": settings.SEMAPHORE_API_KEY})
     except SmsUnavailable as exc:
-        return False, f"Semaphore is configured but not answering: {exc}"
+        detail = str(exc)
+        # Being rate-limited on the BALANCE lookup says nothing about whether
+        # a message can be sent. Reporting it as a failure would tell a
+        # facilitator that SMS is down when it is working perfectly.
+        if "429" in detail or "Too Many Attempts" in detail:
+            return True, "Sending through Semaphore. (Credit check is rate-limited just now.)"
+        return False, f"Semaphore is configured but not answering: {detail}"
 
     if isinstance(account, list):
         account = account[0] if account else {}

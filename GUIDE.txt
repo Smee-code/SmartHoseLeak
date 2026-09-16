@@ -451,13 +451,24 @@ SETTING IT UP  (about 5 minutes)
   credit - running out of credit is the failure that looks most like the
   system being broken, so it is shown before you write anything.
 
+  The balance is looked up at most once every 5 minutes. Semaphore rate-
+  limits that call hard, and being told "too many attempts" instead of a
+  number would be worse than a number a few minutes old. A top-up therefore
+  takes up to 5 minutes to show.
+
   Cost is roughly PHP 0.50-1 per message. Leak alerts are rare; budget well
   under PHP 100 a month for seven households.
 
 SENDING ONE BY HAND
   Dashboard -> Notices & SMS
-  1. Tick the households, or tick "All active households". They are laid out
-     across the width, so all of them are visible without scrolling.
+  1. Choose who it goes to:
+       - Tick "All active households" for everyone. This is one click and is
+         the common case - a scheduled interruption concerns the barangay.
+       - Or type in the "Send to" box. It filters as you type, on the name or
+         the household ID. Enter or a click adds them as a chip; the x on a
+         chip removes them, and Backspace in an empty box removes the last.
+     The chips stay visible while you write, so you can see who it is going
+     to without reopening anything.
   2. Title and message
   3. Under "How to send it", tick "Show in the app", "Also send as SMS", or
      both. At least one is required. Send notice is on the same line.
