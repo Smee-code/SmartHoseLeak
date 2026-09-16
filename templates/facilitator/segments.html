@@ -163,7 +163,7 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Device ID</th><th>Fitted to</th><th>API key</th>
+            <th>Device ID</th><th>Fitted to</th><th>Claim code</th><th>API key</th>
             <th>Status</th><th>Last seen</th><th class="right"></th>
           </tr>
         </thead>
@@ -185,6 +185,33 @@
                     {% else %}{{ line.name }}{% endif %}
                   {% else %}
                     <span class="pill pill-none">Spare</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+              {% comment %}
+                The claim code is what a person types; the key is what the
+                board ends up holding. Both are shown, but the code is the
+                one to reach for - six characters against forty-three, and
+                worth nothing once used.
+              {% endcomment %}
+              <td>
+                {% with ticket=device.claim_code %}
+                  {% if ticket and ticket.is_usable %}
+                    <span class="mono"><strong>{{ ticket.code }}</strong></span>
+                    <button type="button" class="btn btn-sm btn-copy"
+                            data-copy="{{ ticket.code }}">Copy</button>
+                    <div class="small muted">expires {{ ticket.expires_at|date:"M j" }}</div>
+                  {% elif ticket %}
+                    <span class="small muted">{{ ticket.state_label }}</span>
+                    <form method="post" action="{% url 'device_issue_claim_code' device.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm">New code</button>
+                    </form>
+                  {% else %}
+                    <form method="post" action="{% url 'device_issue_claim_code' device.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm">Issue code</button>
+                    </form>
                   {% endif %}
                 {% endwith %}
               </td>
@@ -223,8 +250,8 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="6">
-                <p class="empty">
+              <td colspan="7">
+                <p class="empty" style="grid-column:1/-1">
                   No boards registered.<br>
                   <span class="small">A board is normally registered while adding the
                   household that owns it. Use &ldquo;Register a board&rdquo; above for a spare.</span>
@@ -236,9 +263,9 @@
       </table>
     </div>
     <p class="small muted" style="margin-top:.8rem">
-      To claim a board: copy its Device ID and API key, join its
-      <span class="mono">LeakDetect-Setup</span> hotspot, and paste them into the
-      setup page. Nothing needs re-flashing.
+      To set up a board: join its <span class="mono">LeakDetect-Setup</span> hotspot,
+      enter the WiFi and the <strong>claim code</strong>. The board fetches its own ID and
+      key from the server - you never type the key, and nothing needs re-flashing.
     </p>
   </div>
 </div>

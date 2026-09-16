@@ -4,7 +4,7 @@ SMART HOSE LEAK DETECTION SYSTEM - OPERATOR GUIDE
 Keep this open when you are setting up. Everything you need to run the
 system, connect the ESP32, and fix the things that usually go wrong.
 
-Last updated: 16 September 2026
+Last updated: 16 September 2026 (per-household firmware)
 
 
 ============================================================================
@@ -318,6 +318,86 @@ WHEN NOTHING IS SENDING
   To see exactly what the module says:
        python manage.py send_sms
        python manage.py send_sms --watch
+
+
+============================================================================
+9d. SETTING UP A BOARD  (claim code - no re-flashing, no laptop)
+============================================================================
+The SAME sketch goes on every board. What makes a board belong to a household
+is a short claim code typed on its own setup page.
+
+  1. Dashboard -> Households -> Add household, and pick "Register a new
+     board". The claim code is shown, e.g. Q9B-G3G. It is also on
+     Dashboard -> Lines -> Devices, in the Claim code column.
+  2. Power the board. Join its "LeakDetect-Setup" WiFi on a phone.
+     (Password: leakdetect123 - CHANGE THIS before deployment.)
+  3. Enter: the household's WiFi network, its password, and the claim code.
+     The server address is already filled in - leave it alone.
+  4. Save. The board reboots, joins the WiFi, hands the code to the server,
+     and receives its real ID and key.
+  5. Open http://<board-ip>/ . The top row should say "Claimed as esp32-01".
+
+YOU NEVER TYPE THE API KEY. The board fetches it. A key is 43 mixed-case
+characters and mistyping one gives a 401, which on the serial monitor looks
+exactly like a wrong server address.
+
+WHEN A CODE DOES NOT WORK
+  "could not reach the server"   The WiFi has no INTERNET, or the server is
+                                 not running. WiFi alone is not enough.
+  "already been used"            Codes work once. Issue a new one from
+                                 Dashboard -> Lines -> Devices.
+  "has expired"                  Codes last 14 days. Issue a new one.
+
+  Watch the serial monitor while it tries - it prints [CLAIM] lines.
+
+REPLACING A DEAD BOARD
+  Flash the spare with the same sketch, issue a new claim code for that
+  household's board on the dashboard, and enter it. The household keeps its
+  history.
+
+A NOTE ON "FORGET SAVED NETWORK"
+  It now forgets ONLY the network. The board's identity, the server address,
+  the zero offsets and the thresholds are kept. Before this it wiped all of
+  them, which is why zeroing appeared to be lost after a network change.
+
+
+============================================================================
+9e. THE FOUR LEAK TESTS  (what the board actually does now)
+============================================================================
+There is no calibration any more. The K = Q/sqrt(P) method is gone, along
+with the C / A / F commands. The board now judges by PATTERNS over time:
+
+  1. BURST       Flow above 3 L/min AND pressure below half what this line
+                 normally sits at, for a minute. Normal use does not crash
+                 the pressure; a split hose does.
+
+  2. NIGHT FLOW  Any flow for 5+ minutes between 1 AM and 4 AM. Needs the
+                 clock, which comes from the internet - so this test is
+                 silent until the board has been online once.
+
+  3. SUSTAINED   0.2-2 L/min that never returns to zero for 30 minutes.
+     LOW FLOW    Nobody runs a tap that low that long. A tap left slightly
+                 open looks identical, which is why the alert asks the owner
+                 to check their faucets first.
+
+  4. VALVE TEST  After 10 minutes of no flow, the board closes the valve,
+                 waits 30 s, then watches the pressure for 5 minutes. A
+                 sealed line holds it; a hole bleeds it away. This is the
+                 ONLY test that finds a pinhole. Runs about once an hour.
+                 If anyone opens a tap during it, the valve reopens at once
+                 and the test is abandoned.
+
+  Low pressure with nothing flowing is LOW SUPPLY, not a leak.
+
+THE VALVE
+  It is opened on boot, before anything else, so a power cut can never leave
+  a house with the water shut off. It is closed only during a test, for about
+  4-6 minutes, and only when the line has been idle.
+
+  Manual controls are on the board's own page: "Run valve test now" and
+  "Open valve". Both need the config password.
+
+  Serial: V = test now, O = open, N = pretend it is night (for testing).
 
 
 ============================================================================
@@ -841,10 +921,9 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
   GitHub              https://github.com/Smee-code/SmartHoseLeak (private)
   Database            db.sqlite3   (NOT in GitHub - back it up yourself)
 
-  Device ID           esp32-01
-  Device API key      Tu-8U_8etJh_y4Fy_4Ao4vVzg431iCobAZs00KaKoog
-                      (in the sketch and in Django admin -> Devices;
-                       can be regenerated there if it ever leaks)
+  Device ID / key     NOT in the sketch any more. Issued by the server and
+                      entered on the board via a claim code (section 9d).
+                      Both are on Dashboard -> Lines -> Devices.
 
   SMS                 SIM800L on THIS computer (section 9c). Port is found
                       automatically; override with SMS_SERIAL_PORT in .env.
@@ -858,8 +937,10 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
   Offline after       10 seconds without a reading
   Dashboard refresh   every 2 seconds
 
-  Sensor pins         Pressure GPIO 34, 35, 32   (must stay ADC1)
-                      Flow     GPIO 27, 26, 25
+  Sensor pins         Pressure  GPIO 34   (must stay ADC1: 32-39)
+                      Flow      GPIO 27
+                      Valve relay OPEN  GPIO 25
+                      Valve relay CLOSE GPIO 26
   GSM module          RX GPIO16, TX GPIO17, own 3.7-4.2V power supply
 
   Hose lines          One per household, main source -> the house. No
@@ -869,7 +950,8 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
 ============================================================================
 14. STILL TO DO
 ============================================================================
-  [ ] Calibrate all three modules (K is 0 on all of them right now)
+  [ ] Flash the new per-household firmware and claim the board (section 9d)
+  [ ] Wire the motorised valve to GPIO 25 / 26 through a 2-channel relay
   [ ] Zero the pressure sensors. Empty the line, then type Z in the Serial
       Monitor. Until this is done all three read about 0.45 bar with no
       water in the hose - that is the sensors' own resting voltage, not
@@ -972,6 +1054,18 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+16 Sep 2026  The firmware is now a per-household device: one sensor pair,
+             the four pattern-based leak tests, the motorised valve, NTP for
+             the night window, HTTPS, and identity entered as a claim code
+             instead of compiled in. Calibration and the K = Q/sqrt(P)
+             method are gone entirely - they needed a field calibration
+             nobody could do reliably, and only ever described a line whose
+             conductance had not changed since the day it was measured.
+             "Forget saved network" no longer wipes the zero offsets,
+             thresholds and identity along with the credentials. Flow
+             readings the sensor cannot physically produce are discarded,
+             and the flow interrupt is debounced. See sections 9d and 9e.
 
 16 Sep 2026  Adding a household now creates its hose line and registers its
              board in the same dialog, because that is one real event and

@@ -193,6 +193,7 @@ class HouseholdForm(forms.ModelForm):
         device = None
         if choice == self.DEVICE_NEW:
             device = Device.objects.create(label=self.cleaned_data.get("device_label", ""))
+            device.issue_claim_code()
         elif choice == self.DEVICE_EXISTING:
             device = self.cleaned_data.get("existing_device")
 

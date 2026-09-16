@@ -17,6 +17,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import (
+    ClaimCode,
     Device,
     DeviceSeverity,
     Household,
@@ -216,6 +217,69 @@ def _apply_status_change(segment, new_status, pressure_bar, flow_lpm,
 
     _notify_households(segment, event)
     return event
+
+
+@csrf_exempt
+@require_POST
+def claim(request):
+    """
+    Trade a claim code for a device identity.
+
+    The only endpoint that answers without a key, because a blank board has
+    no key to answer with - that is the whole point of it. It is kept narrow
+    in exchange: a code works once, expires on its own, and yields nothing
+    but the identity of the one board it was issued for.
+
+    CSRF is exempt for the same reason as ingest: the caller is a
+    microcontroller, not a browser with a session.
+    """
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return JsonResponse({"ok": False, "error": "body is not valid JSON"}, status=400)
+
+    # Accept what a person actually typed into the board's setup page -
+    # lower case, missing dashes, stray spaces - rather than making a
+    # formatting difference look like a wrong code.
+    code = ClaimCode.normalise(payload.get("code"))
+    if not code:
+        return JsonResponse(
+            {"ok": False, "error": "that is not a valid claim code"}, status=400
+        )
+
+    # select_for_update so two boards sent the same code cannot both pass the
+    # "already used" check before either marks it used.
+    with transaction.atomic():
+        ticket = (
+            ClaimCode.objects.select_for_update()
+            .select_related("device")
+            .filter(code=code)
+            .first()
+        )
+        if ticket is None:
+            return JsonResponse({"ok": False, "error": "unknown claim code"}, status=404)
+        if ticket.is_used:
+            return JsonResponse(
+                {"ok": False, "error": "this code has already been used"}, status=409
+            )
+        if ticket.is_expired:
+            return JsonResponse(
+                {"ok": False, "error": "this code has expired - ask for a new one"}, status=410
+            )
+
+        ticket.used_at = timezone.now()
+        ticket.used_from_ip = _client_ip(request)
+        ticket.save(update_fields=["used_at", "used_from_ip"])
+
+    device = ticket.device
+    return JsonResponse(
+        {
+            "ok": True,
+            "device_id": device.device_id,
+            "api_key": device.api_key,
+            "server_time": timezone.now().isoformat(),
+        }
+    )
 
 
 @csrf_exempt

@@ -33,6 +33,7 @@ from .forms import (
     WaterSourceForm,
 )
 from .models import (
+    ClaimCode,
     Complaint,
     ComplaintMessage,
     Device,
@@ -292,15 +293,15 @@ def household_form(request, pk=None):
             device = form.attach_hardware(record)
 
         if device is not None:
-            # Shown in full, and it stays readable on the Lines page. The key
-            # has to be typed into the board by hand, and again into its
-            # replacement if it ever dies - an owner password can be reset
-            # where this cannot.
+            # The claim code, not the key. The key is 43 characters and is
+            # what the board ends up holding; the code is six, single-use,
+            # and is all a person ever has to type.
+            ticket = getattr(device, "claim_code", None) or device.issue_claim_code()
             messages.success(
                 request,
                 f"Board {device.device_id} registered for {record.household_id}. "
-                f"Enter these on the board's setup page - Device ID: {device.device_id} "
-                f"/ API key: {device.api_key}. Both stay on the Lines page if you need them again.",
+                f"Claim code: {ticket.code} - enter it on the board's setup page along with "
+                f"the WiFi. It works once and is on the Lines page if you need it again.",
             )
 
         if form.cleaned_data.get("create_account") and record.user_id is None:
@@ -452,7 +453,7 @@ def segment_list(request, create_form=None, edit_form=None, edit_segment=None):
                 rollup_count=Count("rollups", distinct=True),
                 event_count=Count("events", distinct=True),
             ).order_by("name"),
-            "devices": Device.objects.all(),
+            "devices": Device.objects.select_related("claim_code").prefetch_related("segments"),
             "source": source,
             "source_form": source_form,
             # Three forms with a "name" field share this page - the water
@@ -485,11 +486,11 @@ def device_create(request):
     overwrite each other's readings with nothing to show for it.
     """
     device = Device.objects.create(label=request.POST.get("label", "").strip()[:120])
+    ticket = device.issue_claim_code()
     messages.success(
         request,
-        f"Board {device.device_id} registered. Enter these on the board's setup page - "
-        f"Device ID: {device.device_id} / API key: {device.api_key}. "
-        f"Both stay on this page if you need them again.",
+        f"Board {device.device_id} registered. Claim code: {ticket.code} - enter it on the "
+        f"board's setup page along with the WiFi. It works once and stays on this page.",
     )
     return redirect("segment_list")
 
@@ -513,6 +514,27 @@ def device_regenerate_key(request, pk):
         request,
         f"New key issued for {device.device_id}.{where} until you enter it on the "
         f"board's setup page. New key: {device.api_key}",
+    )
+    return redirect("segment_list")
+
+
+@facilitator_required
+@require_POST
+def device_issue_claim_code(request, pk):
+    """
+    Issue a fresh claim code for a board.
+
+    Needed when the first one was used and the board has to be set up again -
+    moved to a different house, or reset. Unlike reissuing the key, this
+    costs nothing: a board already claimed keeps working, because the code is
+    only how an unclaimed board gets its identity in the first place.
+    """
+    device = get_object_or_404(Device, pk=pk)
+    ticket = device.issue_claim_code()
+    messages.success(
+        request,
+        f"New claim code for {device.device_id}: {ticket.code}. "
+        f"It works once, and expires in {ClaimCode.VALID_DAYS} days.",
     )
     return redirect("segment_list")
 

@@ -99,6 +99,17 @@ class Device(models.Model):
                 highest = max(highest, int(match.group(1)))
         return f"{cls.ID_PREFIX}{highest + 1:0{cls.ID_DIGITS}d}"
 
+    def issue_claim_code(self):
+        """
+        A fresh code for this board, replacing any earlier one.
+
+        Replacing rather than adding: two live codes for one board means two
+        people can claim it, and the second silently takes over the first
+        board's identity.
+        """
+        ClaimCode.objects.filter(device=self).delete()
+        return ClaimCode.objects.create(device=self)
+
     def regenerate_key(self):
         """
         Issue a new key and invalidate the old one.
@@ -126,6 +137,97 @@ class Device(models.Model):
 
     def __str__(self):
         return self.label or self.device_id
+
+
+class ClaimCode(models.Model):
+    """
+    A short, single-use ticket that a blank board trades for its identity.
+
+    The alternative is typing the API key into the board by hand: 43
+    mixed-case characters with dashes and underscores, on a phone, standing
+    in somebody's yard. A mistyped key gives a 401, and a 401 on the serial
+    monitor looks exactly like a wrong server address - so the failure is
+    both likely and expensive to diagnose.
+
+    A code is worth nothing once used, which is why it can be short enough to
+    read aloud. The key itself never reaches the phone and never leaves the
+    server except to the board that claimed it.
+    """
+
+    # No 0/O or 1/I/L. The code gets read off a screen and typed on a phone,
+    # and those pairs are the ones people get wrong.
+    ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ"
+    GROUP = 3
+    GROUPS = 2
+    VALID_DAYS = 14
+
+    code = models.CharField(max_length=16, unique=True, db_index=True)
+    device = models.OneToOneField(Device, on_delete=models.CASCADE, related_name="claim_code")
+    created_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    used_from_ip = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = self.generate()
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timezone.timedelta(days=self.VALID_DAYS)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def generate(cls):
+        """A code no other row is using, formatted as K7M-4Q2."""
+        while True:
+            groups = [
+                "".join(secrets.choice(cls.ALPHABET) for _ in range(cls.GROUP))
+                for _ in range(cls.GROUPS)
+            ]
+            code = "-".join(groups)
+            if not cls.objects.filter(code=code).exists():
+                return code
+
+    @classmethod
+    def normalise(cls, raw):
+        """
+        Accept what a person actually types.
+
+        Lower case, missing dashes and stray spaces are all the same code as
+        far as anyone entering it is concerned, and rejecting them would look
+        like the code was wrong rather than formatted differently.
+        """
+        cleaned = "".join(ch for ch in (raw or "").upper() if ch in cls.ALPHABET)
+        if len(cleaned) != cls.GROUP * cls.GROUPS:
+            return ""
+        return "-".join(
+            cleaned[i:i + cls.GROUP] for i in range(0, len(cleaned), cls.GROUP)
+        )
+
+    @property
+    def is_used(self):
+        return self.used_at is not None
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    @property
+    def is_usable(self):
+        return not self.is_used and not self.is_expired
+
+    @property
+    def state_label(self):
+        if self.is_used:
+            return "claimed"
+        if self.is_expired:
+            return "expired"
+        return "waiting"
+
+    def __str__(self):
+        return f"{self.code} ({self.state_label})"
 
 
 class Segment(models.Model):

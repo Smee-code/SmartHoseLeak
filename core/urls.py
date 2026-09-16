@@ -39,6 +39,7 @@ urlpatterns = [
     path("dashboard/lines/<int:pk>/valve-test/", views.segment_valve_test, name="segment_valve_test"),
     path("dashboard/devices/new/", views.device_create, name="device_create"),
     path("dashboard/devices/<int:pk>/new-key/", views.device_regenerate_key, name="device_regenerate_key"),
+    path("dashboard/devices/<int:pk>/claim-code/", views.device_issue_claim_code, name="device_issue_claim_code"),
     path("dashboard/devices/<int:pk>/delete/", views.device_delete, name="device_delete"),
     path("dashboard/events/", views.event_list, name="event_list"),
     path("dashboard/events/<int:pk>/acknowledge/", views.event_acknowledge, name="event_acknowledge"),
@@ -62,6 +63,7 @@ urlpatterns = [
 
     # JSON API
     path("api/ingest/", api.ingest, name="api_ingest"),
+    path("api/claim/", api.claim, name="api_claim"),
     path("api/live/", api.live, name="api_live"),
     path("api/history/", api.history, name="api_history"),
 
