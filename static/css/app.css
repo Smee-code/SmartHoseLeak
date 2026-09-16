@@ -1102,3 +1102,41 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
      Scrolling sideways keeps the comparison intact. */
   .live-table { min-width: 660px; }
 }
+
+
+/* ------------------------------------------------------------- notices + SMS
+   One compose form, two channels. The pieces below exist so that choosing
+   recipients and choosing channels read as two separate decisions rather
+   than one long column of checkboxes.
+   ------------------------------------------------------------------------ */
+
+.check-row { display: flex; align-items: center; gap: .5rem; margin: .35rem 0; }
+.check-row input[type="checkbox"] { width: auto; margin: 0; }
+.check-row label { margin: 0; font-weight: 500; }
+
+/* The household list is scrollable rather than tall: at six households a
+   full list is fine, and at sixty it would push the message box off-screen
+   entirely. */
+.pick-list {
+  max-height: 190px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .4rem .6rem; margin-top: .4rem; background: var(--surface);
+}
+.pick-option { display: flex; align-items: center; gap: .5rem; padding: .22rem 0; font-weight: 400; }
+.pick-option input { width: auto; margin: 0; }
+
+/* Ticking "all households" makes the list irrelevant, not wrong - so it is
+   dimmed and inert rather than hidden, which would make the options appear
+   to vanish. */
+.pick-list.is-disabled { opacity: .45; pointer-events: none; }
+
+.channel-box {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .7rem .9rem; margin: 1rem 0;
+}
+.channel-box legend { padding: 0 .35rem; color: var(--text-muted); font-weight: 600; }
+.channel-box .helptext { margin: 0 0 .5rem 1.7rem; }
+
+/* A message that will split into several texts is not an error - it costs
+   more and may arrive out of order. Amber, not red. */
+.warn-text { color: var(--warn); font-weight: 600; }

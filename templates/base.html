@@ -82,7 +82,7 @@
             {% if pending_complaint_count %}<span class="badge">{{ pending_complaint_count }}</span>{% endif %}
           </a>
           <a href="{% url 'notification_center' %}" {% if request.resolver_match.url_name == 'notification_center' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>Notices</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>Notices &amp; SMS</span>
           </a>
           <a href="{% url 'reports' %}" {% if request.resolver_match.url_name == 'reports' %}aria-current="page"{% endif %}>
             <svg class="ico" aria-hidden="true"><use href="#i-chart"></use></svg><span>Reports</span>
@@ -95,7 +95,7 @@
             <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>My Pressure</span>
           </a>
           <a href="{% url 'owner_notifications' %}" {% if request.resolver_match.url_name == 'owner_notifications' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>Notices</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>Notices &amp; SMS</span>
             {% if unread_count %}<span class="badge">{{ unread_count }}</span>{% endif %}
           </a>
           <a href="{% url 'owner_complaints' %}" {% if request.resolver_match.url_name == 'owner_complaints' %}aria-current="page"{% endif %}>

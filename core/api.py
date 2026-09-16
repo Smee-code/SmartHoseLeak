@@ -25,6 +25,7 @@ from .models import (
     Notification,
     ReadingRollup,
     Segment,
+    SmsMessage,
     Trigger,
     ValveState,
     psi,
@@ -122,7 +123,7 @@ def _notify_households(segment, event):
     households = Household.objects.filter(
         segment=segment, account_status=Household.AccountStatus.ACTIVE
     )
-    Notification.objects.bulk_create(
+    created = Notification.objects.bulk_create(
         [
             Notification(
                 kind=Notification.Kind.AUTOMATIC,
@@ -134,6 +135,50 @@ def _notify_households(segment, event):
             )
             for household in households
         ]
+    )
+
+    # Text them as well, unless that has been switched off.
+    #
+    # An in-app notice is only seen by somebody who opens the app, and a leak
+    # at two in the morning cannot wait for that. The message is written
+    # shorter than the in-app one on purpose: a text is read on a lock screen
+    # and the useful half is the instruction, not the reading.
+    if not (settings.SMS_AUTO_ON_LEAK and event.status == Segment.Status.POSSIBLE_LEAK):
+        return
+
+    notices = {n.recipient_id: n for n in created}
+    for household in households:
+        SmsMessage.queue(
+            household,
+            _leak_sms_text(household, event),
+            kind=SmsMessage.Kind.AUTOMATIC,
+            notification=notices.get(household.id),
+            event=event,
+        )
+
+
+def _leak_sms_text(household, event):
+    """
+    The words that arrive on somebody's phone when their line is flagged.
+
+    It asks them to check their own taps first. A small leak and a tap left
+    slightly open are identical to the sensors, and the far more common of
+    the two is the tap - so sending a crew before asking would waste most
+    trips and teach people the alerts are wrong.
+    """
+    when = timezone.localtime(event.detected_at).strftime("%b %d %I:%M%p").replace(" 0", " ")
+    severity = ""
+    if event.device_severity and event.device_severity != DeviceSeverity.NONE:
+        severity = f", {event.get_device_severity_display().lower()}"
+
+    # Written to fit one message. Two texts cost twice as much, can arrive out
+    # of order, and the half that gets separated is the instruction - so the
+    # wording is kept tight rather than trusting it to come out short.
+    # test_leak_sms_fits_one_message guards this.
+    return (
+        f"LEAK ALERT {household.household_id}: possible leak {when}{severity}. "
+        f"Please check all your faucets are closed. If they are and water "
+        f"still runs, tell the facilitator."
     )
 
 

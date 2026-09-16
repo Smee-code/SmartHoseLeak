@@ -188,6 +188,36 @@ SITE_LOCALE = "Brgy. Lower Dakong Patag, Sison, Surigao del Norte"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 MUNICIPALITY_NAME = "Sison, Surigao del Norte"
+# ---------------------------------------------------------------- SMS alerts
+#
+# A SIM800L wired to THIS machine, not to the ESP32. The board keeps its own
+# module as a last resort for when it cannot reach the server at all, but the
+# server is where the household database lives, so it is the only place that
+# can address a message to the right person and write it in their language.
+#
+# Sending is queued rather than done in the request: a SIM800L takes several
+# seconds per message and a facilitator must never sit watching a spinner
+# because a modem is negotiating with the network. A worker drains the queue
+# in the background, and everything that happens is recorded.
+SMS_ENABLED = env_bool("SMS_ENABLED", True)
+
+# Blank means "find it": the port a USB-serial adapter lands on changes
+# between machines and between reboots, and hard-coding COM3 guarantees a
+# support call the first time it comes up as COM7.
+SMS_SERIAL_PORT = env("SMS_SERIAL_PORT", "")
+SMS_BAUD = int(env("SMS_BAUD", "9600"))
+
+# Text the household automatically when their line is flagged. Off would mean
+# a leak at 2 AM waits for somebody to open a browser.
+SMS_AUTO_ON_LEAK = env_bool("SMS_AUTO_ON_LEAK", True)
+
+# How often the worker looks for queued messages, and how many times it will
+# retry one before giving up. A failed send is almost always no signal or no
+# load, both of which clear on their own, so retrying is worth it - but not
+# forever, or one bad number blocks the queue.
+SMS_POLL_SECONDS = int(env("SMS_POLL_SECONDS", "10"))
+SMS_MAX_ATTEMPTS = int(env("SMS_MAX_ATTEMPTS", "3"))
+
 MUNICIPALITY_BOUNDS = (9.61325, 125.43605, 9.69744, 125.54105)  # S, W, N, E
 MUNICIPALITY_BOUNDS_MARGIN_DEG = 0.05  # about 5.5 km
 

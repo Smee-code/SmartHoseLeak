@@ -1,4 +1,7 @@
 Django==5.2.*
 
+# Talking to the SIM800L plugged into this machine, for SMS alerts.
+pyserial>=3.5
+
 # Only needed if you switch DB_ENGINE to postgres in .env
 # psycopg[binary]>=3.1

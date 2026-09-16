@@ -8,6 +8,7 @@ facilitator page by typing its URL.
 
 from functools import wraps
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
@@ -40,9 +41,11 @@ from .models import (
     Notification,
     ReadingRollup,
     Segment,
+    SmsMessage,
     WaterSource,
     psi,
 )
+from . import sms
 
 User = get_user_model()
 
@@ -739,6 +742,14 @@ def complaint_status(request, pk):
 
 @facilitator_required
 def notification_center(request):
+    """
+    Write once, deliver on the chosen channels.
+
+    The in-app notice and the text carry the same words on purpose. Two
+    compose screens would eventually disagree with each other, and a
+    household reading one thing on their phone and another in the app has no
+    way to tell which is current.
+    """
     form = NotificationForm(request.POST or None)
 
     if request.method == "POST" and form.is_valid():
@@ -746,20 +757,64 @@ def notification_center(request):
         if not recipients:
             messages.error(request, "No active households match that audience.")
         else:
-            Notification.objects.bulk_create(
-                [
-                    Notification(
-                        kind=kind,
-                        title=form.cleaned_data["title"],
-                        body=form.cleaned_data["body"],
+            title = form.cleaned_data["title"]
+            body = form.cleaned_data["body"]
+            want_app = form.cleaned_data["in_app"]
+            want_sms = form.cleaned_data["by_sms"]
+
+            notices_by_household = {}
+            if want_app:
+                created = Notification.objects.bulk_create(
+                    [
+                        Notification(
+                            kind=kind,
+                            title=title,
+                            body=body,
+                            sent_by=request.user,
+                            recipient=household,
+                            segment=household.segment,
+                        )
+                        for household in recipients
+                    ]
+                )
+                notices_by_household = {n.recipient_id: n for n in created}
+
+            queued = 0
+            no_number = []
+            if want_sms:
+                for household in recipients:
+                    # The title is prefixed so a text stands on its own. An
+                    # SMS arrives with no subject line and no app around it,
+                    # so a bare body reads as a message from nobody.
+                    sms_body = f"{title}: {body}"
+                    parts = SmsMessage.queue(
+                        household,
+                        sms_body,
+                        kind=SmsMessage.Kind.MANUAL,
                         sent_by=request.user,
-                        recipient=household,
-                        segment=household.segment,
+                        notification=notices_by_household.get(household.id),
                     )
-                    for household in recipients
-                ]
-            )
-            messages.success(request, f"Notice sent to {len(recipients)} household(s).")
+                    if parts:
+                        queued += len(parts)
+                    else:
+                        no_number.append(household.household_id)
+
+            done = []
+            if want_app:
+                done.append(f"shown in the app to {len(recipients)} household(s)")
+            if want_sms:
+                done.append(f"{queued} text message(s) queued")
+            messages.success(request, "Notice " + " and ".join(done) + ".")
+
+            if no_number:
+                # Said plainly rather than counted, because the fix is to go
+                # and collect those numbers and the facilitator needs to know
+                # whose are missing.
+                messages.warning(
+                    request,
+                    "No contact number on file, so no text was sent to: "
+                    + ", ".join(no_number) + ".",
+                )
             return redirect("notification_center")
 
     sent = (
@@ -767,7 +822,41 @@ def notification_center(request):
         .select_related("recipient")
         .order_by("-created_at")[:40]
     )
-    return render(request, "facilitator/notifications.html", {"form": form, "sent": sent})
+    gateway_ready, gateway_note = sms.describe_gateway()
+    return render(
+        request,
+        "facilitator/notifications.html",
+        {
+            "form": form,
+            "sent": sent,
+            "gateway_ready": gateway_ready,
+            "gateway_note": gateway_note,
+            "sms_messages": SmsMessage.objects.select_related("household").order_by("-created_at")[:40],
+            "sms_queued": SmsMessage.objects.filter(status=SmsMessage.Status.QUEUED).count(),
+            "sms_failed": SmsMessage.objects.filter(status=SmsMessage.Status.FAILED).count(),
+            "sms_single_limit": SmsMessage.SINGLE_LIMIT,
+            "auto_sms_on": settings.SMS_AUTO_ON_LEAK,
+        },
+    )
+
+
+@facilitator_required
+@require_POST
+def sms_retry(request, pk):
+    """
+    Put a failed message back in the queue.
+
+    Failures here are almost always the site, not the message - no signal, no
+    load, the modem unplugged. Once that is fixed the facilitator should be
+    able to send the same words again without retyping them.
+    """
+    message = get_object_or_404(SmsMessage, pk=pk)
+    message.status = SmsMessage.Status.QUEUED
+    message.attempts = 0
+    message.error = ""
+    message.save(update_fields=["status", "attempts", "error"])
+    messages.success(request, f"Queued again for {message.recipient_label}.")
+    return redirect("notification_center")
 
 
 @facilitator_required

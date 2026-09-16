@@ -20,7 +20,7 @@ from django.contrib.staticfiles.management.commands.runserver import (
     Command as StaticfilesRunserverCommand,
 )
 
-from core import discovery
+from core import discovery, sms
 
 
 def primary_lan_ip():
@@ -46,7 +46,27 @@ class Command(StaticfilesRunserverCommand):
     def inner_run(self, *args, **options):
         self._print_addresses()
         self._start_discovery()
+        self._start_sms_worker()
         super().inner_run(*args, **options)
+
+    def _start_sms_worker(self):
+        """
+        Drain the SMS queue in the background while the server runs.
+
+        Started here rather than at app startup so that migrations, tests and
+        management commands never open a serial port as a side effect of
+        importing the app - and so it runs once, in the process that is
+        actually serving, rather than once per autoreload child.
+        """
+        if not sms.start_worker():
+            return
+
+        ready, note = sms.describe_gateway()
+        style = self.style.SUCCESS if ready else self.style.WARNING
+        self.stdout.write("  SMS: " + style(note))
+        if not ready:
+            self.stdout.write("       Messages will wait in the queue until it is connected.")
+        self.stdout.write("")
 
     def _start_discovery(self):
         """

@@ -751,6 +751,64 @@
     });
   };
 
+  /* ------------------------------------------------------------ sms length */
+
+  /*
+   * Count a notice the way the network will bill it.
+   *
+   * A text is delivered in 160-character units, and the facilitator cannot
+   * see that boundary while typing. Showing it here turns "why did that
+   * arrive as three messages" into a decision made before sending, on a
+   * system where every message costs load credit.
+   */
+  (function () {
+    var body = $('[data-sms-counter]');
+    var out = $('[data-sms-count]');
+    var smsBox = $('#id_by_sms');
+    if (!body || !out) return;
+
+    var limit = parseInt(out.getAttribute('data-limit'), 10) || 160;
+    var PART = 153;   // parts spend 7 characters on the "(1/2)" marker
+
+    function update() {
+      // Only relevant when the message is actually going out as a text.
+      if (smsBox && !smsBox.checked) { out.hidden = true; return; }
+      out.hidden = false;
+
+      var length = body.value.length;
+      var parts = length <= limit ? 1 : Math.ceil(length / PART);
+      out.textContent = length + ' characters' +
+        (parts > 1 ? ' - sends as ' + parts + ' text messages' : ' - one text message');
+      out.classList.toggle('warn-text', parts > 1);
+    }
+
+    body.addEventListener('input', update);
+    if (smsBox) smsBox.addEventListener('change', update);
+    update();
+  })();
+
+  /* --------------------------------------------------- household picker */
+
+  /*
+   * "All active households" and a list of specific ones are alternatives,
+   * not things to combine. Disabling the list while it is ticked says so
+   * without an error message after the fact.
+   */
+  (function () {
+    var all = $('#id_to_all');
+    var picker = $('[data-household-picker]');
+    if (!all || !picker) return;
+
+    function sync() {
+      picker.classList.toggle('is-disabled', all.checked);
+      Array.prototype.forEach.call(picker.querySelectorAll('input'), function (box) {
+        box.disabled = all.checked;
+      });
+    }
+    all.addEventListener('change', sync);
+    sync();
+  })();
+
   /* ----------------------------------------------------------- tile render */
 
   SHL.renderTiles = function (segments) {

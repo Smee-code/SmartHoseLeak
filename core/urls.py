@@ -46,6 +46,7 @@ urlpatterns = [
     path("dashboard/complaints/<int:pk>/reply/", views.complaint_reply, name="complaint_reply"),
     path("dashboard/complaints/<int:pk>/status/", views.complaint_status, name="complaint_status"),
     path("dashboard/notifications/", views.notification_center, name="notification_center"),
+    path("dashboard/sms/<int:pk>/retry/", views.sms_retry, name="sms_retry"),
     path("dashboard/reports/", views.reports, name="reports"),
     path("dashboard/export/<str:kind>.csv", views.export_csv, name="export_csv"),
 

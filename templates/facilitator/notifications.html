@@ -1,12 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Notices - {{ SITE_NAME }}{% endblock %}
+{% block title %}Notices &amp; SMS - {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="wrap">
   <div class="page-head">
     <div>
       <h1>Send a notice</h1>
-      <p class="sub">Reaches household owners in the Owner Portal. Leak alerts are sent automatically.</p>
+      <p class="sub">
+        Write it once and choose how it reaches people &mdash; in the app, as a text, or both.
+      </p>
     </div>
+  </div>
+
+  {% comment %}
+    The gateway's state is stated before the form, not after a failed send.
+    A SIM800L is a loose USB device on a shared desk, so "is it plugged in"
+    is a real question every single time, and finding out afterwards means
+    the facilitator has already written the message.
+  {% endcomment %}
+  <div class="message {% if gateway_ready %}message-success{% else %}message-warning{% endif %}" role="status">
+    <span>
+      <strong>SMS:</strong> {{ gateway_note }}
+      {% if not gateway_ready %}
+        Messages you send by SMS are kept in the queue and go out as soon as it is connected.
+      {% endif %}
+      {% if sms_queued %}&middot; {{ sms_queued }} waiting{% endif %}
+      {% if sms_failed %}&middot; <strong>{{ sms_failed }} failed</strong>{% endif %}
+    </span>
   </div>
 
   <div class="split">
@@ -17,12 +36,63 @@
         {% if form.non_field_errors %}
           <div class="message message-error"><span>{{ form.non_field_errors }}</span></div>
         {% endif %}
-        {% for field in form %}{% include "_form_field.html" %}{% endfor %}
+
+        <div class="field">
+          <label>{{ form.households.label }}</label>
+          <div class="check-row">
+            {{ form.to_all }}
+            <label for="{{ form.to_all.id_for_label }}">{{ form.to_all.label }}</label>
+          </div>
+          <div class="pick-list" data-household-picker>
+            {% for choice in form.households %}
+              <label class="pick-option">
+                {{ choice.tag }}
+                <span>{{ choice.choice_label }}</span>
+              </label>
+            {% empty %}
+              <p class="empty small">No active households yet.</p>
+            {% endfor %}
+          </div>
+          {{ form.households.errors }}
+        </div>
+
+        {% include "_form_field.html" with field=form.title %}
+        {% include "_form_field.html" with field=form.body %}
+
+        {% comment %}
+          A text is billed and delivered in 160-character units, so the count
+          is shown while typing rather than discovered on arrival. Written
+          server-side into data- attributes so the limit lives in one place.
+        {% endcomment %}
+        <p class="small muted" data-sms-count
+           data-limit="{{ sms_single_limit }}" hidden></p>
+
+        <fieldset class="channel-box">
+          <legend class="small">How to send it</legend>
+          <div class="check-row">
+            {{ form.in_app }}
+            <label for="{{ form.in_app.id_for_label }}">{{ form.in_app.label }}</label>
+          </div>
+          <p class="helptext">{{ form.in_app.help_text }}</p>
+          <div class="check-row">
+            {{ form.by_sms }}
+            <label for="{{ form.by_sms.id_for_label }}">{{ form.by_sms.label }}</label>
+          </div>
+          <p class="helptext">{{ form.by_sms.help_text }}</p>
+        </fieldset>
+
         <button type="submit" class="btn btn-primary">Send notice</button>
       </form>
+
       <p class="small muted" style="margin-top:1rem">
-        Tip: when a repair will interrupt supply, mark the line as under maintenance on the
-        dashboard first so the sensors do not raise a leak alert during the work.
+        Tip: when a repair will interrupt supply, mark that household's line as under
+        maintenance on the dashboard first, so the sensors do not raise a leak alert
+        during the work.
+      </p>
+      <p class="small muted">
+        Leak alerts are sent
+        {% if auto_sms_on %}automatically by SMS and in the app{% else %}in the app only
+        (automatic SMS is switched off){% endif %}, so you do not need to send those by hand.
       </p>
     </div>
 
@@ -46,6 +116,76 @@
           <p class="empty">No notices sent yet.</p>
         {% endfor %}
       </div>
+    </div>
+  </div>
+
+  {% comment %}
+    The SMS log is separate from the notice list because it answers a
+    different question. A notice either exists or it does not; a text can be
+    queued, sent, or refused by a network, and when somebody says "I never
+    got a message" this is the page that settles it.
+  {% endcomment %}
+  <div class="card" style="margin-top:1.6rem">
+    <div class="card-head">
+      <h2>Text messages</h2>
+      <span class="small muted">Newest first</span>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>When</th><th>To</th><th>Message</th><th>Type</th><th>Status</th><th class="right"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for message in sms_messages %}
+            <tr>
+              <td class="nowrap small">{{ message.created_at|date:"M j, g:i A" }}</td>
+              <td class="small">
+                {% if message.household %}
+                  <strong>{{ message.household.household_id }}</strong>
+                  <div class="muted">{{ message.to_number }}</div>
+                {% else %}
+                  {{ message.to_number }}
+                {% endif %}
+              </td>
+              <td class="small">{{ message.body|truncatechars:90 }}</td>
+              <td class="small">{{ message.get_kind_display }}</td>
+              <td>
+                {% if message.status == 'sent' %}
+                  <span class="pill pill-ok">Sent</span>
+                  <div class="small muted">{{ message.sent_at|date:"g:i A" }}</div>
+                {% elif message.status == 'failed' %}
+                  <span class="pill pill-danger">Failed</span>
+                  <div class="small muted">{{ message.error|default:"no reason recorded" }}</div>
+                {% else %}
+                  <span class="pill pill-none">Queued</span>
+                  {% if message.attempts %}
+                    <div class="small muted">{{ message.attempts }} attempt(s)</div>
+                  {% endif %}
+                {% endif %}
+              </td>
+              <td class="right">
+                {% if message.status == 'failed' %}
+                  <form method="post" action="{% url 'sms_retry' message.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm">Try again</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6">
+                <p class="empty">
+                  No text messages yet.<br>
+                  <span class="small">Tick &ldquo;Also send as SMS&rdquo; above, or wait for a leak alert.</span>
+                </p>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </div>

@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from .models import (
+    SmsMessage,
     Complaint,
     Device,
     Household,
@@ -105,3 +106,16 @@ class ComplaintAdmin(admin.ModelAdmin):
     list_display = ("reference", "household", "category", "subject", "status", "created_at")
     list_filter = ("status", "category")
     search_fields = ("reference", "subject", "body")
+
+
+@admin.register(SmsMessage)
+class SmsMessageAdmin(admin.ModelAdmin):
+    """
+    The delivery log. Read-only on purpose: it records what was actually
+    sent, and a record you can edit is not evidence of anything.
+    """
+
+    list_display = ("created_at", "to_number", "household", "kind", "status", "attempts", "sent_at")
+    list_filter = ("status", "kind", "created_at")
+    search_fields = ("to_number", "body", "household__household_id", "household__owner_name")
+    readonly_fields = ("created_at", "sent_at", "attempts", "error")

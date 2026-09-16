@@ -226,62 +226,80 @@ class ComplaintResponseForm(forms.ModelForm):
 
 
 class NotificationForm(forms.Form):
-    """Targeted or broadcast notice from the facilitator."""
+    """
+    A message to households, on one or both channels.
 
-    AUDIENCE_ALL = "all"
-    AUDIENCE_SEGMENT = "segment"
-    AUDIENCE_HOUSEHOLD = "household"
+    One screen rather than two. A facilitator writing "water is off until 3pm"
+    is doing one thing, and asking them to write it once in the app and again
+    as a text would guarantee the two eventually say different things.
 
-    audience = forms.ChoiceField(
-        choices=[
-            (AUDIENCE_ALL, "All active households (broadcast)"),
-            (AUDIENCE_SEGMENT, "Every household on one supply line"),
-            (AUDIENCE_HOUSEHOLD, "One household"),
-        ],
-        initial=AUDIENCE_ALL,
+    The supply-line audience is gone: a line now serves exactly one household,
+    so it was a longer way of saying the same thing as picking that household.
+    Selecting several households directly replaced it.
+    """
+
+    households = forms.ModelMultipleChoiceField(
+        queryset=Household.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Send to",
+        help_text="Leave everything unticked and tick 'All active households' instead.",
     )
-    segment = forms.ModelChoiceField(queryset=Segment.objects.none(), required=False)
-    household = forms.ModelChoiceField(queryset=Household.objects.none(), required=False)
-    title = forms.CharField(max_length=150, widget=forms.TextInput(attrs={"placeholder": "e.g. Scheduled repair on Line 2"}))
+    to_all = forms.BooleanField(
+        required=False, initial=False, label="All active households",
+    )
+
+    title = forms.CharField(
+        max_length=150,
+        widget=forms.TextInput(attrs={"placeholder": "e.g. Scheduled repair this afternoon"}),
+    )
     body = forms.CharField(
-        widget=forms.Textarea(attrs={"rows": 5, "placeholder": "Include the expected restoration time if you know it."})
+        widget=forms.Textarea(attrs={
+            "rows": 5,
+            "placeholder": "Include the expected restoration time if you know it.",
+            "data-sms-counter": "true",
+        })
+    )
+
+    in_app = forms.BooleanField(
+        required=False, initial=True, label="Show in the app",
+        help_text="Appears under Notices in the household's portal.",
+    )
+    by_sms = forms.BooleanField(
+        required=False, initial=False, label="Also send as SMS",
+        help_text="Texted to each household's contact number through the GSM module.",
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["segment"].queryset = Segment.objects.filter(is_active=True)
-        self.fields["household"].queryset = Household.objects.filter(
+        self.fields["households"].queryset = Household.objects.filter(
             account_status=Household.AccountStatus.ACTIVE
-        )
+        ).order_by("household_id")
 
     def clean(self):
         cleaned = super().clean()
-        audience = cleaned.get("audience")
-        if audience == self.AUDIENCE_SEGMENT and not cleaned.get("segment"):
-            self.add_error("segment", "Choose the supply line to notify.")
-        if audience == self.AUDIENCE_HOUSEHOLD and not cleaned.get("household"):
-            self.add_error("household", "Choose the household to notify.")
+
+        if not cleaned.get("in_app") and not cleaned.get("by_sms"):
+            # Submitting with neither ticked would look like it worked and
+            # deliver nothing at all, which is the worst possible outcome for
+            # a message about the water being off.
+            raise forms.ValidationError(
+                "Choose at least one way to send this - in the app, by SMS, or both."
+            )
+
+        if not cleaned.get("to_all") and not cleaned.get("households"):
+            self.add_error("households", "Pick at least one household, or tick 'All active households'.")
+
         return cleaned
 
     def recipients(self):
-        """Resolve the audience choice into the households to write rows for."""
-        audience = self.cleaned_data["audience"]
-        if audience == self.AUDIENCE_HOUSEHOLD:
-            return [self.cleaned_data["household"]], Notification.Kind.TARGETED
-        if audience == self.AUDIENCE_SEGMENT:
+        """The households to write rows for, and what kind of notice this is."""
+        if self.cleaned_data.get("to_all"):
             return (
-                list(
-                    Household.objects.filter(
-                        segment=self.cleaned_data["segment"],
-                        account_status=Household.AccountStatus.ACTIVE,
-                    )
-                ),
-                Notification.Kind.TARGETED,
+                list(Household.objects.filter(account_status=Household.AccountStatus.ACTIVE)),
+                Notification.Kind.BROADCAST,
             )
-        return (
-            list(Household.objects.filter(account_status=Household.AccountStatus.ACTIVE)),
-            Notification.Kind.BROADCAST,
-        )
+        return list(self.cleaned_data["households"]), Notification.Kind.TARGETED
 
 
 class SegmentForm(forms.ModelForm):

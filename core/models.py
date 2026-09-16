@@ -618,6 +618,143 @@ class Notification(models.Model):
         return self.title
 
 
+class SmsMessage(models.Model):
+    """
+    One text message, queued here and sent by the worker.
+
+    Queued rather than sent inline because a SIM800L takes several seconds to
+    negotiate with the network, and a facilitator must never sit watching a
+    spinner because a modem is busy. It also means an outage is survivable:
+    the message waits in the database instead of vanishing with the request
+    that raised it.
+
+    The number is copied in at queue time rather than followed through to the
+    household. A log has to record where a message actually went, and a
+    household that changes its number afterwards must not rewrite history.
+    """
+
+    # 153, not 160. A message that will not fit is split into parts, and each
+    # part spends 7 characters on the "(1/2)" marker that makes it readable
+    # when the network delivers them out of order.
+    SINGLE_LIMIT = 160
+    PART_LIMIT = 153
+
+    class Kind(models.TextChoices):
+        MANUAL = "manual", "Sent by facilitator"
+        AUTOMATIC = "automatic", "Automatic alert"
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        SENT = "sent", "Sent"
+        FAILED = "failed", "Failed"
+
+    household = models.ForeignKey(
+        Household, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="sms_messages",
+    )
+    to_number = models.CharField(max_length=20)
+    body = models.TextField()
+
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.MANUAL)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    error = models.CharField(max_length=200, blank=True)
+
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="sent_sms",
+    )
+    notification = models.ForeignKey(
+        "Notification", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="sms_messages",
+        help_text="The in-app notice this text accompanied, when there was one.",
+    )
+    event = models.ForeignKey(
+        "LeakEvent", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="sms_messages",
+    )
+
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.to_number} - {self.get_status_display()}"
+
+    @property
+    def recipient_label(self):
+        if self.household is not None:
+            return f"{self.household.household_id} ({self.household.owner_name})"
+        return self.to_number
+
+    @classmethod
+    def queue(cls, household, body, *, kind=None, sent_by=None, notification=None, event=None):
+        """
+        Put a message in front of a household. Returns the rows created.
+
+        Refuses silently when there is no number to send to: a household can
+        be registered before anyone has collected a contact number, and that
+        must not raise in the middle of sending a notice to twenty others.
+        """
+        number = (household.contact_number or "").strip()
+        if not number:
+            return []
+
+        body = normalise_for_gsm(body)
+        return [
+            cls.objects.create(
+                household=household,
+                to_number=number,
+                body=part,
+                kind=kind or cls.Kind.MANUAL,
+                sent_by=sent_by,
+                notification=notification,
+                event=event,
+            )
+            for part in cls.split_body(body)
+        ]
+
+    @classmethod
+    def split_body(cls, body):
+        """
+        One message, or several numbered parts if it will not fit.
+
+        A silently truncated alert is worse than a long one: the part that
+        gets cut is the end, which is where the instruction usually is.
+        """
+        body = body.strip()
+        if len(body) <= cls.SINGLE_LIMIT:
+            return [body]
+
+        chunks = [body[i:i + cls.PART_LIMIT] for i in range(0, len(body), cls.PART_LIMIT)]
+        total = len(chunks)
+        return [f"({n}/{total}) {chunk}" for n, chunk in enumerate(chunks, start=1)]
+
+
+def normalise_for_gsm(text):
+    """
+    Fold text into characters a SIM800L can send in its default alphabet.
+
+    A single smart quote pasted from Word switches the whole message to
+    UCS-2, which cuts the limit from 160 characters to 70 - so a notice that
+    looked fine in the browser silently arrives cut in half, or as three
+    texts instead of one. Replacing the handful of characters that actually
+    cause it is cheaper than explaining that to anyone.
+    """
+    replacements = {
+        "\u2018": "'", "\u2019": "'",  # smart single quotes
+        "\u201c": '"', "\u201d": '"',  # smart double quotes
+        "\u2013": "-", "\u2014": "-", "\u2026": "...",  # en/em dash, ellipsis
+        "\u00a0": " ",  # non-breaking space: invisible, and it costs a whole message
+        "\u20b1": "PHP ", "\u00d7": "x", "\u2022": "-", "\u00b0": " deg",
+    }
+    for bad, good in replacements.items():
+        text = text.replace(bad, good)
+    return text
+
+
 class Complaint(models.Model):
     """A water supply complaint filed from the Owner Portal."""
 

@@ -248,6 +248,79 @@ for real data.
 
 
 ============================================================================
+9c. SENDING SMS  (Notices & SMS tab)
+============================================================================
+WHAT IT IS
+  The SIM800L plugged into THIS COMPUTER, not the one on the ESP32. The
+  household database lives here, so this is the only place that can address
+  a message to the right person by name. The board's own module stays as a
+  last resort for when it cannot reach the server at all.
+
+SENDING ONE BY HAND
+  Dashboard -> Notices & SMS
+  1. Tick the households, or tick "All active households"
+  2. Title and message
+  3. Under "How to send it", tick:
+       Show in the app     - appears in the owner's portal
+       Also send as SMS    - texted to their contact number
+     You can tick both. You must tick at least one.
+  4. Send notice
+
+  A counter under the message shows how many texts it will cost. A text is
+  160 characters; over that it is split into numbered parts ("(1/2) ...").
+
+AUTOMATIC LEAK ALERTS
+  When a line is flagged as a possible leak, the household is texted
+  automatically as well as notified in the app. The text is deliberately
+  short and fits one message:
+
+    LEAK ALERT HH-001: possible leak Sep 16 1:08PM, moderate. Please check
+    all your faucets are closed. If they are and water still runs, tell the
+    facilitator.
+
+  It asks them to check their own taps FIRST. A small leak and a tap left
+  slightly open look identical to the sensors, and the tap is far more
+  common - sending somebody out before asking would waste most trips.
+
+  An all-clear is sent in the app only, not by SMS.
+  Switch automatic texts off with SMS_AUTO_ON_LEAK=0 in .env.
+
+PLUGGING IN THE MODULE
+  1. Connect the SIM800L to the computer (USB-serial adapter).
+     It needs its OWN 3.7-4.2 V supply that can deliver 2 A bursts - USB
+     power alone will brown it out mid-message.
+  2. Put in a SIM with load, or an unli-text promo.
+  3. Start the server. It prints one of:
+       SMS: GSM module on COM7.          <- ready
+       SMS: No GSM module found. ...     <- not ready
+  4. The same line is shown at the top of the Notices & SMS page.
+
+  You normally do NOT have to set the port: the server looks for it, and
+  skips the Bluetooth ports every Windows laptop has. If it picks the wrong
+  one, put the right port in .env:
+       SMS_SERIAL_PORT=COM7
+
+WHEN NOTHING IS SENDING
+  Messages are QUEUED first and sent by a worker in the background, so
+  nothing is ever lost - they simply wait.
+
+  Queued   waiting to go out. Normal for a few seconds; if it stays that
+           way the module is not connected.
+  Sent     the network accepted it.
+  Failed   tried SMS_MAX_ATTEMPTS times (default 3) and gave up. The reason
+           is shown. "Try again" puts it back in the queue.
+
+  A message is NOT charged an attempt when the module is simply missing -
+  that is a site problem, not the message's fault, and it would otherwise
+  burn through the retry budget of everything queued while the module sat
+  in somebody's bag.
+
+  To see exactly what the module says:
+       python manage.py send_sms
+       python manage.py send_sms --watch
+
+
+============================================================================
 9a. ONE HOSE LINE PER HOUSEHOLD
 ============================================================================
 The system used to be three sensor pairs on one board, strung along a single
@@ -722,6 +795,10 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
                       (in the sketch and in Django admin -> Devices;
                        can be regenerated there if it ever leaks)
 
+  SMS                 SIM800L on THIS computer (section 9c). Port is found
+                      automatically; override with SMS_SERIAL_PORT in .env.
+                      Automatic leak texts: SMS_AUTO_ON_LEAK (default on).
+
   Low supply below    0.3 bar per line by default, set at Dashboard ->
                       Lines -> Edit (section 9b). Sent to the board on every
                       upload; no reflash.
@@ -758,6 +835,10 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
       decay), and the motorised valve. The server side is already built and
       accepts severity, trigger and valve_state.
   [ ] Buy and fit the motorised ball valves and 2-channel relays
+  [ ] Connect the SIM800L to the computer and load its SIM, so SMS actually
+      leaves the queue (section 9c)
+  [ ] Replace the placeholder contact numbers on the households with real
+      ones - texts go to whatever is on the record
   [ ] Decide where the main source really is. It is currently at the centre
       of the municipality (9.647119, 125.495095), which is about 2.7 km from
       the households. The monitored run is only 50 m, so the map implies a
@@ -840,6 +921,16 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+16 Sep 2026  Notices can now be sent as SMS as well as in the app, from one
+             compose screen - writing it twice would have guaranteed the two
+             eventually disagreed. Leak alerts text the household
+             automatically, in wording short enough for one message and
+             asking them to check their own faucets first. Messages are
+             queued and sent by a background worker, so a facilitator never
+             waits on a modem and nothing is lost when it is unplugged. The
+             tab is now "Notices & SMS" and carries a delivery log. See
+             section 9c.
 
 16 Sep 2026  A leaking hose is now drawn with a red outline on the leak map,
              keeping its own colour inside so the household stays
