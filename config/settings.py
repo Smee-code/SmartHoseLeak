@@ -190,33 +190,62 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 MUNICIPALITY_NAME = "Sison, Surigao del Norte"
 # ---------------------------------------------------------------- SMS alerts
 #
-# A SIM800L wired to THIS machine, not to the ESP32. The board keeps its own
-# module as a last resort for when it cannot reach the server at all, but the
-# server is where the household database lives, so it is the only place that
-# can address a message to the right person and write it in their language.
+# Sent through Semaphore, a Philippine SMS gateway, over HTTPS.
 #
-# Sending is queued rather than done in the request: a SIM800L takes several
-# seconds per message and a facilitator must never sit watching a spinner
-# because a modem is negotiating with the network. A worker drains the queue
-# in the background, and everything that happens is recorded.
+# The earlier design used a SIM800L plugged into this machine. It was chosen
+# for costing nothing per message on an unli-text promo, and for working with
+# no internet at all - but a hosted server has no USB port to plug a modem
+# into, and pyserial can only open a port on the machine running the code. A
+# gateway works from a laptop and from a data centre alike, so the same build
+# serves the prototype and the deployment with nothing to migrate.
+#
+# What is given up: SMS during an internet outage. That is exactly when it
+# matters most, and the answer to it is the SIM800L on the BOARD - which
+# texts the owner directly when it cannot reach the server at all.
+#
+# Sending stays queued rather than done inside the request. A gateway call is
+# a network round trip that can hang, and a facilitator must never watch a
+# spinner because an API is slow - nor lose the message by reloading.
 SMS_ENABLED = env_bool("SMS_ENABLED", True)
 
-# Blank means "find it": the port a USB-serial adapter lands on changes
-# between machines and between reboots, and hard-coding COM3 guarantees a
-# support call the first time it comes up as COM7.
-SMS_SERIAL_PORT = env("SMS_SERIAL_PORT", "")
-SMS_BAUD = int(env("SMS_BAUD", "9600"))
+# From semaphore.co. Without it nothing is sent and messages wait in the
+# queue, which is the same way the system behaves when any other part of the
+# delivery path is missing.
+SEMAPHORE_API_KEY = env("SEMAPHORE_API_KEY", "")
+
+# What the message appears to come from. Semaphore's default works with no
+# registration; a custom name has to be registered with them first, and an
+# unregistered one is rejected at send time.
+SEMAPHORE_SENDER_NAME = env("SEMAPHORE_SENDER_NAME", "")
+
+SEMAPHORE_BASE_URL = env("SEMAPHORE_BASE_URL", "https://api.semaphore.co/api/v4")
 
 # Text the household automatically when their line is flagged. Off would mean
 # a leak at 2 AM waits for somebody to open a browser.
 SMS_AUTO_ON_LEAK = env_bool("SMS_AUTO_ON_LEAK", True)
 
+# Copy the facilitator on every leak alert, at the contact number on their
+# account. They are the one who has to act on it, and hearing about a leak
+# first from the household that received the text is a poor way to find out.
+SMS_FACILITATOR_ON_LEAK = env_bool("SMS_FACILITATOR_ON_LEAK", True)
+
 # How often the worker looks for queued messages, and how many times it will
-# retry one before giving up. A failed send is almost always no signal or no
-# load, both of which clear on their own, so retrying is worth it - but not
-# forever, or one bad number blocks the queue.
+# retry one before giving up. A failed send is usually a network hiccup or an
+# empty balance, both of which clear, so retrying is worth it - but not
+# forever, or one bad number blocks the queue behind it.
 SMS_POLL_SECONDS = int(env("SMS_POLL_SECONDS", "10"))
 SMS_MAX_ATTEMPTS = int(env("SMS_MAX_ATTEMPTS", "3"))
+
+# Semaphore knows whether a message reached the handset, but only tells us if
+# we ask. Without this the log could say "sent" for a message that never
+# arrived, which is the one thing an alert log must not do.
+SMS_TRACK_DELIVERY = env_bool("SMS_TRACK_DELIVERY", True)
+SMS_DELIVERY_POLL_SECONDS = int(env("SMS_DELIVERY_POLL_SECONDS", "60"))
+
+# Stop asking after this long. A message the gateway has not resolved in a
+# few hours is not going to resolve, and polling it forever would grow into
+# a request per old message per minute.
+SMS_DELIVERY_MAX_AGE_HOURS = int(env("SMS_DELIVERY_MAX_AGE_HOURS", "6"))
 
 MUNICIPALITY_BOUNDS = (9.61325, 125.43605, 9.69744, 125.54105)  # S, W, N, E
 MUNICIPALITY_BOUNDS_MARGIN_DEG = 0.05  # about 5.5 km

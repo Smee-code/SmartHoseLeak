@@ -422,74 +422,105 @@ NOTES
 ============================================================================
 9c. SENDING SMS  (Notices & SMS tab)
 ============================================================================
-WHAT IT IS
-  The SIM800L plugged into THIS COMPUTER, not the one on the ESP32. The
-  household database lives here, so this is the only place that can address
-  a message to the right person by name. The board's own module stays as a
-  last resort for when it cannot reach the server at all.
+WHAT SENDS IT
+  Semaphore (semaphore.co), a Philippine SMS gateway, over the internet.
+  There is NO GSM module on the server any more.
+
+  The earlier plan was a SIM800L plugged into this laptop. It was dropped
+  because a hosted server has no USB port to plug a modem into, and the code
+  can only open a port on the machine it is running on - so the modem and the
+  server would have to stay in the same room forever. A gateway works from
+  this laptop and from a hosted server alike, so nothing has to change later.
+
+  What that gives up is SMS during an internet outage. The answer to that is
+  the SIM800L on the BOARD, which texts the owner directly when it cannot
+  reach the server at all. Different module, different job.
+
+SETTING IT UP  (about 5 minutes)
+  1. Sign up at semaphore.co. They give trial credits.
+  2. Copy your API key.
+  3. Put it in .env in the project folder:
+
+         SEMAPHORE_API_KEY=your-key-here
+
+  4. Restart the server. It prints:
+
+         SMS: Sending through <your account>. Credit: 100.
+
+  The same line is at the top of the Notices & SMS page, with your remaining
+  credit - running out of credit is the failure that looks most like the
+  system being broken, so it is shown before you write anything.
+
+  Cost is roughly PHP 0.50-1 per message. Leak alerts are rare; budget well
+  under PHP 100 a month for seven households.
 
 SENDING ONE BY HAND
   Dashboard -> Notices & SMS
   1. Tick the households, or tick "All active households"
   2. Title and message
-  3. Under "How to send it", tick:
-       Show in the app     - appears in the owner's portal
-       Also send as SMS    - texted to their contact number
-     You can tick both. You must tick at least one.
+  3. Under "How to send it", tick "Show in the app", "Also send as SMS", or
+     both. At least one is required.
   4. Send notice
 
-  A counter under the message shows how many texts it will cost. A text is
-  160 characters; over that it is split into numbered parts ("(1/2) ...").
+  A counter shows how many texts it will cost. Over 160 characters it is
+  split into numbered parts.
 
 AUTOMATIC LEAK ALERTS
-  When a line is flagged as a possible leak, the household is texted
-  automatically as well as notified in the app. The text is deliberately
-  short and fits one message:
+  When a line is flagged, TWO texts go out:
 
-    LEAK ALERT HH-001: possible leak Sep 16 1:08PM, moderate. Please check
-    all your faucets are closed. If they are and water still runs, tell the
-    facilitator.
+    To the household owner:
+      LEAK ALERT HH-001: possible leak Sep 16 1:08PM, moderate. Please check
+      all your faucets are closed. If they are and water still runs, tell the
+      facilitator.
 
-  It asks them to check their own taps FIRST. A small leak and a tap left
-  slightly open look identical to the sensors, and the tap is far more
-  common - sending somebody out before asking would waste most trips.
+    To the facilitator:
+      LEAK: HH-001 (Maria Santos), moderate. 0.20 bar, 1.40 L/min. Detected
+      by night flow. The owner has been asked to check their faucets.
 
-  An all-clear is sent in the app only, not by SMS.
-  Switch automatic texts off with SMS_AUTO_ON_LEAK=0 in .env.
+  They are worded differently on purpose. The owner is asked to check their
+  own taps first - a small leak and a tap left slightly open are identical to
+  the sensors, and the tap is far more common. The facilitator needs to know
+  which house and how bad, to decide whether to go.
 
-PLUGGING IN THE MODULE
-  1. Connect the SIM800L to the computer (USB-serial adapter).
-     It needs its OWN 3.7-4.2 V supply that can deliver 2 A bursts - USB
-     power alone will brown it out mid-message.
-  2. Put in a SIM with load, or an unli-text promo.
-  3. Start the server. It prints one of:
-       SMS: GSM module on COM7.          <- ready
-       SMS: No GSM module found. ...     <- not ready
-  4. The same line is shown at the top of the Notices & SMS page.
+  Both fit in one message. An all-clear is sent in the app only.
 
-  You normally do NOT have to set the port: the server looks for it, and
-  skips the Bluetooth ports every Windows laptop has. If it picks the wrong
-  one, put the right port in .env:
-       SMS_SERIAL_PORT=COM7
+  Switch either off in .env:
+      SMS_AUTO_ON_LEAK=False
+      SMS_FACILITATOR_ON_LEAK=False
 
-WHEN NOTHING IS SENDING
-  Messages are QUEUED first and sent by a worker in the background, so
-  nothing is ever lost - they simply wait.
+  THE FACILITATOR NEEDS A CONTACT NUMBER or their copy is silently skipped.
+  Set it in Django admin -> Users -> facilitator -> Contact number.
 
-  Queued   waiting to go out. Normal for a few seconds; if it stays that
-           way the module is not connected.
-  Sent     the network accepted it.
-  Failed   tried SMS_MAX_ATTEMPTS times (default 3) and gave up. The reason
-           is shown. "Try again" puts it back in the queue.
+READING THE DELIVERY LOG
+  Queued            not handed over yet. Normal for a few seconds.
+  Sent to network   the gateway accepted it and is delivering it.
+  Delivered         it reached the handset. This is confirmed, not assumed.
+  Not delivered     the gateway tried and could not. Reason shown.
+  Failed            could not be handed over at all after 3 attempts.
 
-  A message is NOT charged an attempt when the module is simply missing -
-  that is a site problem, not the message's fault, and it would otherwise
-  burn through the retry budget of everything queued while the module sat
-  in somebody's bag.
+  "Sent to network" and "Delivered" are deliberately different. A gateway
+  accepting a message is not a phone receiving it, and this table exists to
+  answer one question: somebody says they never got a text - did one reach
+  them?
 
-  To see exactly what the module says:
-       python manage.py send_sms
-       python manage.py send_sms --watch
+  "Try again" re-queues anything that failed or was not delivered.
+
+  A missing API key HOLDS messages without using up an attempt - that is a
+  setup problem, not the message's fault.
+
+PHONE NUMBERS
+  09171234501, +639171234501 and 639171234501 are all accepted and converted.
+  A number that is not a valid PH mobile is failed with that reason rather
+  than being sent into nothing.
+
+  THE HOUSEHOLD NUMBERS ARE STILL PLACEHOLDERS. HH-001 is +639171234567.
+  Put a real number - yours - on one household and test with that before
+  turning automatic alerts on, or the first real leak texts a stranger.
+
+CHECKING IT FROM THE TERMINAL
+      python manage.py send_sms              send now, and check delivery
+      python manage.py send_sms --status-only  only check delivery
+      python manage.py send_sms --watch        keep running
 
 
 ============================================================================
@@ -1001,9 +1032,9 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
                       entered on the board via a claim code (section 9d).
                       Both are on Dashboard -> Lines -> Devices.
 
-  SMS                 SIM800L on THIS computer (section 9c). Port is found
-                      automatically; override with SMS_SERIAL_PORT in .env.
-                      Automatic leak texts: SMS_AUTO_ON_LEAK (default on).
+  SMS                 Semaphore gateway (semaphore.co) over the internet.
+                      Needs SEMAPHORE_API_KEY in .env - section 9c.
+                      No GSM module on the server.
 
   Low supply below    0.3 bar per line by default, set at Dashboard ->
                       Lines -> Edit (section 9b). Sent to the board on every
@@ -1044,8 +1075,10 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
       decay), and the motorised valve. The server side is already built and
       accepts severity, trigger and valve_state.
   [ ] Buy and fit the motorised ball valves and 2-channel relays
-  [ ] Connect the SIM800L to the computer and load its SIM, so SMS actually
-      leaves the queue (section 9c)
+  [ ] Sign up at semaphore.co and put SEMAPHORE_API_KEY in .env, so SMS
+      actually leaves the queue (section 9c)
+  [ ] Put a contact number on the facilitator account (Django admin ->
+      Users), or their copy of every leak alert is silently skipped
   [ ] Replace the placeholder contact numbers on the households with real
       ones - texts go to whatever is on the record
   [ ] Decide where the main source really is. It is currently at the centre
@@ -1132,6 +1165,20 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+16 Sep 2026  SMS now goes through the Semaphore gateway instead of a SIM800L
+             plugged into this machine. The modem was chosen for costing
+             nothing per message, but pyserial can only open a port on the
+             machine running the code, so the modem and the server would have
+             had to stay in the same room forever - a gateway works from a
+             laptop and a hosted server alike. The serial code is gone, and
+             with it the pyserial dependency.
+
+             Leak alerts now also copy the facilitator, worded for them
+             rather than for the owner. The delivery log distinguishes
+             "Sent to network" from "Delivered", because the gateway
+             accepting a message is not a phone receiving it, and the log
+             exists to answer exactly that question. See section 9c.
 
 16 Sep 2026  Added VALVE_FITTED and GSM_FITTED to the sketch, both false,
              for testing before the hardware arrives. Without them the board

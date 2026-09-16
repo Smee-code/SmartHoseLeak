@@ -118,6 +118,25 @@ class SmsQueueTests(TestCase):
         self.assertTrue(folded.isascii())
 
 
+class NumberNormalisationTests(TestCase):
+    """
+    Records get written by hand, so the same number arrives three ways.
+
+    Rejecting two of the three would look like the number was wrong rather
+    than punctuated differently - and a rejected number is indistinguishable
+    from a household that never gets its alerts.
+    """
+
+    def test_accepts_the_three_forms_people_actually_write(self):
+        for written in ("09171234501", "+639171234501", "639171234501",
+                        "0917 123 4501", "+63 917-123-4501"):
+            with self.subTest(written=written):
+                self.assertEqual(sms.normalise_number(written), "639171234501")
+
+    def test_rejects_something_that_is_not_a_mobile_number(self):
+        self.assertNotEqual(len(sms.normalise_number("12345")), 12)
+
+
 class SmsWorkerTests(TestCase):
     def setUp(self):
         self.household = Household.objects.create(
@@ -126,16 +145,16 @@ class SmsWorkerTests(TestCase):
         )
 
     @override_settings(SMS_ENABLED=True, SMS_MAX_ATTEMPTS=3)
-    def test_missing_modem_holds_the_message_without_spending_an_attempt(self):
+    def test_missing_api_key_holds_the_message_without_spending_an_attempt(self):
         """
-        No hardware is a site problem, not a message problem.
+        No key is a configuration problem, not a message problem.
 
         Charging an attempt for it would burn the retry budget of every
-        queued message while the modem sat in somebody's bag, and they would
-        all be marked failed before it was ever plugged in.
+        queued message before anybody had signed up for the gateway, and
+        they would all be marked failed before one could ever be sent.
         """
         SmsMessage.queue(self.household, "test")
-        with mock.patch.object(sms, "send_now", side_effect=sms.SmsUnavailable("no GSM module found")):
+        with mock.patch.object(sms, "send_now", side_effect=sms.SmsUnavailable("no API key set")):
             sent, failed, skipped = sms.drain_once()
 
         self.assertEqual((sent, failed, skipped), (0, 0, 1))
@@ -147,7 +166,7 @@ class SmsWorkerTests(TestCase):
     def test_network_refusal_retries_then_gives_up(self):
         """One bad number must not block the queue behind it forever."""
         SmsMessage.queue(self.household, "test")
-        with mock.patch.object(sms, "send_now", side_effect=sms.SmsUnavailable("the network rejected the message")):
+        with mock.patch.object(sms, "send_now", side_effect=sms.SmsUnavailable("gateway refused it (402): insufficient credit")):
             sms.drain_once()
             message = SmsMessage.objects.get()
             self.assertEqual(message.status, SmsMessage.Status.QUEUED)
@@ -158,14 +177,16 @@ class SmsWorkerTests(TestCase):
             self.assertEqual(message.status, SmsMessage.Status.FAILED)
 
     @override_settings(SMS_ENABLED=True)
-    def test_success_records_when_it_went(self):
+    def test_success_records_the_gateway_id_for_the_delivery_check(self):
+        """Without the id there is no way to ask what happened to it."""
         SmsMessage.queue(self.household, "test")
-        with mock.patch.object(sms, "send_now", return_value=None):
+        with mock.patch.object(sms, "send_now", return_value=("12345", "Pending")):
             sent, failed, skipped = sms.drain_once()
 
         self.assertEqual((sent, failed, skipped), (1, 0, 0))
         message = SmsMessage.objects.get()
         self.assertEqual(message.status, SmsMessage.Status.SENT)
+        self.assertEqual(message.provider_message_id, "12345")
         self.assertIsNotNone(message.sent_at)
 
     @override_settings(SMS_ENABLED=False)
@@ -173,3 +194,68 @@ class SmsWorkerTests(TestCase):
         SmsMessage.queue(self.household, "test")
         self.assertEqual(sms.drain_once(), (0, 0, 0))
         self.assertEqual(SmsMessage.objects.get().status, SmsMessage.Status.QUEUED)
+
+
+class DeliveryTrackingTests(TestCase):
+    """
+    The gateway accepting a message is not a phone receiving it.
+
+    An alert log that blurs those two cannot answer the only question ever
+    put to it: somebody says they never got a text - did one reach them?
+    """
+
+    def setUp(self):
+        self.household = Household.objects.create(
+            household_id="HH-005", owner_name="Rosa Mendoza",
+            address="Purok 3", contact_number="+639171234505",
+        )
+        SmsMessage.queue(self.household, "test")
+        self.message = SmsMessage.objects.get()
+        self.message.status = SmsMessage.Status.SENT
+        self.message.provider_message_id = "12345"
+        self.message.sent_at = timezone.now()
+        self.message.save()
+
+    def _poll(self, provider_status):
+        with mock.patch.object(sms, "_get", return_value={"status": provider_status}):
+            return sms.poll_delivery()
+
+    @override_settings(SMS_ENABLED=True, SMS_TRACK_DELIVERY=True, SEMAPHORE_API_KEY="k")
+    def test_gateway_says_sent_means_delivered(self):
+        self.assertEqual(self._poll("Sent"), 1)
+        self.message.refresh_from_db()
+        self.assertEqual(self.message.status, SmsMessage.Status.DELIVERED)
+        self.assertIsNotNone(self.message.delivered_at)
+
+    @override_settings(SMS_ENABLED=True, SMS_TRACK_DELIVERY=True, SEMAPHORE_API_KEY="k")
+    def test_gateway_says_failed_means_not_delivered(self):
+        self.assertEqual(self._poll("Failed"), 1)
+        self.message.refresh_from_db()
+        self.assertEqual(self.message.status, SmsMessage.Status.UNDELIVERED)
+        self.assertIn("Failed", self.message.error)
+
+    @override_settings(SMS_ENABLED=True, SMS_TRACK_DELIVERY=True, SEMAPHORE_API_KEY="k")
+    def test_still_pending_is_left_alone(self):
+        """A verdict we do not have yet must not be invented as either one."""
+        self.assertEqual(self._poll("Pending"), 0)
+        self.message.refresh_from_db()
+        self.assertEqual(self.message.status, SmsMessage.Status.SENT)
+
+    @override_settings(SMS_ENABLED=True, SMS_TRACK_DELIVERY=True, SEMAPHORE_API_KEY="k")
+    def test_a_word_the_gateway_invents_is_kept_but_not_acted_on(self):
+        """
+        Their vocabulary can change. Recording it verbatim makes that visible
+        instead of silently mapping something new onto a wrong verdict.
+        """
+        self.assertEqual(self._poll("Throttled"), 0)
+        self.message.refresh_from_db()
+        self.assertEqual(self.message.status, SmsMessage.Status.SENT)
+        self.assertEqual(self.message.provider_status, "Throttled")
+
+    @override_settings(SMS_ENABLED=True, SMS_TRACK_DELIVERY=True, SEMAPHORE_API_KEY="k")
+    def test_a_failed_lookup_records_no_verdict(self):
+        """The message is fine; the lookup failed. Ask again rather than guess."""
+        with mock.patch.object(sms, "_get", side_effect=sms.SmsUnavailable("timeout")):
+            self.assertEqual(sms.poll_delivery(), 0)
+        self.message.refresh_from_db()
+        self.assertEqual(self.message.status, SmsMessage.Status.SENT)

@@ -21,10 +21,11 @@
     <span>
       <strong>SMS:</strong> {{ gateway_note }}
       {% if not gateway_ready %}
-        Messages you send by SMS are kept in the queue and go out as soon as it is connected.
+        Messages you send by SMS are kept in the queue and go out as soon as this is sorted out.
       {% endif %}
       {% if sms_queued %}&middot; {{ sms_queued }} waiting{% endif %}
-      {% if sms_failed %}&middot; <strong>{{ sms_failed }} failed</strong>{% endif %}
+      {% if sms_awaiting %}&middot; {{ sms_awaiting }} awaiting confirmation{% endif %}
+      {% if sms_failed %}&middot; <strong>{{ sms_failed }} not delivered</strong>{% endif %}
     </span>
   </div>
 
@@ -151,10 +152,24 @@
               </td>
               <td class="small">{{ message.body|truncatechars:90 }}</td>
               <td class="small">{{ message.get_kind_display }}</td>
+              {% comment %}
+                "Sent to network" and "Delivered" are shown apart on purpose.
+                The gateway accepting a message is not a phone receiving it,
+                and this table exists to answer exactly one question: somebody
+                says they never got a text - did one reach them?
+              {% endcomment %}
               <td>
-                {% if message.status == 'sent' %}
-                  <span class="pill pill-ok">Sent</span>
-                  <div class="small muted">{{ message.sent_at|date:"g:i A" }}</div>
+                {% if message.status == 'delivered' %}
+                  <span class="pill pill-ok">Delivered</span>
+                  <div class="small muted">{{ message.delivered_at|date:"g:i A" }}</div>
+                {% elif message.status == 'sent' %}
+                  <span class="pill pill-info">Sent to network</span>
+                  <div class="small muted">
+                    {{ message.sent_at|date:"g:i A" }} &middot; awaiting confirmation
+                  </div>
+                {% elif message.status == 'undelivered' %}
+                  <span class="pill pill-warn">Not delivered</span>
+                  <div class="small muted">{{ message.error|default:"the network could not deliver it" }}</div>
                 {% elif message.status == 'failed' %}
                   <span class="pill pill-danger">Failed</span>
                   <div class="small muted">{{ message.error|default:"no reason recorded" }}</div>
@@ -166,7 +181,7 @@
                 {% endif %}
               </td>
               <td class="right">
-                {% if message.status == 'failed' %}
+                {% if message.status == 'failed' or message.status == 'undelivered' %}
                   <form method="post" action="{% url 'sms_retry' message.pk %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm">Try again</button>

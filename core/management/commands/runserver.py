@@ -65,7 +65,7 @@ class Command(StaticfilesRunserverCommand):
         style = self.style.SUCCESS if ready else self.style.WARNING
         self.stdout.write("  SMS: " + style(note))
         if not ready:
-            self.stdout.write("       Messages will wait in the queue until it is connected.")
+            self.stdout.write("       Messages wait in the queue until this is sorted out.")
         self.stdout.write("")
 
     def _start_discovery(self):

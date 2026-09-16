@@ -944,7 +944,10 @@ def notification_center(request):
             "gateway_note": gateway_note,
             "sms_messages": SmsMessage.objects.select_related("household").order_by("-created_at")[:40],
             "sms_queued": SmsMessage.objects.filter(status=SmsMessage.Status.QUEUED).count(),
-            "sms_failed": SmsMessage.objects.filter(status=SmsMessage.Status.FAILED).count(),
+            "sms_awaiting": SmsMessage.objects.filter(status=SmsMessage.Status.SENT).count(),
+            "sms_failed": SmsMessage.objects.filter(
+                status__in=[SmsMessage.Status.FAILED, SmsMessage.Status.UNDELIVERED]
+            ).count(),
             "sms_single_limit": SmsMessage.SINGLE_LIMIT,
             "auto_sms_on": settings.SMS_AUTO_ON_LEAK,
         },
@@ -965,7 +968,13 @@ def sms_retry(request, pk):
     message.status = SmsMessage.Status.QUEUED
     message.attempts = 0
     message.error = ""
-    message.save(update_fields=["status", "attempts", "error"])
+    # A retry is a new message as far as the gateway is concerned, so the old
+    # id must go - otherwise the delivery poll would keep reading the failed
+    # attempt's verdict and overwrite the new one's.
+    message.provider_message_id = ""
+    message.provider_status = ""
+    message.save(update_fields=["status", "attempts", "error",
+                                "provider_message_id", "provider_status"])
     messages.success(request, f"Queued again for {message.recipient_label}.")
     return redirect("notification_center")
 

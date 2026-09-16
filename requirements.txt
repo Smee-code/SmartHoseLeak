@@ -1,7 +1,8 @@
 Django==5.2.*
 
-# Talking to the SIM800L plugged into this machine, for SMS alerts.
-pyserial>=3.5
+# SMS goes out through the Semaphore HTTP gateway, which needs nothing beyond
+# the standard library. The SIM800L that used to sit on this machine is now
+# only on the ESP32, where it is the fallback for the server being unreachable.
 
 # Only needed if you switch DB_ENGINE to postgres in .env
 # psycopg[binary]>=3.1

@@ -803,8 +803,19 @@ class SmsMessage(models.Model):
         AUTOMATIC = "automatic", "Automatic alert"
 
     class Status(models.TextChoices):
+        """
+        Where a message has got to.
+
+        SENT and DELIVERED are kept apart deliberately. The gateway accepting
+        a message is not the same as a phone receiving it, and an alert log
+        that blurs the two cannot answer the only question anyone ever asks
+        it: "I never got a text - did you send one?"
+        """
+
         QUEUED = "queued", "Queued"
-        SENT = "sent", "Sent"
+        SENT = "sent", "Sent to network"
+        DELIVERED = "delivered", "Delivered"
+        UNDELIVERED = "undelivered", "Not delivered"
         FAILED = "failed", "Failed"
 
     household = models.ForeignKey(
@@ -812,10 +823,25 @@ class SmsMessage(models.Model):
         related_name="sms_messages",
     )
     to_number = models.CharField(max_length=20)
+
+    # Who this went to when it was not a household - the facilitator, or a
+    # standing number. Stored as text rather than another foreign key: the log
+    # has to survive that person's account being renamed or removed.
+    to_name = models.CharField(max_length=120, blank=True)
+
     body = models.TextField()
 
+    # The gateway's own id for this message, which is how its delivery state
+    # is looked up later. Blank until the gateway has accepted it.
+    provider_message_id = models.CharField(max_length=64, blank=True, db_index=True)
+    provider_status = models.CharField(
+        max_length=40, blank=True,
+        help_text="The gateway's own word for it, kept verbatim for diagnosis.",
+    )
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.MANUAL)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED, db_index=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.QUEUED, db_index=True)
     attempts = models.PositiveSmallIntegerField(default=0)
     error = models.CharField(max_length=200, blank=True)
 
@@ -846,7 +872,40 @@ class SmsMessage(models.Model):
     def recipient_label(self):
         if self.household is not None:
             return f"{self.household.household_id} ({self.household.owner_name})"
+        if self.to_name:
+            return f"{self.to_name} ({self.to_number})"
         return self.to_number
+
+    @property
+    def is_settled(self):
+        """Nothing more will happen to this message on its own."""
+        return self.status in {
+            self.Status.DELIVERED, self.Status.UNDELIVERED, self.Status.FAILED
+        }
+
+    @classmethod
+    def queue_to_number(cls, number, body, *, name="", kind=None, sent_by=None, event=None):
+        """
+        A message to somebody who is not a household - the facilitator, or a
+        standing number for the barangay. Same queue, same log, same retries.
+        """
+        number = (number or "").strip()
+        if not number:
+            return []
+
+        body = normalise_for_gsm(body)
+        return [
+            cls.objects.create(
+                household=None,
+                to_number=number,
+                to_name=name,
+                body=part,
+                kind=kind or cls.Kind.AUTOMATIC,
+                sent_by=sent_by,
+                event=event,
+            )
+            for part in cls.split_body(body)
+        ]
 
     @classmethod
     def queue(cls, household, body, *, kind=None, sent_by=None, notification=None, event=None):

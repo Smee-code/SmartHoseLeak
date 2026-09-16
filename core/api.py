@@ -9,6 +9,7 @@ JSON endpoints.
 import json
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
@@ -154,6 +155,52 @@ def _notify_households(segment, event):
             _leak_sms_text(household, event),
             kind=SmsMessage.Kind.AUTOMATIC,
             notification=notices.get(household.id),
+            event=event,
+        )
+
+    _notify_facilitators(segment, event)
+
+
+def _notify_facilitators(segment, event):
+    """
+    Copy the facilitator on a leak alert.
+
+    They are the one who has to act on it, and hearing about a leak first
+    from the household that got the text is a poor way to find out. Their
+    message is worded differently on purpose: the owner is asked to check
+    their own taps, while the facilitator needs to know which house and how
+    bad, so they can decide whether to go.
+    """
+    if not settings.SMS_FACILITATOR_ON_LEAK:
+        return
+
+    User = get_user_model()
+    facilitators = User.objects.filter(
+        role=User.Role.FACILITATOR
+    ).exclude(contact_number="")
+    if not facilitators:
+        return
+
+    household = getattr(segment, "household", None)
+    who = household.household_id if household else segment.name
+    owner = f" ({household.owner_name})" if household else ""
+    severity = ""
+    if event.device_severity and event.device_severity != DeviceSeverity.NONE:
+        severity = f", {event.get_device_severity_display().lower()}"
+
+    text = (
+        f"LEAK: {who}{owner}{severity}. "
+        f"{event.pressure_bar:.2f} bar, {event.flow_lpm:.2f} L/min. "
+        f"Detected by {event.get_trigger_display().lower()}. "
+        f"The owner has been asked to check their faucets."
+    )
+
+    for facilitator in facilitators:
+        SmsMessage.queue_to_number(
+            facilitator.contact_number,
+            text,
+            name=facilitator.get_full_name() or facilitator.username,
+            kind=SmsMessage.Kind.AUTOMATIC,
             event=event,
         )
 
