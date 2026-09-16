@@ -223,28 +223,200 @@ Lines worth knowing:
     [WIFI] Connected. Dashboard: http://192.168.1.42/   <- the board's IP
     [WIFI] Scan result: 7 network(s)                    <- WiFi scan worked
     [UPLOAD] OK                                         <- server receiving
-    [UPLOAD] REJECTED 401 ...                           <- wrong API key
-    [M1] P=2.41 bar | Q=4.20 L/min | K=0.320 | Status:  <- live readings
+    [UPLOAD] REJECTED 401 ...                        <- key not recognised
+    [ID] Claimed as esp32-01                         <- board has an identity
+    [ID] Not claimed. Enter a claim code ...         <- it does not (sec 9d)
+    [CLAIM] Success. This board is esp32-01.         <- claiming worked
+    [CLAIM] could not reach the server ...           <- WiFi has no internet
+    [VALVE] Sealed at 0.812 bar. Holding 300 s.      <- leak test running
+    [FLOW] Ignoring 538.6 L/min ...                  <- noise on the flow wire
+    [M1] P=2.41 bar ... valve=open | NORMAL (none/none)   <- live readings
 
 
 ============================================================================
-9. CALIBRATION AND TEST COMMANDS (typed into the Serial Monitor)
+9. SERIAL MONITOR COMMANDS  (115200 baud)
 ============================================================================
-CALIBRATION - do this before trusting any leak alert.
-The leak test compares measured flow against Q = K x sqrt(P). Until a
-module is calibrated its K is 0 and leak detection is not meaningful.
+ZEROING - do this once per board, before trusting any reading.
 
-    C1        start calibrating module 1   (C2 / C3 for the others)
-    A         capture a point (vary the flow between captures)
-    F         finish and compute K
+    Z         zero the pressure sensor. EMPTY THE LINE FIRST.
+
+  Until this is done the board reports its own resting voltage as pressure -
+  about 0.45 bar on a dry hose. Every threshold is then compared against a
+  number that means nothing, and an empty hose looks like a working one.
+
+VALVE
+
+    V         run a sealed-line test now. It still waits until the line has
+              been idle for 10 minutes; cutting water off while somebody is
+              using it is not something a demonstration gets to override.
+    O         open the valve, abandoning any test in progress.
+    N         pretend it is night, on or off - for testing the night-flow
+              window without staying up until 1 AM.
 
 SIMULATION - inject fake readings without water running:
-    S1,1.2,4.5    module 1: pretend 1.2 bar and 4.5 L/min
-    R1            module 1 back to the real sensor
-    R             all modules back to real sensors
 
-Simulated readings are flagged in the dashboard, so they cannot be mistaken
-for real data.
+    S1,1.2,4.5    pretend 1.2 bar and 4.5 L/min
+    R1            back to the real sensor
+    R             back to the real sensor
+
+  Simulated readings are flagged in the dashboard, so they cannot be
+  mistaken for real data.
+
+THERE IS NO CALIBRATION ANY MORE.
+  The C / A / F commands went with the Q = K x sqrt(P) method. It needed a
+  field calibration nobody could do reliably, and only ever described a line
+  whose conductance had not changed since the day it was measured. The four
+  tests in section 9e replaced it and need no calibration at all.
+
+
+============================================================================
+9a. ONE HOSE LINE PER HOUSEHOLD
+============================================================================
+The system used to be three sensor pairs on one board, strung along a single
+run, with a leak reported as "somewhere between 15 m and 30 m". It is now one
+hose per household - main source straight to the house - with its own board.
+A leak is attributed to a HOUSEHOLD, not to a distance along a pipe.
+
+WHAT CHANGED ON SCREEN
+  - Dashboard shows one ROW per household instead of three big cards.
+  - Each row shows pressure, flow, valve, device and status.
+  - "Distance markers" and "Length" are gone everywhere. There is no
+    distance to record any more.
+  - Lines are named after the household (HH-001 - Maria Santos).
+
+THE BOARD'S OWN PAGE
+  The device's IP address is shown under "live" in the Device column, as a
+  link. Click it to open that board's own page (WiFi settings, live
+  readings, valve state). It is kept current by the dashboard's live poll,
+  because the address changes whenever the network does - which is exactly
+  when you need it.
+
+  There is no longer a single "Device status" tile at the top of the
+  dashboard. With a board per household, one global answer could only
+  describe one of them; the Households table answers it per house.
+
+DEVICE COLUMN - THE THREE STATES
+  No device       grey pill. No board fitted to this hose yet. This is the
+                  rollout working as planned, not a fault.
+  live            green dot. The board reported within the last 10 seconds.
+  not reporting   red dot. A board IS fitted and has gone quiet - power,
+                  WiFi, or the server being down. Somebody should look.
+
+  Those three are deliberately different. A house waiting for hardware and a
+  house whose board has died must never look the same.
+
+ADDING A HOUSEHOLD, ITS HOSE AND ITS BOARD  (all in one)
+  Dashboard -> Households -> Add household.
+
+  The hose line is created for you and named after the household. You are
+  not asked to pick one: a line serves exactly one house, so there was only
+  ever one right answer.
+
+  Under "Hardware", choose one:
+    No device yet             the hose is laid, the board is not fitted.
+                              The dashboard shows "No device", which is the
+                              rollout working, not a fault.
+    Register a new board      a Device ID and API key are generated and
+                              shown when you save.
+    Use a board already       pick from boards that are not on another
+    registered                house's hose.
+
+  CLAIMING THE BOARD
+    1. Dashboard -> Lines -> Devices table. Find the board.
+    2. Press Copy next to the Device ID.
+    3. Join the board's "LeakDetect-Setup" hotspot on the same phone.
+    4. Paste it into the setup page. Do the same for the API key.
+    Nothing is re-flashed. The same sketch runs on every board.
+
+    Do NOT type the key by hand. It is 43 mixed-case characters with dashes
+    and underscores; a typo gives a 401 that looks exactly like a network
+    fault.
+
+  WHERE THE KEY LIVES
+    On the facilitator side, permanently, on the Lines page. It is never
+    typed and cannot be edited - only the server issues one. It stays
+    readable because it has to be entered again if the board is replaced,
+    and unlike an owner password it cannot simply be reset.
+
+  REPLACING A DEAD BOARD
+    Flash the same sketch to the spare, join its hotspot, and paste the SAME
+    Device ID and API key. The household keeps its history.
+    Only use "New key" if the key has actually leaked - the board goes
+    silent the moment you do, until somebody walks to it.
+
+
+ADDING A LINE
+  Dashboard -> Lines -> Add hose line. It is created with NO device: a hose
+  is laid long before a board is fitted to it. When the board arrives, open
+  Edit on that line and pick it in the Device field.
+
+  One board can only be on one line. If you pick a board that is already on
+  another line, the save is refused.
+
+RIGHT NOW
+  Only HH-001 has the board. The other five lines exist with no device, which
+  is exactly what the dashboard is built to show.
+
+  The board is still running the THREE-MODULE sketch, so it posts modules 1,
+  2 and 3. Module 1 lands on HH-001's line; modules 2 and 3 are rejected with
+  "no segment configured for module 2/3" in the reply. That is harmless, and
+  it stops as soon as the per-household firmware is flashed - that build
+  reports one module.
+
+
+============================================================================
+9b. SETTING THE LOW-WATER-SUPPLY THRESHOLD  (from the dashboard, no reflash)
+============================================================================
+Each supply line has its own pressure threshold. Below it, that line is
+reported as Low Water Supply. You change it in the browser and the board
+picks it up on its next upload - within about 2 seconds. Nothing is flashed
+and nothing is restarted.
+
+TO CHANGE IT
+  1. Dashboard -> Lines
+  2. Click Edit on the line
+  3. "Low supply below" - type the value in bar
+  4. Save changes
+
+The Lines table shows every line's current threshold, in bar and psi. The
+board's own page (http://<esp32-ip>) shows it too, in the "Low below" column
+right next to the live pressure, so you can see on site whether a LOW SUPPLY
+reading is a weak line or a threshold set too high for it.
+
+WHAT VALUE TO USE
+Pressure and height are the same thing in a gravity system: 1 bar is about
+10 metres of drop from the source tank down to the sensor. So the right
+threshold is different for every line, and it depends on your site, not on
+the code.
+
+  under 0.2 bar    effectively no water
+  0.2 - 0.3 bar    a trickle
+  0.3 - 0.5 bar    usable but low
+  0.5 - 2.0 bar    normal for a gravity-fed rural system
+  over 4 bar       unusual for gravity - a pump, or a closed valve
+
+The default is 0.3 bar, which is about 3 m of head - the minimum pressure
+rural gravity systems are designed around. It is a safe starting point, not
+an answer.
+
+TO FIND THE REAL VALUE FOR A LINE
+  1. Zero the sensors first (section 9, the Z command). Until that is done
+     the pressure figures are the sensor's own resting voltage, not water,
+     and any threshold is being compared against a meaningless number.
+  2. Run the line normally for a full day - morning, midday, evening.
+  3. Find the lowest pressure seen during a stretch when everybody agreed
+     the water was fine.
+  4. Set the threshold 20-30% below that.
+
+That way "low supply" means "lower than this line has ever been while
+working", which is the only definition that will not cry wolf.
+
+NOTES
+  - The form refuses 0 (could never trigger) and anything above 4 bar (would
+    trigger forever on a gravity line).
+  - The board keeps the last value it was told, in flash. If the WiFi drops
+    or the board reboots, it carries on using your figure - not the default.
+  - A board that has never reached a server uses 0.3 bar.
 
 
 ============================================================================
@@ -401,156 +573,6 @@ THE VALVE
 
 
 ============================================================================
-9a. ONE HOSE LINE PER HOUSEHOLD
-============================================================================
-The system used to be three sensor pairs on one board, strung along a single
-run, with a leak reported as "somewhere between 15 m and 30 m". It is now one
-hose per household - main source straight to the house - with its own board.
-A leak is attributed to a HOUSEHOLD, not to a distance along a pipe.
-
-WHAT CHANGED ON SCREEN
-  - Dashboard shows one ROW per household instead of three big cards.
-  - Each row shows pressure, flow, valve, device and status.
-  - "Distance markers" and "Length" are gone everywhere. There is no
-    distance to record any more.
-  - Lines are named after the household (HH-001 - Maria Santos).
-
-THE BOARD'S OWN PAGE
-  The device's IP address is shown under "live" in the Device column, as a
-  link. Click it to open that board's own page (WiFi settings, live
-  readings, valve state). It is kept current by the dashboard's live poll,
-  because the address changes whenever the network does - which is exactly
-  when you need it.
-
-  There is no longer a single "Device status" tile at the top of the
-  dashboard. With a board per household, one global answer could only
-  describe one of them; the Households table answers it per house.
-
-DEVICE COLUMN - THE THREE STATES
-  No device       grey pill. No board fitted to this hose yet. This is the
-                  rollout working as planned, not a fault.
-  live            green dot. The board reported within the last 10 seconds.
-  not reporting   red dot. A board IS fitted and has gone quiet - power,
-                  WiFi, or the server being down. Somebody should look.
-
-  Those three are deliberately different. A house waiting for hardware and a
-  house whose board has died must never look the same.
-
-ADDING A HOUSEHOLD, ITS HOSE AND ITS BOARD  (all in one)
-  Dashboard -> Households -> Add household.
-
-  The hose line is created for you and named after the household. You are
-  not asked to pick one: a line serves exactly one house, so there was only
-  ever one right answer.
-
-  Under "Hardware", choose one:
-    No device yet             the hose is laid, the board is not fitted.
-                              The dashboard shows "No device", which is the
-                              rollout working, not a fault.
-    Register a new board      a Device ID and API key are generated and
-                              shown when you save.
-    Use a board already       pick from boards that are not on another
-    registered                house's hose.
-
-  CLAIMING THE BOARD
-    1. Dashboard -> Lines -> Devices table. Find the board.
-    2. Press Copy next to the Device ID.
-    3. Join the board's "LeakDetect-Setup" hotspot on the same phone.
-    4. Paste it into the setup page. Do the same for the API key.
-    Nothing is re-flashed. The same sketch runs on every board.
-
-    Do NOT type the key by hand. It is 43 mixed-case characters with dashes
-    and underscores; a typo gives a 401 that looks exactly like a network
-    fault.
-
-  WHERE THE KEY LIVES
-    On the facilitator side, permanently, on the Lines page. It is never
-    typed and cannot be edited - only the server issues one. It stays
-    readable because it has to be entered again if the board is replaced,
-    and unlike an owner password it cannot simply be reset.
-
-  REPLACING A DEAD BOARD
-    Flash the same sketch to the spare, join its hotspot, and paste the SAME
-    Device ID and API key. The household keeps its history.
-    Only use "New key" if the key has actually leaked - the board goes
-    silent the moment you do, until somebody walks to it.
-
-
-ADDING A LINE
-  Dashboard -> Lines -> Add hose line. It is created with NO device: a hose
-  is laid long before a board is fitted to it. When the board arrives, open
-  Edit on that line and pick it in the Device field.
-
-  One board can only be on one line. If you pick a board that is already on
-  another line, the save is refused.
-
-RIGHT NOW
-  Only HH-001 has the board. The other five lines exist with no device, which
-  is exactly what the dashboard is built to show.
-
-  The board is still running the THREE-MODULE sketch, so it posts modules 1,
-  2 and 3. Module 1 lands on HH-001's line; modules 2 and 3 are rejected with
-  "no segment configured for module 2/3" in the reply. That is harmless - the
-  readings you care about still arrive - and it stops once the per-household
-  firmware is flashed.
-
-
-============================================================================
-9b. SETTING THE LOW-WATER-SUPPLY THRESHOLD  (from the dashboard, no reflash)
-============================================================================
-Each supply line has its own pressure threshold. Below it, that line is
-reported as Low Water Supply. You change it in the browser and the board
-picks it up on its next upload - within about 2 seconds. Nothing is flashed
-and nothing is restarted.
-
-TO CHANGE IT
-  1. Dashboard -> Lines
-  2. Click Edit on the line
-  3. "Low supply below" - type the value in bar
-  4. Save changes
-
-The Lines table shows every line's current threshold, in bar and psi. The
-board's own page (http://<esp32-ip>) shows it too, in the "Low below" column
-right next to the live pressure, so you can see on site whether a LOW SUPPLY
-reading is a weak line or a threshold set too high for it.
-
-WHAT VALUE TO USE
-Pressure and height are the same thing in a gravity system: 1 bar is about
-10 metres of drop from the source tank down to the sensor. So the right
-threshold is different for every line, and it depends on your site, not on
-the code.
-
-  under 0.2 bar    effectively no water
-  0.2 - 0.3 bar    a trickle
-  0.3 - 0.5 bar    usable but low
-  0.5 - 2.0 bar    normal for a gravity-fed rural system
-  over 4 bar       unusual for gravity - a pump, or a closed valve
-
-The default is 0.3 bar, which is about 3 m of head - the minimum pressure
-rural gravity systems are designed around. It is a safe starting point, not
-an answer.
-
-TO FIND THE REAL VALUE FOR A LINE
-  1. Zero the sensors first (section 9, the Z command). Until that is done
-     the pressure figures are the sensor's own resting voltage, not water,
-     and any threshold is being compared against a meaningless number.
-  2. Run the line normally for a full day - morning, midday, evening.
-  3. Find the lowest pressure seen during a stretch when everybody agreed
-     the water was fine.
-  4. Set the threshold 20-30% below that.
-
-That way "low supply" means "lower than this line has ever been while
-working", which is the only definition that will not cry wolf.
-
-NOTES
-  - The form refuses 0 (could never trigger) and anything above 4 bar (would
-    trigger forever on a gravity line).
-  - The board keeps the last value it was told, in flash. If the WiFi drops
-    or the board reboots, it carries on using your figure - not the default.
-  - A board that has never reached a server uses 0.3 bar.
-
-
-============================================================================
 10. FLASHING THE FIRMWARE
 ============================================================================
 Sketch to open in the Arduino IDE:
@@ -635,9 +657,17 @@ The C: drive is full / upload fails / compiler "out of memory"
     For more space: Disk Cleanup -> "Clean up system files" ->
     Windows Update Cleanup.
 
-Dashboard shows leaks on lines with 0.00 L/min
-    The modules are not calibrated (K = 0). See section 9. Also check the
-    pressure sensor wiring if readings sit at their maximum.
+Dashboard shows a leak on a line reading 0.00 L/min
+    That is the valve test doing its job. It found the line losing pressure
+    while sealed, which is a leak too small for the flow sensor to register -
+    see section 9e. If the pressure reading also sits at its maximum, check
+    the sensor wiring instead.
+
+The board's page says "Not claimed"
+    It has no identity yet. Enter a claim code on its setup page - section
+    9d. Until then it does not upload at all, deliberately: an unclaimed
+    board posting every 2 seconds would only collect 401s, and a 401 looks
+    exactly like a wrong server address.
 
 The server log shows "database is locked" and a POST /api/ingest/ 500
     That batch of readings was dropped because two things tried to write at
@@ -683,7 +713,7 @@ DELETING A HOUSEHOLD
 
   All of it is permanent; there is no undo in the dashboard. Pressure
   readings and leak events are NOT affected, because those are recorded
-  against the supply line rather than the household.
+  against the hose line rather than the household.
 
   If you only want to stop an owner using the system, set their Account
   status to Inactive with Edit instead of deleting them - that keeps the
@@ -829,16 +859,17 @@ DELETING A LINE
   If a sensor is only being repaired, use Maintenance instead of Delete -
   it silences that line's alerts and keeps every reading.
 
-IMPORTANT - ADDING A LINE DOES NOT ADD A SENSOR.
-A new line reads OFFLINE until the ESP32 actually reports readings for that
-module number. The firmware is currently built for THREE modules
-(NUM_MODULES 3 in the sketch). To make a fourth line live you would have to
-wire a fourth pressure + flow sensor pair and raise NUM_MODULES, which also
-means finding free pins - the ADC1 pins and interrupt-capable pins in
-section 13 are the constraint.
+IMPORTANT - ADDING A LINE DOES NOT ADD A BOARD.
+A new line shows "No device" until a board is fitted and claimed. That is
+not a fault; it is the rollout working, and the dashboard keeps it visually
+distinct from a board that has stopped reporting.
 
-So: add a line in the dashboard when you have added the hardware, not
-before, or you will have a permanently offline line on the dashboard.
+To make it live: register a board for it (Dashboard -> Lines -> Devices, or
+tick "Register a new board" while adding the household), then claim that
+board with its code - section 9d.
+
+There is no line limit any more. One board serves one household, so another
+household means another board, not another module on an existing one.
 
 
 ============================================================================
@@ -986,38 +1017,40 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
 
 
 ============================================================================
-15. IF THE SYSTEM EVER NEEDS MORE THAN 3 LINES  (noted, not built)
+15. SCALING  (this is now how the system works)
 ============================================================================
-Decided 11 Sep 2026. NOTHING HAS BEEN IMPLEMENTED - this is here so the
-reasoning is not lost.
+Superseded 16 Sep 2026. The plan here used to be "one ESP32 per zone, three
+lines each", written while the rig was three sensor pairs sharing a board. It
+was never built, and the design moved past it.
 
-THE PLAN: one ESP32 board per zone.
-    lines 1-3 on board A, lines 4-6 on board B, and so on.
-Each board is registered separately in the dashboard with its own API key.
-Adding a line then means adding or reusing a board - no existing board is
-opened, re-flashed or disturbed.
+HOW IT WORKS NOW
+  One board serves one household. Adding a household means adding a board,
+  and no existing board is opened, re-flashed or disturbed.
 
-WHY NOT JUST ONE BIGGER BOARD:
-One ESP32 tops out at about five lines. Pressure sensors must sit on ADC1
-pins (32, 33, 34, 35, 36, 39) because ADC2 stops working while WiFi is on,
-and flow sensors need interrupt-capable pins, which rules out 34-39.
+  There is no line limit. The old ceiling of about five lines per board came
+  from running out of pins: pressure sensors need ADC1 pins (32-39), because
+  ADC2 stops working while WiFi is on, and flow sensors need interrupt-
+  capable pins, which rules out 34-39. One sensor pair per board removes that
+  constraint entirely.
 
-WHAT IS ALREADY IN PLACE:
-The server side needs no changes. Devices already exist as records, each
-with its own API key, every line already belongs to a device, and line
-numbers are unique PER DEVICE - so "M1" on board A and "M1" on board B are
-already two different lines.
+  Boards are numbered separately from households - esp32-01, esp32-02 - and
+  the server links a board to a household's line. A board is a physical
+  object with a service life; a household is a place. Naming the board after
+  the house would mean a replacement board had to reuse that name, and the
+  event log could then never tell the original board from the one fitted
+  after it failed.
 
-WHAT IS STILL MISSING:
-Only the firmware. It is hardcoded to three modules. A related idea, also
-not built, is to have each board ask the server at boot which modules it is
-running and remember the answer in flash - the same way it already remembers
-the WiFi network and the server address. That would remove re-flashing
-entirely: wire the sensor, add the line in the dashboard, reboot that one
-board.
+WHAT IT COSTS PER HOUSEHOLD
+  An ESP32, a pressure sensor, a flow sensor, a motorised ball valve (about
+  PHP 938), a 2-channel relay, and the fittings. The valve is the largest
+  single item - see section 14.
 
-FOR NOW: adding a line in the dashboard without the matching sensor and
-firmware module just creates a row that reads OFFLINE forever.
+THE ONE THING THAT DOES NOT SCALE YET
+  The server. It is one machine running `runserver`, which is a development
+  server and says so. Past a handful of boards posting every 2 seconds it
+  should move to a real WSGI server, and the readings table will need
+  trimming - a minute-level rollup already exists, but the raw table grows
+  without bound.
 
 
 ============================================================================
@@ -1054,6 +1087,12 @@ CHANGE LOG OF THIS GUIDE
              used to keep posting to the old one until someone noticed and
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
+
+16 Sep 2026  Retired the calibration instructions in section 9 - they
+             described C / A / F commands the sketch no longer has - and
+             replaced them with the zeroing and valve commands. Section 15
+             rewrote the old "one board per zone" scaling plan, which the
+             design has passed. Sections 9a to 9e are in reading order.
 
 16 Sep 2026  The firmware is now a per-household device: one sensor pair,
              the four pattern-based leak tests, the motorised valve, NTP for
