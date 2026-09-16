@@ -1189,3 +1189,41 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 .btn-copy { padding: .12rem .45rem; font-size: .72rem; margin-left: .35rem; }
 .btn-copy.is-copied { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+
+
+/* --------------------------------------------------------------- sent feed
+   What has gone out, as rows rather than cards.
+
+   Every reply in a complaint thread also becomes a notice for the owner, so
+   this list is mostly one-line replies. A card each meant seven short
+   messages filled the panel, and it grew with every reply ever sent.
+   -------------------------------------------------------------------------- */
+
+.sent-feed { display: flex; flex-direction: column; }
+
+.sent-row {
+  display: flex; align-items: baseline; gap: .55rem;
+  padding: .45rem .1rem;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none; color: var(--text);
+  font-size: .86rem;
+}
+.sent-row:last-child { border-bottom: 0; }
+a.sent-row:hover { background: var(--surface-2); }
+
+.sent-icon { flex: 0 0 auto; color: var(--text-muted); font-size: .9rem; }
+
+/* min-width: 0 so the text can actually ellipsis inside a flex row - without
+   it the line grows instead and pushes the date off the panel. */
+.sent-main { flex: 1 1 auto; min-width: 0; }
+
+.sent-text {
+  display: block;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sent-meta { display: block; font-size: .74rem; color: var(--text-muted); }
+.sent-time { flex: 0 0 auto; font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+
+/* A reply is quieter than a notice the facilitator wrote: it is already
+   handled in the thread, and this list is only saying it happened. */
+.sent-row.is-reply .sent-text { color: var(--text-muted); }

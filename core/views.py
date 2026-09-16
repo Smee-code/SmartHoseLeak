@@ -928,11 +928,7 @@ def notification_center(request):
                 )
             return redirect("notification_center")
 
-    sent = (
-        Notification.objects.filter(kind__in=[Notification.Kind.TARGETED, Notification.Kind.BROADCAST])
-        .select_related("recipient")
-        .order_by("-created_at")[:40]
-    )
+    sent = _recent_notice_feed()
     gateway_ready, gateway_note = sms.describe_gateway()
     return render(
         request,
@@ -952,6 +948,53 @@ def notification_center(request):
             "auto_sms_on": settings.SMS_AUTO_ON_LEAK,
         },
     )
+
+
+def _recent_notice_feed(limit=40):
+    """
+    What has gone out, collapsed so a conversation does not fill the page.
+
+    Every reply in a complaint thread also becomes a notice for the owner, so
+    a five-message exchange used to produce five entries here, each with a
+    full title ("Reply to your complaint CMP-260911-96A2") wrapped around a
+    body like "ok". The list meant for notices the facilitator composed was
+    almost entirely made of them.
+
+    Consecutive replies to the same complaint are folded into one row showing
+    the latest, with a count of the rest. Only consecutive ones: a run broken
+    by something else is genuinely two separate moments, and merging across
+    the gap would put a reply above a notice that came after it.
+    """
+    rows = []
+    notifications = (
+        Notification.objects.filter(
+            kind__in=[Notification.Kind.TARGETED, Notification.Kind.BROADCAST]
+        )
+        .select_related("recipient", "complaint")
+        .order_by("-created_at")[: limit * 3]
+    )
+
+    for notification in notifications:
+        if (
+            notification.complaint_id
+            and rows
+            and rows[-1]["complaint"] is not None
+            and rows[-1]["complaint"].pk == notification.complaint_id
+        ):
+            rows[-1]["also"] += 1
+            continue
+
+        rows.append(
+            {
+                "notification": notification,
+                "complaint": notification.complaint,
+                "also": 0,
+            }
+        )
+        if len(rows) >= limit:
+            break
+
+    return rows
 
 
 @facilitator_required

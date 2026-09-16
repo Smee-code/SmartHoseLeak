@@ -491,6 +491,18 @@ AUTOMATIC LEAK ALERTS
   THE FACILITATOR NEEDS A CONTACT NUMBER or their copy is silently skipped.
   Set it in Django admin -> Users -> facilitator -> Contact number.
 
+"RECENTLY SENT"
+  Rows, not cards. Every reply you write in a complaint thread also becomes a
+  notice for that owner, so this list is mostly one-line replies - seven
+  short messages used to fill the whole panel, and it grew with every reply
+  ever sent.
+
+  A reply is shown as one compact line and LINKS TO THE THREAD, which is
+  where you can actually do something about it. Several replies in a row to
+  the same complaint are folded into one line with "+2 more replies".
+
+  Notices you composed keep their title, in bold, with an envelope.
+
 READING THE DELIVERY LOG
   Queued            not handed over yet. Normal for a few seconds.
   Sent to network   the gateway accepted it and is delivering it.

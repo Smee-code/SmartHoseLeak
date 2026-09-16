@@ -99,20 +99,46 @@
 
     <div class="card">
       <div class="card-head"><h2>Recently sent</h2></div>
-      <div class="notice-list">
-        {% for notification in sent %}
-          <div class="notice" data-kind="{{ notification.kind }}">
-            <div class="notice-head">
-              <p class="notice-title">{{ notification.title }}</p>
-              <span class="notice-time">{{ notification.created_at|date:"M j, g:i A" }}</span>
-            </div>
-            <p class="notice-body">{{ notification.body|truncatewords:28 }}</p>
-            <p class="small muted" style="margin:.35rem 0 0">
-              {{ notification.get_kind_display }} &rarr;
-              {% if notification.recipient %}{{ notification.recipient.household_id }}{% else %}all households{% endif %}
-              {% if notification.read_at %}&middot; read{% else %}&middot; unread{% endif %}
-            </p>
-          </div>
+      {% comment %}
+        Rows, not cards. Every reply in a complaint thread also becomes a
+        notice for the owner, so this list was almost entirely one-line
+        replies wearing a full card each - a title like "Reply to your
+        complaint CMP-260911-96A2" wrapped around a body of "ok".
+
+        A reply is shown as its own compact line that links to the thread,
+        because the thread is where it can actually be acted on. Consecutive
+        replies to the same complaint are folded into one row.
+      {% endcomment %}
+      <div class="sent-feed">
+        {% for row in sent %}
+          {% with n=row.notification %}
+            {% if row.complaint %}
+              <a class="sent-row is-reply" href="{% url 'complaint_thread' row.complaint.pk %}">
+                <span class="sent-icon" aria-hidden="true">&#8617;</span>
+                <span class="sent-main">
+                  <span class="sent-text">{{ n.body|truncatechars:70 }}</span>
+                  <span class="sent-meta">
+                    {% if n.recipient %}{{ n.recipient.household_id }}{% endif %}
+                    &middot; {{ row.complaint.reference }}
+                    {% if row.also %}&middot; +{{ row.also }} more repl{{ row.also|pluralize:"y,ies" }}{% endif %}
+                  </span>
+                </span>
+                <time class="sent-time">{{ n.created_at|date:"M j" }}</time>
+              </a>
+            {% else %}
+              <div class="sent-row" data-kind="{{ n.kind }}">
+                <span class="sent-icon" aria-hidden="true">&#9993;</span>
+                <span class="sent-main">
+                  <span class="sent-text"><strong>{{ n.title }}</strong> &mdash; {{ n.body|truncatechars:60 }}</span>
+                  <span class="sent-meta">
+                    {% if n.recipient %}{{ n.recipient.household_id }}{% else %}all households{% endif %}
+                    &middot; {% if n.read_at %}read{% else %}unread{% endif %}
+                  </span>
+                </span>
+                <time class="sent-time">{{ n.created_at|date:"M j" }}</time>
+              </div>
+            {% endif %}
+          {% endwith %}
         {% empty %}
           <p class="empty">No notices sent yet.</p>
         {% endfor %}
