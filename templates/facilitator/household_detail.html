@@ -69,34 +69,70 @@
   </div>
 
   <div class="split" style="margin-top:1.6rem">
+    {% comment %}
+      Both panels as rows rather than a card per entry.
+
+      A card each made sense when a household had two of something. This
+      household has five complaints and seven notices, every one of the
+      notices a one-line reply in one of those threads, and the page ran to
+      several screens of chrome wrapped around the word "ok".
+    {% endcomment %}
     <div class="card">
-      <div class="card-head"><h2>Complaints</h2></div>
-      {% for complaint in complaints %}
-        <div class="notice">
-          <div class="notice-head">
-            <p class="notice-title"><a href="{% url 'complaint_thread' complaint.pk %}">{{ complaint.subject }}</a></p>
-            <span class="notice-time">{{ complaint.created_at|date:"M j, Y" }}</span>
-          </div>
-          <p class="notice-body">{{ complaint.reference }} &middot; {{ complaint.get_status_display }}</p>
-        </div>
-      {% empty %}
-        <p class="empty">No complaints filed by this household.</p>
-      {% endfor %}
+      <div class="card-head">
+        <h2>Complaints</h2>
+        <span class="small muted">{{ complaints|length }}</span>
+      </div>
+      <div class="sent-feed">
+        {% for complaint in complaints %}
+          <a class="sent-row" href="{% url 'complaint_thread' complaint.pk %}">
+            <span class="sent-icon" aria-hidden="true">&#9993;</span>
+            <span class="sent-main">
+              <span class="sent-text"><strong>{{ complaint.subject }}</strong></span>
+              <span class="sent-meta">{{ complaint.reference }} &middot; {{ complaint.get_status_display }}</span>
+            </span>
+            <time class="sent-time">{{ complaint.created_at|date:"M j" }}</time>
+          </a>
+        {% empty %}
+          <p class="empty">No complaints filed by this household.</p>
+        {% endfor %}
+      </div>
     </div>
 
     <div class="card">
       <div class="card-head"><h2>Notices sent</h2></div>
-      {% for notification in notifications %}
-        <div class="notice" data-kind="{{ notification.kind }}">
-          <div class="notice-head">
-            <p class="notice-title">{{ notification.title }}</p>
-            <span class="notice-time">{{ notification.created_at|date:"M j, g:i A" }}</span>
-          </div>
-          <p class="notice-body">{{ notification.body|truncatewords:24 }}</p>
-        </div>
-      {% empty %}
-        <p class="empty">No notices sent to this household yet.</p>
-      {% endfor %}
+      <div class="sent-feed">
+        {% for row in notifications %}
+          {% with n=row.notification %}
+            {% if row.complaint %}
+              <a class="sent-row is-reply" href="{% url 'complaint_thread' row.complaint.pk %}">
+                <span class="sent-icon" aria-hidden="true">&#8617;</span>
+                <span class="sent-main">
+                  <span class="sent-text">{{ n.body|truncatechars:64 }}</span>
+                  <span class="sent-meta">
+                    {{ row.complaint.reference }}
+                    {% if row.also %}&middot; +{{ row.also }} more repl{{ row.also|pluralize:"y,ies" }}{% endif %}
+                  </span>
+                </span>
+                <time class="sent-time">{{ n.created_at|date:"M j" }}</time>
+              </a>
+            {% else %}
+              <div class="sent-row" data-kind="{{ n.kind }}">
+                <span class="sent-icon" aria-hidden="true">&#9993;</span>
+                <span class="sent-main">
+                  <span class="sent-text"><strong>{{ n.title }}</strong> &mdash; {{ n.body|truncatechars:54 }}</span>
+                  <span class="sent-meta">
+                    {{ n.get_kind_display }} &middot;
+                    {% if n.read_at %}read{% else %}unread{% endif %}
+                  </span>
+                </span>
+                <time class="sent-time">{{ n.created_at|date:"M j" }}</time>
+              </div>
+            {% endif %}
+          {% endwith %}
+        {% empty %}
+          <p class="empty">No notices sent to this household yet.</p>
+        {% endfor %}
+      </div>
     </div>
   </div>
 </div>

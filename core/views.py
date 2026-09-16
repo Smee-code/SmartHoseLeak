@@ -356,7 +356,13 @@ def household_detail(request, pk):
         {
             "household": household,
             "complaints": household.complaints.all()[:10],
-            "notifications": household.notifications.all()[:10],
+            # Same folding as the Notices page. Every reply in a thread also
+            # becomes a notice for this household, so their own page was
+            # mostly a card per "ok" - and this household's page is the one
+            # place all of their replies land together.
+            "notifications": _recent_notice_feed(
+                limit=12, queryset=household.notifications.select_related("complaint")
+            ),
         },
     )
 
@@ -950,7 +956,7 @@ def notification_center(request):
     )
 
 
-def _recent_notice_feed(limit=40):
+def _recent_notice_feed(limit=40, queryset=None):
     """
     What has gone out, collapsed so a conversation does not fill the page.
 
@@ -966,13 +972,13 @@ def _recent_notice_feed(limit=40):
     the gap would put a reply above a notice that came after it.
     """
     rows = []
-    notifications = (
-        Notification.objects.filter(
-            kind__in=[Notification.Kind.TARGETED, Notification.Kind.BROADCAST]
-        )
-        .select_related("recipient", "complaint")
-        .order_by("-created_at")[: limit * 3]
-    )
+    base = queryset if queryset is not None else Notification.objects.filter(
+        kind__in=[Notification.Kind.TARGETED, Notification.Kind.BROADCAST]
+    ).select_related("recipient", "complaint")
+
+    # Over-fetch, because folding consecutive replies means the number of rows
+    # produced is smaller than the number of records read.
+    notifications = base.order_by("-created_at")[: limit * 3]
 
     for notification in notifications:
         if (
