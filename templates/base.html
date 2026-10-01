@@ -45,7 +45,9 @@
   {% if user.is_authenticated %}
     <aside class="sidenav" id="sidenav" aria-label="Main navigation">
       <div class="sidenav-head">
-        <a class="brand" href="{% url 'home' %}">
+        {# Signed in, the logo means "back to my dashboard", not "sign out to
+           the public page". post_login is what decides which dashboard. #}
+        <a class="brand" href="{% url 'post_login' %}">
           <img src="{% static 'img/icon.svg' %}" alt="" width="32" height="32">
           <span>
             <strong>Smart Hose Leak</strong>
@@ -129,7 +131,7 @@
           </button>
         {% endif %}
 
-        <a class="brand brand-topbar" href="{% url 'home' %}">
+        <a class="brand brand-topbar" href="{% if user.is_authenticated %}{% url 'post_login' %}{% else %}{% url 'home' %}{% endif %}">
           <img src="{% static 'img/icon.svg' %}" alt="" width="32" height="32">
           <span>
             <strong>Smart Hose Leak</strong>

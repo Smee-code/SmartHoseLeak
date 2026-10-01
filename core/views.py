@@ -82,8 +82,38 @@ def owner_required(view):
 # ---------------------------------------------------------------------------
 
 
+def _home_for(user):
+    """
+    Where a signed-in user belongs, or None if they have nowhere of their own.
+
+    None is not a quirk to tidy away. A superuser made with createsuperuser is
+    neither a facilitator nor a household, and if this returned a destination
+    for them anyway, home() and post_login() would redirect to each other for
+    as long as the browser allowed it. They get the public page instead.
+    """
+    if not user.is_authenticated:
+        return None
+    if user.is_facilitator:
+        return "dashboard"
+    if getattr(user, "household", None) is not None:
+        return "owner_home"
+    return None
+
+
 def home(request):
-    """Public-facing homepage, shown to both user types before login."""
+    """
+    The public page - and only for the public.
+
+    Signed in, this used to render the marketing page over the top of a
+    working session: the facilitator's own logo in the sidebar pointed here,
+    so clicking it dropped them out of the dashboard and onto a page inviting
+    them to sign in, which they already had. Anyone with a place of their own
+    is sent to it.
+    """
+    destination = _home_for(request.user)
+    if destination:
+        return redirect(destination)
+
     segments = (
         Segment.objects.filter(is_active=True)
         .select_related("latest", "device", "household")
@@ -111,12 +141,13 @@ def home(request):
 
 @login_required
 def post_login(request):
-    """Send each role to its own landing page after authentication."""
-    if request.user.is_facilitator:
-        return redirect("dashboard")
-    if getattr(request.user, "household", None) is not None:
-        return redirect("owner_home")
-    return redirect("home")
+    """
+    Send each role to its own landing page after authentication.
+
+    Also what the brand in the header points at once somebody is signed in,
+    so "take me home" means their dashboard rather than the public page.
+    """
+    return redirect(_home_for(request.user) or "home")
 
 
 # ---------------------------------------------------------------------------

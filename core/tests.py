@@ -15,6 +15,8 @@ from django.utils import timezone
 
 from core import sms
 from core.api import _leak_sms_text
+from django.urls import reverse
+
 from core.models import (
     Device,
     DeviceSeverity,
@@ -22,6 +24,7 @@ from core.models import (
     LeakEvent,
     Segment,
     SmsMessage,
+    User,
     normalise_for_gsm,
 )
 
@@ -321,3 +324,68 @@ class GatewayStateTests(TestCase):
         """A value we cannot parse is not evidence that the account is empty."""
         ready, _ = self._describe({"credit_balance": "unlimited"})
         self.assertTrue(ready)
+
+
+class PublicPageRoutingTests(TestCase):
+    """
+    The public page is for the public.
+
+    Signed in, "/" used to render the marketing page over a working session -
+    and the logo in the sidebar pointed at it, so clicking your own brand
+    dropped you out of the dashboard onto a page asking you to sign in.
+    """
+
+    def setUp(self):
+        self.facilitator = User.objects.create_user(
+            username="fac", password="pw", role=User.Role.FACILITATOR
+        )
+        self.owner_user = User.objects.create_user(
+            username="own", password="pw", role=User.Role.OWNER
+        )
+        self.segment = Segment.objects.create(name="HH-900 - Test", color="#0b6ea8")
+        self.household = Household.objects.create(
+            household_id="HH-900",
+            owner_name="Test Owner",
+            address="Purok 1",
+            contact_number="09171234500",
+            user=self.owner_user,
+            segment=self.segment,
+        )
+
+    def test_signed_out_still_sees_the_public_page(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "home.html")
+
+    def test_the_facilitator_is_sent_to_their_dashboard(self):
+        self.client.force_login(self.facilitator)
+        self.assertRedirects(self.client.get("/"), reverse("dashboard"))
+
+    def test_an_owner_is_sent_to_their_own_portal(self):
+        self.client.force_login(self.owner_user)
+        self.assertRedirects(self.client.get("/"), reverse("owner_home"))
+
+    def test_an_account_with_no_household_does_not_bounce_forever(self):
+        """
+        An owner account whose household is gone has nowhere of its own. If
+        home() redirected it anyway, home() and post_login() would redirect
+        to each other until the browser gave up - so it gets the public page.
+        """
+        self.household.delete()
+        stray = User.objects.create_user(
+            username="stray", password="pw", role=User.Role.OWNER
+        )
+        self.client.force_login(stray)
+
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "home.html")
+
+        self.assertRedirects(self.client.get(reverse("post_login")), "/")
+
+    def test_the_brand_in_the_header_keeps_a_signed_in_user_inside(self):
+        """The logo is the commonest way anybody reached the public page."""
+        self.client.force_login(self.facilitator)
+        body = self.client.get(reverse("dashboard")).content.decode()
+        self.assertIn(f'href="{reverse("post_login")}"', body)
+        self.assertNotIn('class="brand" href="/"', body)
