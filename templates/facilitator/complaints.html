@@ -36,7 +36,7 @@
       <div class="thread-search">
         <label class="sr-only" for="thread-search">Search conversations</label>
         <input type="search" id="thread-search" autocomplete="off"
-               placeholder="Search owner or household ID"
+               placeholder="Search by subject, owner or household"
                data-thread-search>
       </div>
 
@@ -53,15 +53,30 @@
         {% endcomment %}
         <a class="thread-item{% if complaint and t.pk == complaint.pk %} is-active{% endif %}{% if t.unread %} is-unread{% endif %}"
            href="{% url 'complaint_thread' t.pk %}"
-           data-search="{{ t.household.owner_name|lower }} {{ t.household.household_id|lower }}"
+           {% comment %}
+             The subject is in here now because the subject is what the row
+             leads with. Indexing only the owner and the id meant typing the
+             words you could see returned nothing - the one search result a
+             person never expects.
+           {% endcomment %}
+           data-search="{{ t.subject|lower }} {{ t.household.owner_name|lower }} {{ t.household.household_id|lower }} {{ t.reference|lower }}"
            {% if t.unread %}aria-label="{{ t.household.owner_name }}, {{ t.unread }} unread message{{ t.unread|pluralize }}"{% endif %}>
           <span class="thread-avatar" aria-hidden="true">{{ t.household.owner_name|first|upper }}</span>
           <span class="thread-item-body">
+            {% comment %}
+              The subject leads, not the name.
+
+              This is not a messenger where a thread is a person - a thread
+              is one problem, and a household can have five open at once. All
+              five rows here read "Maria Santos" while the thing that tells
+              them apart sat underneath in grey. The avatar already says who;
+              the subject is the only part that identifies which.
+            {% endcomment %}
             <span class="thread-item-top">
-              <strong>{{ t.household.owner_name }}</strong>
+              <strong>{{ t.subject }}</strong>
               <time>{{ t.last_message_at|date:"M j" }}</time>
             </span>
-            <span class="thread-item-sub">{{ t.household.household_id }} &middot; {{ t.subject }}</span>
+            <span class="thread-item-sub">{{ t.household.owner_name }}, {{ t.household.household_id }}</span>
             <span class="thread-item-foot">
               <span class="pill pill-sm pill-{{ t.status }}">{{ t.get_status_display }}</span>
               {% if t.unread %}
@@ -88,11 +103,17 @@
           <a class="thread-back" href="{% url 'complaint_list' %}" aria-label="Back to the inbox">
             <span aria-hidden="true">&larr;</span>
           </a>
+          {% comment %}
+            Same order as the list it was opened from, so the thing clicked is
+            the thing now at the top. The three-part string joined by middle
+            dots became a sentence; the reference is kept apart because it is
+            the one piece here that gets quoted back over the phone.
+          {% endcomment %}
           <div class="thread-head-main">
-            <h2>{{ complaint.household.owner_name }}</h2>
+            <h2>{{ complaint.subject }}</h2>
             <p class="sub">
-              {{ complaint.subject }} &middot; {{ complaint.reference }} &middot;
-              {{ complaint.get_category_display }}
+              {{ complaint.get_category_display }} from {{ complaint.household.owner_name }}
+              <span class="thread-ref">{{ complaint.reference }}</span>
             </p>
           </div>
           <form method="post" action="{% url 'complaint_status' complaint.pk %}" class="thread-status">
@@ -102,21 +123,41 @@
           </form>
         </header>
 
+        {% comment %}
+          This read "HH-001 - Purok 1, Lower Dakong Patag - HH-001 - Maria
+          Santos - +639171234567": the household id twice, the owner's name
+          again, all strung together with middle dots. The line's name is
+          dropped from the string because it IS the id and the owner - it is
+          still one click away on the household page.
+
+          What is left is what the facilitator actually needs while reading:
+          where this house is, and the number to ring.
+        {% endcomment %}
         <div class="thread-context">
           <a href="{% url 'household_detail' complaint.household.pk %}">{{ complaint.household.household_id }}</a>
-          &middot; {{ complaint.household.address }}
-          {% if complaint.household.segment %}
-            &middot; {{ complaint.household.segment.name }}
+          <span class="thread-context-where">{{ complaint.household.address }}</span>
+          {% if complaint.household.contact_number %}
+            <a class="thread-context-call" href="tel:{{ complaint.household.contact_number }}">{{ complaint.household.contact_number }}</a>
           {% endif %}
-          &middot; {{ complaint.household.contact_number }}
         </div>
 
+        {% comment %}
+          The time is shown when it changes, not under every line. Three
+          replies sent in the same minute carried three identical copies of
+          "Sep 14, 3:47 PM", which is more text than the messages themselves
+          - "Okay ma'am" is nine characters.
+
+          ifchanged compares against the previous iteration, so a run of
+          messages in the same minute is stamped once, at the end of the run.
+        {% endcomment %}
         <div class="thread-messages" id="thread-messages">
           {% for m in messages_list %}
+            {% ifchanged m.created_at|date:"M j, g:i A" %}
+              <time class="thread-when">{{ m.created_at|date:"M j, g:i A" }}</time>
+            {% endifchanged %}
             <div class="bubble-row {% if m.from_owner %}from-them{% else %}from-me{% endif %}">
               <div class="bubble">
                 <p>{{ m.body|linebreaksbr }}</p>
-                <time>{{ m.created_at|date:"M j, g:i A" }}</time>
               </div>
             </div>
           {% endfor %}

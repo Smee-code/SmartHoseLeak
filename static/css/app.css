@@ -677,18 +677,45 @@ body.modal-open { overflow: hidden; }
 }
 .thread-back:hover { background: var(--surface-2); }
 
+/* Where the house is and the number to ring - the two things wanted while
+   reading a complaint. Spaced rather than strung together with middle dots,
+   which is the commonest tell of a generated page and reads as one run-on
+   string rather than three separate facts. */
 .thread-context {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.1rem;
   padding: .5rem 1rem; border-bottom: 1px solid var(--border);
-  background: var(--surface-2); font-size: .8rem; color: var(--text-muted);
+  background: var(--surface-2); font-size: .85rem; color: var(--text-muted);
+}
+.thread-context-where { min-width: 0; }
+.thread-context-call { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* The one string here that gets read out over the phone. */
+.thread-ref {
+  margin-left: .5rem; font-family: var(--mono); font-size: .8rem;
+  color: var(--text-muted);
 }
 
+/* The conversation sits against the composer, not at the top of the pane.
+   A short thread used to float at the ceiling with a field of empty space
+   between the last message and the box you reply in - every chat anybody has
+   used grows upward from the place they type. justify-content does it
+   without scripting, and the pane still scrolls when a thread is long. */
 .thread-messages {
-  flex: 1 1 auto; overflow-y: auto; max-height: 48vh;
-  padding: 1rem; display: flex; flex-direction: column; gap: .55rem;
+  flex: 1 1 auto; overflow-y: auto; max-height: 48vh; min-height: 14rem;
+  padding: 1rem; display: flex; flex-direction: column;
+  justify-content: flex-end; gap: .3rem;
 }
-.bubble-row { display: flex; }
-.bubble-row.from-them { justify-content: flex-start; }
-.bubble-row.from-me { justify-content: flex-end; }
+/* A row is now a bubble and, sometimes, the time beneath it - so it stacks
+   and aligns its children to whichever side the message came from. */
+.bubble-row { display: flex; flex-direction: column; }
+.bubble-row.from-them { align-items: flex-start; }
+.bubble-row.from-me { align-items: flex-end; }
+
+/* Consecutive messages from the same side tuck closer together than the gap
+   between speakers, so a run reads as one turn rather than three. */
+.bubble-row + .bubble-row { margin-top: .5rem; }
+.bubble-row.from-them + .bubble-row.from-them,
+.bubble-row.from-me + .bubble-row.from-me { margin-top: .12rem; }
 .bubble {
   max-width: min(72%, 44rem);
   padding: .55rem .75rem; border-radius: 14px;
@@ -697,8 +724,20 @@ body.modal-open { overflow: hidden; }
 .from-me .bubble {
   background: var(--brand); border-color: var(--brand); color: #fff;
 }
-.bubble p { margin: 0; font-size: .92rem; }
-.bubble time { display: block; margin-top: .2rem; font-size: .7rem; opacity: .75; }
+.bubble p { margin: 0; font-size: .95rem; line-height: 1.45; }
+
+/* The time heads its group rather than trailing one message inside it.
+   Printed once per minute, not once per message: three replies sent in the
+   same minute carried three identical copies of "Sep 14, 3:47 PM", which is
+   more text than the messages it stamped - "Okay ma'am" is nine characters.
+
+   Centred, because it belongs to the conversation rather than to either
+   speaker, which is also where every chat anybody has used puts it. */
+.thread-when {
+  align-self: center; margin: .85rem 0 .35rem;
+  font-size: .75rem; color: var(--text-muted);
+}
+.thread-when:first-child { margin-top: 0; }
 
 .thread-compose {
   display: flex; gap: .5rem; align-items: flex-end;
@@ -1832,3 +1871,8 @@ a.sent-row:hover { background: var(--surface-2); }
   display: block; max-width: 26ch; margin-top: .15rem;
   overflow-wrap: anywhere; font-size: .8rem; color: var(--text-muted);
 }
+
+
+/* The subject leads a row, so it gets the room a name used to have. */
+.thread-item-top strong { line-height: 1.3; }
+.thread-item.is-unread .thread-item-sub { font-weight: 500; }
