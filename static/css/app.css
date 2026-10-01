@@ -1737,3 +1737,98 @@ a.sent-row:hover { background: var(--surface-2); }
   .filters-inline .field { width: 100%; }
   .filters-inline .field input { width: 100%; }
 }
+
+
+/* ======================================================================
+   HOSE LINES
+   ======================================================================
+   A plumbing register: which hose goes where, what colour it is on the map,
+   which board is on it, and what counts as low for it. Visited deliberately
+   and rarely, so it is laid out to be worked through rather than scanned.
+   ====================================================================== */
+
+/* ---- The source, folded away --------------------------------------------
+   It is set once and then left for years, and it was opening a four-field
+   form across the whole top of the page - above the lines that are the
+   reason anybody came. Collapsed, it states where it is in one line; opened,
+   it is exactly the form it always was. It starts open when no location is
+   set, because then it is the one thing that needs doing.
+   ------------------------------------------------------------------------ */
+
+.source-block {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); margin-bottom: 1.2rem;
+}
+.source-block > summary {
+  display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  padding: .85rem 1.1rem; cursor: pointer; list-style: none;
+}
+.source-block > summary::-webkit-details-marker { display: none; }
+
+/* A disclosure triangle drawn in CSS, so the row reads as openable without
+   an icon font or an inline SVG per page. */
+.source-block > summary::before {
+  content: ""; flex: 0 0 auto;
+  border: solid var(--text-muted); border-width: 0 2px 2px 0;
+  padding: 3px; transform: rotate(-45deg); margin-right: .1rem;
+  transition: transform .15s ease;
+}
+.source-block[open] > summary::before { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) {
+  .source-block > summary::before { transition: none; }
+}
+
+.source-block > summary:hover { background: var(--surface-2); }
+.source-title { font-weight: 650; }
+.source-where { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.source-block > summary .pill { margin-left: auto; }
+
+.source-block > *:not(summary) { padding-left: 1.1rem; padding-right: 1.1rem; }
+.source-block > form { padding-bottom: 1.1rem; }
+.source-block > p { margin-top: 0; }
+
+/* ---- The lines table -----------------------------------------------------
+   The swatch is how a row is matched to a hose on the leak map, so it is the
+   column, and its name is the label beneath it.
+   ------------------------------------------------------------------------ */
+
+.swatch-lg {
+  width: 1rem; height: 1rem; border-radius: 3px;
+  vertical-align: -2px; margin-right: .45rem;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+}
+.line-colour { white-space: nowrap; }
+
+/* Named after its household, so this column repeats the one beside it. It
+   stays - the delete dialog and the export both use it - at the weight of a
+   reference rather than a heading. */
+.line-name { color: var(--text-muted); font-size: .88rem; }
+
+/* Three controls per row is a lot of button; they read as one group and stop
+   wrapping into a second line on a laptop. */
+.wrap .table-wrap .btn-row { flex-wrap: nowrap; }
+
+
+/* ---- Devices --------------------------------------------------------------
+   Two machine strings, a claim code and three controls per row. It had got
+   tight enough that "New key" and "Issue code" were breaking across two
+   lines, which makes a button look like a paragraph.
+   ------------------------------------------------------------------------ */
+
+.devices-table td { vertical-align: top; padding-top: .75rem; padding-bottom: .75rem; }
+.devices-table .btn { white-space: nowrap; }
+
+/* The id and the key are strings to be copied, not read. They get the mono
+   face because a character has to be told apart from one that looks like it,
+   and they truncate rather than wrapping - the Copy button carries the whole
+   value, so a broken line buys nothing. */
+.devices-table .mono { display: inline-block; max-width: 22ch; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.devices-table .key-text { max-width: 18ch; }
+
+/* A device label sits under its id. This one happens to hold a pasted API
+   key, which is long - it wraps rather than stretching the column. */
+.devices-table .device-label {
+  display: block; max-width: 26ch; margin-top: .15rem;
+  overflow-wrap: anywhere; font-size: .8rem; color: var(--text-muted);
+}

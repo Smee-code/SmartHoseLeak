@@ -4,8 +4,14 @@
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>Supply lines and distance markers</h1>
-      <p class="sub">Each line is one sensor module on the ESP32. The markers decide the reported leak location.</p>
+      {% comment %}
+        Both sentences here described the rig as it was before one board per
+        household: distance markers are gone, and a line is no longer one of
+        three modules sharing an ESP32. A heading that describes something
+        the system does not do is worse than no heading.
+      {% endcomment %}
+      <h1>Hose lines</h1>
+      <p class="sub">One hose per household, from the main source to their tap.</p>
     </div>
     <div class="btn-row">
       <a class="btn btn-primary btn-sm" href="#" data-modal-open="line-modal">Add hose line</a>
@@ -13,21 +19,30 @@
   </div>
 
   {% comment %}
-    The water source anchors every distance marker, so it belongs on the same
-    page as the lines rather than buried in a settings screen.
+    The source is where every hose starts, so it belongs beside the lines
+    rather than in a settings screen of its own.
+
+    It is also set once and then left alone for years, so it no longer opens
+    a four-field form across the top of the page. Collapsed it is one line
+    stating where it is; opened it is the same form it always was.
   {% endcomment %}
-  <div class="card" style="margin-bottom:1.2rem">
-    <div class="card-head">
-      <h2>Water source (start of the main line)</h2>
+  <details class="source-block" {% if not source.has_location %}open{% endif %}>
+    <summary>
+      <span class="source-title">Main source</span>
+      <span class="source-where">
+        {% if source.has_location %}{{ source.latitude|floatformat:5 }}, {{ source.longitude|floatformat:5 }}
+        {% else %}Location not set{% endif %}
+      </span>
       {% if source.has_location %}
         <span class="pill pill-ok">On the map</span>
       {% else %}
         <span class="pill pill-muted">Location not set</span>
       {% endif %}
-    </div>
-    <p class="muted small" style="margin-top:-.35rem">
-      Every distance marker below is measured from this point &mdash; it is the
-      0&nbsp;m mark. Setting its coordinates puts it on the leak map.
+    </summary>
+
+    <p class="muted small">
+      Every household&rsquo;s hose is drawn from this point on the leak map.
+      There are no distance markers any more &mdash; a leak names a household.
     </p>
 
     <form method="post">
@@ -47,7 +62,7 @@
         <button type="submit" class="btn btn-primary btn-sm">Save water source</button>
       </div>
     </form>
-  </div>
+  </details>
 
   <div class="table-wrap">
     <table>
@@ -60,8 +75,13 @@
       <tbody>
         {% for segment in segments %}
           <tr>
-            <td>
-              <span class="swatch" style="background:{{ segment.color }}" aria-hidden="true"></span>
+            {% comment %}
+              The swatch is the point of this column - it is how a row is
+              matched to a hose on the leak map. The name beside it is a
+              label for the swatch, not the other way round.
+            {% endcomment %}
+            <td class="line-colour">
+              <span class="swatch swatch-lg" style="background:{{ segment.color }}" aria-hidden="true"></span>
               <span class="small muted">{{ segment.get_color_display }}</span>
             </td>
             <td>
@@ -72,7 +92,13 @@
                 <span class="muted">Unassigned</span>
               {% endif %}
             </td>
-            <td>{{ segment.name }}</td>
+            {% comment %}
+              The line is named after its household, so this column repeats
+              the one beside it. It stays - it is the line's real name, it is
+              what the delete dialog and the export use - but it reads as the
+              reference it is.
+            {% endcomment %}
+            <td class="line-name">{{ segment.name }}</td>
             <td class="small">
               {% if segment.device %}
                 {{ segment.device.device_id }}
@@ -120,7 +146,12 @@
                     {% if segment.status == 'MAINTENANCE' %}End maintenance{% else %}Maintenance{% endif %}
                   </button>
                 </form>
-                <button type="button" class="btn btn-sm btn-danger"
+                {% comment %}
+                  Quiet until reached, like the one on Households. Seven red
+                  buttons in a column send the eye to the only action on the
+                  page that destroys a line's whole history.
+                {% endcomment %}
+                <button type="button" class="btn btn-sm btn-quiet-danger"
                         data-delete-segment
                         data-action="{% url 'segment_delete' segment.pk %}"
                         data-module="{{ segment.name }}"
@@ -160,7 +191,7 @@
       </form>
     </div>
     <div class="table-wrap">
-      <table class="table">
+      <table class="table devices-table">
         <thead>
           <tr>
             <th>Device ID</th><th>Fitted to</th><th>Claim code</th><th>API key</th>
@@ -174,7 +205,7 @@
                 <span class="mono">{{ device.device_id }}</span>
                 <button type="button" class="btn btn-sm btn-copy"
                         data-copy="{{ device.device_id }}">Copy</button>
-                {% if device.label %}<div class="small muted">{{ device.label }}</div>{% endif %}
+                {% if device.label %}<span class="device-label">{{ device.label }}</span>{% endif %}
               </td>
               <td class="small">
                 {% with line=device.line %}
@@ -282,7 +313,7 @@
       <div class="modal-head">
         <div>
           <h2 id="line-modal-title">Add hose line</h2>
-          <p class="sub">One line per sensor module on the ESP32.</p>
+          <p class="sub">One hose per household, created with the household.</p>
         </div>
         <button type="button" class="icon-btn" data-modal-close aria-label="Close">
           <span aria-hidden="true">&times;</span>
