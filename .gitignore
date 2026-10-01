@@ -11,3 +11,7 @@ staticfiles/
 db.sqlite3-wal
 db.sqlite3-shm
 db.sqlite3-journal
+
+# Logins, in plain text. Never in git - the repo is private, but a password
+# in version control stays in the history even after the file is deleted.
+CREDENTIALS.txt
