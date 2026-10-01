@@ -4,8 +4,12 @@
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>Household database</h1>
-      <p class="sub">Registered water subscribers and their supply line assignment.</p>
+      {% comment %}
+        "Database" is how the system is built, not what this is. It is the
+        register of the people the water system serves.
+      {% endcomment %}
+      <h1>Households</h1>
+      <p class="sub">Everyone the water system serves, and the line that reaches them.</p>
     </div>
     <div class="btn-row">
       <a class="btn btn-sm" href="{% url 'export_csv' 'households' %}">Export CSV</a>
@@ -15,7 +19,12 @@
     </div>
   </div>
 
-  <form method="get" class="filters">
+  {% comment %}
+    One line, not a stacked field above a button. A label, an input and a
+    submit are a single act - "find this household" - and stacking them put
+    three rows of chrome above a list of seven people.
+  {% endcomment %}
+  <form method="get" class="filters filters-inline">
     <div class="field">
       <label for="q">Search</label>
       <input type="search" id="q" name="q" value="{{ query }}" placeholder="ID, name, address or contact">
@@ -38,11 +47,18 @@
       <tbody>
         {% for household in page %}
           <tr>
-            <td><a href="{% url 'household_detail' household.pk %}"><strong>{{ household.household_id }}</strong></a></td>
-            <td>{{ household.owner_name }}</td>
+            <td class="hh-id"><a href="{% url 'household_detail' household.pk %}">{{ household.household_id }}</a></td>
+            <td class="hh-owner">{{ household.owner_name }}</td>
             <td class="small">{{ household.address }}</td>
             <td class="nowrap small">{{ household.contact_number }}</td>
-            <td class="small">
+            {% comment %}
+              Every value in this column is the two columns to its left, run
+              together: "HH-001 - Maria Santos" beside HH-001 and Maria
+              Santos. It is the line's real name and the CSV carries it, so it
+              stays - but a column that repeats its neighbours is reference,
+              not signal, and it gets the ink of one.
+            {% endcomment %}
+            <td class="small hh-line">
               {% if household.segment %}{{ household.segment.name }}
               {% else %}<span class="muted">Unassigned</span>{% endif %}
             </td>
@@ -72,7 +88,14 @@
                    data-lat="{{ household.latitude|default_if_none:'' }}"
                    data-lng="{{ household.longitude|default_if_none:'' }}"
                    data-notes="{{ household.notes }}">Edit</a>
-                <button type="button" class="btn btn-sm btn-danger"
+                {% comment %}
+                  Delete is demoted to a quiet control that only turns red
+                  when reached. Seven saturated red buttons made a stripe
+                  down the right edge of a page whose job is to show people,
+                  and sent the eye to the one action nobody came here to
+                  take. The confirmation dialog is where the danger belongs.
+                {% endcomment %}
+                <button type="button" class="btn btn-sm btn-quiet-danger"
                         data-delete-household
                         data-action="{% url 'household_delete' household.pk %}"
                         data-hid="{{ household.household_id }}"

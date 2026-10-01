@@ -1672,3 +1672,68 @@ a.sent-row:hover { background: var(--surface-2); }
 /* A household with no reading is not a fault; it is a line with no board yet.
    Dashes at full strength read as missing data rather than absent hardware. */
 .wrap > .card table tr:has(.pill-OFFLINE) td { color: var(--text-muted); }
+
+
+/* ======================================================================
+   HOUSEHOLDS
+   ======================================================================
+   A register of people, not a grid of records. The eye should land on who,
+   and the destructive action should be available without being advertised.
+   ====================================================================== */
+
+/* ---- Delete, demoted ----------------------------------------------------
+   Seven saturated red buttons made a stripe down the right edge of a page
+   whose job is to show households, and sent the eye straight to the one
+   action nobody opened the page to take. It stays exactly where it was and
+   does exactly what it did - it just stops shouting until it is reached.
+   The confirmation dialog is where the danger belongs.
+   ------------------------------------------------------------------------ */
+
+.btn-quiet-danger {
+  background: transparent; border-color: var(--border); color: var(--text-muted);
+}
+.btn-quiet-danger:hover,
+.btn-quiet-danger:focus-visible {
+  background: var(--danger); border-color: var(--danger); color: #fff;
+}
+
+/* ---- The row reads as a person ------------------------------------------
+   Identity carries the weight; everything else is the detail you check once
+   you have found the right row.
+   ------------------------------------------------------------------------ */
+
+.hh-id a { font-weight: 650; text-decoration: none; }
+.hh-id a:hover { text-decoration: underline; }
+.hh-owner { font-weight: 550; }
+
+/* This column is its two neighbours run together - "HH-001 - Maria Santos"
+   beside HH-001 and Maria Santos. It stays, because it is the line's real
+   name and the export carries it, but a column that repeats what is already
+   on the row is reference rather than signal. */
+.hh-line { color: var(--text-muted); }
+
+/* Rules rather than stripes. Zebra banding paints half the rows a colour
+   that means nothing, on a page where colour is supposed to mean state. */
+.wrap > .table-wrap tbody tr { border-bottom: 1px solid var(--border); }
+.wrap > .table-wrap tbody tr:last-child { border-bottom: 0; }
+.wrap > .table-wrap tbody td { padding-top: .7rem; padding-bottom: .7rem; }
+.wrap > .table-wrap tbody tr:hover { background: var(--surface-2); }
+
+/* A household that is no longer active is the only thing in this list with a
+   state, so it is the only thing that takes colour away from the text. */
+.wrap > .table-wrap tbody tr:has(.pill-muted) td { color: var(--text-muted); }
+
+/* ---- The search row ------------------------------------------------------
+   One line. A label stacked over an input stacked over a button put three
+   rows of chrome above a list of seven people.
+   ------------------------------------------------------------------------ */
+
+.filters-inline { align-items: center; gap: .6rem; }
+.filters-inline .field { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.filters-inline .field label { margin: 0; white-space: nowrap; font-weight: 550; }
+.filters-inline .field input { width: 20rem; max-width: 100%; }
+
+@media (max-width: 640px) {
+  .filters-inline .field { width: 100%; }
+  .filters-inline .field input { width: 100%; }
+}
