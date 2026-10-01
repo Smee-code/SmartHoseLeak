@@ -1178,7 +1178,13 @@
         } else if (segment.status === 'MAINTENANCE') {
           note.textContent = segment.maintenance_note || 'Under maintenance - alerts paused.';
         } else if (segment.status === 'OFFLINE') {
-          note.textContent = 'No readings received. Check device power and Wi-Fi.';
+          // A line with no board was being told to check the power and Wi-Fi
+          // of a device that does not exist. Six rows said it at once, which
+          // made the rollout look like six faults - and sent the facilitator
+          // hunting for a problem that was never there.
+          note.textContent = segment.has_device
+            ? 'No readings received. Check the board’s power and Wi-Fi.'
+            : 'No board fitted to this line yet.';
         } else if (segment.status === 'LOW_SUPPLY') {
           // Naming the figure turns a verdict into something checkable:
           // the facilitator can see at a glance whether the line is genuinely
@@ -1213,10 +1219,13 @@
     critical.forEach(function (event) {
       var row = document.createElement('div');
       row.className = 'message message-error';
+      // The line is named after its household now, so naming the segment and
+      // then its location said "HH-001 - Maria Santos" twice in one sentence.
+      // The banner has one job - which household, and how bad - so it says
+      // that once and gives the readings as evidence.
       row.innerHTML =
-        '<span><strong>' + event.status_label + '</strong> on ' + event.segment +
-        ' &mdash; ' + event.location + '. ' +
-        fmt(event.pressure_bar, 2) + ' bar (' + fmt(event.pressure_psi, 1) + ' psi), ' +
+        '<span><strong>' + event.status_label + '</strong> on ' + event.segment + '. ' +
+        fmt(event.pressure_bar, 2) + ' bar, ' +
         fmt(event.flow_lpm, 2) + ' L/min, ' + timeAgo(event.detected_at) + '.</span>';
       banner.appendChild(row);
     });

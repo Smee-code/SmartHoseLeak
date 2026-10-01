@@ -1486,3 +1486,126 @@ a.sent-row:hover { background: var(--surface-2); }
   .is-owner .card-head .btn-row { width: 100%; flex-wrap: wrap; gap: .5rem; }
   .is-owner .card-head select { flex: 1 1 10rem; min-height: 44px; font-size: .95rem; }
 }
+
+
+/* ======================================================================
+   FACILITATOR DASHBOARD
+   ======================================================================
+   One person, a laptop, seven households, several times a day. The page has
+   one job before any other: say whether anything is wrong.
+
+   The governing rule here is that COLOUR MEANS STATE. Everything that is not
+   a state - headings, rules, counts, chrome - is greyscale and structural.
+   The old page sprinkled colour everywhere, so when a row did turn red it
+   had to compete with a palette already in use for decoration.
+   ====================================================================== */
+
+/* ---- The standing answer -------------------------------------------------
+   A band, not three tiles. Three equal numbers reading 7 / 0 / 0 gave a count
+   that never changes the same weight as the one fact this screen exists to
+   report. A sentence answers first; the counts stay underneath as evidence.
+   ------------------------------------------------------------------------ */
+
+.standing {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--ok);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 1.1rem 1.25rem;
+}
+.standing[data-state="alert"] { border-left-color: var(--danger); background: var(--danger-soft); }
+/* A silent board is a fault but not an emergency: somebody has to go and look
+   at a device, and the water may be perfectly fine meanwhile. Amber says
+   that; red would put it on a level with a leak. */
+.standing[data-state="watch"] { border-left-color: var(--warn); background: var(--warn-soft); }
+.standing[data-state="watch"] .standing-line { color: var(--warn); }
+
+.standing-line {
+  margin: 0; font-size: 1.35rem; font-weight: 650;
+  line-height: 1.25; letter-spacing: -.01em; color: var(--text);
+}
+.standing[data-state="alert"] .standing-line { color: var(--danger); }
+
+.standing-sub { margin: .3rem 0 0; font-size: .95rem; color: var(--text-muted); }
+
+/* The counts, demoted to supporting evidence. Tabular figures so the column
+   of digits lines up rather than wobbling as values change under the poll. */
+.standing-counts {
+  display: flex; flex-wrap: wrap; gap: .6rem 2.25rem;
+  margin: 1rem 0 0; padding-top: .85rem;
+  border-top: 1px solid var(--border);
+}
+.standing-counts div { min-width: 0; }
+.standing-counts dt { margin: 0; font-size: .85rem; color: var(--text-muted); }
+.standing-counts dd {
+  margin: .1rem 0 0; font-size: 1.25rem; font-weight: 650;
+  font-variant-numeric: tabular-nums; color: var(--text);
+}
+/* A count only earns colour when it is not zero. A red 0 is a contradiction:
+   it says "look at me" about nothing. */
+.standing-counts dd.is-live { color: var(--danger); }
+
+/* ---- Section rhythm ------------------------------------------------------
+   The page was a stack of identically weighted white cards - the map, the
+   alerts, the chart and the log all looked equally important. Headings now
+   carry the hierarchy and the cards stop competing.
+   ------------------------------------------------------------------------ */
+
+.wrap > h2,
+.wrap > .split > .card > .card-head > h2,
+.wrap > .card > .card-head > h2 {
+  font-size: 1.05rem; font-weight: 650; letter-spacing: -.005em;
+}
+.wrap > h2 { margin-top: 2rem; }
+.wrap > h2 + .muted { margin-top: .2rem; }
+
+/* ---- The households table ------------------------------------------------
+   This is the dashboard. Everything else on the page is evidence for it.
+   ------------------------------------------------------------------------ */
+
+.live-table thead th {
+  font-size: .8rem; font-weight: 600; color: var(--text-muted);
+  background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+.live-table td { padding-top: .75rem; padding-bottom: .75rem; }
+
+/* The swatch was a decorative dot carrying the household's map colour. Made
+   into the row's left edge it does the same job in no space at all, and ties
+   a row to its hose on the map directly below. */
+.live-table .swatch {
+  width: .55rem; height: 1.6rem; border-radius: 2px;
+  margin-right: .55rem; vertical-align: middle;
+}
+
+/* A line waiting for hardware is not a fault and must not read as one. It is
+   set back rather than tinted - no colour at all, because it has no state. */
+.live-table tr:has(.pill-none) td { color: var(--text-muted); }
+.live-table tr:has(.pill-none) strong { font-weight: 600; }
+
+/* psi under every bar reading doubled the height of the column to restate the
+   same number in a unit this system never uses anywhere else. Kept, because
+   a gauge on site reads in psi - but at the weight of a footnote. */
+.live-table .small.muted { font-size: .78rem; }
+
+@media (min-width: 1100px) {
+  /* The map and the alerts beside it are a pair: the alert names a household,
+     the map shows where it is. Giving the map the room means the pins are far
+     enough apart to tell one from another at a glance. */
+  .wrap > .split { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
+}
+
+
+/* The history controls were stacked beside their heading, which left the
+   heading floating in the middle of two selects. They are one row of
+   controls, so they sit on one row. */
+.wrap > .card > .card-head { align-items: center; }
+.wrap > .card > .card-head .btn-row { flex-wrap: wrap; gap: .5rem; }
+.wrap > .card > .card-head select { min-width: 9.5rem; }
+
+/* The standing band in dark mode. The soft danger tint is built for a white
+   ground; on a dark one it has to come from the dark palette's own token or
+   it glows. */
+:root[data-theme="dark"] .standing[data-state="alert"],
+:root:not([data-theme="light"]) .standing[data-state="alert"] {
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+}

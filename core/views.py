@@ -147,6 +147,21 @@ def dashboard(request):
         "household_count": Household.objects.filter(
             account_status=Household.AccountStatus.ACTIVE
         ).count(),
+        # Split so the page can lead with a sentence rather than three equal
+        # numbers. "6 of 7 lines have no board yet" is the rollout going to
+        # plan; "1 board has stopped reporting" is somebody's water going
+        # unwatched. A single Offline count cannot tell those apart, and the
+        # facilitator's whole morning depends on which one it is.
+        "fitted_count": segments.filter(device__isnull=False).count(),
+        "awaiting_device_count": segments.filter(device__isnull=True).count(),
+        # A board that was fitted and has gone quiet. Counted separately from
+        # a line that never had one, because only this is a fault - and
+        # without it the page could announce "everything is reading normally"
+        # while a household's board sat dead, which is the one sentence this
+        # screen must never get wrong.
+        "silent_count": segments.filter(
+            device__isnull=False, status=Segment.Status.OFFLINE
+        ).count(),
         "map_segments": [
             {
                 "id": s.id,

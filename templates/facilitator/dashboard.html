@@ -8,8 +8,12 @@
 
   <div class="page-head">
     <div>
-      <h1>Facilitator Dashboard</h1>
-      <p class="sub">{{ SITE_LOCALE }}</p>
+      {% comment %}
+        "Facilitator Dashboard" named the screen to the only person who ever
+        opens it. The barangay it watches is the useful thing to say.
+      {% endcomment %}
+      <h1>{{ SITE_LOCALE }}</h1>
+      <p class="sub">Water supply monitoring</p>
     </div>
     <div class="btn-row">
       <a class="btn btn-sm" href="{% url 'household_create' %}">Add household</a>
@@ -21,29 +25,79 @@
   {# Populated live by app.js whenever a critical alert is open. #}
   <div id="alert-banner" class="messages" style="padding:0;margin:0 0 1rem" hidden></div>
 
-  <section class="stats" aria-label="Summary">
-    <div class="stat">
-      <div class="stat-value">{{ household_count }}</div>
-      <div class="stat-label">Active households</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">{{ open_events|length }}</div>
-      <div class="stat-label">Open alerts</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">{{ pending_complaints }}</div>
-      <div class="stat-label">Pending complaints</div>
-    </div>
+  {% comment %}
+    The page answers itself in a sentence before it shows a single number.
+
+    Three equal tiles reading 7 / 0 / 0 gave the same weight to a count that
+    never changes and to the one fact the facilitator opened the page for.
+    Zero open alerts is the most important thing on this screen, and it
+    looked exactly like the number of households.
+
+    Every count is still here, underneath, as the evidence for the sentence.
+    Nothing was taken away - it was ordered.
+
+    "Boards fitted" is new, and it is the count that stops six Offline rows
+    reading as six faults: a line with no board yet is the rollout going to
+    plan, and a board that has stopped reporting is somebody's water going
+    unwatched. One Offline number cannot tell those apart.
+  {% endcomment %}
+  <section class="standing" data-state="{% if open_events %}alert{% elif silent_count %}watch{% else %}calm{% endif %}"
+           aria-label="System status">
     {% comment %}
-      There was a single "Device status" tile here. It made sense when the
-      whole system was one board: one answer, one place to look. With a
-      board per household it could only ever describe one of them, so it was
-      either wrong or meaningless - and the Households table below already
-      answers the same question per house, which is the resolution that now
-      matters. The board's own address moved into that table's Device column
-      rather than being dropped, since it is what you need when the server
-      address has to be changed.
+      In priority order, because only the first line is read at a glance and
+      it has to be the worst true thing. A silent board outranks the rollout:
+      a line nobody has fitted yet is the plan working, and a line whose
+      board has stopped is a household going unwatched.
     {% endcomment %}
+    <p class="standing-line">
+      {% if open_events %}
+        {{ open_events|length }} line{{ open_events|length|pluralize }} need{{ open_events|length|pluralize:"s," }} attention
+      {% elif silent_count %}
+        {{ silent_count }} board{{ silent_count|pluralize }}
+        {% if silent_count == 1 %}has{% else %}have{% endif %} stopped reporting
+      {% elif fitted_count %}
+        Everything is reading normally
+      {% else %}
+        No boards are reporting yet
+      {% endif %}
+    </p>
+    <p class="standing-sub">
+      {% if silent_count and open_events %}
+        {{ silent_count }} board{{ silent_count|pluralize }}
+        {% if silent_count == 1 %}has{% else %}have{% endif %} also stopped reporting.
+      {% elif silent_count %}
+        Check the board's power and Wi-Fi. The water may still be fine.
+      {% elif awaiting_device_count %}
+        {{ awaiting_device_count }} of {{ segments|length }} household{{ segments|length|pluralize }}
+        {% if awaiting_device_count == 1 %}is{% else %}are{% endif %} still waiting for a board to be fitted.
+      {% else %}
+        Every household has a board fitted and reporting.
+      {% endif %}
+    </p>
+
+    <dl class="standing-counts">
+      <div>
+        {% comment %}
+          "Active" matters and was nearly lost in the rewrite: the count
+          excludes households marked inactive or disconnected, so dropping
+          the word would have made it look like a total.
+        {% endcomment %}
+        <dt>Active households</dt>
+        <dd>{{ household_count }}</dd>
+      </div>
+      <div>
+        <dt>Open alerts</dt>
+        <dd{% if open_events %} class="is-live"{% endif %}>{{ open_events|length }}</dd>
+      </div>
+      <div>
+        <dt>Pending complaints</dt>
+        <dd{% if pending_complaints %} class="is-live"{% endif %}>{{ pending_complaints }}</dd>
+      </div>
+      <div>
+        <dt>Boards fitted</dt>
+        <dd>{{ fitted_count }} of {{ segments|length }}</dd>
+      </div>
+    </dl>
   </section>
 
   {% comment %}
