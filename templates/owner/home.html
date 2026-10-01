@@ -1,86 +1,109 @@
 {% extends "base.html" %}
 {% block title %}My water supply - {{ SITE_NAME }}{% endblock %}
+{% block body_class %}is-owner{% endblock %}
+
+{% comment %}
+  The owner's home answers one question: is my water okay right now?
+
+  It used to open with "-- bar" inside a card, under a status pill, above
+  three identical rounded tiles that repeated the menu in the header. A
+  household has no sense of what a bar is, and the thing they came to find
+  out was the smallest text on the screen.
+
+  Now the answer is the screen. The reading stays, underneath, as evidence -
+  it is what makes the answer believable, and it is what a facilitator will
+  ask for over the phone - but it is not the headline.
+{% endcomment %}
 
 {% block content %}
-<div class="wrap-narrow">
-  <div class="page-head">
-    <div>
-      <h1>Hello, {{ household.owner_name|truncatewords:1 }}</h1>
-      <p class="sub">{{ household.household_id }} &middot; {{ household.address }}</p>
-    </div>
-  </div>
+<div class="wrap-narrow owner-page">
+
+  <p class="owner-greeting">Hello, {{ household.owner_name }}</p>
 
   {% if segment %}
-    <div class="card tile" data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}" style="border-left-width:5px">
-      <div class="tile-head">
+    {% comment %}
+      A filled block rather than a white card with a coloured pill. This is
+      read on a phone held at arm's length, often outdoors, where a tinted
+      background and a small badge disappear. A solid field of colour
+      survives sunlight; a 12px pill does not.
+
+      The live poll writes into data-field, same as the facilitator tiles.
+    {% endcomment %}
+    <section class="water-state" data-segment-id="{{ segment.id }}"
+             data-status="{{ segment.status }}" aria-live="polite">
+      <p class="water-state-head" data-field="state">Checking&hellip;</p>
+      <p class="water-state-sub" data-field="statenote">Getting the latest reading from your line.</p>
+
+      <dl class="water-reading">
         <div>
-          <div class="tile-title">My supply line</div>
-          <div class="tile-sub">{{ segment.name }}</div>
+          <dt>Pressure</dt>
+          <dd><span data-field="pressure_bar">--</span> bar</dd>
         </div>
-        <span class="pill pill-{{ segment.status }}" data-field="status">{{ segment.get_status_display }}</span>
-      </div>
-
-      <div class="big-readout">
-        <div class="value"><span data-field="pressure_bar">--</span><span class="unit"> bar</span></div>
-        <div class="alt"><span data-field="pressure_psi">--</span></div>
-      </div>
-
-      <p class="small center" data-field="note" style="min-height:1.2em;margin:0"></p>
-      <div class="tile-foot">
-        <span data-field="updated">no data yet</span>
-        <a class="small" href="{% url 'owner_pressure' %}">See history</a>
-      </div>
-    </div>
+        <div>
+          <dt>Water flowing</dt>
+          <dd><span data-field="flow_lpm">--</span> L/min</dd>
+        </div>
+        <div>
+          <dt>Checked</dt>
+          <dd data-field="updated">not yet</dd>
+        </div>
+      </dl>
+    </section>
   {% else %}
-    <div class="card">
-      <p class="empty">
-        Your household has not been assigned to a supply line yet.<br>
-        <span class="small">Ask the water system facilitator to assign one so you can see live readings.</span>
+    <section class="water-state" data-status="OFFLINE">
+      <p class="water-state-head">Not connected yet</p>
+      <p class="water-state-sub">
+        Your household has no hose line set up. Ask the water system facilitator
+        to add one, and readings will appear here.
       </p>
-    </div>
+    </section>
   {% endif %}
 
-  <div class="grid grid-3" style="margin-top:1.2rem">
-    <a class="feature" href="{% url 'owner_notifications' %}" style="text-decoration:none;color:inherit">
-      <div class="feature-icon" aria-hidden="true">&#9993;</div>
-      <h3>Notices {% if unread %}<span class="badge">{{ unread }}</span>{% endif %}</h3>
-      <p>Announcements and alerts from the water system facilitator.</p>
-    </a>
-    <a class="feature" href="{% url 'owner_complaints' %}" style="text-decoration:none;color:inherit">
-      <div class="feature-icon" aria-hidden="true">&#9998;</div>
-      <h3>Complaints</h3>
-      <p>
-        {% if open_complaints %}You have {{ open_complaints }} open complaint(s).
-        {% else %}Report a problem with your water supply.{% endif %}
-      </p>
-    </a>
-    <a class="feature" href="{% url 'owner_pressure' %}" style="text-decoration:none;color:inherit">
-      <div class="feature-icon" aria-hidden="true">&#9679;</div>
-      <h3>My pressure</h3>
-      <p>Current reading and the recent history for your line.</p>
-    </a>
-  </div>
+  {% comment %}
+    The one thing an owner can actually do. Full width, thumb height, and it
+    says what happens rather than naming a form.
+  {% endcomment %}
+  <a class="owner-action" href="{% url 'owner_complaints' %}">
+    Report a problem with my water
+  </a>
 
-  <div class="card" style="margin-top:1.2rem">
-    <div class="card-head">
-      <h2>Latest notices</h2>
-      <a class="small" href="{% url 'owner_notifications' %}">View all</a>
-    </div>
-    <div class="notice-list">
+  {% comment %}
+    Two quiet links instead of two more cards. They are navigation, and the
+    header menu already carries it - this is a shortcut, not a feature list.
+  {% endcomment %}
+  <nav class="owner-links" aria-label="More">
+    <a href="{% url 'owner_pressure' %}">
+      See my pressure history
+    </a>
+    <a href="{% url 'owner_complaints' %}">
+      My complaints{% if open_complaints %} <span class="owner-count">{{ open_complaints }} open</span>{% endif %}
+    </a>
+  </nav>
+
+  <section class="owner-section">
+    <h2>
+      Notices
+      {% if unread %}<span class="badge">{{ unread }}</span>{% endif %}
+    </h2>
+
+    <div class="owner-feed">
       {% for notification in recent_notifications %}
-        <div class="notice" data-kind="{{ notification.kind }}"
-             data-unread="{% if not notification.read_at %}true{% else %}false{% endif %}">
-          <div class="notice-head">
-            <p class="notice-title">{{ notification.title }}</p>
-            <span class="notice-time">{{ notification.created_at|date:"M j, g:i A" }}</span>
-          </div>
-          <p class="notice-body">{{ notification.body|truncatewords:30 }}</p>
-        </div>
+        <article class="owner-note{% if not notification.read_at %} is-unread{% endif %}">
+          <p class="owner-note-body">{{ notification.body|truncatewords:26 }}</p>
+          <p class="owner-note-meta">{{ notification.created_at|date:"M j, g:i A" }}</p>
+        </article>
       {% empty %}
-        <p class="empty">No notices yet.</p>
+        <p class="owner-empty">
+          Nothing yet. Alerts about your water and messages from the facilitator
+          will show up here.
+        </p>
       {% endfor %}
     </div>
-  </div>
+
+    {% if recent_notifications %}
+      <a class="owner-more" href="{% url 'owner_notifications' %}">All notices</a>
+    {% endif %}
+  </section>
 </div>
 {% endblock %}
 

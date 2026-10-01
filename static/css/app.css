@@ -899,10 +899,13 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
    The icon says what kind of notice it is, which frees the card from having
    to spell that out in a line of grey text under every message. */
 
+/* Sentence case, at a readable size. A tracked-out .72rem ALL-CAPS label is
+   the commonest tell of a generated page, and it is also the least legible
+   thing you can do to a date on a phone held in daylight - capitals have no
+   ascenders or descenders for the eye to use. */
 .feed-day {
-  margin: 1.4rem 0 .5rem;
-  font-size: .72rem; font-weight: 700; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--text-muted);
+  margin: 1.5rem 0 .5rem;
+  font-size: .95rem; font-weight: 600; color: var(--text);
 }
 .feed-day:first-of-type { margin-top: .25rem; }
 
@@ -1264,3 +1267,222 @@ a.sent-row:hover { background: var(--surface-2); }
 .token-opt { padding: .38rem .55rem; border-radius: calc(var(--radius) - 3px); cursor: pointer; font-size: .86rem; }
 .token-opt.is-active { background: var(--brand-soft); color: var(--brand-strong); }
 .token-none { padding: .38rem .55rem; font-size: .82rem; color: var(--text-muted); }
+
+
+/* ======================================================================
+   OWNER PORTAL
+   ======================================================================
+   A different person, on a different device, asking a different question.
+
+   The facilitator works at a desk across many households and needs density.
+   An owner opens one screen on a cheap Android phone, often outdoors in
+   daylight, to find out whether their water is all right. Same tokens as the
+   rest of the system, used with far more air and far larger type.
+
+   Nothing here drops below .95rem. The portal's old .8rem metadata was
+   legible on the laptop it was built on and disappears in sunlight.
+   ====================================================================== */
+
+.owner-page { padding-bottom: 2rem; }
+
+.owner-greeting {
+  margin: .2rem 0 1rem;
+  font-size: 1.15rem; font-weight: 600; color: var(--text);
+}
+
+/* ---- The answer ----------------------------------------------------------
+   A filled block, not a white card with a coloured badge. Read at arm's
+   length in daylight, a tinted background and a 12px pill vanish; a solid
+   field of colour does not. This is the one place the design raises its
+   voice - everything below it stays quiet.
+   ------------------------------------------------------------------------ */
+
+.water-state {
+  border-radius: var(--radius);
+  padding: 1.5rem 1.25rem 1.1rem;
+  color: #fff;
+  background: var(--text-muted);          /* unknown until a status arrives */
+}
+.water-state[data-status="NORMAL"]        { background: #15803d; }
+.water-state[data-status="LOW_SUPPLY"]    { background: #b45309; }
+.water-state[data-status="POSSIBLE_LEAK"] { background: #b3261e; }
+.water-state[data-status="MAINTENANCE"]   { background: #0b6ea8; }
+.water-state[data-status="OFFLINE"]       { background: #475569; }
+
+.water-state-head {
+  margin: 0; font-size: 1.75rem; line-height: 1.15;
+  font-weight: 700; letter-spacing: -.01em;
+}
+.water-state-sub {
+  margin: .45rem 0 0; font-size: 1rem; line-height: 1.45;
+  color: rgba(255, 255, 255, .92);
+}
+
+/* The reading, kept as evidence rather than headline. It is what makes the
+   answer believable, and what the facilitator asks for over the phone. */
+.water-reading {
+  display: flex; flex-wrap: wrap; gap: .9rem 1.6rem;
+  margin: 1.25rem 0 0; padding-top: .9rem;
+  border-top: 1px solid rgba(255, 255, 255, .28);
+}
+.water-reading div { min-width: 0; }
+.water-reading dt {
+  margin: 0; font-size: .9rem; color: rgba(255, 255, 255, .85);
+}
+.water-reading dd {
+  margin: .1rem 0 0; font-size: 1.05rem; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- The one thing an owner can do --------------------------------------
+   Full width and thumb height. 52px clears the 44px minimum with room for a
+   mis-tap, which is what happens on a phone held in one hand outdoors.
+   ------------------------------------------------------------------------ */
+
+.owner-action {
+  display: block; margin: 1rem 0 0;
+  padding: .95rem 1rem; min-height: 52px;
+  border-radius: var(--radius);
+  background: var(--brand); color: #fff;
+  font-size: 1.05rem; font-weight: 600; text-align: center; text-decoration: none;
+}
+.owner-action:hover { background: var(--brand-strong); }
+.owner-action:active { transform: translateY(1px); }
+
+/* ---- Shortcuts, not features --------------------------------------------
+   These used to be three tiles with icons, repeating the menu in the header.
+   They are links; they look like links.
+   ------------------------------------------------------------------------ */
+
+.owner-links { display: flex; flex-direction: column; margin-top: .4rem; }
+.owner-links a {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .75rem; padding: .95rem .2rem; min-height: 52px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text); text-decoration: none; font-size: 1rem;
+}
+.owner-links a:last-child { border-bottom: 0; }
+.owner-links a:hover { color: var(--brand-strong); }
+.owner-count {
+  font-size: .85rem; font-weight: 600;
+  color: var(--brand-strong); background: var(--brand-soft);
+  border-radius: 999px; padding: .1rem .55rem;
+}
+
+/* ---- Notices ------------------------------------------------------------- */
+
+.owner-section { margin-top: 1.8rem; }
+.owner-section h2 {
+  display: flex; align-items: center; gap: .5rem;
+  margin: 0 0 .6rem; font-size: 1.05rem;
+}
+
+.owner-feed { display: flex; flex-direction: column; }
+.owner-note {
+  padding: .8rem 0; border-bottom: 1px solid var(--border);
+}
+.owner-note:last-child { border-bottom: 0; }
+.owner-note-body { margin: 0; font-size: 1rem; line-height: 1.5; color: var(--text); }
+.owner-note-meta { margin: .3rem 0 0; font-size: .9rem; color: var(--text-muted); }
+
+/* An unread notice is marked on the edge rather than tinted: the tint was
+   invisible outdoors, and a bar survives any amount of glare. */
+.owner-note.is-unread {
+  padding-left: .7rem;
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.owner-note.is-unread .owner-note-body { font-weight: 600; }
+
+.owner-more {
+  display: inline-block; margin-top: .8rem;
+  font-size: 1rem; font-weight: 600;
+}
+.owner-empty {
+  margin: 0; padding: 1.2rem 0; font-size: 1rem;
+  color: var(--text-muted); line-height: 1.5;
+}
+
+@media (min-width: 720px) {
+  /* The phone layout is the real one. On a laptop it simply has more air
+     rather than rearranging into something the owner will never see. */
+  .water-state { padding: 2rem 1.75rem 1.4rem; }
+  .water-state-head { font-size: 2.1rem; }
+  .owner-action { max-width: 22rem; }
+}
+
+
+/* The notices timeline is an owner screen, so it takes the portal's floor on
+   type size: nothing load-bearing below .95rem, because the laptop this was
+   written on is not where it gets read. */
+.is-owner .feed-title { font-size: 1.02rem; line-height: 1.4; }
+.is-owner .feed-body { font-size: 1rem; line-height: 1.5; }
+.is-owner .feed-card time { font-size: .85rem; }
+.is-owner .page-head h1 { font-size: 1.35rem; }
+.is-owner .page-head .sub { font-size: 1rem; }
+
+
+/* ---- Complaints, on the owner's side -------------------------------------
+   The facilitator reads this list across every household and needs it dense.
+   An owner has five of them, so density buys nothing and costs legibility.
+   Same component, more air and larger type, under .is-owner only.
+   ------------------------------------------------------------------------ */
+
+.is-owner .thread-item { padding: .9rem .85rem; }
+.is-owner .thread-item-top strong { font-size: 1.02rem; line-height: 1.35; }
+.is-owner .thread-item-top time { font-size: .88rem; }
+.is-owner .thread-item-sub { font-size: .88rem; }
+.is-owner .pill-sm { font-size: .8rem; padding: .15rem .5rem; }
+.is-owner .thread-avatar { width: 38px; height: 38px; flex-basis: 38px; font-size: 1rem; }
+
+.is-owner .msg-text { font-size: 1rem; line-height: 1.5; }
+.is-owner .msg-time { font-size: .85rem; }
+
+/* The one action on the page. On a phone it is worth the full width and a
+   thumb's height - it is why somebody opened this screen. */
+@media (max-width: 720px) {
+  .is-owner .page-head .btn-row { width: 100%; }
+  .is-owner .page-head .btn-primary {
+    display: block; width: 100%; padding: .9rem 1rem;
+    min-height: 52px; font-size: 1.05rem;
+  }
+}
+
+
+/* The "New" marker and the link out of a notice. Both are owner-facing, so
+   both clear the portal's floor on type size - the .72rem .tag they used to
+   borrow was built for a dense facilitator table. */
+.is-owner .tag { font-size: .85rem; padding: .18rem .6rem; }
+.feed-link {
+  font-size: .95rem; font-weight: 600;
+  color: var(--brand-strong); text-decoration: underline;
+}
+.feed-link:hover { color: var(--brand); }
+
+/* The chart's own empty state borrows .small, which is sized for a dense
+   dashboard. On the owner's pressure page it is the only thing on screen. */
+.is-owner .chart-wrap .small { font-size: .95rem; }
+
+/* Buttons on the owner's side are actions, not controls in a toolbar, and
+   .btn-sm was sized for a facilitator's dense row of them. */
+.is-owner .btn-sm { font-size: .95rem; padding: .5rem .9rem; min-height: 40px; }
+
+
+/* The two numbers, explained. A definition list left to the browser's own
+   styling indents the answer away from its term, which reads as decoration;
+   these belong together as one block of prose. */
+.owner-define { margin: 0; }
+.owner-define dt {
+  margin: .9rem 0 .15rem; font-size: 1rem; font-weight: 700; color: var(--text);
+}
+.owner-define dt:first-child { margin-top: 0; }
+.owner-define dd {
+  margin: 0; font-size: 1rem; line-height: 1.5; color: var(--text-muted);
+}
+
+/* The history controls. Side by side with the heading they are squeezed into
+   half a phone's width; stacked and full width they are tappable. */
+@media (max-width: 720px) {
+  .is-owner .card-head { flex-wrap: wrap; gap: .5rem; }
+  .is-owner .card-head .btn-row { width: 100%; flex-wrap: wrap; gap: .5rem; }
+  .is-owner .card-head select { flex: 1 1 10rem; min-height: 44px; font-size: .95rem; }
+}

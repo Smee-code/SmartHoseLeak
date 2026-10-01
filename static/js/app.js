@@ -789,6 +789,12 @@
     if (online === deviceOnline) return;
     deviceOnline = online;
 
+    // Not on the owner's screen. "The ESP32 stopped reporting" is a sentence
+    // about equipment they do not own, cannot reach and cannot fix, and the
+    // state block already tells them what it means for their water. A red
+    // banner on top of it would only suggest they had done something wrong.
+    if (document.body.classList.contains('is-owner')) return;
+
     if (online) {
       SHL.toast({
         type: 'ok',
@@ -1052,6 +1058,39 @@
 
   /* ----------------------------------------------------------- tile render */
 
+  /*
+   * What each status means to the person whose water it is.
+   *
+   * Not the status label. "LOW_SUPPLY" and "Low Water Supply" both describe
+   * the system's verdict rather than the household's situation, and neither
+   * says whether to do anything. These say what is happening and what, if
+   * anything, is worth doing - and the leak wording asks them to check their
+   * own taps first, because a tap left slightly open and a small leak are
+   * identical to the sensors and the tap is far more common.
+   */
+  var OWNER_STATE = {
+    NORMAL: {
+      head: 'Your water is normal',
+      sub: 'Nothing wrong with your line right now.'
+    },
+    LOW_SUPPLY: {
+      head: 'Your water is weak',
+      sub: 'Pressure is lower than usual on your line. It may be slow at the tap.'
+    },
+    POSSIBLE_LEAK: {
+      head: 'Possible leak on your line',
+      sub: 'Please check that all your faucets are fully closed. If they are and water is still running, tell the water system facilitator.'
+    },
+    MAINTENANCE: {
+      head: 'Under repair',
+      sub: 'The facilitator is working on your line. Supply may stop for a while.'
+    },
+    OFFLINE: {
+      head: 'Not being checked',
+      sub: 'No readings are coming from your line. Your water may still be fine - the device has stopped reporting.'
+    }
+  };
+
   SHL.renderTiles = function (segments) {
     segments.forEach(function (segment) {
       var tile = $('[data-segment-id="' + segment.id + '"]');
@@ -1107,6 +1146,23 @@
       var valveForm = $('[data-valve-form]', tile);
       if (valveForm) {
         valveForm.hidden = !segment.valve_state || segment.valve_state === 'not_fitted';
+      }
+
+      // The owner's screen says it in words. The facilitator's wording below
+      // is written for somebody who knows what a threshold is and which test
+      // fired; an owner needs to know whether their water is all right and
+      // what, if anything, they should do about it.
+      var state = $('[data-field="state"]', tile);
+      if (state) {
+        var plain = OWNER_STATE[segment.status] || OWNER_STATE.OFFLINE;
+        state.textContent = plain.head;
+
+        var sub = $('[data-field="statenote"]', tile);
+        if (sub) {
+          sub.textContent = segment.status === 'MAINTENANCE' && segment.maintenance_note
+            ? segment.maintenance_note
+            : plain.sub;
+        }
       }
 
       var note = $('[data-field="note"]', tile);

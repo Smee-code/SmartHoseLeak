@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}My complaints - {{ SITE_NAME }}{% endblock %}
+{% block body_class %}is-owner{% endblock %}
 
 {% comment %}
   No footer here: this page ends in the message box, and on a phone a footer
@@ -12,12 +13,12 @@
   <div class="page-head">
     <div>
       <h1>My complaints</h1>
-      <p class="sub">Report a problem with your water supply and follow the reply.</p>
+      <p class="sub">Report a problem with your water, and read the reply here.</p>
     </div>
     <div class="btn-row">
       {% comment %}Falls back to the plain page if JavaScript is unavailable.{% endcomment %}
       <a class="btn btn-primary" href="{% url 'owner_complaints' %}?new=1"
-         data-modal-open="complaint-modal">New complaint</a>
+         data-modal-open="complaint-modal">Report a problem</a>
     </div>
   </div>
 
@@ -57,7 +58,7 @@
             <p>You have not reported anything yet.</p>
           {% endif %}
           <a class="btn btn-primary btn-sm" href="{% url 'owner_complaints' %}?new=1"
-             data-modal-open="complaint-modal">New complaint</a>
+             data-modal-open="complaint-modal">Report a problem</a>
         </div>
       {% else %}
         <header class="thread-head">

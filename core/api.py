@@ -89,23 +89,29 @@ def _notify_households(segment, event):
     a line can legitimately have no household yet - a board on the bench
     during installation - and that must post no notice rather than fail.
     """
+    # Written to the person who lives there, not about them.
+    #
+    # Lines are named after their household now, so "Possible leak on HH-001
+    # - Maria Santos" told Maria her own name twice and located the problem
+    # at the only address she already knew. To her it is simply her line.
+    when = timezone.localtime(event.detected_at).strftime("%b %d, %Y at %I:%M %p")
+
     if event.status == Segment.Status.POSSIBLE_LEAK:
-        title = f"Possible leak on {segment.name}"
+        title = "Possible leak on your water line"
         body = (
-            f"An automated alert was raised on your supply line at "
-            f"{timezone.localtime(event.detected_at):%b %d, %Y %I:%M %p}. "
-            f"The alert was raised {event.location_label}. "
-            f"Pressure was {event.pressure_bar:.2f} bar ({psi(event.pressure_bar)} psi) "
-            f"with a flow of {event.flow_lpm:.2f} L/min. "
-            f"Your water supply may be interrupted while the line is inspected."
+            f"A possible leak was detected on your line on {when}. "
+            f"Please check that all your faucets are fully closed. If they are "
+            f"and water is still running, tell the water system facilitator.\n\n"
+            f"Reading at the time: {event.pressure_bar:.2f} bar, "
+            f"{event.flow_lpm:.2f} L/min."
         )
     elif event.status == Segment.Status.LOW_SUPPLY:
-        title = f"Low water supply on {segment.name}"
+        title = "Your water is weaker than usual"
         body = (
-            f"Low supply pressure was detected on your line at "
-            f"{timezone.localtime(event.detected_at):%b %d, %Y %I:%M %p} "
-            f"({event.pressure_bar:.2f} bar / {psi(event.pressure_bar)} psi). "
-            f"You may experience reduced water flow."
+            f"Low pressure was detected on your line on {when}. "
+            f"Water may be slow at your tap. This usually means the source is "
+            f"low rather than anything wrong at your house.\n\n"
+            f"Reading at the time: {event.pressure_bar:.2f} bar."
         )
     elif event.status == Segment.Status.NORMAL:
         # Only announce a recovery if the household was told about the
@@ -113,12 +119,8 @@ def _notify_households(segment, event):
         # NORMAL is not an all-clear anybody was waiting for.
         if event.previous_status not in {Segment.Status.POSSIBLE_LEAK, Segment.Status.LOW_SUPPLY}:
             return
-        title = f"{segment.name} is back to normal"
-        body = (
-            f"The alert on your supply line was cleared at "
-            f"{timezone.localtime(event.detected_at):%b %d, %Y %I:%M %p}. "
-            f"Water supply has returned to normal readings."
-        )
+        title = "Your water is back to normal"
+        body = f"The alert on your line was cleared on {when}. Readings are normal again."
     else:
         return
 

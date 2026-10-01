@@ -1,44 +1,40 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}My water pressure - {{ SITE_NAME }}{% endblock %}
+{% block body_class %}is-owner{% endblock %}
 
 {% block content %}
-<div class="wrap-narrow">
-  <div class="page-head">
-    <div>
-      <h1>My water pressure</h1>
-      <p class="sub">
-        {% if segment %}{{ segment.name }}
-        {% else %}No supply line assigned{% endif %}
-      </p>
-    </div>
-  </div>
+<div class="wrap-narrow owner-page">
+  <p class="owner-greeting">My water pressure</p>
 
   {% if segment %}
-    <div class="card tile" data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}" style="border-left-width:5px">
-      <div class="tile-head">
-        <div class="tile-title">Current reading</div>
-        <span class="pill pill-{{ segment.status }}" data-field="status">{{ segment.get_status_display }}</span>
-      </div>
+    {% comment %}
+      The same state block as the home screen. Arriving here from "see my
+      pressure history" and finding a different way of saying the same thing
+      would make an owner wonder which one to believe.
+    {% endcomment %}
+    <section class="water-state" data-segment-id="{{ segment.id }}"
+             data-status="{{ segment.status }}" aria-live="polite">
+      <p class="water-state-head" data-field="state">Checking&hellip;</p>
+      <p class="water-state-sub" data-field="statenote">Getting the latest reading from your line.</p>
 
-      <div class="readouts">
-        <div class="readout">
-          <div class="readout-label">Pressure</div>
-          <div class="readout-value"><span data-field="pressure_bar">--</span> <span class="readout-alt">bar</span></div>
-          <div class="readout-alt" data-field="pressure_psi">--</div>
+      <dl class="water-reading">
+        <div>
+          <dt>Pressure</dt>
+          <dd><span data-field="pressure_bar">--</span> bar</dd>
         </div>
-        <div class="readout">
-          <div class="readout-label">Flow rate</div>
-          <div class="readout-value"><span data-field="flow_lpm">--</span> <span class="readout-alt">L/min</span></div>
-          <div class="readout-alt">on your supply line</div>
+        <div>
+          <dt>Water flowing</dt>
+          <dd><span data-field="flow_lpm">--</span> L/min</dd>
         </div>
-      </div>
+        <div>
+          <dt>Checked</dt>
+          <dd data-field="updated">not yet</dd>
+        </div>
+      </dl>
+    </section>
 
-      <p class="small" data-field="note" style="margin:.7rem 0 0;min-height:1.2em"></p>
-      <div class="tile-foot"><span data-field="updated">no data yet</span></div>
-    </div>
-
-    <div class="card" style="margin-top:1.2rem">
+    <section class="owner-section">
       <div class="card-head">
         <h2>History</h2>
         <div class="btn-row">
@@ -56,29 +52,36 @@
       </div>
       <div class="chart-wrap"><div id="history-chart" data-segment="{{ segment.id }}"></div></div>
       <div class="chart-legend" id="chart-legend"></div>
-    </div>
+    </section>
 
-    <div class="card" style="margin-top:1.2rem">
-      <h3>What the readings mean</h3>
-      <dl class="definition">
-        <dt><span class="pill pill-NORMAL">Normal</span></dt>
-        <dd>Pressure and flow are within the expected range for your line.</dd>
-        <dt><span class="pill pill-LOW_SUPPLY">Low Water Supply</span></dt>
-        <dd>Pressure is below normal. You may notice weaker flow at your tap.</dd>
-        <dt><span class="pill pill-POSSIBLE_LEAK">Possible Leak</span></dt>
-        <dd>A leak is suspected on your line. The facilitator has already been alerted.</dd>
-        <dt><span class="pill pill-MAINTENANCE">Under Maintenance</span></dt>
-        <dd>Planned work is in progress on your line.</dd>
-        <dt><span class="pill pill-OFFLINE">Offline</span></dt>
-        <dd>The sensor is not reporting right now. This does not always mean your supply is out.</dd>
+    {% comment %}
+      The legend used to list all five statuses with their coloured pills,
+      including three the owner will almost never see. What is worth
+      explaining is the two numbers above, which are the only things on this
+      page an owner cannot interpret on their own.
+    {% endcomment %}
+    <section class="owner-section">
+      <h2>What these numbers mean</h2>
+      <dl class="owner-define">
+        <dt>Pressure</dt>
+        <dd>
+          How hard the water is pushing. Higher means a stronger flow at your
+          tap. It falls when the source is low, and when there is a leak
+          between the source and your house.
+        </dd>
+        <dt>Water flowing</dt>
+        <dd>
+          How much water is moving through your line right now. It should be
+          zero when nobody at home is using any &mdash; water moving when every
+          tap is closed is what the system watches for.
+        </dd>
       </dl>
-    </div>
+    </section>
   {% else %}
-    <div class="card">
-      <p class="empty">
-        Your household has not been assigned to a supply line yet, so there are no readings to show.
-      </p>
-    </div>
+    <p class="owner-empty">
+      Your household has no hose line set up yet, so there are no readings to
+      show. Ask the water system facilitator to add one.
+    </p>
   {% endif %}
 </div>
 {% endblock %}

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Notices - {{ SITE_NAME }}{% endblock %}
+{% block body_class %}is-owner{% endblock %}
 
 {% block content %}
 <div class="wrap-narrow">
@@ -47,12 +48,20 @@
 
             <p class="feed-body">{{ n.body|linebreaksbr }}</p>
 
+            {% comment %}
+              The line's name was a tag here. It is the owner's own household
+              name repeated under every notice on a page where every notice
+              is theirs - it told them nothing they did not already know, and
+              it was the smallest text on the screen.
+
+              The arrow is gone from the link too. An arrow appended to link
+              text says nothing a link does not already say.
+            {% endcomment %}
             <p class="feed-meta">
               {% if n.was_unread %}<span class="tag tag-new">New</span>{% endif %}
-              {% if n.segment %}<span class="tag">{{ n.segment.name }}</span>{% endif %}
               {% if n.complaint %}
-                <a class="tag tag-link" href="{% url 'owner_complaint_thread' n.complaint.pk %}">
-                  Open conversation &rarr;
+                <a class="feed-link" href="{% url 'owner_complaint_thread' n.complaint.pk %}">
+                  Open conversation
                 </a>
               {% endif %}
             </p>
