@@ -93,6 +93,11 @@ def home(request):
         "households": Household.objects.filter(account_status=Household.AccountStatus.ACTIVE).count(),
         "segments": segments.count(),
         "monitored_lines": segments.count(),
+        # How many lines actually have a board on them. The public page used
+        # to answer this by naming every household and the state of its line
+        # in a table; counted, it makes the same point without publishing a
+        # roster of who is connected to the water system.
+        "fitted": sum(1 for segment in segments if segment.has_device),
         "open_alerts": LeakEvent.objects.filter(
             cleared_at__isnull=True, severity=LeakEvent.Severity.CRITICAL
         ).count(),

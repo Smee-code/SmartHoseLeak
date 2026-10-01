@@ -2,132 +2,245 @@
 {% load static %}
 
 {% block title %}{{ SITE_NAME }}{% endblock %}
+{% block body_class %}is-landing{% endblock %}
+
+{% comment %}
+  The public page. Two kinds of people arrive here: a household or the
+  facilitator on their way to signing in, and somebody who has never heard of
+  this and wants to know what it is.
+
+  It used to open with a tracked-out locale label, a centred headline, a
+  paragraph, two buttons and a pale gradient - then three big-number cards,
+  then four identical rounded cards with a dot, a triangle, a flag and an
+  envelope in them. Nothing on it was about water. The same page would have
+  served a parcel tracker with the nouns swapped out.
+
+  The hero is now the one idea the whole system runs on, drawn: pressure that
+  falls while nobody has a tap open means water is leaving the hose
+  somewhere. That is what the board on each line watches for all night, it is
+  the reason this project exists, and it can be understood in a glance
+  without reading a word of the copy beside it.
+{% endcomment %}
 
 {% block content %}
-<section class="hero">
-  <div class="hero-inner">
-    <span class="eyebrow">{{ SITE_LOCALE }}</span>
-    <h1>Smart Hose Leak Detection System</h1>
-    <p>
-      Automated leak detection with immediate alerts for the community water supply.
-      Flow and pressure sensors watch every monitored hose line continuously, so a fault is
-      found in seconds instead of after a walk along the whole line &mdash; and the households
-      on that line are told what is happening.
-    </p>
-    <div class="btn-row">
-      {% if user.is_authenticated %}
-        <a class="btn btn-primary" href="{% url 'post_login' %}">Go to my dashboard</a>
-      {% else %}
-        <a class="btn btn-primary" href="{% url 'login' %}">Sign in</a>
-        <a class="btn" href="#how">How it works</a>
-      {% endif %}
+
+<section class="lead">
+  <div class="lead-grid">
+
+    <div class="lead-copy">
+      {% comment %}
+        Three short sentences rather than the product's own name, which the
+        bar above the headline already says twice. The last one is the claim
+        the whole project is making, and it is the one a visitor should be
+        able to repeat afterwards.
+      {% endcomment %}
+      <h1>Seven houses.<br>One hose each.<br>Leaks show up in seconds.</h1>
+
+      {% comment %}
+        The barangay used to be a tracked-out all-caps label floating above
+        the headline. It is a place where people live, so it is written as a
+        sentence, in the sentence that explains the system.
+      {% endcomment %}
+      <p class="lead-sub">
+        Water reaches {{ SITE_LOCALE }} downhill from one source, through a hose
+        to every household. When a hose splits, the water runs into the ground and
+        nobody knows until a tap upstream goes dry. A sensor on each line notices
+        in seconds, and says whose line it is.
+      </p>
+
+      <div class="lead-actions">
+        {% if user.is_authenticated %}
+          <a class="btn btn-primary btn-lg" href="{% url 'post_login' %}">Go to my dashboard</a>
+        {% else %}
+          <a class="btn btn-primary btn-lg" href="{% url 'login' %}">Sign in</a>
+          <a class="btn btn-ghost btn-lg" href="#how">How it works</a>
+        {% endif %}
+      </div>
     </div>
+
+    {% comment %}
+      Inline SVG rather than a chart library: this is a progressive web app
+      with an offline page, installed on phones in a place where the signal
+      comes and goes. A hero that needs a CDN is a hero that is sometimes a
+      blank box. For the same reason the page loads no web font - the display
+      size and the tight tracking do the work a bought typeface would.
+
+      The trace is drawn from fixed numbers and captioned as the pattern, not
+      as tonight's reading. Dressing an illustration up as live data would be
+      a lie told on the one page where strangers decide whether to believe
+      the rest of it.
+    {% endcomment %}
+    <figure class="trace">
+      <svg viewBox="0 0 640 300" role="img" class="trace-svg"
+           aria-labelledby="trace-title trace-desc">
+        <title id="trace-title">Pressure on one hose line overnight</title>
+        <desc id="trace-desc">
+          Pressure holds steady near 0.6 bar from 10pm, then falls away after
+          about 1:40am while no tap is open, and the leak is flagged at 1:52am.
+        </desc>
+
+        <defs>
+          <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--trace)" stop-opacity=".30"/>
+            <stop offset="100%" stop-color="var(--trace)" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+
+        {# Night: the window in which any movement at all is suspicious. #}
+        <rect class="trace-night" x="40" y="30" width="580" height="200" rx="4"/>
+        <text class="trace-tick" x="52" y="50">no taps open &mdash; everyone asleep</text>
+
+        {# The threshold this particular line is judged against. #}
+        <line class="trace-rule" x1="40" y1="206" x2="620" y2="206"/>
+        <text class="trace-tick" x="52" y="200">low supply &mdash; 0.30 bar</text>
+
+        {# Steady, with the small movement a real sensor gives, then the
+           decay. Drawn as two paths so the falling half can carry its own
+           colour, meeting exactly where the pattern turns. #}
+        <path class="trace-fill" d="M40 96 L70 94 L100 98 L130 93 L160 97 L190 92
+          L220 99 L250 95 L280 93 L310 98 L340 95 L368 97
+          L390 104 L410 118 L435 136 L465 154 L500 170 L545 183 L590 191 L620 195
+          L620 230 L40 230 Z"/>
+        <path class="trace-line" d="M40 96 L70 94 L100 98 L130 93 L160 97 L190 92
+          L220 99 L250 95 L280 93 L310 98 L340 95 L368 97"/>
+        <path class="trace-line is-falling" d="M368 97 L390 104 L410 118 L435 136
+          L465 154 L500 170 L545 183 L590 191 L620 195"/>
+
+        <text class="trace-tick" x="44" y="86">0.62 bar</text>
+
+        {# The moment it was called. #}
+        <line class="trace-mark" x1="410" y1="76" x2="410" y2="118"/>
+        <circle class="trace-dot" cx="410" cy="118" r="6"/>
+        <text class="trace-flag" x="420" y="88">Leak flagged</text>
+        <text class="trace-flagsub" x="420" y="106">1:52 am &mdash; 12 minutes in</text>
+
+        <text class="trace-tick" x="40" y="254">10 pm</text>
+        <text class="trace-tick trace-tick-end" x="620" y="254">4 am</text>
+      </svg>
+      <figcaption>
+        The pattern a board watches for. Pressure sliding away while no tap is
+        open means the water is going somewhere else.
+      </figcaption>
+    </figure>
+
   </div>
+
+  {% comment %}
+    The three counts were three big-number cards across the width, which is
+    the stock treatment and gave "7 households" the same weight as the number
+    that actually changes. They are a strip under the hero now: the state of
+    the system in one line, read left to right.
+  {% endcomment %}
+  <dl class="lead-figures">
+    <div>
+      <dt>Hose lines</dt>
+      <dd>{{ stats.segments }}</dd>
+    </div>
+    <div>
+      <dt>Households</dt>
+      <dd>{{ stats.households }}</dd>
+    </div>
+    <div>
+      <dt>Boards fitted</dt>
+      <dd>{{ stats.fitted }}</dd>
+    </div>
+    <div class="is-headline">
+      <dt>Leak alerts, last 30 days</dt>
+      <dd>{{ stats.events_30d }}</dd>
+    </div>
+  </dl>
 </section>
 
 <div class="wrap">
-  <section class="stats" aria-label="System summary">
-    <div class="stat">
-      <div class="stat-value">{{ stats.segments }}</div>
-      <div class="stat-label">Monitored supply lines</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">{{ stats.households }}</div>
-      <div class="stat-label">Registered households</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">{{ stats.events_30d }}</div>
-      <div class="stat-label">Leak alerts in the last 30 days</div>
-    </div>
+
+  {% comment %}
+    Three stages, not four, and the copy is now true.
+
+    "Locate" described distance markers narrowing a fault to the stretch of
+    line it sat in. There are no distance markers any more - every household
+    has its own hose from the source, so a leak names a household and there
+    is no stretch to walk. "Detect" described flow measured against a
+    calibrated pressure-flow curve; that calibration was removed as well,
+    because it needed a field measurement nobody could repeat reliably. The
+    page was advertising two things the system does not do.
+
+    They are drawn along a line rather than as three cards in a row, because
+    they happen in order, in one direction, along an actual hose.
+  {% endcomment %}
+  <section id="how" class="how">
+    <h2>What happens when a hose splits</h2>
+
+    <ol class="stages">
+      <li class="stage">
+        <span class="stage-num" aria-hidden="true">1</span>
+        <h3>The line is read, every second</h3>
+        <p>
+          A flow sensor and a pressure sensor sit on the hose where it leaves the
+          source. The board beside them samples both every second and keeps the
+          steady value, not the spikes.
+        </p>
+      </li>
+      <li class="stage">
+        <span class="stage-num" aria-hidden="true">2</span>
+        <h3>The pattern gives it away</h3>
+        <p>
+          Water moving while the whole barangay is asleep, pressure falling with
+          no tap open, or flow that simply never stops. Any of those for long
+          enough and the board calls it.
+        </p>
+      </li>
+      <li class="stage">
+        <span class="stage-num" aria-hidden="true">3</span>
+        <h3>Somebody is told, by name</h3>
+        <p>
+          The facilitator gets a text and the household gets one too, saying which
+          line it is. Each hose serves one house, so the alert names that house
+          rather than a stretch of ground to go and search.
+        </p>
+      </li>
+    </ol>
   </section>
 
-  <section id="how" style="margin-top:2.2rem">
-    <h2>How the system works</h2>
-    <p class="muted">Four stages, from the sensor in the field to the notice on a household phone.</p>
-    <div class="grid grid-4" style="margin-top:1rem">
-      <div class="feature">
-        <div class="feature-icon" aria-hidden="true">&#9679;</div>
-        <h3>1. Sense</h3>
-        <p>A flow sensor and a pressure sensor on each hose line feed an ESP32, which samples
-           every second and filters the readings.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon" aria-hidden="true">&#9888;</div>
-        <h3>2. Detect</h3>
-        <p>Flow that runs higher than the calibrated pressure&ndash;flow curve, or pressure that decays
-           while no tap is open, is flagged as a possible leak.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon" aria-hidden="true">&#9873;</div>
-        <h3>3. Locate</h3>
-        <p>Distance markers along each line narrow the fault to the segment it sits in, so the
-           facilitator knows which stretch to walk.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon" aria-hidden="true">&#9993;</div>
-        <h3>4. Alert</h3>
-        <p>An SMS goes to the facilitator immediately, and every household on the affected line
-           gets a notice in the Owner Portal.</p>
-      </div>
+  {% comment %}
+    This was a table of all seven households - "HH-001 Maria Santos",
+    "HH-004 Pedro Lim" - on a page anybody on the internet can open without
+    signing in, next to a column saying which of their lines had no board
+    watching it. That is a list of who is connected to the water system and
+    whose supply is unmonitored, published to strangers.
+
+    The same thing the table was there to prove - that this is a real system
+    with real lines on it - is in the strip above, counted rather than named.
+    Nobody needs to know Pedro Lim's name to believe seven lines exist.
+  {% endcomment %}
+  <section class="roles">
+    <div class="role">
+      <h2>Water system facilitator</h2>
+      <p>
+        The live leak map, pressure for every household, the household records,
+        the complaints inbox, and the tools for sending notices and texts.
+      </p>
     </div>
+
+    <div class="role">
+      <h2>Registered household owner</h2>
+      <p>
+        See the pressure on your own line, report a problem with your water, and
+        read notices from the facilitator.
+      </p>
+      <p class="role-note">
+        Accounts are issued by the water system facilitator. If you are a
+        registered subscriber without a login, ask them for one.
+      </p>
+    </div>
+
+    {% if not user.is_authenticated %}
+      <div class="role role-cta">
+        <h2>Already have a login?</h2>
+        <p>Both kinds of account sign in through the same door.</p>
+        <a class="btn btn-primary btn-block" href="{% url 'login' %}">Sign in</a>
+      </div>
+    {% endif %}
   </section>
 
-  <section style="margin-top:2.2rem">
-    <div class="split">
-      <div class="card">
-        <div class="card-head"><h2>Monitored supply lines</h2></div>
-        {% if segments %}
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Household line</th>
-                  <th>Monitoring</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for segment in segments %}
-                  <tr>
-                    <td><strong>{{ segment.name }}</strong></td>
-                    <td class="nowrap">
-                      {% if segment.has_device %}Device fitted{% else %}<span class="muted">Awaiting device</span>{% endif %}
-                    </td>
-                    <td><span class="pill pill-{{ segment.status }}">{{ segment.get_status_display }}</span></td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          <p class="small muted" style="margin-top:.7rem">
-            Live readings are visible after signing in.
-          </p>
-        {% else %}
-          <p class="empty">No supply lines have been configured yet.</p>
-        {% endif %}
-      </div>
-
-      <div class="card">
-        <div class="card-head"><h2>Who signs in here</h2></div>
-        <h3>Water system facilitator</h3>
-        <p class="small muted">
-          Full access: the live leak map, the pressure monitoring dashboard for every household,
-          the household database, the complaints inbox, and the tools for sending notices.
-        </p>
-        <h3 style="margin-top:1rem">Registered household owner</h3>
-        <p class="small muted">
-          Submit a water supply complaint, read notices from the facilitator, and check the
-          current pressure on your own supply line.
-        </p>
-        <p class="small muted" style="margin-top:1rem">
-          Owner accounts are created by the facilitator. If you are a registered subscriber and do
-          not have a login yet, ask the water system facilitator to issue one.
-        </p>
-        {% if not user.is_authenticated %}
-          <a class="btn btn-primary btn-block" href="{% url 'login' %}" style="margin-top:.6rem">Sign in</a>
-        {% endif %}
-      </div>
-    </div>
-  </section>
 </div>
 {% endblock %}
