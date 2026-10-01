@@ -155,9 +155,15 @@ a { color: var(--brand); }
   box-shadow: var(--shadow);
   padding: 1rem 1.1rem;
 }
+/* Wraps. A card head is a heading plus whatever control belongs to that card,
+   and as a flex row that could not wrap it had no way to fail except by
+   pushing the control through the right edge of its own card - which is what
+   "Register a board" did on the Lines page at phone width, landing on top of
+   the table below it. There is no width at which overflowing is better than
+   dropping to a second line. */
 .card-head {
   display: flex; align-items: center; justify-content: space-between;
-  gap: .75rem; margin-bottom: .75rem;
+  gap: .5rem .75rem; margin-bottom: .75rem; flex-wrap: wrap;
 }
 .card-head h2, .card-head h3 { margin: 0; }
 
@@ -1430,8 +1436,14 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
    The two values that have to reach a board by hand.
    ------------------------------------------------------------------------ */
 
-.inline-form { display: flex; gap: .4rem; align-items: center; }
-.inline-form input { width: auto; min-width: 170px; margin: 0; }
+/* Same reasoning one level down: a fixed 170px field plus a button is wider
+   than a card on a phone, and min-width on a flex item is a floor the field
+   cannot go below however little room is left. The field takes what there is
+   and the button keeps its own size, because a button narrower than its
+   label is unreadable while a shorter text box is merely a shorter text box. */
+.inline-form { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+.inline-form input { width: auto; flex: 1 1 10rem; min-width: 0; margin: 0; }
+.inline-form .btn { flex: 0 0 auto; }
 
 /* The key is shown in full rather than masked. It has to be read and copied
    during setup, and hiding it would only mean revealing it a click later on
@@ -1456,10 +1468,10 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
    messages filled the panel, and it grew with every reply ever sent.
    -------------------------------------------------------------------------- */
 
-/* A card head whose subtitle is a sentence rather than a two-word tag: it
-   drops below the heading once there is no room for both. */
+/* A card head whose subtitle is a sentence rather than a two-word tag. Every
+   card head wraps now, so this only has to stop the heading itself being
+   squeezed into two lines to make room for the sentence beside it. */
 @media (max-width: 620px) {
-  .card-head-stack { flex-wrap: wrap; }
   .card-head-stack > h2 { flex: 1 0 100%; }
 }
 
