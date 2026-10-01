@@ -389,3 +389,67 @@ class PublicPageRoutingTests(TestCase):
         body = self.client.get(reverse("dashboard")).content.decode()
         self.assertIn(f'href="{reverse("post_login")}"', body)
         self.assertNotIn('class="brand" href="/"', body)
+
+
+class TemplateSyntaxLeakTests(TestCase):
+    """
+    Nothing on a page should be template source.
+
+    Django's {# #} comment is single-line only. Written across two lines it is
+    not a comment at all - it is text, and it renders. One of those in the
+    sidebar header printed four lines of commentary beside the logo and
+    pushed it out of view, on every page, for both roles, while the markup
+    itself looked perfectly correct.
+    """
+
+    # Only the markers that cannot occur by accident. Braces are left out:
+    # "}}" closes nested object literals in the inline scripts on half these
+    # pages, and a check that cries wolf on every page gets deleted.
+    MARKERS = ["{#", "#}", "{%", "%}"]
+
+    def setUp(self):
+        self.facilitator = User.objects.create_user(
+            username="fac2", password="pw", role=User.Role.FACILITATOR
+        )
+        self.owner_user = User.objects.create_user(
+            username="own2", password="pw", role=User.Role.OWNER
+        )
+        segment = Segment.objects.create(name="HH-901 - Test", color="#0b6ea8")
+        Household.objects.create(
+            household_id="HH-901",
+            owner_name="Test Owner",
+            address="Purok 1",
+            contact_number="09171234501",
+            user=self.owner_user,
+            segment=segment,
+        )
+
+    def _assert_clean(self, url):
+        body = self.client.get(url).content.decode()
+        for marker in self.MARKERS:
+            self.assertNotIn(
+                marker, body, f"unrendered template syntax {marker!r} in {url}"
+            )
+
+    def test_the_public_page_renders_no_template_source(self):
+        self._assert_clean("/")
+
+    def test_facilitator_pages_render_no_template_source(self):
+        self.client.force_login(self.facilitator)
+        for name in [
+            "dashboard", "pressure_monitor", "event_list", "household_list",
+            "segment_list", "complaint_list", "notification_center", "reports",
+        ]:
+            with self.subTest(page=name):
+                self._assert_clean(reverse(name))
+
+    def test_owner_pages_render_no_template_source(self):
+        self.client.force_login(self.owner_user)
+        for name in ["owner_home", "owner_pressure", "owner_complaints", "owner_notifications"]:
+            with self.subTest(page=name):
+                self._assert_clean(reverse(name))
+
+    def test_the_brand_logo_is_on_every_signed_in_page(self):
+        self.client.force_login(self.facilitator)
+        body = self.client.get(reverse("dashboard")).content.decode()
+        self.assertIn("img/icon.svg", body)

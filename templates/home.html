@@ -94,9 +94,11 @@
         <line class="trace-rule" x1="40" y1="206" x2="620" y2="206"/>
         <text class="trace-tick" x="52" y="200">low supply &mdash; 0.30 bar</text>
 
-        {# Steady, with the small movement a real sensor gives, then the
-           decay. Drawn as two paths so the falling half can carry its own
-           colour, meeting exactly where the pattern turns. #}
+        {% comment %}
+          Steady, with the small movement a real sensor gives, then the
+          decay. Drawn as two paths so the falling half can carry its own
+          colour, meeting exactly where the pattern turns.
+        {% endcomment %}
         <path class="trace-fill" d="M40 96 L70 94 L100 98 L130 93 L160 97 L190 92
           L220 99 L250 95 L280 93 L310 98 L340 95 L368 97
           L390 104 L410 118 L435 136 L465 154 L500 170 L545 183 L590 191 L620 195

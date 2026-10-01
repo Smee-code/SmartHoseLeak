@@ -45,8 +45,10 @@
   {% if user.is_authenticated %}
     <aside class="sidenav" id="sidenav" aria-label="Main navigation">
       <div class="sidenav-head">
-        {# Signed in, the logo means "back to my dashboard", not "sign out to
-           the public page". post_login is what decides which dashboard. #}
+        {% comment %}
+          Signed in, the logo means "back to my dashboard", not "sign out to
+          the public page". post_login is what decides which dashboard.
+        {% endcomment %}
         <a class="brand" href="{% url 'post_login' %}">
           <img src="{% static 'img/icon.svg' %}" alt="" width="32" height="32">
           <span>
