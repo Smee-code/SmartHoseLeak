@@ -259,3 +259,65 @@ class DeliveryTrackingTests(TestCase):
             self.assertEqual(sms.poll_delivery(), 0)
         self.message.refresh_from_db()
         self.assertEqual(self.message.status, SmsMessage.Status.SENT)
+
+
+@override_settings(SMS_ENABLED=True, SEMAPHORE_API_KEY="test-key")
+class GatewayStateTests(TestCase):
+    """
+    Whether a text can go out, said in one sentence above the compose form.
+
+    The page paints this amber when it is False and leaves it quiet when it
+    is True, so the boolean is not a detail - it is the difference between a
+    warning the facilitator acts on and a line they read past.
+    """
+
+    def setUp(self):
+        sms._gateway_cache["value"] = None
+        sms._gateway_cache["at"] = 0.0
+
+    def _describe(self, account):
+        with mock.patch.object(sms, "_get", return_value=account):
+            return sms.describe_gateway(force=True)
+
+    def test_no_credit_is_not_ready(self):
+        """
+        Zero credit means every send is refused with "402: insufficient
+        credit". It used to report ready, so the one state where nothing
+        could possibly be sent was dressed as a healthy gateway.
+        """
+        ready, note = self._describe({"credit_balance": 0})
+        self.assertFalse(ready)
+        self.assertIn("no SMS credit", note)
+
+    def test_low_credit_still_sends(self):
+        """Low is a warning, not a stop: it works, and the fix is to top up."""
+        ready, note = self._describe({"credit_balance": 12})
+        self.assertTrue(ready)
+        self.assertIn("low", note)
+        self.assertIn("12", note)
+
+    def test_healthy_credit_reads_as_working(self):
+        ready, note = self._describe({"credit_balance": 450})
+        self.assertTrue(ready)
+        self.assertIn("450", note)
+
+    def test_the_billing_account_name_is_not_shown(self):
+        """
+        It printed as "Zynergyx Technologies" - the name on the Semaphore
+        account, which means nothing to a barangay facilitator and read as
+        though a third party were handling their messages.
+        """
+        _, note = self._describe({"credit_balance": 450, "account_name": "Zynergyx Technologies"})
+        self.assertNotIn("Zynergyx", note)
+
+    def test_a_rate_limited_credit_check_is_not_a_failure(self):
+        """Being throttled on the balance lookup says nothing about sending."""
+        with mock.patch.object(sms, "_get", side_effect=sms.SmsUnavailable("429 Too Many Attempts")):
+            ready, note = sms.describe_gateway(force=True)
+        self.assertTrue(ready)
+        self.assertIn("rate-limited", note)
+
+    def test_an_unreadable_balance_does_not_block_sending(self):
+        """A value we cannot parse is not evidence that the account is empty."""
+        ready, _ = self._describe({"credit_balance": "unlimited"})
+        self.assertTrue(ready)

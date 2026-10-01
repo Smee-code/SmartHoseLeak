@@ -445,11 +445,21 @@ SETTING IT UP  (about 5 minutes)
 
   4. Restart the server. It prints:
 
-         SMS: Sending through <your account>. Credit: 100.
+         SMS: Texts are going out. Credit: 100.
 
-  The same line is at the top of the Notices & SMS page, with your remaining
-  credit - running out of credit is the failure that looks most like the
-  system being broken, so it is shown before you write anything.
+  The same line is at the top of the Notices & SMS page, because running out
+  of credit is the failure that looks most like the system being broken, so
+  it is shown before you write anything. It says one of:
+
+         Texts are going out. Credit: 100.        nothing to do
+         Texts are going out, but credit is low - 12 left.   top up soon
+         There is no SMS credit left, so no text can be sent.    AMBER
+
+  The last one is a stop, not a warning: at zero credit Semaphore refuses
+  every send with "402: insufficient credit". Messages you send are still
+  written down and still go out after you top up - nothing is lost, it just
+  waits. Only that state is coloured; a working gateway is a quiet grey line,
+  so colour on this page always means something needs you.
 
   The balance is looked up at most once every 5 minutes. Semaphore rate-
   limits that call hard, and being told "too many attempts" instead of a
@@ -1168,6 +1178,15 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+2 Oct 2026   Running out of SMS credit is now reported as a stop rather than
+             as a healthy gateway. The banner on Notices & SMS used to be
+             green on every load, including the load where it read "LOW
+             CREDIT: 0 left" - the one state in which nothing can be sent
+             looked the most reassuring. It is amber and plainly worded now,
+             a working gateway is a quiet grey line, and the Semaphore
+             billing account name has been dropped from the sentence. See
+             section 9c.
+
 11 Sep 2026  First version. Covers startup, WiFi setup, server address,
              troubleshooting, calibration, commands and key values.
              Reflects: server address now configurable from the device's

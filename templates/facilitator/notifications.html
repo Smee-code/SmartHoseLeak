@@ -4,7 +4,12 @@
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>Send a notice</h1>
+      {% comment %}
+        The heading now says what the menu item that opened it says. "Send a
+        notice" named one of the three things on the page, so the tab you
+        clicked and the page you landed on disagreed about where you were.
+      {% endcomment %}
+      <h1>Notices &amp; SMS</h1>
       <p class="sub">
         Write it once and choose how it reaches people &mdash; in the app, as a text, or both.
       </p>
@@ -12,21 +17,34 @@
   </div>
 
   {% comment %}
-    The gateway's state is stated before the form, not after a failed send.
-    A SIM800L is a loose USB device on a shared desk, so "is it plugged in"
-    is a real question every single time, and finding out afterwards means
-    the facilitator has already written the message.
+    Whether a text can go out at all, stated before the form rather than
+    after a failed send - otherwise the facilitator finds out having already
+    written the message.
+
+    This was a green success bar, on every single load, including the load
+    where it read "LOW CREDIT: 0 left". Green that is always on is wallpaper,
+    and green over "nothing can be sent" is worse than no banner at all. It
+    is now quiet when texts are going out and amber only when they are not,
+    so the colour means one thing: this needs you.
+
+    The queue counts moved out of the sentence. How much is waiting is a
+    different fact from whether the gateway is up - a healthy gateway with
+    three queued messages was reading as one run-on line of middle dots.
   {% endcomment %}
-  <div class="message {% if gateway_ready %}message-success{% else %}message-warning{% endif %}" role="status">
-    <span>
-      <strong>SMS:</strong> {{ gateway_note }}
+  <div class="gateway{% if not gateway_ready %} is-blocked{% endif %}" role="status">
+    <p class="gateway-state">
+      {{ gateway_note }}
       {% if not gateway_ready %}
-        Messages you send by SMS are kept in the queue and go out as soon as this is sorted out.
+        Anything you send by text is held and goes out once this is sorted out.
       {% endif %}
-      {% if sms_queued %}&middot; {{ sms_queued }} waiting{% endif %}
-      {% if sms_awaiting %}&middot; {{ sms_awaiting }} awaiting confirmation{% endif %}
-      {% if sms_failed %}&middot; <strong>{{ sms_failed }} not delivered</strong>{% endif %}
-    </span>
+    </p>
+    {% if sms_queued or sms_awaiting or sms_failed %}
+      <p class="gateway-queue">
+        {% if sms_queued %}<span>{{ sms_queued }} waiting to go</span>{% endif %}
+        {% if sms_awaiting %}<span>{{ sms_awaiting }} awaiting confirmation</span>{% endif %}
+        {% if sms_failed %}<span class="is-bad">{{ sms_failed }} not delivered</span>{% endif %}
+      </p>
+    {% endif %}
   </div>
 
   <div class="split">
@@ -108,6 +126,13 @@
           sentence underneath rather than a paragraph under each box. They are
           a single decision - where does this go - not two separate ones.
         {% endcomment %}
+        {% comment %}
+          The send button was inside this fieldset, so the primary action of
+          the whole page sat within a bordered sub-group labelled "How to
+          send it" - reading as one of the channel options rather than as the
+          thing that sends the notice. It now closes the form, which is where
+          a submit belongs and where the eye arrives last.
+        {% endcomment %}
         <fieldset class="channel-box">
           <legend class="small">How to send it</legend>
           <div class="channel-row">
@@ -119,13 +144,16 @@
               {{ form.by_sms }}
               <label for="{{ form.by_sms.id_for_label }}">{{ form.by_sms.label }}</label>
             </span>
-            <button type="submit" class="btn btn-primary">Send notice</button>
           </div>
-          <p class="helptext" style="margin:.4rem 0 0">
+          <p class="channel-note">
             In the app it appears under Notices in their portal. By SMS it is texted to
             each household&rsquo;s contact number.
           </p>
         </fieldset>
+
+        <div class="compose-send">
+          <button type="submit" class="btn btn-primary">Send notice</button>
+        </div>
       </form>
 
       {% comment %}
@@ -157,14 +185,23 @@
         {% for row in sent %}
           {% with n=row.notification %}
             {% if row.complaint %}
+              {% comment %}
+                The meta line was "HH-001 - CMP-260914-8328 - +1 more reply",
+                three facts strung on middle dots. It now reads as what it
+                is - this household, about this complaint - with the folded
+                replies carried as a count rather than as more sentence. The
+                arrow and the muted body already say "reply", so the word
+                itself is not spent on the line as well; saying it made the
+                longest rows wrap onto a third line.
+              {% endcomment %}
               <a class="sent-row is-reply" href="{% url 'complaint_thread' row.complaint.pk %}">
                 <span class="sent-icon" aria-hidden="true">&#8617;</span>
                 <span class="sent-main">
                   <span class="sent-text">{{ n.body|truncatechars:70 }}</span>
                   <span class="sent-meta">
-                    {% if n.recipient %}{{ n.recipient.household_id }}{% endif %}
-                    &middot; {{ row.complaint.reference }}
-                    {% if row.also %}&middot; +{{ row.also }} more repl{{ row.also|pluralize:"y,ies" }}{% endif %}
+                    {% if n.recipient %}{{ n.recipient.household_id }}{% else %}The owner{% endif %}
+                    about <span class="sent-ref">{{ row.complaint.reference }}</span>
+                    {% if row.also %}<span class="sent-also">+{{ row.also }} more</span>{% endif %}
                   </span>
                 </span>
                 <time class="sent-time">{{ n.created_at|date:"M j" }}</time>
@@ -173,10 +210,10 @@
               <div class="sent-row" data-kind="{{ n.kind }}">
                 <span class="sent-icon" aria-hidden="true">&#9993;</span>
                 <span class="sent-main">
-                  <span class="sent-text"><strong>{{ n.title }}</strong> &mdash; {{ n.body|truncatechars:60 }}</span>
+                  <span class="sent-text"><strong>{{ n.title }}</strong> {{ n.body|truncatechars:60 }}</span>
                   <span class="sent-meta">
-                    {% if n.recipient %}{{ n.recipient.household_id }}{% else %}all households{% endif %}
-                    &middot; {% if n.read_at %}read{% else %}unread{% endif %}
+                    Sent to {% if n.recipient %}{{ n.recipient.household_id }}{% else %}all households{% endif %}
+                    {% if n.read_at %}<span class="sent-read">read</span>{% else %}<span class="sent-unread">not read yet</span>{% endif %}
                   </span>
                 </span>
                 <time class="sent-time">{{ n.created_at|date:"M j" }}</time>
@@ -197,10 +234,27 @@
     got a message" this is the page that settles it.
   {% endcomment %}
   <div class="card" style="margin-top:1.6rem">
-    <div class="card-head">
+    {% comment %}
+      This head stacks on a narrow screen. The sentence is longer than the
+      "Newest first" it replaced, and a flex row squeezed "Text messages"
+      into two lines to make room for it on a phone.
+    {% endcomment %}
+    <div class="card-head card-head-stack">
       <h2>Text messages</h2>
-      <span class="small muted">Newest first</span>
+      <span class="small muted">Every text and what became of it. Newest first.</span>
     </div>
+    {% comment %}
+      With nothing sent yet this rendered a full six-column header above a
+      single empty row - about two hundred pixels of table chrome labelling
+      columns that had nothing in them. An empty log is a sentence; the
+      columns arrive with the first message.
+    {% endcomment %}
+    {% if not sms_messages %}
+      <p class="empty">
+        No text messages yet.<br>
+        <span class="small">Tick &ldquo;Also send as SMS&rdquo; above, or wait for a leak alert.</span>
+      </p>
+    {% else %}
     <div class="table-wrap">
       <table class="table">
         <thead>
@@ -259,19 +313,11 @@
                 {% endif %}
               </td>
             </tr>
-          {% empty %}
-            <tr>
-              <td colspan="6">
-                <p class="empty">
-                  No text messages yet.<br>
-                  <span class="small">Tick &ldquo;Also send as SMS&rdquo; above, or wait for a leak alert.</span>
-                </p>
-              </td>
-            </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

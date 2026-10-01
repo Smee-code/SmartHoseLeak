@@ -129,7 +129,7 @@ def describe_gateway(force=False):
     of credit is the failure that looks most like the system being broken.
     """
     if not settings.SMS_ENABLED:
-        return False, "SMS is switched off in settings (SMS_ENABLED)."
+        return False, "Texts are switched off in settings (SMS_ENABLED)."
 
     if not settings.SEMAPHORE_API_KEY:
         return False, (
@@ -157,26 +157,37 @@ def _describe_gateway_uncached():
         # a message can be sent. Reporting it as a failure would tell a
         # facilitator that SMS is down when it is working perfectly.
         if "429" in detail or "Too Many Attempts" in detail:
-            return True, "Sending through Semaphore. (Credit check is rate-limited just now.)"
-        return False, f"Semaphore is configured but not answering: {detail}"
+            return True, "Texts are going out. The credit check is rate-limited just now."
+        return False, f"The SMS gateway is set up but not answering: {detail}"
 
     if isinstance(account, list):
         account = account[0] if account else {}
 
     balance = account.get("credit_balance", account.get("account_balance"))
-    name = account.get("account_name") or "Semaphore"
     if balance is None:
-        return True, f"Sending through {name}."
+        return True, "Texts are going out."
 
-    # Said as a warning rather than a failure: messages still queue, and the
-    # fix is to top up rather than to change anything.
+    # The account name was in this sentence and has been taken out. It is the
+    # name on the Semaphore billing account - here it printed as "Zynergyx
+    # Technologies", which tells a barangay facilitator nothing and read as
+    # though some third party were involved.
     try:
-        low = float(balance) < 20
+        credit = float(balance)
     except (TypeError, ValueError):
-        low = False
-    if low:
-        return True, f"Sending through {name}. LOW CREDIT: {balance} left - top up soon."
-    return True, f"Sending through {name}. Credit: {balance}."
+        return True, "Texts are going out."
+
+    # No credit is not a warning, it is a stop: every send is refused with
+    # "402: insufficient credit". This used to report itself as a healthy
+    # gateway - a green bar reading "LOW CREDIT: 0 left - top up soon" - so
+    # the one state where nothing can possibly be sent was the state that
+    # looked most reassuring. Messages still queue and still go out after a
+    # top-up, which is what the banner says next.
+    if credit <= 0:
+        return False, "There is no SMS credit left, so no text can be sent."
+    if credit < 20:
+        # A real warning: it still works, and the fix is to top up.
+        return True, f"Texts are going out, but credit is low - {credit:g} left."
+    return True, f"Texts are going out. Credit: {credit:g}."
 
 
 def normalise_number(raw):

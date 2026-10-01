@@ -1190,15 +1190,26 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 .channel-box {
   border: 1px solid var(--border); border-radius: var(--radius);
-  padding: .7rem .9rem; margin: 1rem 0;
+  padding: .7rem .9rem; margin: 1rem 0 .9rem;
 }
 .channel-box legend { padding: 0 .35rem; color: var(--text-muted); font-weight: 600; }
 
-/* The channels and the send button on one line: choosing where a notice goes
-   and sending it are one action, and stacking them put three rows and two
-   paragraphs between the message and the button. */
+/* The two channels on one line: in the app and by text are one decision -
+   where does this go - not two. */
 .channel-row { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
-.channel-row .btn { margin-left: auto; }
+
+/* It was class="helptext" with an inline margin, but the rule that colours
+   help text is scoped to .field - so outside a field it was only ever styled
+   by accident. Given its own name and its own measure. */
+.channel-note {
+  margin: .45rem 0 0; font-size: .82rem; color: var(--text-muted);
+  max-width: 62ch; line-height: 1.45;
+}
+
+/* The submit closes the form rather than sitting inside the channel group.
+   Right-aligned, because the form is read top to bottom and the action is
+   the end of it. */
+.compose-send { display: flex; justify-content: flex-end; }
 
 /* A message that will split into several texts is not an error - it costs
    more and may arrive out of order. Amber, not red. */
@@ -1235,6 +1246,48 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
    messages filled the panel, and it grew with every reply ever sent.
    -------------------------------------------------------------------------- */
 
+/* A card head whose subtitle is a sentence rather than a two-word tag: it
+   drops below the heading once there is no room for both. */
+@media (max-width: 620px) {
+  .card-head-stack { flex-wrap: wrap; }
+  .card-head-stack > h2 { flex: 1 0 100%; }
+}
+
+
+/* ------------------------------------------------------------ SMS gateway
+   Whether a text can leave the building, said once above the compose form.
+
+   Two states, not three colours. Working is a plain line on the page
+   background - it is the normal condition and does not deserve a banner.
+   Blocked is amber with a left bar, which is the only thing on this page
+   that uses colour, so it cannot be mistaken for decoration.
+   -------------------------------------------------------------------------- */
+
+.gateway {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: .35rem 1.1rem;
+  margin: 0 0 1.1rem;
+  padding: .1rem 0;
+}
+.gateway-state { margin: 0; font-size: .9rem; color: var(--text-muted); max-width: 70ch; }
+
+.gateway.is-blocked {
+  padding: .65rem .9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--warn);
+  border-left-width: 4px;
+  background: var(--warn-soft);
+}
+.gateway.is-blocked .gateway-state { color: var(--text); font-weight: 500; }
+
+/* The queue counts, pushed to the far end so they read as a tally against
+   the sentence rather than a continuation of it. */
+.gateway-queue {
+  margin: 0 0 0 auto; display: flex; flex-wrap: wrap; gap: .25rem .9rem;
+  font-size: .82rem; color: var(--text-muted);
+}
+.gateway-queue .is-bad { color: var(--danger); font-weight: 600; }
+
 .sent-feed { display: flex; flex-direction: column; }
 
 .sent-row {
@@ -1257,8 +1310,31 @@ a.sent-row:hover { background: var(--surface-2); }
   display: block;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.sent-meta { display: block; font-size: .74rem; color: var(--text-muted); }
-.sent-time { flex: 0 0 auto; font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+/* The title carries the separation that an em dash used to, so the dash is
+   gone and the space does the work. */
+.sent-text strong { margin-right: .35rem; }
+
+/* .74rem is 11.8px - the smallest text anywhere in the system, used for the
+   line that says who a notice went to. Raised to a size that can be read
+   without leaning in. */
+.sent-meta { display: block; margin-top: .1rem; font-size: .8rem; color: var(--text-muted); }
+.sent-time { flex: 0 0 auto; font-size: .8rem; color: var(--text-muted); white-space: nowrap; }
+
+/* The complaint reference is the one token here that gets read out over the
+   phone, so it is set apart from the sentence around it. */
+.sent-ref { font-variant-numeric: tabular-nums; color: var(--text); }
+
+/* A folded run of replies, and whether a notice has been read: counts and
+   states, not more sentence. */
+.sent-also,
+.sent-read,
+.sent-unread {
+  display: inline-block; margin-left: .3rem;
+  padding: 0 .35rem; border-radius: 999px;
+  font-size: .78rem; line-height: 1.55;
+  border: 1px solid var(--border); background: var(--surface-2);
+}
+.sent-unread { color: var(--brand-strong); border-color: var(--brand-soft); background: var(--brand-soft); }
 
 /* A reply is quieter than a notice the facilitator wrote: it is already
    handled in the thread, and this list is only saying it happened. */
