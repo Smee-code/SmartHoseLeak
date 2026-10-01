@@ -7,6 +7,7 @@ JSON endpoints.
 """
 
 import json
+import logging
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -25,6 +26,7 @@ from .models import (
     LatestReading,
     LeakEvent,
     Notification,
+    PushSubscription,
     ReadingRollup,
     Segment,
     SmsMessage,
@@ -32,6 +34,9 @@ from .models import (
     ValveState,
     psi,
 )
+from . import push
+
+logger = logging.getLogger(__name__)
 
 # The device reports these three; MAINTENANCE and OFFLINE are set server-side.
 DEVICE_STATUSES = {
@@ -79,6 +84,29 @@ def _choice_or_default(raw, choices, default):
         return default
     value = str(raw).strip().lower()
     return value if value in choices.values else default
+
+
+def _push_body(event, in_app_body):
+    """
+    The same news, cut to what fits on a lock screen.
+
+    A notification is read in a glance with the phone face-down on a table.
+    The in-app body carries the reading and the full instruction because it is
+    read inside the app with the pressure chart underneath it; here the
+    instruction alone is the useful half, same reasoning as the SMS.
+    """
+    if event.status == Segment.Status.POSSIBLE_LEAK:
+        return (
+            "Check that your faucets are fully closed. If they are and water "
+            "is still running, tell the facilitator."
+        )
+    if event.status == Segment.Status.LOW_SUPPLY:
+        return "Water may be slow at your tap. The source is probably low."
+    if event.status == Segment.Status.NORMAL:
+        return "The alert on your line has been cleared."
+    # Nothing else raises a notice, but a sentence is better than an empty
+    # notification if that ever changes.
+    return in_app_body.split("\n\n")[0]
 
 
 def _notify_households(segment, event):
@@ -140,6 +168,23 @@ def _notify_households(segment, event):
             for household in households
         ]
     )
+
+    # Push it to any handset that asked for notifications.
+    #
+    # Sent for every status that raised a notice, including the all-clear -
+    # unlike a text, a push costs nothing, so there is no reason to ration it
+    # to the worst news. It is an addition to the SMS below and never a
+    # substitute: push reaches only phones that installed the portal and
+    # granted permission, and says nothing when one is switched off.
+    if settings.PUSH_AUTO_ON_LEAK:
+        for household in households:
+            try:
+                push.send_to_household(household, title, _push_body(event, body))
+            except Exception:  # noqa: BLE001
+                # A leak alert must not fail because a push service is having
+                # a bad afternoon. send_to_household already swallows the
+                # ordinary failures; this is the belt to that braces.
+                logger.exception("Push failed for %s", household.household_id)
 
     # Text them as well, unless that has been switched off.
     #
@@ -667,3 +712,132 @@ def history(request):
         )
 
     return JsonResponse({"ok": True, "hours": hours, "series": list(series.values())})
+
+
+# ---------------------------------------------------------------------------
+# Push subscriptions
+#
+# These are the browser handing the server its own push credentials. They are
+# session-authenticated and belong to the signed-in household - a device
+# cannot register a subscription, and one household can never register a
+# subscription against another.
+# ---------------------------------------------------------------------------
+
+
+def _subscription_payload(request):
+    """Pull the three values a Push API subscription carries, or raise."""
+    try:
+        data = json.loads(request.body or b"{}")
+    except ValueError:
+        raise ValueError("body is not JSON")
+
+    endpoint = (data.get("endpoint") or "").strip()
+    keys = data.get("keys") or {}
+    p256dh = (keys.get("p256dh") or "").strip()
+    auth = (keys.get("auth") or "").strip()
+
+    if not endpoint:
+        raise ValueError("no endpoint")
+    if not (p256dh and auth):
+        raise ValueError("no keys")
+
+    return endpoint, p256dh, auth
+
+
+# Exempt from CSRF, unlike its two neighbours, because the service worker
+# calls this one as well as the page does - a push service can rotate a
+# subscription while no tab is open, and a worker has no document to read a
+# CSRF token from. The exemption is narrow and the endpoint still requires a
+# signed-in household session.
+#
+# What a forged request could achieve is limited to registering a push
+# endpoint that belongs to the victim's own browser, for this server's own
+# VAPID key: they would receive the notifications they were going to receive
+# anyway. It cannot read anything and it cannot send anything.
+@csrf_exempt
+@require_POST
+def push_subscribe(request):
+    household = getattr(request.user, "household", None)
+    if household is None:
+        return JsonResponse({"error": "not a household account"}, status=403)
+
+    try:
+        endpoint, p256dh, auth = _subscription_payload(request)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+
+    # update_or_create on the endpoint, because the endpoint IS the handset's
+    # identity. A phone that re-subscribes - permission re-granted, app
+    # reinstalled, keys rotated by the browser - sends the same endpoint with
+    # fresh keys, and storing a second row would push to it twice.
+    PushSubscription.objects.update_or_create(
+        endpoint=endpoint,
+        defaults={
+            "household": household,
+            "p256dh": p256dh,
+            "auth": auth,
+            "user_agent": request.META.get("HTTP_USER_AGENT", "")[:300],
+            "failures": 0,
+        },
+    )
+    return JsonResponse({"ok": True})
+
+
+@require_POST
+def push_unsubscribe(request):
+    household = getattr(request.user, "household", None)
+    if household is None:
+        return JsonResponse({"error": "not a household account"}, status=403)
+
+    try:
+        data = json.loads(request.body or b"{}")
+    except ValueError:
+        return JsonResponse({"error": "body is not JSON"}, status=400)
+
+    endpoint = (data.get("endpoint") or "").strip()
+    if not endpoint:
+        return JsonResponse({"error": "no endpoint"}, status=400)
+
+    # Scoped to this household on purpose: without it, knowing somebody else's
+    # endpoint would be enough to switch their notifications off.
+    deleted, _ = PushSubscription.objects.filter(
+        household=household, endpoint=endpoint
+    ).delete()
+    return JsonResponse({"ok": True, "removed": deleted})
+
+
+@require_POST
+def push_test(request):
+    """
+    Send one notification to the handset that asked for it.
+
+    Worth its own endpoint: "did it work?" is the first thing anybody asks
+    after granting permission, and the honest answer needs a real message to
+    travel the whole path - server, push service, handset, service worker.
+    """
+    household = getattr(request.user, "household", None)
+    if household is None:
+        return JsonResponse({"error": "not a household account"}, status=403)
+
+    ready, note = push.describe_push()
+    if not ready:
+        return JsonResponse({"ok": False, "error": note}, status=503)
+
+    sent, removed = push.send_to_household(
+        household,
+        "Notifications are working",
+        "This is a test. Alerts about your water will look like this.",
+    )
+    if not sent:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    "This phone is not registered for notifications. Turn them "
+                    "off and on again." if removed else
+                    "No phone is registered for notifications yet."
+                ),
+            },
+            status=409,
+        )
+    return JsonResponse({"ok": True, "sent": sent})

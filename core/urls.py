@@ -60,12 +60,16 @@ urlpatterns = [
     path("portal/complaints/", views.owner_complaints, name="owner_complaints"),
     path("portal/complaints/<int:pk>/", views.owner_complaints, name="owner_complaint_thread"),
     path("portal/pressure/", views.owner_pressure, name="owner_pressure"),
+    path("portal/settings/", views.owner_settings, name="owner_settings"),
 
     # JSON API
     path("api/ingest/", api.ingest, name="api_ingest"),
     path("api/claim/", api.claim, name="api_claim"),
     path("api/live/", api.live, name="api_live"),
     path("api/history/", api.history, name="api_history"),
+    path("api/push/subscribe/", api.push_subscribe, name="api_push_subscribe"),
+    path("api/push/unsubscribe/", api.push_unsubscribe, name="api_push_unsubscribe"),
+    path("api/push/test/", api.push_test, name="api_push_test"),
 
     # PWA
     path(

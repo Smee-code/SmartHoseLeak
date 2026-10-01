@@ -46,7 +46,7 @@ from .models import (
     WaterSource,
     psi,
 )
-from . import sms
+from . import push, sms
 
 User = get_user_model()
 
@@ -1349,5 +1349,29 @@ def owner_pressure(request, household):
             "household": household,
             "segment": household.segment,
             "latest": getattr(household.segment, "latest", None) if household.segment else None,
+        },
+    )
+
+
+@owner_required
+def owner_settings(request, household):
+    """
+    Install the portal, and turn notifications on.
+
+    Both of these were things the owner had no way to reach. The portal has
+    been installable since the manifest was written, but nothing in the app
+    ever said so, which meant nobody installed it - a feature only discovered
+    by people who already knew to look in a browser menu is not a feature.
+    """
+    push_ready, push_note = push.describe_push()
+    return render(
+        request,
+        "owner/settings.html",
+        {
+            "household": household,
+            "push_ready": push_ready,
+            "push_note": push_note,
+            "vapid_public_key": settings.VAPID_PUBLIC_KEY,
+            "subscriptions": household.push_subscriptions.all(),
         },
     )

@@ -8,20 +8,22 @@ cut in half, a message dropped because nobody had a number, a queue that
 quietly empties itself while the modem is unplugged.
 """
 
+import json
 from unittest import mock
 
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 
+from core import push as push_module
 from core import sms
 from core.api import _leak_sms_text
-from django.urls import reverse
-
 from core.models import (
     Device,
     DeviceSeverity,
     Household,
     LeakEvent,
+    PushSubscription,
     Segment,
     SmsMessage,
     User,
@@ -453,3 +455,234 @@ class TemplateSyntaxLeakTests(TestCase):
         self.client.force_login(self.facilitator)
         body = self.client.get(reverse("dashboard")).content.decode()
         self.assertIn("img/icon.svg", body)
+
+
+@override_settings(
+    PUSH_ENABLED=True,
+    VAPID_PUBLIC_KEY="BTestPublicKey",
+    VAPID_PRIVATE_KEY="test-private-key",
+    VAPID_SUBJECT="mailto:test@example.com",
+)
+class PushSubscriptionTests(TestCase):
+    """
+    A household registering a phone for notifications, and losing one.
+
+    The endpoint is the handset's identity, so the interesting cases are all
+    about it: the same phone re-subscribing, a phone that has been wiped, and
+    one household reaching for another household's.
+    """
+
+    SUB = {
+        "endpoint": "https://push.example.com/abc123",
+        "keys": {"p256dh": "a-public-key", "auth": "an-auth-secret"},
+    }
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="pushowner", password="pw", role=User.Role.OWNER
+        )
+        segment = Segment.objects.create(name="HH-910 - Push", color="#0b6ea8")
+        self.household = Household.objects.create(
+            household_id="HH-910",
+            owner_name="Push Tester",
+            address="Purok 1",
+            contact_number="09171234510",
+            user=self.user,
+            segment=segment,
+        )
+        self.client.force_login(self.user)
+
+    def _subscribe(self, payload=None):
+        return self.client.post(
+            reverse("api_push_subscribe"),
+            data=json.dumps(payload or self.SUB),
+            content_type="application/json",
+        )
+
+    def test_a_phone_can_register(self):
+        self.assertEqual(self._subscribe().status_code, 200)
+        self.assertEqual(self.household.push_subscriptions.count(), 1)
+
+    def test_the_same_phone_registering_twice_is_still_one_phone(self):
+        """
+        Re-granting permission, or reinstalling, sends the same endpoint with
+        fresh keys. Stored as a second row it would be pushed to twice.
+        """
+        self._subscribe()
+        again = dict(self.SUB)
+        again["keys"] = {"p256dh": "rotated-key", "auth": "rotated-auth"}
+        self._subscribe(again)
+
+        self.assertEqual(self.household.push_subscriptions.count(), 1)
+        self.assertEqual(self.household.push_subscriptions.first().p256dh, "rotated-key")
+
+    def test_a_payload_without_keys_is_refused(self):
+        response = self._subscribe({"endpoint": "https://push.example.com/x"})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(PushSubscription.objects.count(), 0)
+
+    def test_unsubscribing_removes_it(self):
+        self._subscribe()
+        response = self.client.post(
+            reverse("api_push_unsubscribe"),
+            data=json.dumps({"endpoint": self.SUB["endpoint"]}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(PushSubscription.objects.count(), 0)
+
+    def test_one_household_cannot_unsubscribe_another(self):
+        """
+        Without the household filter, knowing somebody's endpoint would be
+        enough to switch their alerts off.
+        """
+        self._subscribe()
+
+        other_user = User.objects.create_user(
+            username="other", password="pw", role=User.Role.OWNER
+        )
+        Household.objects.create(
+            household_id="HH-911",
+            owner_name="Someone Else",
+            address="Purok 2",
+            contact_number="09171234511",
+            user=other_user,
+        )
+        self.client.force_login(other_user)
+        self.client.post(
+            reverse("api_push_unsubscribe"),
+            data=json.dumps({"endpoint": self.SUB["endpoint"]}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(PushSubscription.objects.count(), 1)
+
+    def test_a_facilitator_has_no_household_to_subscribe(self):
+        facilitator = User.objects.create_user(
+            username="pushfac", password="pw", role=User.Role.FACILITATOR
+        )
+        self.client.force_login(facilitator)
+        self.assertEqual(self._subscribe().status_code, 403)
+
+    def test_a_dead_subscription_is_deleted_not_retried(self):
+        """
+        404 and 410 are the push service saying the handset is gone for good.
+        Kept, the row would be pushed to on every alert forever.
+        """
+        self._subscribe()
+
+        # send_to_subscription returns False for exactly this: the push
+        # service reporting the subscription gone, rather than failing.
+        with mock.patch("core.push.send_to_subscription", return_value=False):
+            sent, removed = push_module.send_to_household(self.household, "t", "b")
+
+        self.assertEqual((sent, removed), (0, 1))
+        self.assertEqual(PushSubscription.objects.count(), 0)
+
+    def test_a_failing_push_service_does_not_delete_anything(self):
+        """A bad afternoon at the push service is not evidence a phone is gone."""
+        self._subscribe()
+        with mock.patch(
+            "core.push.send_to_subscription",
+            side_effect=push_module.PushUnavailable("500: server error"),
+        ):
+            sent, removed = push_module.send_to_household(self.household, "t", "b")
+
+        self.assertEqual((sent, removed), (0, 0))
+        self.assertEqual(PushSubscription.objects.count(), 1)
+        self.assertEqual(PushSubscription.objects.first().failures, 1)
+
+
+class PushConfigTests(TestCase):
+    """Switched off is a state the portal has to render, not an error."""
+
+    @override_settings(PUSH_ENABLED=False)
+    def test_disabled_says_so(self):
+        ready, note = push_module.describe_push()
+        self.assertFalse(ready)
+        self.assertIn("switched off", note)
+
+    @override_settings(PUSH_ENABLED=True, VAPID_PUBLIC_KEY="", VAPID_PRIVATE_KEY="")
+    def test_no_keys_names_the_command_that_makes_them(self):
+        ready, note = push_module.describe_push()
+        self.assertFalse(ready)
+        self.assertIn("make_push_keys", note)
+
+    @override_settings(PUSH_ENABLED=True, VAPID_PUBLIC_KEY="", VAPID_PRIVATE_KEY="")
+    def test_nothing_is_sent_when_unconfigured(self):
+        user = User.objects.create_user(username="u", password="pw", role=User.Role.OWNER)
+        household = Household.objects.create(
+            household_id="HH-912", owner_name="X", address="P", user=user
+        )
+        PushSubscription.objects.create(
+            household=household, endpoint="https://e/1", p256dh="k", auth="a"
+        )
+        self.assertEqual(push_module.send_to_household(household, "t", "b"), (0, 0))
+
+    @override_settings(PUSH_ENABLED=True, VAPID_PUBLIC_KEY="pub", VAPID_PRIVATE_KEY="priv")
+    def test_the_settings_page_renders_for_an_owner(self):
+        user = User.objects.create_user(username="u2", password="pw", role=User.Role.OWNER)
+        Household.objects.create(
+            household_id="HH-913", owner_name="Y", address="P", user=user
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse("owner_settings"))
+        self.assertEqual(response.status_code, 200)
+        # The install steps must be in the HTML, not drawn by JavaScript -
+        # a phone that cannot run the script still has to be installable.
+        self.assertContains(response, "Add to Home Screen")
+        self.assertContains(response, "Install app")
+
+
+@override_settings(
+    PUSH_ENABLED=True,
+    VAPID_PUBLIC_KEY="BTestPublicKey",
+    VAPID_PRIVATE_KEY="ReU-fZuxyinHY80UauMIg0mYdpXF6xeEbG95_PQwvIY",
+    VAPID_SUBJECT="mailto:test@example.com",
+)
+class PushTransportTests(TestCase):
+    """
+    What happens when the push service cannot be reached at all.
+
+    pywebpush raises WebPushException only for things the push service said.
+    Everything before that - DNS, the connection, a timeout, no internet -
+    comes out of requests untouched, so this is the failure a server in a
+    barangay with an intermittent line will actually hit.
+    """
+
+    def setUp(self):
+        user = User.objects.create_user(username="t", password="pw", role=User.Role.OWNER)
+        self.household = Household.objects.create(
+            household_id="HH-914", owner_name="T", address="P", user=user
+        )
+        self.subscription = PushSubscription.objects.create(
+            household=self.household,
+            endpoint="https://push.invalid.example/x",
+            p256dh="k",
+            auth="a",
+        )
+
+    def test_a_connection_error_becomes_PushUnavailable(self):
+        import requests
+
+        with mock.patch(
+            "pywebpush.webpush", side_effect=requests.ConnectionError("no DNS")
+        ):
+            with self.assertRaises(push_module.PushUnavailable):
+                push_module.send_to_subscription(self.subscription, {"title": "t"})
+
+    def test_an_unreachable_service_does_not_break_an_alert(self):
+        """
+        send_to_household promises its callers it never raises. A leak alert
+        must go out by SMS even when nothing can be pushed.
+        """
+        import requests
+
+        with mock.patch(
+            "pywebpush.webpush", side_effect=requests.ConnectionError("no DNS")
+        ):
+            sent, removed = push_module.send_to_household(self.household, "t", "b")
+
+        self.assertEqual((sent, removed), (0, 0))
+        # The handset is not gone - the internet is. Nothing is deleted.
+        self.assertEqual(PushSubscription.objects.count(), 1)

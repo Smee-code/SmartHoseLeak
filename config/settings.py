@@ -247,6 +247,35 @@ SMS_DELIVERY_POLL_SECONDS = int(env("SMS_DELIVERY_POLL_SECONDS", "60"))
 # a request per old message per minute.
 SMS_DELIVERY_MAX_AGE_HOURS = int(env("SMS_DELIVERY_MAX_AGE_HOURS", "6"))
 
+# ---------------------------------------------------------------------------
+# Push notifications for the Owner Portal
+#
+# Web Push is a browser standard, not a product: the keys below are a VAPID
+# key pair this server generates for itself with "manage.py make_push_keys",
+# and nothing is registered with anybody. Without them every push function
+# reports "not configured" and does nothing - the portal has to run on a
+# laptop during development and at a defence, where no keys exist, and it
+# must not fail or nag because of it.
+#
+# Push is never the only way an alert reaches a household. The SMS goes out
+# regardless; this is a second, faster route to whichever handsets have asked
+# for it.
+# ---------------------------------------------------------------------------
+
+PUSH_ENABLED = env_bool("PUSH_ENABLED", True)
+
+VAPID_PUBLIC_KEY = env("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = env("VAPID_PRIVATE_KEY", "")
+
+# Who to contact about this application, for the push service's records. It
+# is never shown to the person receiving a notification. A mailto: or https:
+# URL; the spec requires one, and some push services reject messages without.
+VAPID_SUBJECT = env("VAPID_SUBJECT", "mailto:facilitator@example.com")
+
+# Whether a leak alert also pushes. Separate from SMS_AUTO_ON_LEAK so either
+# channel can be silenced on its own while testing.
+PUSH_AUTO_ON_LEAK = env_bool("PUSH_AUTO_ON_LEAK", True)
+
 MUNICIPALITY_BOUNDS = (9.61325, 125.43605, 9.69744, 125.54105)  # S, W, N, E
 MUNICIPALITY_BOUNDS_MARGIN_DEG = 0.05  # about 5.5 km
 

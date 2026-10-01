@@ -38,6 +38,7 @@
   <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9"/><path d="M10.4 20a2 2 0 0 0 3.2 0"/></symbol>
   <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H14a4 4 0 0 1 0 8h-4a4 4 0 0 0 0 8h.5" transform="translate(0 -2)"/></symbol>
   <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 17v-5"/><path d="M13 17V8"/><path d="M18 17v-8"/></symbol>
+  <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H2a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H22a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1"/></symbol>
 </svg>
 
 <div class="appshell{% if not user.is_authenticated %} appshell-plain{% endif %}">
@@ -104,6 +105,9 @@
           </a>
           <a href="{% url 'owner_complaints' %}" {% if request.resolver_match.url_name == 'owner_complaints' %}aria-current="page"{% endif %}>
             <svg class="ico" aria-hidden="true"><use href="#i-chat"></use></svg><span>Complaints</span>
+          </a>
+          <a href="{% url 'owner_settings' %}" {% if request.resolver_match.url_name == 'owner_settings' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-cog"></use></svg><span>Settings</span>
           </a>
         {% endif %}
       </nav>

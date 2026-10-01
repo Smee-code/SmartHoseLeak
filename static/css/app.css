@@ -1680,7 +1680,12 @@ a.sent-row:hover { background: var(--surface-2); }
    ------------------------------------------------------------------------ */
 
 .owner-action {
-  display: block; margin: 1rem 0 0;
+  /* width, not just display:block. This class was written for an <a>, which
+     fills its container when blocked; the Settings page uses it on a
+     <button>, which sizes to its label instead and came out a third of the
+     width of every other action in the portal. */
+  display: block; width: 100%; margin: 1rem 0 0;
+  border: 0; font-family: inherit; cursor: pointer;
   padding: .95rem 1rem; min-height: 52px;
   border-radius: var(--radius);
   background: var(--brand); color: #fff;
@@ -1708,6 +1713,73 @@ a.sent-row:hover { background: var(--surface-2); }
   color: var(--brand-strong); background: var(--brand-soft);
   border-radius: 999px; padding: .1rem .55rem;
 }
+
+/* ---- Settings ------------------------------------------------------------
+   Install the app, and alerts on this phone. Read on a phone, often by
+   somebody following the steps with the other thumb, so the type floor from
+   the rest of the owner portal holds: nothing below .95rem.
+   ------------------------------------------------------------------------ */
+
+.owner-h1 { margin: .2rem 0 1.2rem; font-size: 1.45rem; letter-spacing: -.01em; }
+
+.set-lede {
+  margin: 0 0 .9rem; font-size: .98rem; line-height: 1.55;
+  color: var(--text-muted); max-width: 46ch;
+}
+
+/* Something is stopping this working, and it is not the person's fault. The
+   left bar is the same device the SMS banner uses on the facilitator side,
+   for the same reason: colour on a page means this one needs you. */
+.set-warn {
+  margin: .9rem 0; padding: .75rem .9rem;
+  border: 1px solid var(--warn); border-left-width: 4px;
+  border-radius: var(--radius-sm); background: var(--warn-soft);
+  font-size: .95rem; line-height: 1.5;
+}
+
+.set-done {
+  margin: .9rem 0; padding: .75rem .9rem;
+  border: 1px solid var(--ok); border-left-width: 4px;
+  border-radius: var(--radius-sm); background: var(--ok-soft);
+  font-size: .95rem; line-height: 1.5;
+}
+
+.set-note { margin: .5rem 0 0; font-size: .95rem; color: var(--text-muted); }
+
+.set-status { margin: .7rem 0 0; font-size: .95rem; color: var(--text-muted); min-height: 1.4em; }
+
+.set-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .9rem; }
+
+/* The steps, folded away on the phones that have a button and opened on the
+   phones that do not. A summary is a tap target, so it gets a tap target's
+   height rather than a line of text's. */
+.set-steps {
+  margin-top: .9rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface);
+}
+.set-steps > summary {
+  padding: .9rem 1rem; min-height: 52px;
+  display: flex; align-items: center;
+  cursor: pointer; font-weight: 600; font-size: 1rem;
+  list-style: none;
+}
+.set-steps > summary::-webkit-details-marker { display: none; }
+.set-steps > summary::after {
+  content: ""; margin-left: auto;
+  width: .5rem; height: .5rem;
+  border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted);
+  transform: rotate(45deg); transition: transform .15s ease;
+}
+.set-steps[open] > summary::after { transform: rotate(-135deg); }
+@media (prefers-reduced-motion: reduce) {
+  .set-steps > summary::after { transition: none; }
+}
+
+.set-steps ol { margin: 0; padding: 0 1rem 1rem 2.4rem; }
+.set-steps li { margin-bottom: .6rem; font-size: .98rem; line-height: 1.55; }
+.set-steps li:last-child { margin-bottom: 0; }
+.set-steps .set-note { padding: 0 1rem 1rem; margin: 0; }
 
 /* ---- Notices ------------------------------------------------------------- */
 

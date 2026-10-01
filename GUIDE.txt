@@ -1066,6 +1066,105 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
 
 
 ============================================================================
+12f. INSTALLING THE PORTAL ON A HOUSEHOLD'S PHONE  (and turning on alerts)
+============================================================================
+
+WHAT THIS IS
+  The Owner Portal is a Progressive Web App - a PWA. It is the website, but
+  a phone can keep it on its home screen and open it full screen with no
+  browser bar, like an installed app. There is no Play Store or App Store
+  entry and nothing to download; the phone saves the page it already has.
+
+  Owners find it at Portal -> Settings, which has the steps for their own
+  phone and a button to turn on alerts.
+
+  Careful with the letters: PWA is the app thing. WPA is the WiFi password
+  thing. They are unrelated and the system uses both.
+
+THE ONE REQUIREMENT - AN https:// ADDRESS
+  No phone will install from http://192.168.x.x, and the alerts cannot be
+  switched on there either. This is the browser's rule, not ours, and there
+  is no way around it.
+
+  Three addresses behave differently:
+
+    http://127.0.0.1:8000       installs fine. Browsers trust localhost.
+                                Only the laptop itself can open it.
+    http://192.168.x.x:8000     does NOT install. This is the address phones
+                                on your WiFi use (section 12e), so an owner
+                                on the barangay WiFi cannot install from it.
+    the VS Code forwarded URL   installs fine - it is https. Section 12e.
+    a real hosted domain        installs fine, and is the only one that
+                                survives the laptop being closed.
+
+  The Settings page says so itself: on an address that will not work it
+  shows an amber note instead of pretending the button will do something.
+
+ON AN ANDROID PHONE
+  1. Open the portal in Chrome and sign in.
+  2. Go to Settings in the menu.
+  3. Tap "Install on this phone".
+     (If that button is not there: three dots at the top right ->
+      "Install app" or "Add to Home screen".)
+
+ON AN iPHONE OR iPAD
+  There is no install button on an iPhone. Apple does not give web pages
+  one, so it is always done by hand:
+
+  1. Open the portal in SAFARI. Chrome on an iPhone cannot install it.
+  2. Tap Share - the square with the arrow pointing up, at the bottom.
+  3. Scroll down, tap "Add to Home Screen", then "Add".
+
+TURNING ON ALERTS
+  Portal -> Settings -> "Turn on alerts". The phone asks for permission
+  once; after that a leak on that household's line puts a notification on
+  the screen even with the app closed. "Send a test" proves it end to end.
+
+  On an iPhone the app MUST be installed to the home screen first. Apple
+  does not deliver notifications to a web page in Safari - only to an
+  installed one, on iOS 16.4 or newer.
+
+  Alerts never replace the SMS. The text goes out regardless, to every
+  household with a number on file. Notifications are a second, faster route
+  for the phones that have asked for them, and a phone that is off, out of
+  battery or out of signal simply does not get one.
+
+SETTING IT UP ON THE SERVER  (once, by the facilitator)
+  Nothing is registered with Google, Apple or anybody else. The server
+  signs its own notifications with a key pair it generates:
+
+      python manage.py make_push_keys
+
+  It prints three lines. Paste them into .env and restart:
+
+      VAPID_PUBLIC_KEY=...
+      VAPID_PRIVATE_KEY=...
+      VAPID_SUBJECT=mailto:your-email@example.com
+
+  Generate these ONCE. Every phone's subscription is tied to the public key
+  it saw when it was set up, so making a new pair silently stops
+  notifications on every phone that already has them, with no error
+  anywhere - each household would have to turn them on again.
+
+  Until the keys exist, Settings tells the owner plainly that notifications
+  are not set up yet and that nothing is wrong with their phone.
+
+WHEN A HOUSEHOLD SAYS THEY GET NOTHING
+  - Did they install it? On iPhone, nothing arrives until it is on the home
+    screen.
+  - Is the address https? Check what link they were given.
+  - Is their phone's notification permission still allowed? If they tapped
+    "Block" once, the browser will not ask again - it has to be changed in
+    the phone's settings for that site.
+  - Did they turn alerts off, or clear their browser data? Both unregister
+    the phone. Settings -> Turn on alerts again.
+  - Is PUSH_ENABLED=false in .env?
+
+  The SMS log (section 9c) is the independent record. If the text went and
+  the notification did not, the problem is on the phone, not the server.
+
+
+============================================================================
 13. KEY FACTS AND VALUES
 ============================================================================
   Project folder      D:\USB Drive\SmartHoseLeak
@@ -1079,6 +1178,10 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
   SMS                 Semaphore gateway (semaphore.co) over the internet.
                       Needs SEMAPHORE_API_KEY in .env - section 9c.
                       No GSM module on the server.
+
+  Notifications       Web Push, keys made by "manage.py make_push_keys"
+                      and kept in .env - section 12f. Needs https. Not
+                      Firebase; nothing is registered with anyone.
 
   Low supply below    0.3 bar per line by default, set at Dashboard ->
                       Lines -> Edit (section 9b). Sent to the board on every
@@ -1178,6 +1281,19 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+2 Oct 2026   The Owner Portal can now be installed on a phone's home
+             screen and send notifications. It was always a PWA - the
+             manifest and the service worker have been there since the
+             start - but nothing in the app ever said so, so nobody
+             installed it. Portal -> Settings now carries the steps for
+             each kind of phone, an install button on Android, and a
+             switch for alerts. Notifications use the Web Push standard
+             with keys this server generates itself: no Firebase, no
+             account, and no SDK fetched from a CDN, which matters for an
+             app whose job is to open on a weak signal. Alerts never
+             replace the SMS; the text goes out regardless. Needs an
+             https:// address - see section 12f.
+
 2 Oct 2026   Running out of SMS credit is now reported as a stop rather than
              as a healthy gateway. The banner on Notices & SMS used to be
              green on every load, including the load where it read "LOW

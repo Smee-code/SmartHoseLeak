@@ -1258,6 +1258,204 @@
     });
   }
 
+  /* ------------------------------------------------- install & alerts
+     The owner's Settings page. Everything here answers a question only the
+     browser can answer - is this already installed, will this phone offer to
+     install it, has permission been granted - so none of it can be decided
+     server-side and rendered.
+     -------------------------------------------------------------------------- */
+
+  function csrfToken() {
+    var match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  function postJSON(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+      body: JSON.stringify(body || {})
+    });
+  }
+
+  /* The Push API wants the server's public key as bytes, and it is served as
+     URL-safe base64 because that is what survives a .env file. */
+  function urlBase64ToUint8Array(base64) {
+    var padding = '='.repeat((4 - (base64.length % 4)) % 4);
+    var raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'));
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  function isInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+  }
+
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent)
+      /* iPadOS 13+ reports itself as a Mac. The touch points are the giveaway
+         a desktop Safari does not have. */
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  SHL.initSettings = function () {
+    var show = function (group, which) {
+      $$('[data-' + group + ']').forEach(function (node) {
+        if (node.getAttribute('data-' + group) === which) node.hidden = false;
+      });
+    };
+
+    /* ---- install ---- */
+
+    /* Secure context, not protocol: localhost counts as secure even on http,
+       which is exactly the case a student testing on their own laptop hits. */
+    if (!window.isSecureContext) {
+      show('install', 'insecure');
+    }
+
+    if (isInstalled()) {
+      show('install', 'installed');
+    } else if (isIOS()) {
+      /* Safari has never fired beforeinstallprompt and shows no install
+         button. The steps are the only route, so they are open from the
+         start rather than folded away behind a summary nobody taps. */
+      var ios = $('[data-install="ios"]');
+      if (ios) { ios.hidden = false; ios.open = true; }
+    } else {
+      show('install', 'android');
+    }
+
+    var deferred = null;
+    window.addEventListener('beforeinstallprompt', function (event) {
+      /* Chrome offers this once the app qualifies. Holding it lets the button
+         on this page do the install, instead of sending somebody hunting
+         through a browser menu. */
+      event.preventDefault();
+      deferred = event;
+      show('install', 'prompt');
+    });
+
+    var installButton = $('#install-now');
+    if (installButton) {
+      installButton.addEventListener('click', function () {
+        if (!deferred) return;
+        deferred.prompt();
+        deferred.userChoice.then(function (choice) {
+          if (choice.outcome === 'accepted') {
+            var block = $('[data-install="prompt"]');
+            if (block) block.hidden = true;
+            show('install', 'installed');
+          }
+          deferred = null;
+        });
+      });
+    }
+
+    window.addEventListener('appinstalled', function () {
+      var block = $('[data-install="prompt"]');
+      if (block) block.hidden = true;
+      show('install', 'installed');
+    });
+
+    /* ---- alerts ---- */
+
+    var keyNode = document.getElementById('vapid-key');
+    if (!keyNode) return;               /* server has no keys; nothing to wire */
+    var publicKey = JSON.parse(keyNode.textContent);
+
+    var status = $('[data-push="status"]');
+    var say = function (text) { if (status) status.textContent = text || ''; };
+
+    var supported = 'serviceWorker' in navigator
+      && 'PushManager' in window
+      && 'Notification' in window;
+
+    if (!supported) { show('push', 'unsupported'); return; }
+    if (Notification.permission === 'denied') { show('push', 'denied'); return; }
+
+    var paint = function (subscription) {
+      var on = $('[data-push="on"]');
+      var off = $('[data-push="off"]');
+      if (on) on.hidden = !subscription;
+      if (off) off.hidden = !!subscription;
+    };
+
+    navigator.serviceWorker.ready.then(function (registration) {
+      registration.pushManager.getSubscription().then(paint);
+
+      var onButton = $('#push-on');
+      if (onButton) {
+        onButton.addEventListener('click', function () {
+          say('Asking for permission…');
+          Notification.requestPermission().then(function (permission) {
+            if (permission !== 'granted') {
+              say('');
+              show('push', 'denied');
+              return;
+            }
+            registration.pushManager.subscribe({
+              /* Required by every browser: a push may not be silent. Ours
+                 never is - each one draws a notification. */
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(publicKey)
+            }).catch(function () {
+              /* The browser itself refused to create a subscription. Private
+                 browsing is the usual reason - Chrome has no Push API there
+                 and deliberately gives sites no way to detect it, so the
+                 attempt failing is the only signal there is. Blaming the
+                 connection here would send somebody to check their WiFi for
+                 a problem that is not on their network. */
+              throw new Error('browser');
+            }).then(function (subscription) {
+              return postJSON('/api/push/subscribe/', subscription.toJSON())
+                .then(function (response) {
+                  if (!response.ok) throw new Error('server');
+                  paint(subscription);
+                  say('Alerts are on for this phone.');
+                });
+            }).catch(function (error) {
+              say(error && error.message === 'browser'
+                ? 'This browser will not set up notifications. If you are using a private or incognito window, open the portal normally and try again.'
+                : 'Could not turn alerts on. Check your connection and try again.');
+            });
+          });
+        });
+      }
+
+      var offButton = $('#push-off');
+      if (offButton) {
+        offButton.addEventListener('click', function () {
+          registration.pushManager.getSubscription().then(function (subscription) {
+            if (!subscription) { paint(null); return; }
+            var endpoint = subscription.endpoint;
+            /* Tell the server first. Unsubscribing locally first and then
+               failing to reach the server would leave a row that pushes to a
+               handset which can no longer receive it. */
+            postJSON('/api/push/unsubscribe/', { endpoint: endpoint })
+              .then(function () { return subscription.unsubscribe(); })
+              .then(function () { paint(null); say('Alerts are off for this phone.'); })
+              .catch(function () { say('Could not turn alerts off. Try again.'); });
+          });
+        });
+      }
+
+      var testButton = $('#push-test');
+      if (testButton) {
+        testButton.addEventListener('click', function () {
+          say('Sending…');
+          postJSON('/api/push/test/').then(function (response) {
+            return response.json().then(function (data) {
+              say(response.ok ? 'Sent. It should appear in a moment.'
+                              : (data.error || 'Could not send a test.'));
+            });
+          }).catch(function () { say('Could not send a test.'); });
+        });
+      }
+    });
+  };
+
   SHL.$ = $;
   SHL.$$ = $$;
   SHL.fmt = fmt;

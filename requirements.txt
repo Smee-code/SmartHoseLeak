@@ -6,3 +6,9 @@ Django==5.2.*
 
 # Only needed if you switch DB_ENGINE to postgres in .env
 # psycopg[binary]>=3.1
+
+# Web push notifications for the Owner Portal (core/push.py). Pulls in
+# py-vapid, http-ece and cryptography. Standard Web Push, not Firebase: no
+# account, no SDK fetched from a CDN - which matters for a PWA that has to
+# open on a weak signal.
+pywebpush>=2.0

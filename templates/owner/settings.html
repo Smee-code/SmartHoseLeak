@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Settings - {{ SITE_NAME }}{% endblock %}
+{% block body_class %}is-owner{% endblock %}
+
+{% comment %}
+  Two things an owner could not previously reach from inside the app.
+
+  The portal has been installable since the manifest was written, but nothing
+  anywhere said so, so nobody installed it. A capability only discoverable by
+  people who already know to look in a browser menu is not a capability; it is
+  a line in a document.
+
+  Everything here is written for somebody holding a phone, not for somebody
+  who knows what a service worker is. The words "PWA", "manifest", "VAPID"
+  and "subscription" do not appear on this page.
+{% endcomment %}
+
+{% block content %}
+<div class="wrap-narrow owner-page">
+
+  <h1 class="owner-h1">Settings</h1>
+
+  {% comment %}
+    Install.
+
+    Three states, decided in the browser because only the browser knows:
+    already installed, installable right now (Android/desktop Chrome, where
+    the browser hands us a prompt), or manual (iPhone, and anything that has
+    not fired the event). Written server-side as all three, with JavaScript
+    revealing the one that applies - so a phone with no JavaScript still sees
+    the instructions rather than an empty card.
+  {% endcomment %}
+  <section class="owner-section" id="install-section">
+    <h2>Install the app</h2>
+    <p class="set-lede">
+      Put this portal on your home screen. It opens full screen like a normal
+      app, works when the signal is weak, and can alert you about your water.
+      Nothing is downloaded from Play Store or App Store.
+    </p>
+
+    {# Shown when the page is not on a secure address - see the note below. #}
+    <p class="set-warn" data-install="insecure" hidden>
+      This page is open on an address that phones will not install from.
+      Installing needs an <strong>https://</strong> address. Ask the water
+      system facilitator for the right link.
+    </p>
+
+    <p class="set-done" data-install="installed" hidden>
+      This portal is already installed on this phone. You are using it now.
+    </p>
+
+    <div data-install="prompt" hidden>
+      <button type="button" class="owner-action" id="install-now">Install on this phone</button>
+    </div>
+
+    <details class="set-steps" data-install="ios" hidden>
+      <summary>How to install on an iPhone or iPad</summary>
+      <ol>
+        <li>Open this page in <strong>Safari</strong>. Chrome on an iPhone cannot install it.</li>
+        <li>Tap the <strong>Share</strong> button at the bottom of the screen &mdash; the square with an arrow pointing up.</li>
+        <li>Scroll down the list and tap <strong>Add to Home Screen</strong>.</li>
+        <li>Tap <strong>Add</strong> at the top right.</li>
+      </ol>
+      <p class="set-note">The icon appears on your home screen with your other apps.</p>
+    </details>
+
+    <details class="set-steps" data-install="android" hidden>
+      <summary>How to install on an Android phone</summary>
+      <ol>
+        <li>Open this page in <strong>Chrome</strong>.</li>
+        <li>Tap the <strong>three dots</strong> at the top right.</li>
+        <li>Tap <strong>Install app</strong>, or <strong>Add to Home screen</strong>.</li>
+        <li>Tap <strong>Install</strong>.</li>
+      </ol>
+    </details>
+  </section>
+
+  {% comment %}
+    Notifications.
+
+    The server's state and the phone's state are different questions and both
+    can block this, so they are answered separately rather than merged into
+    one "enabled" flag that would be wrong half the time: the keys can be
+    missing on the server, or present while this particular handset has
+    refused permission or never been asked.
+  {% endcomment %}
+  <section class="owner-section">
+    <h2>Alerts on this phone</h2>
+    <p class="set-lede">
+      Get a notification the moment something is wrong with your water, even
+      when the app is closed. You will still get a text message either way.
+    </p>
+
+    {% if not push_ready %}
+      <p class="set-warn">
+        Notifications are not set up on the system yet, so this cannot be
+        switched on. Nothing is wrong with your phone.
+      </p>
+      <p class="set-note">For the facilitator: {{ push_note }}</p>
+    {% else %}
+      <p class="set-warn" data-push="unsupported" hidden>
+        This phone&rsquo;s browser cannot show notifications. On an iPhone, install
+        the app to your home screen first, then come back here.
+      </p>
+
+      <p class="set-warn" data-push="denied" hidden>
+        Notifications are blocked for this site in your phone&rsquo;s settings. You
+        will need to allow them there before this can be switched on.
+      </p>
+
+      <div data-push="off" hidden>
+        <button type="button" class="owner-action" id="push-on">Turn on alerts</button>
+      </div>
+
+      <div data-push="on" hidden>
+        <p class="set-done">Alerts are on for this phone.</p>
+        <div class="set-row">
+          <button type="button" class="btn" id="push-test">Send a test</button>
+          <button type="button" class="btn btn-quiet-danger" id="push-off">Turn off</button>
+        </div>
+      </div>
+
+      <p class="set-status" data-push="status" role="status" aria-live="polite"></p>
+
+      {{ vapid_public_key|json_script:"vapid-key" }}
+    {% endif %}
+  </section>
+
+  {% comment %}
+    Only shown when there is more than this phone to talk about. One
+    household, several handsets - the owner's, a son's, whichever was
+    charging - and knowing how many are registered is the difference between
+    "nobody gets alerts" and "the phone in your hand doesn't".
+  {% endcomment %}
+  {% if subscriptions|length > 1 %}
+    <section class="owner-section">
+      <h2>Phones getting alerts</h2>
+      <p class="set-lede">
+        {{ subscriptions|length }} phones in your household are set up for
+        alerts. Turning them off above only affects the phone you are using.
+      </p>
+    </section>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>SHL.initSettings();</script>
+{% endblock %}

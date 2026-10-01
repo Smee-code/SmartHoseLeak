@@ -1072,3 +1072,52 @@ class ComplaintMessage(models.Model):
 
     def __str__(self):
         return f"{self.reference} - {self.subject}"
+
+
+class PushSubscription(models.Model):
+    """
+    One browser's permission to put a notification on one phone's screen.
+
+    Not one per household. A household is a family, and the portal is opened
+    on whichever handset is nearest - the owner's phone, a son's phone, the
+    phone that happens to be charging. Each of those is a separate
+    subscription with its own keys, and all of them should buzz when that
+    household's line starts leaking.
+
+    The endpoint is a URL at the browser vendor's push service, and it is the
+    identity: the same handset reinstalling the portal gets a new one, and the
+    old one starts returning 410 Gone. That is the only reliable signal that a
+    subscription is dead, so it is what prune() acts on - never a guess based
+    on how long a row has been quiet.
+    """
+
+    household = models.ForeignKey(
+        "Household", on_delete=models.CASCADE, related_name="push_subscriptions"
+    )
+    # Long: FCM and Mozilla endpoints run past 200 characters and the spec
+    # sets no ceiling. TextField rather than a CharField with a number in it
+    # that some vendor will eventually exceed.
+    endpoint = models.TextField(unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+
+    # Only to tell two handsets apart on the settings page; never parsed.
+    user_agent = models.CharField(max_length=300, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    failures = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.household.household_id} - {self.endpoint[:40]}"
+
+    @property
+    def as_dict(self):
+        """The shape pywebpush expects."""
+        return {
+            "endpoint": self.endpoint,
+            "keys": {"p256dh": self.p256dh, "auth": self.auth},
+        }
