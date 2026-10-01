@@ -7,18 +7,43 @@
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>Water pressure monitoring</h1>
-      <p class="sub">Live pressure for every registered household, grouped by supply line.</p>
+      <h1>Water pressure</h1>
+      <p class="sub">Live readings from every household’s line.</p>
     </div>
     <a class="btn btn-sm" href="{% url 'export_csv' 'pressure' %}">Export pressure log (CSV)</a>
   </div>
 
-  <section class="tiles">
+  {% comment %}
+    The tiles and the table below were showing the same seven households, the
+    same pressure, the same flow and the same status - the page said
+    everything twice, and six of the seven tiles were four empty wells.
+
+    Both are kept, doing different jobs. The tiles are NOW: what is reading,
+    at a size you can read across the room. The table is the RECORD: every
+    household, every column, including the psi and the links the tiles do not
+    carry.
+
+    A tile with no reading collapses to a single line. A card's size should be
+    how much it has to say, and six identical cards saying "--" made the
+    rollout look like six faults while burying the one line that was live.
+    data-empty is set here and cleared by the poll the moment a reading
+    arrives, so a line that starts reporting grows on its own.
+  {% endcomment %}
+  <section class="tiles tiles-live">
     {% for segment in segments %}
-      <article class="tile" data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}">
+      <article class="tile" data-segment-id="{{ segment.id }}"
+               data-status="{{ segment.status }}"
+               {% if not segment.latest %}data-empty="true"{% endif %}>
         <div class="tile-head">
           <div>
-            <div class="tile-title">{{ segment.name }}</div>
+            {% comment %}
+              The line is named after its household, so the title and the
+              subtitle were "HH-001 - Maria Santos" above "Maria Santos".
+              The id identifies, the name belongs to a person.
+            {% endcomment %}
+            <div class="tile-title">
+              {% if segment.household %}{{ segment.household.household_id }}{% else %}{{ segment.name }}{% endif %}
+            </div>
             <div class="tile-sub">
               {% if segment.household %}{{ segment.household.owner_name }}{% else %}No household{% endif %}
             </div>
@@ -34,7 +59,15 @@
           <div class="readout">
             <div class="readout-label">Flow rate</div>
             <div class="readout-value"><span data-field="flow_lpm">--</span> <span class="readout-alt">L/min</span></div>
-            <div class="readout-alt"><span data-field="households">0</span> household(s)</div>
+            {% comment %}
+              This slot read "0 household(s)" on every tile, forever. Nothing
+              has written to it since a line came to serve exactly one house,
+              so it was stating a falsehood in the one place a facilitator
+              looks to check a number. It now carries the line's own
+              low-supply threshold, which is what the pressure beside it is
+              actually being judged against.
+            {% endcomment %}
+            <div class="readout-alt">low below <span data-field="low_bar">{{ segment.low_pressure_bar|floatformat:"-2" }}</span> bar</div>
           </div>
         </div>
         <div class="tile-foot"><span data-field="updated">no data yet</span></div>
@@ -45,7 +78,7 @@
   <div class="card" style="margin-top:1.6rem">
     <div class="card-head">
       <h2>Per-household readings</h2>
-      <span class="small muted">A household shows the reading of the supply line it is assigned to.</span>
+      <span class="small muted">Every household, including psi and the link to each record.</span>
     </div>
     <div class="table-wrap">
       <table>

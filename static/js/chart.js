@@ -123,7 +123,10 @@
         }
       });
 
-      legendParts.push('<span><i style="background:' + color + '"></i>M' + s.module + ' ' + s.segment + '</span>');
+      // No module prefix. Every board reports module 1 now, so "M1" was a
+      // constant printed before each name - and the name already identifies
+      // the line, because a line is named after its household.
+      legendParts.push('<span><i style="background:' + color + '"></i>' + s.segment + '</span>');
     });
 
     legendParts.push('<span><i style="background:#b3261e;border-radius:50%;width:8px;height:8px"></i>' +

@@ -1114,6 +1114,11 @@
       setText('flow_lpm', fmt(segment.flow_lpm, 2));
       setText('updated', timeAgo(segment.updated_at));
       setText('valve', segment.has_device ? (segment.valve_label || '--') : '--');
+      setText('low_bar', fmt(segment.low_pressure_bar, 2));
+
+      // A tile is collapsed until it has something to show. Cleared here so a
+      // line that starts reporting opens up on its own, without a reload.
+      if (segment.updated_at) tile.removeAttribute('data-empty');
 
       // A line waiting for hardware is not the same as one whose board has
       // stopped answering, so only lines that HAVE a device get a live/down
