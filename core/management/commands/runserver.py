@@ -114,6 +114,21 @@ class Command(StaticfilesRunserverCommand):
         if ip:
             write(self.style.SUCCESS(f"  On the network     http://{ip}:{port}/dashboard/"))
             write("")
+            # The commonest way this goes wrong on a phone, and the error it
+            # produces says nothing useful: the browser sends a TLS handshake,
+            # this server reads it as a request line, and the log fills with
+            # "Bad request version ('\x16\x03\x01...')" while the phone shows
+            # ERR_SSL_PROTOCOL_ERROR. Both are one missing letter.
+            write(
+                self.style.WARNING("  Type http:// yourself on a phone.")
+                + " This server speaks HTTP only; if the"
+            )
+            write(
+                "  browser switches to https:// the page fails with a confusing error.\n"
+                "  In Chrome: Settings -> Privacy and security -> Security ->\n"
+                "  turn off \"Always use secure connections\"."
+            )
+            write("")
             write("  ESP32 Server address (paste into the device's /wifi page):")
             write(self.style.SUCCESS(f"      http://{ip}:{port}/api/ingest/"))
         else:
