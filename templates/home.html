@@ -33,8 +33,16 @@
         bar above the headline already says twice. The last one is the claim
         the whole project is making, and it is the one a visitor should be
         able to repeat afterwards.
+
+        No count in the headline. It read "Seven houses" and the barangay had
+        already moved to six lines by the time anybody noticed - a number
+        carved into the one sentence nobody edits goes stale on its own and
+        makes the whole page look unmaintained. The counts live in the strip
+        underneath, where they come from the database and are right by
+        construction. What is permanent is the shape of the system: one hose
+        per house, one sensor per hose, however many houses there are.
       {% endcomment %}
-      <h1>Seven houses.<br>One hose each.<br>Leaks show up in seconds.</h1>
+      <h1>One hose to every house.<br>A sensor on every hose.<br>Leaks show up in seconds.</h1>
 
       {% comment %}
         The barangay used to be a tracked-out all-caps label floating above
@@ -133,21 +141,27 @@
     that actually changes. They are a strip under the hero now: the state of
     the system in one line, read left to right.
   {% endcomment %}
+  {% comment %}
+    Each label agrees with its own number. These are fixed words beside a
+    live count, so "1 Boards fitted" appeared the moment the barangay had
+    exactly one board - which is precisely the state a rollout spends its
+    first weeks in, and the one a visitor is most likely to see.
+  {% endcomment %}
   <dl class="lead-figures">
     <div>
-      <dt>Hose lines</dt>
+      <dt>Hose line{{ stats.segments|pluralize }}</dt>
       <dd>{{ stats.segments }}</dd>
     </div>
     <div>
-      <dt>Households</dt>
+      <dt>Household{{ stats.households|pluralize }}</dt>
       <dd>{{ stats.households }}</dd>
     </div>
     <div>
-      <dt>Boards fitted</dt>
+      <dt>Board{{ stats.fitted|pluralize }} fitted</dt>
       <dd>{{ stats.fitted }}</dd>
     </div>
     <div class="is-headline">
-      <dt>Leak alerts, last 30 days</dt>
+      <dt>Leak alert{{ stats.events_30d|pluralize }}, last 30 days</dt>
       <dd>{{ stats.events_30d }}</dd>
     </div>
   </dl>
