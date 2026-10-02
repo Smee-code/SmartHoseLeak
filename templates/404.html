@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Page not found - {{ SITE_NAME }}{% endblock %}
+
+{% comment %}
+  A dead end, so the page is quiet. It is not a feature and it should not
+  look like one.
+
+  No giant "404" numeral. That is the stock treatment for this page and it
+  puts the one thing nobody needs - a protocol status code - at the largest
+  size on the screen, above the sentence that actually says what happened.
+  The code is here, small, at the bottom, because it is what gets quoted when
+  somebody reports the problem.
+
+  The useful part is the way out, and this system has three different ones.
+  A facilitator belongs on the dashboard, a household in their portal, and a
+  stranger at the sign-in page; one "Go home" button would be wrong for two
+  of them. The routes offered are the routes that exist for whoever is
+  reading.
+{% endcomment %}
+
+{% block content %}
+<div class="wrap">
+  <section class="deadend">
+    <h1>That page doesn&rsquo;t exist</h1>
+
+    <p class="deadend-lede">
+      The address you opened isn&rsquo;t part of this system. It may have been
+      mistyped, or it may be an old link that no longer works.
+    </p>
+
+    {% comment %}
+      The address they actually asked for. It is the single most useful thing
+      on this page when the cause is a typo or a stale bookmark, and it is
+      what the development error page gives you that a plain 404 takes away.
+    {% endcomment %}
+    {% if request_path %}
+      <p class="deadend-path"><code>{{ request_path }}</code></p>
+    {% endif %}
+
+    <nav class="deadend-ways" aria-label="Where to go instead">
+      {% if user.is_authenticated %}
+        {% if user.is_facilitator %}
+          <a href="{% url 'dashboard' %}">Dashboard</a>
+          <a href="{% url 'household_list' %}">Households</a>
+          <a href="{% url 'complaint_list' %}">Complaints</a>
+        {% else %}
+          <a href="{% url 'owner_home' %}">My water</a>
+          <a href="{% url 'owner_pressure' %}">My pressure</a>
+          <a href="{% url 'owner_complaints' %}">My complaints</a>
+        {% endif %}
+      {% else %}
+        <a href="{% url 'home' %}">Front page</a>
+        <a href="{% url 'login' %}">Sign in</a>
+      {% endif %}
+    </nav>
+
+    <p class="deadend-code">
+      Error 404. If you got here from a link inside the system, tell the water
+      system facilitator which page the link was on.
+    </p>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Not allowed - {{ SITE_NAME }}{% endblock %}
+
+{% comment %}
+  Not an error, and not phrased as one. The two sides of this system are
+  separate on purpose - a facilitator's pages hold every household's records,
+  and an owner's pages hold only their own - so an account reaching the other
+  side is the separation working, not something going wrong.
+
+  Saying so matters: without it, a household owner who taps a facilitator
+  link assumes they have broken something or that their account is faulty,
+  and the next thing they do is ring the facilitator about it.
+{% endcomment %}
+
+{% block content %}
+<div class="wrap">
+  <section class="deadend">
+    <h1>Your account can&rsquo;t open that page</h1>
+
+    <p class="deadend-lede">
+      {% if user.is_authenticated %}
+        Facilitator pages and household pages are kept separate. You are signed
+        in as <strong>{{ user.username }}</strong>, which doesn&rsquo;t have
+        access to this one. Nothing is wrong with your account.
+      {% else %}
+        That page needs you to be signed in.
+      {% endif %}
+    </p>
+
+    <nav class="deadend-ways" aria-label="Where to go instead">
+      {% if user.is_authenticated %}
+        {% if user.is_facilitator %}
+          <a href="{% url 'dashboard' %}">Dashboard</a>
+        {% else %}
+          <a href="{% url 'owner_home' %}">My water</a>
+        {% endif %}
+      {% else %}
+        <a href="{% url 'login' %}">Sign in</a>
+        <a href="{% url 'home' %}">Front page</a>
+      {% endif %}
+    </nav>
+
+    <p class="deadend-code">
+      Error 403. If you should be able to open this page, ask the water system
+      facilitator to check your account.
+    </p>
+  </section>
+</div>
+{% endblock %}

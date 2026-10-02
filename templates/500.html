@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Something went wrong - Smart Hose Leak Detection System</title>
+
+{% comment %}
+  A Django comment, not an HTML one, so none of this is served. An error page
+  is the last thing that should be describing the shape of the system to
+  whoever just triggered it.
+
+  Standalone on purpose, and the only page in this system that does not
+  extend base.html.
+
+  Django renders handler500 with an empty context - no context processors run
+  - so SITE_NAME, the signed-in user and everything else the shared layout
+  reads would be blank here. Worse, if the error being reported is the
+  database being unreachable, a layout that touches the database would fail
+  while rendering the page meant to report the failure, and the visitor would
+  get Django's bare "A server error occurred" instead.
+
+  So: no template inheritance, no stylesheet request, no script. The styles
+  are inline and the palette is copied from app.css rather than imported,
+  which is duplication accepted deliberately in exchange for a page that
+  cannot fail for the same reason the site just did.
+{% endcomment %}
+
+<style>
+  :root {
+    --bg: #f4f7fa;
+    --surface: #ffffff;
+    --border: #d6e0ea;
+    --text: #16232e;
+    --muted: #5b6b7a;
+    --brand: #0b6ea8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e161d;
+      --surface: #172530;
+      --border: #2a3f52;
+      --text: #e8eef4;
+      --muted: #9aabbb;
+      --brand: #7cc9f0;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2.5rem 1rem;
+    background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+  }
+  main { max-width: 34rem; margin: 0 auto; }
+  h1 { margin: 0 0 .8rem; font-size: 1.6rem; letter-spacing: -.02em; line-height: 1.2; }
+  p { margin: 0 0 1rem; }
+  .lede { font-size: 1.05rem; }
+  .muted { color: var(--muted); font-size: .95rem; }
+
+  /* The one thing worth saying here that a generic error page cannot say. */
+  .still {
+    margin: 1.4rem 0; padding: .9rem 1rem;
+    border: 1px solid var(--border); border-left: 4px solid var(--brand);
+    border-radius: 8px; background: var(--surface);
+  }
+  .still strong { display: block; margin-bottom: .2rem; }
+
+  a { color: var(--brand); }
+  .code { margin-top: 1.6rem; font-size: .9rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Something went wrong on our side</h1>
+
+  <p class="lede">
+    This page hit an error and could not be loaded. Nothing you did caused it,
+    and nothing you typed was wrong.
+  </p>
+
+  <div class="still">
+    <strong>Your water is still being watched.</strong>
+    Each household&rsquo;s line is monitored by the board fitted at the house,
+    not by this website. It keeps reading the pressure and the flow, and keeps
+    deciding for itself whether there is a leak, whether or not this page is
+    working.
+  </div>
+
+  <p>Try again in a moment, or <a href="/">go back to the front page</a>.</p>
+
+  <p class="code">
+    Error 500. If it keeps happening, tell the water system facilitator what
+    you were doing when it appeared &mdash; that is the part the logs cannot
+    record.
+  </p>
+</main>
+</body>
+</html>

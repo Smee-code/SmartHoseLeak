@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Bad request - {{ SITE_NAME }}{% endblock %}
+
+{% comment %}
+  Rare, and when it does happen the cause is almost never anything the person
+  reading did. The commonest one here is a stale page: a form left open long
+  enough for its CSRF token to expire, submitted after the session rolled
+  over. So the instruction is the one that actually fixes that, rather than a
+  general apology.
+{% endcomment %}
+
+{% block content %}
+<div class="wrap">
+  <section class="deadend">
+    <h1>That request couldn&rsquo;t be read</h1>
+
+    <p class="deadend-lede">
+      Something about the request was malformed, so it was refused before it
+      reached the system. If you were filling in a form that had been open for
+      a long time, load the page again and re-enter it &mdash; that is the
+      usual cause.
+    </p>
+
+    <nav class="deadend-ways" aria-label="Where to go instead">
+      {% if user.is_authenticated %}
+        {% if user.is_facilitator %}
+          <a href="{% url 'dashboard' %}">Dashboard</a>
+        {% else %}
+          <a href="{% url 'owner_home' %}">My water</a>
+        {% endif %}
+      {% else %}
+        <a href="{% url 'home' %}">Front page</a>
+      {% endif %}
+    </nav>
+
+    <p class="deadend-code">Error 400.</p>
+  </section>
+</div>
+{% endblock %}

@@ -1165,6 +1165,49 @@ WHEN A HOUSEHOLD SAYS THEY GET NOTHING
 
 
 ============================================================================
+12g. WHEN SOMEBODY LANDS ON A PAGE THAT ISN'T THERE
+============================================================================
+
+  A mistyped address, an old bookmark or a stale link now gets a proper page
+  saying so, with the address it tried and links to wherever that person
+  belongs - the dashboard for you, the portal for a household, the sign-in
+  page for anyone else. There are four:
+
+      404  the page does not exist
+      403  the account cannot open that page (facilitator pages and
+           household pages are separate; this says so rather than looking
+           like a fault)
+      400  the request was malformed - usually a form left open so long its
+           security token expired
+      500  something broke on the server
+
+  YOU WILL NOT SEE THEM WHILE DEVELOPING
+  With DEBUG=True Django shows its own yellow traceback page instead, no
+  matter what templates exist. That is deliberate on Django's part and
+  nothing is wrong. To look at the real pages:
+
+      set DEBUG=False in .env, restart, and visit any wrong address
+      (runserver also needs --insecure to keep serving CSS with DEBUG off)
+
+  Put DEBUG back to True afterwards, or you lose the traceback that tells
+  you what actually went wrong while you are building.
+
+  WHY DEBUG MUST BE False WHEN THIS IS HOSTED
+  The traceback page lists every URL pattern in the project to whoever
+  typed the bad address - including api/claim/ and the device key endpoints.
+  It also prints settings and local variables on a crash. It is a
+  development tool and it must never be reachable from the internet.
+
+  The 500 page is deliberately plain and does not use the site's stylesheet
+  or layout. If the thing that broke is the database or the static files, a
+  nicely styled error page would fail for the same reason and the visitor
+  would get Django's bare "A server error occurred" instead. It also tells
+  the household the one thing worth knowing: detection runs on the board at
+  their house, so their line is still being watched while the website is
+  down.
+
+
+============================================================================
 13. KEY FACTS AND VALUES
 ============================================================================
   Project folder      D:\USB Drive\SmartHoseLeak
@@ -1281,6 +1324,13 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+2 Oct 2026   Wrong addresses now get a real page instead of Django's
+             development traceback, which besides looking like a fault
+             also listed every URL in the project - the claim endpoint and
+             the device key endpoints included - to whoever typed the
+             address. 404, 403, 400 and 500 all written, each pointing the
+             reader at wherever they actually belong. See section 12g.
+
 2 Oct 2026   The Owner Portal can now be installed on a phone's home
              screen and send notifications. It was always a PWA - the
              manifest and the service worker have been there since the

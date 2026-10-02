@@ -686,3 +686,153 @@ class PushTransportTests(TestCase):
         self.assertEqual((sent, removed), (0, 0))
         # The handset is not gone - the internet is. Nothing is deleted.
         self.assertEqual(PushSubscription.objects.count(), 1)
+
+
+@override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver"])
+class ErrorPageTests(TestCase):
+    """
+    The pages nobody plans for.
+
+    Until now a wrong address produced Django's development traceback page,
+    which besides looking like a fault also prints every URL pattern in the
+    project - the claim endpoint, the device key endpoints, all of it - to
+    whoever typed the address.
+    """
+
+    def setUp(self):
+        self.facilitator = User.objects.create_user(
+            username="errfac", password="pw", role=User.Role.FACILITATOR
+        )
+        self.owner_user = User.objects.create_user(
+            username="errown", password="pw", role=User.Role.OWNER
+        )
+        Household.objects.create(
+            household_id="HH-920",
+            owner_name="Err Owner",
+            address="Purok 1",
+            user=self.owner_user,
+        )
+
+    def test_a_wrong_address_renders_the_custom_page(self):
+        response = self.client.get("/classes/37/")
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, "404.html")
+        self.assertContains(response, "doesn", status_code=404)
+
+    def test_it_shows_the_address_that_was_asked_for(self):
+        """The one genuinely useful thing when the cause is a typo."""
+        response = self.client.get("/classes/37/")
+        self.assertContains(response, "/classes/37/", status_code=404)
+
+    def test_it_does_not_leak_the_url_map(self):
+        """
+        The development page lists every route in the project. This one must
+        name only the handful a visitor is being offered.
+        """
+        body = self.client.get("/classes/37/").content.decode()
+        for secret in ["api/claim", "new-key", "claim-code", "api/ingest"]:
+            self.assertNotIn(secret, body)
+
+    def test_a_signed_out_visitor_is_pointed_at_the_front_page(self):
+        body = self.client.get("/classes/37/").content.decode()
+        self.assertIn(reverse("login"), body)
+        self.assertNotIn(reverse("dashboard"), body)
+
+    def test_a_facilitator_is_pointed_at_their_dashboard(self):
+        self.client.force_login(self.facilitator)
+        body = self.client.get("/classes/37/").content.decode()
+        self.assertIn(reverse("dashboard"), body)
+        self.assertNotIn(reverse("owner_home"), body)
+
+    def test_an_owner_is_pointed_at_their_own_portal(self):
+        """
+        A household must never be offered a facilitator link. It would 403,
+        which is a second dead end reached from the page meant to end the
+        first one.
+        """
+        self.client.force_login(self.owner_user)
+        body = self.client.get("/classes/37/").content.decode()
+        self.assertIn(reverse("owner_home"), body)
+        self.assertNotIn(reverse("dashboard"), body)
+
+    def test_the_500_page_renders_with_no_context_at_all(self):
+        """
+        Django renders handler500 with an empty context - no request, no user,
+        no context processors. A 500 page that assumes any of them is a page
+        that fails exactly when it is needed.
+        """
+        from django.template.loader import render_to_string
+
+        html = render_to_string("500.html")
+        self.assertIn("Error 500", html)
+        self.assertIn("still being watched", html)
+
+    def test_the_500_page_needs_no_stylesheet(self):
+        """
+        It carries its own styles. If the error being reported is the database
+        or the static files, a page that fetches app.css to look right is a
+        page that arrives unreadable.
+        """
+        from django.template.loader import render_to_string
+
+        html = render_to_string("500.html")
+        # No request for anything. A stylesheet link is the one that matters;
+        # script and image requests would fail the same way.
+        self.assertNotIn("<link", html)
+        self.assertNotIn("<script", html)
+        self.assertNotIn("/static/", html)
+        self.assertIn("<style>", html)
+
+    def test_the_500_page_explains_nothing_about_the_system(self):
+        """
+        The reasoning in that file is a Django comment, not an HTML one. An
+        error page is the last place to be describing the system's innards to
+        whoever just triggered the error.
+        """
+        from django.template.loader import render_to_string
+
+        self.assertNotIn("<!--", render_to_string("500.html"))
+
+    def test_the_403_page_renders(self):
+        from django.template.loader import render_to_string
+
+        html = render_to_string("403.html", {"user": self.owner_user})
+        self.assertIn("Error 403", html)
+
+    def test_the_400_page_renders(self):
+        from django.template.loader import render_to_string
+
+        html = render_to_string("400.html")
+        self.assertIn("Error 400", html)
+
+
+@override_settings(DEBUG=False, ALLOWED_HOSTS=["testserver"])
+class ServerErrorHandlerTests(TestCase):
+    """
+    That Django's own handler500 reaches templates/500.html.
+
+    Rendering the template in isolation proves it is valid; it does not prove
+    it is the page a visitor gets. Those are different claims, and only the
+    second one matters at two in the morning.
+    """
+
+    def test_a_crashing_view_returns_the_custom_page(self):
+        from django.test import Client
+
+        # raise_request_exception belongs to the Client, not to get(): passed
+        # to get() it is treated as an extra header and the exception still
+        # propagates, so the test fails without ever reaching handler500.
+        client = Client(raise_request_exception=False)
+
+        # Not core.views.home either: the URLconf binds the function object at
+        # import time, so replacing the module attribute afterwards changes
+        # nothing and the view runs normally. Patch what the view calls.
+        with mock.patch("core.views.render", side_effect=RuntimeError("boom")):
+            response = client.get("/")
+
+        self.assertEqual(response.status_code, 500)
+        self.assertTemplateUsed(response, "500.html")
+        self.assertIn(b"still being watched", response.content)
+        # And nothing of the traceback.
+        self.assertNotIn(b"RuntimeError", response.content)
+        self.assertNotIn(b"boom", response.content)
