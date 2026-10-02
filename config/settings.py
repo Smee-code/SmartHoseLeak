@@ -57,8 +57,9 @@ CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 if DEBUG:
     CSRF_TRUSTED_ORIGINS += [
         "https://*.devtunnels.ms",       # VS Code Forward a Port
-        "https://*.ngrok-free.app",
-        "https://*.ngrok.io",
+        "https://*.ngrok-free.dev",      # what ngrok hands out now
+        "https://*.ngrok-free.app",      # and what it used to
+        "https://*.ngrok.io",            # and before that
         "https://*.trycloudflare.com",
     ]
 

@@ -1087,6 +1087,43 @@ IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
   the login page is on the open internet.
 
 
+IF VS CODE'S PORT FORWARDING WILL NOT WORK - USE ngrok INSTEAD
+  On 2 Oct 2026 the VS Code tunnel started delivering static files but
+  silently dropping every HTML page: app.css arrived, /login/ never did.
+  Nothing was wrong with the server - the same URLs answered instantly on
+  127.0.0.1 and on the LAN. Rather than keep fighting it, use ngrok.
+
+  ONE-TIME SETUP (already done on this laptop)
+    winget install --id Ngrok.Ngrok
+    ngrok update                      <- winget ships an old build that the
+                                         service now refuses (ERR_NGROK_121)
+    ngrok config add-authtoken <your token from dashboard.ngrok.com>
+
+  EVERY SESSION
+    1. Start Django as usual:   python manage.py runserver 0.0.0.0:8000
+    2. In a SECOND terminal:    ngrok http 127.0.0.1:8000
+
+       Use 127.0.0.1, not localhost. On this laptop "localhost" resolves to
+       the IPv6 address ::1 first, and the server only listens on IPv4.
+
+    3. ngrok prints a "Forwarding" line. Open that https:// address on the
+       phone.
+    4. The first visit shows an ngrok warning page ("You are about to
+       visit..."). Tap "Visit Site". It appears once per device.
+
+  THE ADDRESS CHANGES EVERY TIME ngrok RESTARTS on the free plan. Nothing
+  needs editing when it does - settings.py trusts the ngrok wildcards for
+  CSRF already, including the newer .ngrok-free.dev domain.
+
+  Closing the ngrok terminal closes the tunnel. While it is open, the login
+  page is on the open internet.
+
+  Leave the ESP32 on the LAN address, exactly as with the VS Code tunnel.
+
+  http://127.0.0.1:4040 is ngrok's own inspector - every request and
+  response, which is the quickest way to see whether a phone reached you.
+
+
 ============================================================================
 12f. INSTALLING THE PORTAL ON A HOUSEHOLD'S PHONE  (and turning on alerts)
 ============================================================================
