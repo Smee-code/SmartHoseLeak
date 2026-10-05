@@ -1422,8 +1422,117 @@ THE ONE THING THAT DOES NOT SCALE YET
 
 
 ============================================================================
+16. DEPLOYING TO PYTHONANYWHERE
+============================================================================
+
+  What deploys cleanly: the whole web side - dashboards, the owner portal,
+  the landing page, complaints, logins. What does NOT work on the free tier,
+  and why, is at the bottom of this section. Read that before you promise
+  anybody a live text message.
+
+  BEFORE YOU START
+    - Push your commits to GitHub. PythonAnywhere pulls the code from there.
+    - Pick Python 3.13 when it asks (3.11 or 3.12 are fine too). This laptop
+      runs 3.14, which PythonAnywhere does not offer yet; Django 5.2 is happy
+      on any of these.
+
+  ONE-TIME SETUP
+    1. On pythonanywhere.com, open a Bash console and clone the repo:
+           git clone https://github.com/<you>/SmartHoseLeak.git
+           cd SmartHoseLeak
+
+    2. Make a virtualenv and install:
+           mkvirtualenv shl --python=python3.13
+           pip install -r requirements.txt
+
+    3. Create the .env file (it is gitignored, so it is not in the clone):
+           nano .env
+       Put in at least these four lines:
+           DEBUG=False
+           SECRET_KEY=<paste a fresh key - see below>
+           ALLOWED_HOSTS=<you>.pythonanywhere.com
+           CSRF_TRUSTED_ORIGINS=
+
+       Generate the key in the same console:
+           python -c "from django.core.management.utils import get_random_secret_key as g; print(g())"
+
+       CSRF_TRUSTED_ORIGINS can stay blank - the server derives
+       https://<you>.pythonanywhere.com from ALLOWED_HOSTS by itself.
+
+       The server WILL REFUSE TO START if DEBUG=False and either SECRET_KEY is
+       still the development default or ALLOWED_HOSTS is empty. That is on
+       purpose - it tells you exactly what is missing in the error log rather
+       than running insecure.
+
+    4. Set up the database and static files:
+           python manage.py migrate
+           python manage.py collectstatic --noinput
+           python manage.py createsuperuser
+
+    5. In the PythonAnywhere "Web" tab:
+         - Add a new web app, "Manual configuration", Python 3.13.
+         - Source code:   /home/<you>/SmartHoseLeak
+         - Virtualenv:    /home/<you>/.virtualenvs/shl
+         - Edit the WSGI file it generates: set
+               os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings'
+           and point it at the project (the stock Django block, pointing at
+           config.wsgi, works as-is).
+         - Static files mapping:
+               URL:  /static/        Directory: /home/<you>/SmartHoseLeak/staticfiles
+         - Click "Reload".
+
+    6. Confirm it is set up right. In the console:
+           python manage.py check --deploy
+       Two warnings are expected and fine: SECURE_SSL_REDIRECT and
+       SECURE_HSTS_SECONDS are off by default. Turn them on in .env once you
+       have confirmed HTTPS works end to end (SECURE_SSL_REDIRECT=True, then
+       SECURE_HSTS_SECONDS=2592000) and reload.
+
+  UPDATING AFTER A CODE CHANGE
+      git pull
+      pip install -r requirements.txt          # only if requirements changed
+      python manage.py migrate                 # only if there are new migrations
+      python manage.py collectstatic --noinput
+      # then hit "Reload" in the Web tab
+
+  WHAT DOES NOT WORK ON THE FREE TIER
+    SMS and push notifications both reach OUT to the internet (Semaphore's
+    gateway; the browsers' push services). The free tier only allows outbound
+    traffic to a fixed allowlist of sites, and those are not on it - so both
+    silently fail there. They need a PAID tier, which has open outbound.
+
+    SMS also needs a worker. The queue is drained by a background thread that
+    only runs under "runserver" - under the hosted WSGI it never starts. On a
+    paid account, add an Always-on task running:
+        python manage.py send_sms --watch
+    (or a Scheduled task running "python manage.py send_sms" on the shortest
+    interval your plan allows). The free tier's once-a-day task is far too
+    slow for a leak alert.
+
+    The ESP32 cannot be found over the internet: it discovers the server by
+    UDP broadcast on the LAN and would have to be pointed by hand at
+    https://<you>.pythonanywhere.com/api/ingest/ instead. For a defence it is
+    simpler to demonstrate the hosted site with the data already in it, and
+    show the live board separately against a laptop server over a tunnel
+    (section 12e).
+
+    In short: the free tier is enough to put the whole interface online for a
+    panel to click through. Live SMS, live push and a live board over the
+    internet are a paid tier plus the worker task above.
+
+
+============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+5 Oct 2026   Made the project deployable. With DEBUG=False the server now
+             sets the secure-cookie and proxy-HTTPS settings a host like
+             PythonAnywhere needs, derives its CSRF origin from ALLOWED_HOSTS,
+             and refuses to start on the development SECRET_KEY or an empty
+             ALLOWED_HOSTS rather than running insecure. None of it touches
+             local development. Added section 16 with the PythonAnywhere
+             walkthrough and what the free tier cannot do (SMS, push, a live
+             board - all need the paid tier or a worker task).
+
 2 Oct 2026   Wrong addresses now get a real page instead of Django's
              development traceback, which besides looking like a fault
              also listed every URL in the project - the claim endpoint and

@@ -9,6 +9,8 @@ without touching any model code.
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -38,8 +40,19 @@ DEBUG = env_bool("DEBUG", True)
 
 # The ESP32 posts to this server by IP on the local network, so the LAN
 # address must be allowed. In DEBUG we accept any host to keep field testing
-# painless; production deployments must set ALLOWED_HOSTS explicitly.
-ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", "*") if not DEBUG else ["*"]
+# painless; a real deployment names its hosts explicitly.
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    # A wildcard in production invites Host-header spoofing. Fail loudly if it
+    # was forgotten rather than run wide open.
+    ALLOWED_HOSTS = env_list("ALLOWED_HOSTS")
+    if not ALLOWED_HOSTS:
+        raise ImproperlyConfigured(
+            "DEBUG is False but ALLOWED_HOSTS is empty. Set it in .env, e.g.\n"
+            "    ALLOWED_HOSTS=yourname.pythonanywhere.com"
+        )
+
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 
 # Showing the system on a phone without deploying it.
@@ -62,6 +75,50 @@ if DEBUG:
         "https://*.ngrok.io",            # and before that
         "https://*.trycloudflare.com",
     ]
+else:
+    # ----------------------------------------------------------------------
+    # Production hardening. All of this runs only when DEBUG is False, so
+    # local development, field testing and the test suite are untouched.
+    # ----------------------------------------------------------------------
+
+    # Refuse to boot with the throwaway development key - shipping it would let
+    # anyone forge a session cookie.
+    if SECRET_KEY == "dev-only-key-change-before-deployment":
+        raise ImproperlyConfigured(
+            "DEBUG is False but SECRET_KEY is still the development default. "
+            "Put a real one in .env. Generate it with:\n"
+            "    python -c \"from django.core.management.utils import "
+            "get_random_secret_key as g; print(g())\""
+        )
+
+    # For an HTTPS POST Django checks the Origin against this list; without the
+    # site's own origin, every login and form submission would 403. Derived
+    # from the hosts named above unless set explicitly in .env.
+    if not CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS if h != "*"]
+
+    # PythonAnywhere (and most hosts) terminate TLS at a proxy and forward the
+    # request over plain HTTP, marking the original scheme in this header.
+    # Without it Django treats every request as insecure: it will not set
+    # secure cookies, and request.is_secure() is always False.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+    # Send the session and CSRF cookies back only over HTTPS.
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # Redirect plain HTTP to HTTPS. Off by default: the host usually does this
+    # already, and the ESP32 posts readings over HTTP during bench testing.
+    # Safe to turn on once the deployment is HTTPS-only, thanks to the proxy
+    # header above.
+    SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", False)
+
+    # HSTS tells a browser to use HTTPS for this site for this many seconds.
+    # Left at 0 so a misconfigured first deploy is not locked out of HTTP for
+    # a year; set 2592000 (30 days) once the HTTPS setup is proven.
+    SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", "0"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", False)
+    SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", False)
 
 INSTALLED_APPS = [
     # core is listed first so its management commands win over the built-in
