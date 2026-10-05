@@ -5,21 +5,20 @@
 {% block body_class %}is-landing{% endblock %}
 
 {% comment %}
-  The public page. Two kinds of people arrive here: a household or the
-  facilitator on their way to signing in, and somebody who has never heard of
-  this and wants to know what it is.
+  The public page, built as an instrument.
 
-  It used to open with a tracked-out locale label, a centred headline, a
-  paragraph, two buttons and a pale gradient - then three big-number cards,
-  then four identical rounded cards with a dot, a triangle, a flag and an
-  envelope in them. Nothing on it was about water. The same page would have
-  served a parcel tracker with the nouns swapped out.
+  Two kinds of people arrive: a household or the facilitator on their way to
+  signing in, and - the one this redesign is for - a defence panel deciding
+  whether this is a real, engineered system. So the page is the face of a
+  chart recorder. The hero is not a chart dropped onto a landing page; it is
+  the recorder itself, drawing the one pattern the whole system turns on:
+  pressure sliding away while no tap is open.
 
-  The hero is now the one idea the whole system runs on, drawn: pressure that
-  falls while nobody has a tap open means water is leaving the hose
-  somewhere. That is what the board on each line watches for all night, it is
-  the reason this project exists, and it can be understood in a glance
-  without reading a word of the copy beside it.
+  Everything is drawn in-page - inline SVG, one self-hosted font - because the
+  rest of the app is an offline PWA on a weak signal and this page keeps that
+  discipline. The trace is an illustration of the pattern, captioned as such,
+  never dressed up as a live reading: on the one page where a stranger decides
+  whether to trust the rest, that honesty is the whole point.
 {% endcomment %}
 
 {% block content %}
@@ -28,27 +27,8 @@
   <div class="lead-grid">
 
     <div class="lead-copy">
-      {% comment %}
-        Three short sentences rather than the product's own name, which the
-        bar above the headline already says twice. The last one is the claim
-        the whole project is making, and it is the one a visitor should be
-        able to repeat afterwards.
+      <h1>One hose to every house. A sensor on every hose. Leaks show up in seconds.</h1>
 
-        No count in the headline. It read "Seven houses" and the barangay had
-        already moved to six lines by the time anybody noticed - a number
-        carved into the one sentence nobody edits goes stale on its own and
-        makes the whole page look unmaintained. The counts live in the strip
-        underneath, where they come from the database and are right by
-        construction. What is permanent is the shape of the system: one hose
-        per house, one sensor per hose, however many houses there are.
-      {% endcomment %}
-      <h1>One hose to every house.<br>A sensor on every hose.<br>Leaks show up in seconds.</h1>
-
-      {% comment %}
-        The barangay used to be a tracked-out all-caps label floating above
-        the headline. It is a place where people live, so it is written as a
-        sentence, in the sentence that explains the system.
-      {% endcomment %}
       <p class="lead-sub">
         Water reaches {{ SITE_LOCALE }} downhill from one source, through a hose
         to every household. When a hose splits, the water runs into the ground and
@@ -67,101 +47,116 @@
     </div>
 
     {% comment %}
-      Inline SVG rather than a chart library: this is a progressive web app
-      with an offline page, installed on phones in a place where the signal
-      comes and goes. A hero that needs a CDN is a hero that is sometimes a
-      blank box. For the same reason the page loads no web font - the display
-      size and the tight tracking do the work a bought typeface would.
-
-      The trace is drawn from fixed numbers and captioned as the pattern, not
-      as tonight's reading. Dressing an illustration up as live data would be
-      a lie told on the one page where strangers decide whether to believe
-      the rest of it.
+      The recorder. A bezel, a strip-chart grid, calibrated axes in bar and
+      hours, and a pen that draws itself on load - steady, then the fall, then
+      the flag. The numbers on the axes are real units; the trace is the
+      shape, not a feed.
     {% endcomment %}
-    <figure class="trace">
-      <svg viewBox="0 0 640 300" role="img" class="trace-svg"
-           aria-labelledby="trace-title trace-desc">
-        <title id="trace-title">Pressure on one hose line overnight</title>
-        <desc id="trace-desc">
-          Pressure holds steady near 0.6 bar from 10pm, then falls away after
-          about 1:40am while no tap is open, and the leak is flagged at 1:52am.
-        </desc>
+    <figure class="recorder">
+      <div class="recorder-head">
+        <span class="r-what">Supply line &mdash; pressure, overnight</span>
+        <span class="r-unit">bar</span>
+      </div>
 
-        <defs>
-          <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="var(--trace)" stop-opacity=".30"/>
-            <stop offset="100%" stop-color="var(--trace)" stop-opacity="0"/>
-          </linearGradient>
-        </defs>
+      <div class="recorder-face">
+        <svg viewBox="0 0 640 270" role="img" class="trace-svg"
+             aria-labelledby="trace-title trace-desc">
+          <title id="trace-title">Pressure on one hose line overnight</title>
+          <desc id="trace-desc">
+            A chart-recorder trace. Pressure holds steady near 0.6 bar from
+            10pm, then falls away after about 1:40am while no tap is open, and
+            the leak is flagged at 1:52am as it crosses the low-supply line.
+          </desc>
 
-        {# Night: the window in which any movement at all is suspicious. #}
-        <rect class="trace-night" x="40" y="30" width="580" height="200" rx="4"/>
-        <text class="trace-tick" x="52" y="50">no taps open &mdash; everyone asleep</text>
+          <defs>
+            <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--trace)" stop-opacity=".55"/>
+              <stop offset="100%" stop-color="var(--trace)" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
 
-        {# The threshold this particular line is judged against. #}
-        <line class="trace-rule" x1="40" y1="206" x2="620" y2="206"/>
-        <text class="trace-tick" x="52" y="200">low supply &mdash; 0.30 bar</text>
+          {# strip-chart paper: hours down, pressure across #}
+          <line class="r-grid" x1="150" y1="34" x2="150" y2="232"/>
+          <line class="r-grid" x1="242" y1="34" x2="242" y2="232"/>
+          <line class="r-grid" x1="334" y1="34" x2="334" y2="232"/>
+          <line class="r-grid" x1="426" y1="34" x2="426" y2="232"/>
+          <line class="r-grid" x1="518" y1="34" x2="518" y2="232"/>
+          <line class="r-grid" x1="58"  y1="84"  x2="610" y2="84"/>
+          <line class="r-grid" x1="58"  y1="133" x2="610" y2="133"/>
+          <line class="r-grid" x1="58"  y1="182" x2="610" y2="182"/>
 
-        {% comment %}
-          Steady, with the small movement a real sensor gives, then the
-          decay. Drawn as two paths so the falling half can carry its own
-          colour, meeting exactly where the pattern turns.
-        {% endcomment %}
-        <path class="trace-fill" d="M40 96 L70 94 L100 98 L130 93 L160 97 L190 92
-          L220 99 L250 95 L280 93 L310 98 L340 95 L368 97
-          L390 104 L410 118 L435 136 L465 154 L500 170 L545 183 L590 191 L620 195
-          L620 230 L40 230 Z"/>
-        <path class="trace-line" d="M40 96 L70 94 L100 98 L130 93 L160 97 L190 92
-          L220 99 L250 95 L280 93 L310 98 L340 95 L368 97"/>
-        <path class="trace-line is-falling" d="M368 97 L390 104 L410 118 L435 136
-          L465 154 L500 170 L545 183 L590 191 L620 195"/>
+          {# the frame #}
+          <line class="r-axis" x1="58" y1="34" x2="58" y2="232"/>
+          <line class="r-axis" x1="58" y1="232" x2="610" y2="232"/>
 
-        <text class="trace-tick" x="44" y="86">0.62 bar</text>
+          {# pressure calibration, in bar #}
+          <text class="r-tick r-tick-y" x="50" y="38">0.8</text>
+          <text class="r-tick r-tick-y" x="50" y="88">0.6</text>
+          <text class="r-tick r-tick-y" x="50" y="137">0.4</text>
+          <text class="r-tick r-tick-y" x="50" y="186">0.2</text>
+          <text class="r-tick r-tick-y" x="50" y="235">0.0</text>
 
-        {# The moment it was called. #}
-        <line class="trace-mark" x1="410" y1="76" x2="410" y2="118"/>
-        <circle class="trace-dot" cx="410" cy="118" r="6"/>
-        <text class="trace-flag" x="420" y="88">Leak flagged</text>
-        <text class="trace-flagsub" x="420" y="106">1:52 am &mdash; 12 minutes in</text>
+          {# hours #}
+          <text class="r-tick" x="58" y="250">10pm</text>
+          <text class="r-tick" x="334" y="250" text-anchor="middle">1am</text>
+          <text class="r-tick" x="610" y="250" text-anchor="end">4am</text>
 
-        <text class="trace-tick" x="40" y="254">10 pm</text>
-        <text class="trace-tick trace-tick-end" x="620" y="254">4 am</text>
-      </svg>
+          {# the premise, stated on the plot #}
+          <text class="r-label" x="66" y="50">no taps open &mdash; recorded overnight</text>
+
+          {# the low-supply threshold this line is judged against #}
+          <line class="trace-rule" x1="58" y1="158" x2="610" y2="158"/>
+          <text class="r-label" x="606" y="152" text-anchor="end">low-supply threshold</text>
+
+          {# the pen: steady (cyan), then falling (amber), meeting where it turns #}
+          <path class="trace-fill" d="M58,85 L104,83 L150,86 L196,82 L242,85 L288,83
+            L334,85 L380,83 L395,84 L410,90 L426,104 L452,126 L486,150 L524,172
+            L566,190 L610,202 L610,232 L58,232 Z"/>
+          <path class="trace-line is-steady" pathLength="100"
+            d="M58,85 L104,83 L150,86 L196,82 L242,85 L288,83 L334,85 L380,83 L395,84"/>
+          <path class="trace-line is-falling" pathLength="100"
+            d="M395,84 L410,90 L426,104 L452,126 L486,150 L524,172 L566,190 L610,202"/>
+
+          {# the moment it was called #}
+          <g class="trace-flaggroup">
+            <line class="trace-mark" x1="414" y1="40" x2="414" y2="94"/>
+            <circle class="trace-dot" cx="414" cy="94" r="5.5"/>
+            <text class="trace-flag" x="424" y="52">Leak flagged</text>
+            <text class="trace-flagsub" x="424" y="68">01:52 &mdash; 12 min in</text>
+          </g>
+        </svg>
+      </div>
+
       <figcaption>
         The pattern a board watches for. Pressure sliding away while no tap is
-        open means the water is going somewhere else.
+        open means the water is going somewhere else. Shown for one line; an
+        illustration of the shape, not a live reading.
       </figcaption>
     </figure>
 
   </div>
 
   {% comment %}
-    The three counts were three big-number cards across the width, which is
-    the stock treatment and gave "7 households" the same weight as the number
-    that actually changes. They are a strip under the hero now: the state of
-    the system in one line, read left to right.
+    The counts, as readouts on the panel's bottom rail rather than three big
+    numbers across the width. "Boards fitted" is a fraction because that is
+    how far through fitting the barangay is - the number a panel will ask
+    about - and a fraction never reads "1 Boards".
   {% endcomment %}
-  {% comment %}
-    Each label agrees with its own number. These are fixed words beside a
-    live count, so "1 Boards fitted" appeared the moment the barangay had
-    exactly one board - which is precisely the state a rollout spends its
-    first weeks in, and the one a visitor is most likely to see.
-  {% endcomment %}
-  <dl class="lead-figures">
+  <dl class="telemetry">
     <div>
-      <dt>Hose line{{ stats.segments|pluralize }}</dt>
+      <dt>Hose lines</dt>
       <dd>{{ stats.segments }}</dd>
     </div>
     <div>
-      <dt>Household{{ stats.households|pluralize }}</dt>
+      <dt>Households</dt>
       <dd>{{ stats.households }}</dd>
     </div>
     <div>
-      <dt>Board{{ stats.fitted|pluralize }} fitted</dt>
-      <dd>{{ stats.fitted }}</dd>
+      <dt>Boards fitted</dt>
+      <dd>{{ stats.fitted }}/{{ stats.segments }}</dd>
     </div>
-    <div class="is-headline">
-      <dt>Leak alert{{ stats.events_30d|pluralize }}, last 30 days</dt>
+    <div class="t-alert">
+      <dt>Leak alerts, last 30 days</dt>
       <dd>{{ stats.events_30d }}</dd>
     </div>
   </dl>
@@ -170,18 +165,9 @@
 <div class="wrap">
 
   {% comment %}
-    Three stages, not four, and the copy is now true.
-
-    "Locate" described distance markers narrowing a fault to the stretch of
-    line it sat in. There are no distance markers any more - every household
-    has its own hose from the source, so a leak names a household and there
-    is no stretch to walk. "Detect" described flow measured against a
-    calibrated pressure-flow curve; that calibration was removed as well,
-    because it needed a field measurement nobody could repeat reliably. The
-    page was advertising two things the system does not do.
-
-    They are drawn along a line rather than as three cards in a row, because
-    they happen in order, in one direction, along an actual hose.
+    Three steps, in order along a hose, so they read on a time axis. The copy
+    is the true mechanism: no distance markers, no calibrated flow curve -
+    both were removed from the system, and the page used to advertise them.
   {% endcomment %}
   <section id="how" class="how">
     <h2>What happens when a hose splits</h2>
@@ -218,42 +204,41 @@
   </section>
 
   {% comment %}
-    This was a table of all seven households - "HH-001 Maria Santos",
-    "HH-004 Pedro Lim" - on a page anybody on the internet can open without
-    signing in, next to a column saying which of their lines had no board
-    watching it. That is a list of who is connected to the water system and
-    whose supply is unmonitored, published to strangers.
-
-    The same thing the table was there to prove - that this is a real system
-    with real lines on it - is in the strip above, counted rather than named.
-    Nobody needs to know Pedro Lim's name to believe seven lines exist.
+    Who the page is a door for, as a datasheet rather than cards. The sign-in
+    is one control at the end, not a third box dressed as a feature. No roster
+    of households here: who is connected and whose line is unwatched is not
+    something to publish to strangers.
   {% endcomment %}
   <section class="roles">
+    <h2>Who signs in</h2>
+
     <div class="role">
-      <h2>Water system facilitator</h2>
-      <p>
-        The live leak map, pressure for every household, the household records,
-        the complaints inbox, and the tools for sending notices and texts.
-      </p>
+      <h3>Water system facilitator</h3>
+      <div>
+        <p>
+          The live leak map, pressure for every household, the household records,
+          the complaints inbox, and the tools for sending notices and texts.
+        </p>
+      </div>
     </div>
 
     <div class="role">
-      <h2>Registered household owner</h2>
-      <p>
-        See the pressure on your own line, report a problem with your water, and
-        read notices from the facilitator.
-      </p>
-      <p class="role-note">
-        Accounts are issued by the water system facilitator. If you are a
-        registered subscriber without a login, ask them for one.
-      </p>
+      <h3>Registered household owner</h3>
+      <div>
+        <p>
+          See the pressure on your own line, report a problem with your water, and
+          read notices from the facilitator.
+        </p>
+        <p class="role-note">
+          Accounts are issued by the water system facilitator. If you are a
+          registered subscriber without a login, ask them for one.
+        </p>
+      </div>
     </div>
 
     {% if not user.is_authenticated %}
-      <div class="role role-cta">
-        <h2>Already have a login?</h2>
-        <p>Both kinds of account sign in through the same door.</p>
-        <a class="btn btn-primary btn-block" href="{% url 'login' %}">Sign in</a>
+      <div class="roles-cta">
+        <a class="btn btn-primary btn-lg" href="{% url 'login' %}">Sign in</a>
       </div>
     {% endif %}
   </section>

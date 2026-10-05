@@ -912,238 +912,312 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .chart-legend i { width: 14px; height: 3px; border-radius: 2px; }
 
 /* ==========================================================================
-   LANDING PAGE
-   The one public page, and the only place in this system that raises its
-   voice. Everything behind the login is a tool somebody uses all day and is
-   deliberately quiet; this is the page that has to explain, in about ten
-   seconds, what a hose, a pressure sensor and a sleeping barangay have to do
-   with each other.
+   LANDING PAGE  -  "the instrument"
+   The one public page, written for a defence panel: in about ten seconds it
+   has to read as a real, engineered instrument that watches pressure and
+   catches a leak - not a web page with a chart pasted into it.
 
-   One dark surface at the top, the app's ordinary light palette underneath.
-   Spending the boldness in a single place is the whole idea - a second loud
-   section would cancel the first.
+   So the hero is built as the face of a chart recorder: a bezel, strip-chart
+   grid, calibrated axes, and a pen that draws the one pattern the whole
+   system turns on - pressure sliding away while no tap is open. Deep petrol,
+   the colour of the inside of a pipe, not a tinted black. One display
+   typeface, self-hosted, because the rest of the app is an offline PWA and
+   this page keeps that discipline. The boldness is spent entirely on the
+   recorder; everything around it is quiet instrument labelling.
    ========================================================================== */
 
+/* Saira - a technical grotesque, self-hosted from static/fonts. One variable
+   file, latin only, ~33 KB. Only the landing page sets this family, so no
+   other page ever fetches it. */
+@font-face {
+  font-family: "Saira";
+  src: url("../fonts/saira-latin-var.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 .lead {
-  /* Deep water: the brand blue taken down to the colour of the inside of a
-     pipe, so a pale blue trace drawn on it reads the way water does. */
-  --lead-bg: #07243a;
-  --lead-bg-2: #0c3f61;
-  --lead-text: #eaf4fb;
-  --lead-muted: #9dc0d6;
-  --trace: #5cc8f5;
+  --ink: #0a1f2c;            /* deep petrol - inside of a pipe */
+  --panel: #0e2838;          /* the recorder's face */
+  --bezel: rgba(150, 205, 225, .20);
+  --grid: rgba(130, 190, 215, .11);  /* strip-chart paper */
+  --rule: rgba(160, 205, 225, .30);  /* hairline dividers */
+  --ink-text: #e9f3f7;
+  --ink-dim: #8fb2c4;
+  --trace: #52d0e0;          /* the steady pen */
+  --alarm: #f2a43a;          /* the falling pen and the flag */
+  --display: "Saira", var(--sans);
 
   background:
-    radial-gradient(120% 90% at 85% 0%, var(--lead-bg-2), transparent 62%),
-    var(--lead-bg);
-  color: var(--lead-text);
-  padding: clamp(2.2rem, 5vw, 4rem) 1rem clamp(1.4rem, 3vw, 2rem);
+    radial-gradient(135% 105% at 82% -12%, #123a55, transparent 58%),
+    var(--ink);
+  color: var(--ink-text);
+  padding: clamp(1.4rem, 3vw, 2.4rem) 1rem clamp(1.6rem, 3.2vw, 2.6rem);
   border-bottom: 1px solid var(--border);
 }
 
 .lead-grid {
-  max-width: 1240px; margin: 0 auto;
-  display: grid; gap: clamp(1.5rem, 4vw, 3rem);
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  max-width: 1200px; margin: 0 auto;
+  display: grid; gap: clamp(1.6rem, 4vw, 3.2rem);
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
   align-items: center;
 }
-@media (max-width: 940px) { .lead-grid { grid-template-columns: 1fr; } }
+@media (max-width: 920px) { .lead-grid { grid-template-columns: 1fr; } }
 
-/* No web font is loaded anywhere in this system: it is a PWA with an offline
-   page, installed on phones where the signal comes and goes, and a headline
-   that sometimes fails to arrive is worse than one in the system face. The
-   personality comes from size, weight and tracking instead. */
 .lead-copy h1 {
-  margin: 0 0 1rem;
-  /* Capped where the longest of the three lines still sets on one line in
-     this column. Past that the last sentence wraps and leaves "seconds."
-     alone on a fourth line, which undoes the rhythm the three make. */
-  font-size: clamp(2rem, 4.6vw, 3rem);
-  line-height: 1.06;
-  letter-spacing: -.033em;
-  font-weight: 700;
+  font-family: var(--display);
+  margin: 0 0 1.1rem;
+  /* Three short declaratives, set as one balanced block rather than forced
+     one-per-line: a hard break orphans "hose." and "seconds." the moment the
+     column is a little narrow, and the column width swings with the layout.
+     Balanced wrapping keeps the rhythm (the periods still pace it) without the
+     orphans, at every width. */
+  font-size: clamp(1.95rem, 3.4vw, 2.5rem);
+  line-height: 1.08;
+  letter-spacing: -.015em;
+  font-weight: 800;
   text-wrap: balance;
 }
 
 .lead-sub {
-  margin: 0 0 1.6rem;
-  max-width: 54ch;
-  font-size: clamp(1rem, 1.15vw, 1.08rem);
-  line-height: 1.6;
-  color: var(--lead-muted);
+  margin: 0 0 1.7rem; max-width: 52ch;
+  font-size: clamp(1rem, 1.1vw, 1.06rem); line-height: 1.6;
+  color: var(--ink-dim);
 }
 
 .lead-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
 .btn-lg { padding: .72rem 1.35rem; font-size: 1rem; }
 
-/* A second button that does not compete with the first one. On this
-   background an outline in the text colour is enough. */
+/* A second action that does not compete with the first. On this ground an
+   outline in the text colour is enough. */
 .btn-ghost {
-  background: transparent; color: var(--lead-text);
-  border: 1px solid rgba(255, 255, 255, .34);
+  background: transparent; color: var(--ink-text);
+  border: 1px solid rgba(255, 255, 255, .32);
 }
-.btn-ghost:hover { background: rgba(255, 255, 255, .09); border-color: rgba(255, 255, 255, .6); }
+.btn-ghost:hover { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .6); }
 
-/* ---------------------------------------------------------- the trace
-   The hero. Pressure holding steady through the night and then sliding
-   away - the single pattern the whole system exists to catch, drawn rather
-   than described, and captioned as the pattern rather than as live data.
+/* ------------------------------------------------------ the chart recorder
+   The hero. Not a card with a chart in it - the faceplate of an instrument:
+   a bezel, a strip-chart grid behind the pen, and a bottom rail of readouts.
    -------------------------------------------------------------------------- */
 
-.trace { margin: 0; }
+.recorder {
+  margin: 0;
+  background: linear-gradient(180deg, var(--panel), #0a1e2b);
+  border: 1px solid var(--bezel);
+  border-radius: 10px;
+  padding: .45rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 20px 46px -26px #000;
+}
+
+/* The strip above the trace: what this recording is, and its unit. Said
+   plainly so a panel cannot mistake the illustration for a live feed. */
+.recorder-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem; padding: .25rem .55rem .45rem;
+}
+.recorder-head .r-what {
+  font-family: var(--display); font-weight: 600; font-size: .82rem;
+  color: var(--ink-text); letter-spacing: .01em;
+}
+.recorder-head .r-unit {
+  font-family: var(--mono); font-size: .72rem; color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.recorder-face {
+  border: 1px solid var(--grid);
+  border-radius: 6px;
+  background: #07171f;
+  padding: .2rem .2rem 0;
+}
+
 .trace-svg { width: 100%; height: auto; display: block; overflow: visible; }
 
-.trace-night { fill: rgba(255, 255, 255, .045); stroke: rgba(255, 255, 255, .10); }
-.trace-rule { stroke: rgba(255, 255, 255, .22); stroke-width: 1; stroke-dasharray: 3 4; }
-.trace-tick { fill: var(--lead-muted); font-size: 12px; }
-.trace-tick-end { text-anchor: end; }
+/* strip-chart paper */
+.r-grid { stroke: var(--grid); stroke-width: 1; }
+.r-axis { stroke: var(--rule); stroke-width: 1; }
+.r-tick { fill: var(--ink-dim); font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.r-tick-y { text-anchor: end; }
+.r-label { fill: var(--ink-dim); font-size: 11px; }
 
-/* Quiet: the line is the subject, the area under it is only there to give
-   the line a floor. At full strength it read as a solid block of water and
-   buried the threshold rule running through it. */
-.trace-fill { fill: url(#fade); opacity: .55; }
-.trace-line { fill: none; stroke: var(--trace); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+/* the threshold this line is judged against */
+.trace-rule { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 2 4; }
 
-/* The falling half in the colour this system uses everywhere for "this needs
-   you" - the same amber as a leak alert and an empty SMS account. */
-.trace-line.is-falling { stroke: #f0a23c; }
-.trace-mark { stroke: #f0a23c; stroke-width: 1; stroke-dasharray: 2 3; }
-.trace-dot { fill: #f0a23c; stroke: var(--lead-bg); stroke-width: 3; }
-.trace-flag { fill: #f0a23c; font-size: 14px; font-weight: 650; }
-.trace-flagsub { fill: var(--lead-muted); font-size: 12px; }
+/* the pen. Two paths meeting where the pattern turns, so the falling half can
+   carry the alarm colour. Each draws itself on load. */
+.trace-fill { fill: url(#fade); opacity: .5; }
+.trace-line { fill: none; stroke: var(--trace); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.trace-line.is-falling { stroke: var(--alarm); }
 
-/* The SVG scales with its column, and so does every label inside it: at
-   phone width 640 viewBox units render in about 350 real ones, which put the
-   axis labels at roughly 6px. They are sized in viewBox units here so they
-   come back to a readable size, and the timestamp under "Leak flagged" is
-   dropped rather than allowed to run off the plot - the caption underneath
-   already says what the picture is. */
+/* the moment it was called */
+.trace-mark { stroke: var(--alarm); stroke-width: 1; stroke-dasharray: 2 3; }
+.trace-dot { fill: var(--alarm); stroke: #07171f; stroke-width: 3; }
+.trace-flag { fill: var(--alarm); font-family: var(--display); font-size: 13px; font-weight: 700; }
+.trace-flagsub { fill: var(--ink-dim); font-family: var(--mono); font-size: 11px; }
+
+/* On a phone the whole SVG shrinks, and so would every label. Sized up in
+   viewBox units here so the axes stay readable; the flag's timestamp is
+   dropped rather than allowed to collide with the pen. */
 @media (max-width: 560px) {
-  .trace-tick { font-size: 20px; }
-  .trace-flag { font-size: 24px; }
+  .r-tick, .r-label, .trace-flagsub { font-size: 17px; }
+  .trace-flag { font-size: 20px; }
   .trace-flagsub { display: none; }
 }
 
-.trace figcaption {
-  margin-top: .7rem; font-size: .84rem; line-height: 1.5;
-  color: var(--lead-muted); max-width: 48ch;
+.recorder figcaption {
+  margin: .55rem .55rem .15rem; font-size: .82rem; line-height: 1.5;
+  color: var(--ink-dim); max-width: 54ch;
 }
 
-/* ------------------------------------------------------- the count strip
-   Three big-number cards across the width is the stock treatment, and it
-   gave a household count that changes twice a year the same weight as the
-   number somebody actually came to check. One strip, read left to right,
-   with the alert count set apart because it is the one that matters.
+/* one orchestrated reveal: the pen draws, then the flag arrives. Shows the
+   mechanism - steady, then the fall, then the alarm - and happens once. */
+@keyframes r-draw { to { stroke-dashoffset: 0; } }
+@keyframes r-fade { to { opacity: .5; } }
+@keyframes r-flag { to { opacity: 1; transform: translateY(0); } }
+
+.trace-line { stroke-dasharray: 100; stroke-dashoffset: 100; }
+.trace-line.is-steady  { animation: r-draw 1s ease-out .15s forwards; }
+.trace-line.is-falling { animation: r-draw .55s ease-in 1.15s forwards; }
+.trace-fill { opacity: 0; animation: r-fade .9s ease-out .7s forwards; }
+.trace-flaggroup {
+  opacity: 0; transform: translateY(6px);
+  animation: r-flag .45s ease-out 1.75s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trace-line { stroke-dashoffset: 0; animation: none; }
+  .trace-fill { opacity: .5; animation: none; }
+  .trace-flaggroup { opacity: 1; transform: none; animation: none; }
+}
+
+/* ---------------------------------------------------- the telemetry rail
+   The counts, as readouts along the panel's bottom edge - not three equal
+   big numbers, which is the stock hero treatment. Labels are plain sentence
+   case; the mono tabular numerals do the instrument work. */
+.telemetry {
+  max-width: 1200px; margin: clamp(1.4rem, 3vw, 2.2rem) auto 0;
+  padding-top: 1rem; border-top: 1px solid var(--rule);
+  display: flex; flex-wrap: wrap; gap: .7rem 2.4rem;
+}
+.telemetry div { display: flex; align-items: baseline; gap: .5rem; }
+.telemetry dt { font-size: .86rem; color: var(--ink-dim); }
+.telemetry dd {
+  margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 1.15rem; font-weight: 600; color: var(--ink-text);
+}
+.telemetry .t-alert { margin-left: auto; }
+@media (max-width: 680px) { .telemetry .t-alert { margin-left: 0; } }
+
+/* ----------------------------------------------------------- the sequence
+   Three steps, in order, along a hose - so they are drawn on a time axis,
+   the same kind of axis the recorder above reads on. Numbered because the
+   order is real; the numerals are mono, like a channel index on the panel.
    -------------------------------------------------------------------------- */
 
-.lead-figures {
-  max-width: 1240px; margin: clamp(1.8rem, 4vw, 3rem) auto 0;
-  padding-top: 1.1rem; border-top: 1px solid rgba(255, 255, 255, .14);
-  display: flex; flex-wrap: wrap; gap: .9rem 2.6rem; align-items: baseline;
+.how { margin-top: clamp(2.4rem, 5vw, 3.6rem); }
+.how h2 {
+  font-family: var(--display); font-weight: 700;
+  font-size: clamp(1.3rem, 2.6vw, 1.7rem); letter-spacing: -.01em;
+  margin-bottom: 1.7rem;
 }
-.lead-figures div { display: flex; align-items: baseline; gap: .5rem; }
-.lead-figures dt { font-size: .88rem; color: var(--lead-muted); order: 2; }
-.lead-figures dd {
-  margin: 0; order: 1;
-  font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em;
-  font-variant-numeric: tabular-nums;
-}
-/* Set apart by position, not by colour. Painted cyan it read as a score the
-   project was proud of, and "0 alerts" is not an achievement while five of
-   the seven lines have no board on them yet. */
-.lead-figures .is-headline { margin-left: auto; }
-@media (max-width: 700px) { .lead-figures .is-headline { margin-left: 0; } }
-
-/* ------------------------------------------------------------- the stages
-   Numbered because they genuinely are a sequence, and run along a line
-   because they happen in one direction along an actual hose. The line is the
-   hose; it stops at the last stage rather than trailing off.
-   -------------------------------------------------------------------------- */
-
-.how { margin-top: clamp(2.2rem, 5vw, 3.4rem); }
-.how h2 { font-size: clamp(1.3rem, 2.6vw, 1.75rem); letter-spacing: -.02em; margin-bottom: 1.6rem; }
 
 .stages {
   list-style: none; margin: 0; padding: 0;
   display: grid; gap: 1.6rem;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  /* Each connector reaches into the gap on its right. Once the grid drops to
-     two columns the right-hand one reaches past the container instead, and
-     the whole page gained a horizontal scrollbar at 768px. clip rather than
-     hidden, so this does not quietly become a scroll container. */
   overflow-x: clip;
 }
+.stage { position: relative; padding-top: 2.4rem; }
 
-.stage { position: relative; padding-top: 2.6rem; }
-
-/* The hose: a rule through the numbers, broken by each one. It is drawn per
-   stage and stops short on the last, so it does not run off the page. */
+/* the time axis: a hairline through the tick marks, broken at each step and
+   stopping at the last so it does not trail off the page */
 .stage::before {
-  content: ""; position: absolute; top: 15px; left: 0; right: -1.6rem;
-  height: 2px; background: var(--border);
+  content: ""; position: absolute; top: 12px; left: 0; right: -1.6rem;
+  height: 1px; background: var(--border);
 }
-.stage:last-child::before { right: auto; width: 32px; }
+.stage:last-child::before { right: auto; width: 2rem; }
 
 .stage-num {
-  position: absolute; top: 0; left: 0;
-  width: 32px; height: 32px; border-radius: 50%;
-  display: grid; place-items: center;
-  background: var(--brand); color: #fff;
-  font-size: .92rem; font-weight: 700;
+  position: absolute; top: 4px; left: 0;
+  font-family: var(--mono); font-size: .78rem; font-weight: 600;
+  color: var(--brand-strong);
+  background: var(--bg); padding-right: .5rem;
+  line-height: 1;
+}
+/* the tick itself */
+.stage-num::before {
+  content: ""; position: absolute; left: -1px; top: -7px;
+  width: 7px; height: 7px; background: var(--brand);
 }
 
-.stage h3 { margin: 0 0 .4rem; font-size: 1.04rem; letter-spacing: -.01em; }
+.stage h3 {
+  font-family: var(--display); font-weight: 600;
+  margin: 0 0 .4rem; font-size: 1.04rem; letter-spacing: -.005em;
+}
 .stage p { margin: 0; color: var(--text-muted); font-size: .92rem; line-height: 1.6; max-width: 42ch; }
 
 @media (max-width: 560px) {
-  /* Stacked, the horizontal rule would point at nothing. */
   .stage::before { display: none; }
-  .stage { padding-top: 0; padding-left: 2.8rem; }
+  .stage { padding-top: 0; padding-left: 2.2rem; }
+  .stage-num { top: 2px; }
 }
 
-/* --------------------------------------------------------------- the roles
-   Who this page is a door for. Plain blocks: three more bordered cards with
-   the same radius and the same shadow as everything else would be the
-   fourth grid of identical boxes on one page.
+/* --------------------------------------------------------- who signs in
+   A datasheet, not a set of cards: role in one column, what it opens in the
+   next, on hairline rows. The one action - sign in - is a single control at
+   the end, not a third card pretending to be a feature.
    -------------------------------------------------------------------------- */
 
 .roles {
-  margin: clamp(2.4rem, 5vw, 3.6rem) 0 clamp(2rem, 4vw, 3rem);
+  margin: clamp(2.6rem, 5vw, 3.8rem) 0 clamp(2rem, 4vw, 3rem);
   padding-top: clamp(1.6rem, 3vw, 2.2rem);
   border-top: 1px solid var(--border);
-  display: grid; gap: 1.8rem;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
-.roles h2 { font-size: 1.05rem; letter-spacing: -.01em; margin-bottom: .45rem; }
-.role p { margin: 0 0 .6rem; color: var(--text-muted); font-size: .92rem; line-height: 1.6; max-width: 40ch; }
+.roles > h2 {
+  font-family: var(--display); font-weight: 700;
+  font-size: clamp(1.15rem, 2.4vw, 1.5rem); letter-spacing: -.01em;
+  margin: 0 0 1.3rem;
+}
+
+.role {
+  display: grid; grid-template-columns: minmax(10rem, 14rem) 1fr;
+  gap: .3rem 2rem;
+  padding: 1rem 0; border-top: 1px solid var(--border);
+}
+.role:last-of-type { border-bottom: 1px solid var(--border); }
+.role h3 {
+  font-family: var(--display); font-weight: 600;
+  margin: 0; font-size: 1.02rem; letter-spacing: -.005em; color: var(--text);
+}
+.role p { margin: 0; color: var(--text-muted); font-size: .94rem; line-height: 1.6; max-width: 52ch; }
+.role p + p { margin-top: .5rem; }
 .role-note { font-size: .86rem; }
 
-.role-cta {
-  align-self: start;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 1.1rem;
+@media (max-width: 560px) {
+  .role { grid-template-columns: 1fr; gap: .35rem; }
 }
 
+.roles-cta { margin-top: 1.6rem; display: flex; }
+.roles-cta .btn { min-width: 12rem; }
+
 /* ------------------------------------------------- the bar over the hero
-   A white strip across the top of a dark hero cut the page in two before it
-   had said anything. On this one page the bar sits on the hero instead, and
-   it is not sticky: transparent chrome over the light sections below would
-   be unreadable, and there is no script here to swap it on scroll. It
-   scrolls away, which is what a landing page's bar should do anyway - the
-   sign-in button appears again further down.
+   On this one page the top bar sits on the recorder's ground instead of a
+   white strip cutting the page in two. Not sticky: transparent chrome over
+   the light sections below would be unreadable, and there is no script here
+   to swap it on scroll - it scrolls away, which a landing bar should.
    -------------------------------------------------------------------------- */
 
 .is-landing .topbar {
   position: static;
-  background: #07243a;
+  background: #0a1f2c;
   border-bottom: 0;
-  color: #eaf4fb;
+  color: #e9f3f7;
 }
-.is-landing .topbar .brand strong { color: #eaf4fb; }
-.is-landing .topbar .brand small { color: #9dc0d6; }
-.is-landing .topbar .icon-btn { border-color: rgba(255, 255, 255, .3); color: #eaf4fb; }
+.is-landing .topbar .brand strong { color: #e9f3f7; }
+.is-landing .topbar .brand small { color: #8fb2c4; }
+.is-landing .topbar .icon-btn { border-color: rgba(255, 255, 255, .3); color: #e9f3f7; }
 .is-landing .topbar .icon-btn:hover { background: rgba(255, 255, 255, .1); }
-.is-landing .lead { padding-top: clamp(1.4rem, 3vw, 2.4rem); }
 
 /* ==========================================================================
    DEAD ENDS  (404, 403, 400)
