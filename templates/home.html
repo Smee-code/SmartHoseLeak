@@ -117,9 +117,13 @@
           <path class="trace-line is-falling" pathLength="100"
             d="M395,84 L410,90 L426,104 L452,126 L486,150 L524,172 L566,190 L610,202"/>
 
+          {# the pen tip, riding the leading edge of the trace as it draws #}
+          <circle class="trace-pen" r="3.6"/>
+
           {# the moment it was called #}
           <g class="trace-flaggroup">
             <line class="trace-mark" x1="414" y1="40" x2="414" y2="94"/>
+            <circle class="trace-pulse" cx="414" cy="94" r="5.5"/>
             <circle class="trace-dot" cx="414" cy="94" r="5.5"/>
             <text class="trace-flag" x="424" y="52">Leak flagged</text>
             <text class="trace-flagsub" x="424" y="68">01:52 &mdash; 12 min in</text>

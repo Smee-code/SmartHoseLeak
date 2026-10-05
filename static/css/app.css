@@ -1075,20 +1075,54 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 @keyframes r-draw { to { stroke-dashoffset: 0; } }
 @keyframes r-fade { to { opacity: .5; } }
 @keyframes r-flag { to { opacity: 1; transform: translateY(0); } }
+@keyframes r-pen-run { to { offset-distance: 100%; } }
+@keyframes r-pen-show { 0% { opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes r-pulse {
+  0%   { transform: scale(1);   opacity: .85; }
+  70%  { transform: scale(3.2); opacity: 0; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
 
 .trace-line { stroke-dasharray: 100; stroke-dashoffset: 100; }
 .trace-line.is-steady  { animation: r-draw 1s ease-out .15s forwards; }
 .trace-line.is-falling { animation: r-draw .55s ease-in 1.15s forwards; }
 .trace-fill { opacity: 0; animation: r-fade .9s ease-out .7s forwards; }
+
+/* The recorder's pen: a bright tip that rides the leading edge of the trace
+   as it draws, so the reveal reads as a pen actually moving across the paper,
+   then fades as it reaches the leak. The path matches the two trace segments
+   joined end to end. */
+.trace-pen {
+  fill: #eafcff;
+  offset-path: path("M58 85 L104 83 L150 86 L196 82 L242 85 L288 83 L334 85 L380 83 L395 84 L410 90 L426 104 L452 126 L486 150 L524 172 L566 190 L610 202");
+  offset-distance: 0%;
+  offset-rotate: 0deg;
+  opacity: 0;
+  filter: drop-shadow(0 0 3px var(--trace));
+  animation: r-pen-run 1.55s linear .15s forwards,
+             r-pen-show 1.7s linear .15s forwards;
+}
+
 .trace-flaggroup {
   opacity: 0; transform: translateY(6px);
   animation: r-flag .45s ease-out 1.75s forwards;
+}
+
+/* The alarm: a ring pulsing out from the flagged point - the one thing on the
+   page meant to keep catching the eye, the way an instrument's alarm light
+   does. Slow and single, not decoration. */
+.trace-pulse {
+  fill: none; stroke: var(--alarm); stroke-width: 2;
+  transform-box: fill-box; transform-origin: center;
+  animation: r-pulse 2.4s ease-out 2.1s infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .trace-line { stroke-dashoffset: 0; animation: none; }
   .trace-fill { opacity: .5; animation: none; }
   .trace-flaggroup { opacity: 1; transform: none; animation: none; }
+  .trace-pen { display: none; animation: none; }
+  .trace-pulse { display: none; animation: none; }
 }
 
 /* ---------------------------------------------------- the telemetry rail
