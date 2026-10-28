@@ -58,19 +58,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache first, refreshed in the background.
+  // Static assets: network first so code updates take effect immediately;
+  // fall back to the cached shell when offline.
   if (url.pathname.startsWith('/static/')) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        const network = fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        }).catch(() => cached);
-        return cached || network;
-      })
+      fetch(request).then((response) => {
+        if (response && response.status === 200) {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      }).catch(() => caches.match(request))
     );
   }
 });

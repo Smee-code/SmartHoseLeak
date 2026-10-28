@@ -1260,7 +1260,7 @@
       var pill = $('[data-field="status"]', tile);
       if (pill) {
         pill.className = 'pill pill-' + segment.status;
-        pill.textContent = segment.status_label;
+        pill.textContent = segment.status === 'MAINTENANCE' ? 'Offline' : segment.status_label;
       }
 
       var setText = function (field, value) {
@@ -1340,7 +1340,7 @@
           if (segment.trigger_label && segment.trigger !== 'none') detail.push(segment.trigger_label);
           note.textContent = detail.length ? detail.join(' - ') : 'Suspected leak.';
         } else if (segment.status === 'MAINTENANCE') {
-          note.textContent = segment.maintenance_note || 'Under maintenance - alerts paused.';
+          note.textContent = segment.maintenance_note || 'Alerts paused for this line.';
         } else if (segment.status === 'OFFLINE') {
           // A line with no board was being told to check the power and Wi-Fi
           // of a device that does not exist. Six rows said it at once, which
