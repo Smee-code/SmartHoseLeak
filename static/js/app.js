@@ -881,13 +881,10 @@
       Object.keys(TAG_TO_TOAST).forEach(function (tag) {
         if (node.classList.contains('message-' + tag)) type = TAG_TO_TOAST[tag];
       });
-      var sticky = type === 'danger' || type === 'warn' ||
-                   /password|username|api key/i.test(content);
-
       SHL.toast({
         type: type,
         title: content,
-        timeout: sticky ? 0 : 3000
+        timeout: 3000
       });
       converted += 1;
     });
