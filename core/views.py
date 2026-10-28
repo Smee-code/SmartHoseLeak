@@ -2015,13 +2015,38 @@ def facilitator_create(request):
             f"Created facilitator '{user.username}' for {user.barangay.name}",
             target=user.username,
         )
-        messages.success(
-            request,
-            f"Facilitator account created for {user.get_full_name()} "
-            f"({user.barangay.name}) - username: {form.generated_username} "
-            f"/ temporary password: {form.generated_password}. Write this down now; "
-            f"it is not shown again.",
-        )
+        uname = form.generated_username
+        pw    = form.generated_password
+        # Email the credentials to the facilitator if they have an email address.
+        emailed = False
+        if user.email:
+            site = request.build_absolute_uri("/").rstrip("/")
+            body = (
+                f"Hello {user.get_full_name()},\n\n"
+                f"An account has been created for you on the Smart Hose Leak "
+                f"Detection System ({user.barangay.name}).\n\n"
+                f"Username: {uname}\n"
+                f"Temporary password: {pw}\n\n"
+                f"Sign in at: {site}/login/\n\n"
+                f"Please change your password after your first sign-in.\n\n"
+                f"— Smart Hose Leak System"
+            )
+            emailed = mail.send_email(user.email, "Your facilitator account", body)
+        if emailed:
+            messages.success(
+                request,
+                f"Facilitator account created for {user.get_full_name()} "
+                f"({user.barangay.name}). Credentials sent to {user.email}.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Facilitator account created for {user.get_full_name()} "
+                f"({user.barangay.name}) — username: {uname} "
+                f"/ temporary password: {pw}. "
+                + ("Email could not be sent — write this down now." if user.email else
+                   "No email address on file — write this down now."),
+            )
         return redirect("facilitator_list")
 
     # A failed submission came from the dialog on the list page, so send the
