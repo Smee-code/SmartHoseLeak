@@ -1586,8 +1586,8 @@ class SystemSetting(models.Model):
     )
     valve_test_hour = models.PositiveSmallIntegerField(
         default=2, validators=[MinValueValidator(0), MaxValueValidator(23)],
-        verbose_name="Nightly test hour (0–23)",
-        help_text="Hour of the day when the board closes the valve for its sealed-line pressure test.",
+        verbose_name="Nightly test hour",
+        help_text="The board closes the valve at this hour for its sealed-line pressure test.",
     )
     valve_test_grace_minutes = models.PositiveSmallIntegerField(
         default=60, validators=[MinValueValidator(1), MaxValueValidator(240)],

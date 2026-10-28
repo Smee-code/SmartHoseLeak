@@ -810,7 +810,12 @@ class DetectionSettingsForm(forms.ModelForm):
             "valve_test_drop_bar",
             "auto_close_on_flow_leak",
         ]
+        HOUR_CHOICES = [
+            (h, f"{h % 12 or 12}:00 {'AM' if h < 12 else 'PM'}")
+            for h in range(24)
+        ]
         widgets = {
+            "valve_test_hour": forms.Select(choices=HOUR_CHOICES),
             "valve_test_drop_bar": forms.NumberInput(attrs={"step": "0.01"}),
         }
 
