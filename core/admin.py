@@ -2,28 +2,41 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from .models import (
+    Announcement,
+    AuditLog,
+    Barangay,
     SmsMessage,
     Complaint,
     Device,
+    ErrorLog,
     Household,
     LatestReading,
     LeakEvent,
     Notification,
     ReadingRollup,
     Segment,
+    SystemSetting,
     User,
+    WorkOrder,
 )
+
+
+@admin.register(Barangay)
+class BarangayAdmin(admin.ModelAdmin):
+    list_display = ("name", "municipality", "province", "is_active", "created_at")
+    list_filter = ("is_active", "municipality", "province")
+    search_fields = ("name",)
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ("username", "get_full_name", "role", "contact_number", "is_active", "last_login")
-    list_filter = ("role", "is_active", "is_staff")
+    list_display = ("username", "get_full_name", "role", "barangay", "contact_number", "is_active", "last_login")
+    list_filter = ("role", "barangay", "is_active", "is_staff")
     fieldsets = BaseUserAdmin.fieldsets + (
-        ("Smart Hose Leak", {"fields": ("role", "contact_number", "must_change_password")}),
+        ("Smart Hose Leak", {"fields": ("role", "barangay", "contact_number", "must_change_password")}),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
-        ("Smart Hose Leak", {"fields": ("role", "contact_number")}),
+        ("Smart Hose Leak", {"fields": ("role", "barangay", "contact_number")}),
     )
 
 
@@ -82,8 +95,8 @@ class ReadingRollupAdmin(admin.ModelAdmin):
 
 @admin.register(Household)
 class HouseholdAdmin(admin.ModelAdmin):
-    list_display = ("household_id", "owner_name", "contact_number", "segment", "account_status", "user")
-    list_filter = ("account_status", "segment")
+    list_display = ("household_id", "owner_name", "barangay", "contact_number", "segment", "account_status", "user")
+    list_filter = ("account_status", "barangay", "segment")
     search_fields = ("household_id", "owner_name", "address", "contact_number")
 
 
@@ -106,6 +119,56 @@ class ComplaintAdmin(admin.ModelAdmin):
     list_display = ("reference", "household", "category", "subject", "status", "created_at")
     list_filter = ("status", "category")
     search_fields = ("reference", "subject", "body")
+
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    """The administrative trail. Read-only, like the SMS log: evidence you can
+    edit is not evidence."""
+
+    list_display = ("created_at", "actor_name", "action", "summary", "target")
+    list_filter = ("action",)
+    search_fields = ("actor_name", "summary", "target")
+    date_hierarchy = "created_at"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ErrorLog)
+class ErrorLogAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "exception_type", "method", "path", "user")
+    list_filter = ("exception_type",)
+    date_hierarchy = "created_at"
+    readonly_fields = [f.name for f in ErrorLog._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(SystemSetting)
+class SystemSettingAdmin(admin.ModelAdmin):
+    list_display = ("maintenance_mode", "updated_at", "updated_by")
+
+
+@admin.register(Announcement)
+class AnnouncementAdmin(admin.ModelAdmin):
+    list_display = ("title", "audience", "barangay", "in_app", "by_sms", "recipients_count", "created_at")
+    list_filter = ("audience", "in_app", "by_sms")
+    search_fields = ("title", "body")
+    date_hierarchy = "created_at"
+
+
+@admin.register(WorkOrder)
+class WorkOrderAdmin(admin.ModelAdmin):
+    list_display = ("title", "kind", "status", "barangay", "assigned_to", "scheduled_for", "created_at")
+    list_filter = ("kind", "status", "barangay")
+    search_fields = ("title", "details")
+    date_hierarchy = "created_at"
+    autocomplete_fields = ()
 
 
 @admin.register(SmsMessage)

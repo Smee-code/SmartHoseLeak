@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Administration - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>Administration</h1>
+      <p class="sub">{{ barangay.location_label }} &mdash; the whole system, and the people who run it.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn btn-sm" href="{% url 'admin_pressure' %}">Pressure &amp; flow</a>
+      <a class="btn btn-sm" href="{% url 'analytics' %}">Analytics</a>
+      <a class="btn btn-sm" href="{% url 'announcement_list' %}?open=announcement">Announcement</a>
+      <a class="btn btn-sm" href="{% url 'facilitator_list' %}?open=facilitator">Add facilitator</a>
+      <a class="btn btn-primary btn-sm" href="{% url 'admin_household_list' %}?open=household">Register household</a>
+    </div>
+  </div>
+
+  {% comment %}
+    Tiles say where things stand AND which way they moved this week. A
+    number that never changes (facilitators) carries no delta rather than a
+    fake one. The leak tile is the one that may turn red: it is the only
+    figure here that means somebody's water is going somewhere else.
+  {% endcomment %}
+  <section class="stats" aria-label="System totals">
+    <div class="stat{% if stats.open_leaks %} is-alert{% endif %}">
+      <div class="stat-value">{{ stats.open_leaks }}</div>
+      <div class="stat-label">Open leak alerts</div>
+      <div class="stat-delta">{% if stats.open_leaks %}facilitator texted{% else %}none open{% endif %}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ stats.upcoming_visits }}</div>
+      <div class="stat-label">Visits scheduled</div>
+      <div class="stat-delta{% if stats.visits_done_week %} is-up{% endif %}">
+        {% if stats.visits_done_week %}<svg class="ico" aria-hidden="true"><use href="#i-trend-up"></use></svg>{{ stats.visits_done_week }} done this week{% else %}none done this week{% endif %}
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ stats.households }}</div>
+      <div class="stat-label">Households</div>
+      <div class="stat-delta{% if stats.households_week %} is-up{% endif %}">
+        {% if stats.households_week %}<svg class="ico" aria-hidden="true"><use href="#i-trend-up"></use></svg>+{{ stats.households_week }} this week{% else %}no change this week{% endif %}
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ stats.lines }}</div>
+      <div class="stat-label">Active hose lines</div>
+      <div class="stat-delta">{{ stats.devices }} board{{ stats.devices|pluralize }} registered</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ stats.owners }}</div>
+      <div class="stat-label">Owner logins</div>
+      <div class="stat-delta{% if stats.owners_week %} is-up{% endif %}">
+        {% if stats.owners_week %}<svg class="ico" aria-hidden="true"><use href="#i-trend-up"></use></svg>+{{ stats.owners_week }} this week{% else %}no change this week{% endif %}
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">{{ stats.facilitators }}</div>
+      <div class="stat-label">Facilitators</div>
+      <div class="stat-delta">{{ stats.suspended }} login{{ stats.suspended|pluralize }} suspended</div>
+    </div>
+  </section>
+
+  {% comment %}
+    What needs a decision, worst first, never more than five lines. As the
+    system grows this strip stays this short; the tables below do not.
+  {% endcomment %}
+  {% if attention %}
+    <ul class="attention" aria-label="Needs attention">
+      {% for item in attention %}
+        <li data-level="{{ item.level }}">
+          <span class="attention-count">{{ item.count }}</span>
+          <span>{{ item.text }}</span>
+          <a class="btn btn-sm" href="{{ item.url }}">{{ item.action }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <section style="margin-top:1.5rem">
+    <div class="page-head">
+      <div><h2 style="margin:0">Upcoming visits <span class="count-chip">{{ stats.upcoming_visits }}</span></h2></div>
+      <div class="btn-row">
+        <a class="btn btn-sm" href="{% url 'work_order_list' %}">All visits</a>
+        <a class="btn btn-primary btn-sm" href="{% url 'work_order_list' %}?open=visit">Schedule a visit</a>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>When</th><th>Household</th><th>Visit</th><th>Facilitator</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for order in upcoming %}
+            <tr>
+              <td class="nowrap small when-{{ order.when_tone }}">
+                {{ order.when_label }}
+                {% if order.scheduled_for %}<div class="muted">{{ order.scheduled_for|date:"D, M j" }}</div>{% endif %}
+              </td>
+              <td>{{ order.where_label }}</td>
+              <td><a href="{% url 'work_order_detail' order.pk %}">{{ order.title }}</a></td>
+              <td class="small">{% if order.assigned_to %}{{ order.assigned_to.get_full_name|default:order.assigned_to.username }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td>
+              <td>{% include "_wo_status.html" %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">No visits scheduled. <a href="{% url 'work_order_list' %}?open=visit">Schedule one</a> &mdash; the household and the facilitator are texted.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if stats.upcoming_visits > 5 %}
+      <p class="small muted" style="margin:.5rem 0 0">Showing the next 5 of {{ stats.upcoming_visits }}. <a href="{% url 'work_order_list' %}">All visits</a>.</p>
+    {% endif %}
+  </section>
+
+  <div class="split" style="margin-top:1.5rem">
+    <section>
+      <div class="page-head">
+        <div><h2 style="margin:0">Newest accounts <span class="count-chip">{{ accounts_total }}</span></h2></div>
+        <div class="btn-row"><a class="btn btn-sm" href="{% url 'account_list' %}">All accounts</a></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Login</th><th>Name</th><th>Role</th><th>Joined</th></tr></thead>
+          <tbody>
+            {% for account in recent_accounts %}
+              <tr>
+                <td class="mono small">
+                  {{ account.username }}
+                  {% if not account.is_active %}<span class="pill pill-muted">suspended</span>{% endif %}
+                </td>
+                <td>{{ account.get_full_name|default:"&mdash;" }}</td>
+                <td class="small">{{ account.get_role_display }}</td>
+                <td class="small nowrap muted">{{ account.date_joined|timesince|truncatewords:2 }} ago</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="empty">No accounts yet. <a href="{% url 'facilitator_create' %}">Add a facilitator</a> or <a href="{% url 'admin_household_create' %}">register a household</a>.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% comment %}
+      The last few things done in the console, from the audit log. As the
+      log grows this stays six lines; the log page has the rest.
+    {% endcomment %}
+    <section>
+      <div class="page-head">
+        <div><h2 style="margin:0">Recent activity <span class="count-chip">{{ audit_total }}</span></h2></div>
+        <div class="btn-row"><a class="btn btn-sm" href="{% url 'audit_log' %}">Audit log</a></div>
+      </div>
+      <div class="card">
+        <div class="sent-feed audit-feed">
+          {% for entry in audit %}
+            <div class="sent-row">
+              <span class="sent-icon" aria-hidden="true"><svg class="ico"><use href="#i-id"></use></svg></span>
+              <span class="sent-main">
+                <span class="sent-text">{{ entry.summary }}</span>
+                <span class="sent-meta">{{ entry.actor_name|default:"system" }} &middot; {{ entry.action }}</span>
+              </span>
+              <time class="sent-time" datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"M j, H:i" }}</time>
+            </div>
+          {% empty %}
+            <p class="empty" style="margin:0">Nothing recorded yet. Actions taken in the console appear here.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+
+</div>
+
+{% endblock %}

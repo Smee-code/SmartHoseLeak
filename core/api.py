@@ -225,6 +225,11 @@ def _notify_facilitators(segment, event):
     facilitators = User.objects.filter(
         role=User.Role.FACILITATOR
     ).exclude(contact_number="")
+    # The facilitator of THIS line's barangay, not every facilitator in the
+    # system: a leak in one barangay is not another's to walk to. A line
+    # with no barangay yet falls back to everyone rather than to nobody.
+    if segment.barangay_id:
+        facilitators = facilitators.filter(barangay_id=segment.barangay_id)
     if not facilitators:
         return
 
@@ -490,9 +495,16 @@ def ingest(request):
 
             accepted += 1
 
+        first_contact = device.last_seen is None
         device.last_seen = now
         device.last_ip = _client_ip(request)
         device.save(update_fields=["last_seen", "last_ip"])
+
+    if first_contact and accepted:
+        # The owner set the board up themselves; the facilitator should not
+        # have to notice a tile turn green to know it worked.
+        from . import setup
+        setup.announce_first_connection(device)
 
     return JsonResponse(
         {
@@ -606,9 +618,15 @@ def live(request):
         .order_by("name")
     )
 
-    # Household owners see only their own supply line.
+    # The administrator oversees every barangay and sees all of them; a
+    # facilitator only their own; a household owner only their own line.
     household = getattr(request.user, "household", None)
-    if not request.user.is_facilitator:
+    if request.user.is_admin:
+        pass                                            # every active segment
+    elif request.user.is_facilitator:
+        barangay_id = getattr(request.user, "barangay_id", None)
+        segments = segments.filter(barangay_id=barangay_id) if barangay_id else segments.none()
+    else:
         if household is None or household.segment_id is None:
             return JsonResponse({"ok": True, "segments": [], "open_events": [], "unread": 0})
         segments = segments.filter(id=household.segment_id)
@@ -616,9 +634,11 @@ def live(request):
     payload = [_segment_payload(segment) for segment in segments]
 
     open_events = []
-    if request.user.is_facilitator:
+    if request.user.is_admin or request.user.is_facilitator:
         for event in LeakEvent.objects.filter(
-            cleared_at__isnull=True, severity__in=[LeakEvent.Severity.CRITICAL, LeakEvent.Severity.WARNING]
+            cleared_at__isnull=True,
+            severity__in=[LeakEvent.Severity.CRITICAL, LeakEvent.Severity.WARNING],
+            segment__in=segments,   # the same barangay the lines above came from
         ).select_related("segment")[:20]:
             open_events.append(
                 {
@@ -637,13 +657,15 @@ def live(request):
                 }
             )
         unread = 0
-    else:
+    elif household is not None:
         unread = Notification.objects.filter(recipient=household, read_at__isnull=True).count()
+    else:
+        unread = 0
 
     # Device reachability, so the dashboards can announce it changing rather
     # than only showing it on a reload. Reported for owners too: their line
     # reads OFFLINE for the same reason, and they deserve the explanation.
-    devices = list(Device.objects.all())
+    devices = list(Device.objects.filter(segments__in=segments).distinct())
     last_seen = max((d.last_seen for d in devices if d.last_seen), default=None)
 
     # The address the board last posted from. Worth surfacing: it is how the
@@ -689,7 +711,12 @@ def history(request):
     if segment_id:
         rollups = rollups.filter(segment_id=segment_id)
 
-    if not request.user.is_facilitator:
+    if request.user.is_admin:
+        pass                                            # every barangay's rollups
+    elif request.user.is_facilitator:
+        barangay_id = getattr(request.user, "barangay_id", None)
+        rollups = rollups.filter(segment__barangay_id=barangay_id) if barangay_id else rollups.none()
+    else:
         household = getattr(request.user, "household", None)
         if household is None or household.segment_id is None:
             return JsonResponse({"ok": True, "series": []})

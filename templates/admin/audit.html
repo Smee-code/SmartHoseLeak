@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Audit log - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>Audit log</h1>
+      <p class="sub">Who did what, and when. Write-once &mdash; there is no way to edit or delete an entry.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn btn-sm" href="{% url 'export_console' 'audit' %}">Export CSV</a>
+    </div>
+  </div>
+
+  <form method="get" class="filters filters-inline">
+    <div class="field">
+      <label for="action">Action</label>
+      <select id="action" name="action">
+        <option value="">All actions</option>
+        {% for a in actions %}
+          <option value="{{ a }}" {% if a == action %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn">Filter</button>
+    {% if action %}<a class="btn" href="{% url 'audit_log' %}">Clear</a>{% endif %}
+  </form>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Summary</th><th>Target</th></tr></thead>
+      <tbody>
+        {% for e in page %}
+          <tr>
+            <td class="small nowrap">{{ e.created_at|date:"M j, Y H:i" }}</td>
+            <td class="small">{{ e.actor_name|default:"system" }}</td>
+            <td class="small mono">{{ e.action }}</td>
+            <td>{{ e.summary }}</td>
+            <td class="small">{{ e.target|default:"&mdash;" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">No audit entries yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page.has_other_pages %}
+    <div class="pager">
+      {% if page.has_previous %}<a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;action={{ action }}">Previous</a>{% endif %}
+      <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;action={{ action }}">Next</a>{% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{% if order %}Edit visit{% else %}Schedule a visit{% endif %} - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>{% if order %}Edit visit{% else %}Schedule a household visit{% endif %}</h1>
+      <p class="sub">Choosing a facilitator schedules the visit and texts both them and the household - the household needs no account yet.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="message message-error"><span>{{ form.non_field_errors }}</span></div>
+      {% endif %}
+      {% include "_form_field.html" with field=form.household %}
+      {% include "_form_field.html" with field=form.title %}
+      {% include "_form_field.html" with field=form.details %}
+      <div class="field-pair">
+        {% include "_form_field.html" with field=form.assigned_to %}
+        {% include "_form_field.html" with field=form.scheduled_for %}
+      </div>
+      <div class="btn-row" style="margin-top:1rem">
+        <button type="submit" class="btn btn-primary">{% if order %}Save changes{% else %}Schedule visit{% endif %}</button>
+        <a class="btn" href="{% if order %}{% url 'work_order_detail' order.pk %}{% else %}{% url 'work_order_list' %}{% endif %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

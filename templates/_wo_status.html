@@ -1,0 +1,5 @@
+{% comment %}Status pill for a work order. Expects `order` in context.{% endcomment %}
+{% if order.status == 'done' %}<span class="pill pill-ok">{{ order.get_status_display }}</span>
+{% elif order.status == 'requested' %}<span class="pill pill-warn">{{ order.get_status_display }}</span>
+{% elif order.status == 'rejected' or order.status == 'cancelled' %}<span class="pill pill-muted">{{ order.get_status_display }}</span>
+{% else %}<span class="pill pill-info">{{ order.get_status_display }}</span>{% endif %}

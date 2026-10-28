@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Announcements - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>Announcements</h1>
+      <p class="sub">Messages sent to households across one barangay or all of them.</p>
+    </div>
+    <div class="btn-row">
+      {# Opens the dialog below; without JavaScript it is a plain link to the full page. #}
+      <a class="btn btn-primary btn-sm" href="{% url 'announcement_create' %}" data-modal-open="announcement-modal">New announcement</a>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Sent</th><th>Title</th><th>Audience</th><th>Channels</th><th>Reach</th><th>By</th></tr>
+      </thead>
+      <tbody>
+        {% for a in page %}
+          <tr>
+            <td class="small nowrap">{{ a.created_at|date:"M j, Y" }}</td>
+            <td>{{ a.title }}</td>
+            <td class="small">{{ a.audience_label }}</td>
+            <td class="small">
+              {% if a.in_app %}<span class="pill pill-muted">app</span>{% endif %}
+              {% if a.by_sms %}<span class="pill pill-muted">SMS</span>{% endif %}
+              {% if a.by_email %}<span class="pill pill-muted">email</span>{% endif %}
+            </td>
+            <td class="small">{{ a.recipients_count }} household{{ a.recipients_count|pluralize }}{% if a.by_sms %}, {{ a.sms_count }} text{{ a.sms_count|pluralize }}{% endif %}{% if a.by_email %}, {{ a.email_count }} email{{ a.email_count|pluralize }}{% endif %}</td>
+            <td class="small">{% if a.sent_by %}{{ a.sent_by.get_full_name|default:a.sent_by.username }}{% else %}&mdash;{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">No announcements yet. <a href="{% url 'announcement_create' %}" data-modal-open="announcement-modal">Send the first one</a>.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page.has_other_pages %}
+    <div class="pager">
+      {% if page.has_previous %}<a class="btn btn-sm" href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
+      <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="btn btn-sm" href="?page={{ page.next_page_number }}">Next</a>{% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{% comment %}
+  New-announcement dialog. Posts to the same view as the standalone page;
+  on error (or an audience with nobody in it) this page re-renders with the
+  dialog reopened and the words intact. ?open=announcement opens it on
+  arrival (the Overview lands here that way).
+{% endcomment %}
+<div class="modal-backdrop" id="announcement-modal" hidden
+     {% if create_form_errors or open_modal == 'announcement' %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="announcement-modal-title">
+    <form method="post" action="{% url 'announcement_create' %}" novalidate>
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="announcement-modal-title">New announcement</h2>
+          <p class="sub">Reaches households in the app, by SMS, by email, or any mix. The same words go out on each.</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        {% if create_form.non_field_errors %}
+          <div class="message message-error"><span>{{ create_form.non_field_errors }}</span></div>
+        {% endif %}
+
+        <div class="field">
+          <label>{{ create_form.audience.label }}</label>
+          {% for choice in create_form.audience %}
+            <div class="check-row">{{ choice.tag }}
+              <label for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
+            </div>
+          {% endfor %}
+          {{ create_form.audience.errors }}
+        </div>
+
+        <details class="set-steps" {% if create_form.households.errors %}open{% endif %}>
+          <summary>Choose specific households (only used for the "Selected households" audience)</summary>
+          <div class="field" style="margin-top:.5rem">
+            {{ create_form.households }}
+            {{ create_form.households.errors }}
+          </div>
+        </details>
+
+        {% include "_form_field.html" with field=create_form.title %}
+        {% include "_form_field.html" with field=create_form.body %}
+
+        <fieldset class="channel-box">
+          <legend class="small">How to send it</legend>
+          {% include "_form_field.html" with field=create_form.in_app %}
+          {% include "_form_field.html" with field=create_form.by_sms %}
+          {% include "_form_field.html" with field=create_form.by_email %}
+        </fieldset>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Send announcement</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

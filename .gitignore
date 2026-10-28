@@ -16,6 +16,13 @@ db.sqlite3-journal
 # in version control stays in the history even after the file is deleted.
 CREDENTIALS.txt
 
+# Deployment notes with host and account details. Kept out of the public repo
+# for the same reason as the credentials above.
+PythonAnywhere.txt
+
+# Per-machine editor settings; not project configuration.
+.vscode/
+
 # A second copy of the installed skills, for Cursor / Copilot / Codex and
 # similar. This project is worked on through Claude Code, which reads
 # .claude/skills/ - and two copies in git would drift apart, because the

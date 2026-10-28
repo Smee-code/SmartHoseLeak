@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static i18n %}
 
 {% block title %}{{ SITE_NAME }}{% endblock %}
 {% block body_class %}is-landing{% endblock %}
@@ -27,21 +27,19 @@
   <div class="lead-grid">
 
     <div class="lead-copy">
-      <h1>One hose to every house. A sensor on every hose. Leaks show up in seconds.</h1>
+      <h1>{% trans "One hose to every house. A sensor on every hose. Leaks show up in seconds." %}</h1>
 
       <p class="lead-sub">
-        Water reaches {{ SITE_LOCALE }} downhill from one source, through a hose
-        to every household. When a hose splits, the water runs into the ground and
-        nobody knows until a tap upstream goes dry. A sensor on each line notices
-        in seconds, and says whose line it is.
+        {% blocktrans with locale=SITE_LOCALE %}Water reaches {{ locale }} downhill from one source, through a hose to every household. When a hose splits, the water runs into the ground and nobody knows until a tap upstream goes dry. A sensor on each line notices in seconds, and says whose line it is.{% endblocktrans %}
       </p>
 
       <div class="lead-actions">
         {% if user.is_authenticated %}
-          <a class="btn btn-primary btn-lg" href="{% url 'post_login' %}">Go to my dashboard</a>
+          <a class="btn btn-primary btn-lg" href="{% url 'post_login' %}">{% trans "Go to my dashboard" %}</a>
         {% else %}
-          <a class="btn btn-primary btn-lg" href="{% url 'login' %}">Sign in</a>
-          <a class="btn btn-ghost btn-lg" href="#how">How it works</a>
+          {# Opens the sign-in dialog in place; without JavaScript it is a plain link to /login/. #}
+          <a class="btn btn-primary btn-lg" href="{% url 'login' %}" data-modal-open="login-modal">{% trans "Sign in" %}</a>
+          <a class="btn btn-ghost btn-lg" href="#how">{% trans "How it works" %}</a>
         {% endif %}
       </div>
     </div>
@@ -54,18 +52,16 @@
     {% endcomment %}
     <figure class="recorder">
       <div class="recorder-head">
-        <span class="r-what">Supply line &mdash; pressure, overnight</span>
-        <span class="r-unit">bar</span>
+        <span class="r-what">{% trans "Supply line &mdash; pressure, overnight" %}</span>
+        <span class="r-unit">{% trans "bar" %}</span>
       </div>
 
       <div class="recorder-face">
         <svg viewBox="0 0 640 270" role="img" class="trace-svg"
              aria-labelledby="trace-title trace-desc">
-          <title id="trace-title">Pressure on one hose line overnight</title>
+          <title id="trace-title">{% trans "Pressure on one hose line overnight" %}</title>
           <desc id="trace-desc">
-            A chart-recorder trace. Pressure holds steady near 0.6 bar from
-            10pm, then falls away after about 1:40am while no tap is open, and
-            the leak is flagged at 1:52am as it crosses the low-supply line.
+            {% trans "A chart-recorder trace. Pressure holds steady near 0.6 bar from 10pm, then falls away after about 1:40am while no tap is open, and the leak is flagged at 1:52am as it crosses the low-supply line." %}
           </desc>
 
           <defs>
@@ -102,11 +98,11 @@
           <text class="r-tick" x="610" y="250" text-anchor="end">4am</text>
 
           {# the premise, stated on the plot #}
-          <text class="r-label" x="66" y="50">no taps open &mdash; recorded overnight</text>
+          <text class="r-label" x="66" y="50">{% trans "no taps open &mdash; recorded overnight" %}</text>
 
           {# the low-supply threshold this line is judged against #}
           <line class="trace-rule" x1="58" y1="158" x2="610" y2="158"/>
-          <text class="r-label" x="606" y="152" text-anchor="end">low-supply threshold</text>
+          <text class="r-label" x="606" y="152" text-anchor="end">{% trans "low-supply threshold" %}</text>
 
           {# the pen: steady (cyan), then falling (amber), meeting where it turns #}
           <path class="trace-fill" d="M58,85 L104,83 L150,86 L196,82 L242,85 L288,83
@@ -125,16 +121,14 @@
             <line class="trace-mark" x1="414" y1="40" x2="414" y2="94"/>
             <circle class="trace-pulse" cx="414" cy="94" r="5.5"/>
             <circle class="trace-dot" cx="414" cy="94" r="5.5"/>
-            <text class="trace-flag" x="424" y="52">Leak flagged</text>
-            <text class="trace-flagsub" x="424" y="68">01:52 &mdash; 12 min in</text>
+            <text class="trace-flag" x="424" y="52">{% trans "Leak flagged" %}</text>
+            <text class="trace-flagsub" x="424" y="68">{% blocktrans %}01:52 &mdash; 12 min in{% endblocktrans %}</text>
           </g>
         </svg>
       </div>
 
       <figcaption>
-        The pattern a board watches for. Pressure sliding away while no tap is
-        open means the water is going somewhere else. Shown for one line; an
-        illustration of the shape, not a live reading.
+        {% trans "The pattern a board watches for. Pressure sliding away while no tap is open means the water is going somewhere else. Shown for one line; an illustration of the shape, not a live reading." %}
       </figcaption>
     </figure>
 
@@ -148,19 +142,19 @@
   {% endcomment %}
   <dl class="telemetry">
     <div>
-      <dt>Hose lines</dt>
+      <dt>{% trans "Hose lines" %}</dt>
       <dd>{{ stats.segments }}</dd>
     </div>
     <div>
-      <dt>Households</dt>
+      <dt>{% trans "Households" %}</dt>
       <dd>{{ stats.households }}</dd>
     </div>
     <div>
-      <dt>Boards fitted</dt>
+      <dt>{% trans "Boards fitted" %}</dt>
       <dd>{{ stats.fitted }}/{{ stats.segments }}</dd>
     </div>
     <div class="t-alert">
-      <dt>Leak alerts, last 30 days</dt>
+      <dt>{% trans "Leak alerts, last 30 days" %}</dt>
       <dd>{{ stats.events_30d }}</dd>
     </div>
   </dl>
@@ -174,34 +168,28 @@
     both were removed from the system, and the page used to advertise them.
   {% endcomment %}
   <section id="how" class="how">
-    <h2>What happens when a hose splits</h2>
+    <h2>{% trans "What happens when a hose splits" %}</h2>
 
     <ol class="stages">
       <li class="stage">
         <span class="stage-num" aria-hidden="true">1</span>
-        <h3>The line is read, every second</h3>
+        <h3>{% trans "The line is read, every second" %}</h3>
         <p>
-          A flow sensor and a pressure sensor sit on the hose where it leaves the
-          source. The board beside them samples both every second and keeps the
-          steady value, not the spikes.
+          {% trans "A flow sensor and a pressure sensor sit on the hose where it leaves the source. The board beside them samples both every second and keeps the steady value, not the spikes." %}
         </p>
       </li>
       <li class="stage">
         <span class="stage-num" aria-hidden="true">2</span>
-        <h3>The pattern gives it away</h3>
+        <h3>{% trans "The pattern gives it away" %}</h3>
         <p>
-          Water moving while the whole barangay is asleep, pressure falling with
-          no tap open, or flow that simply never stops. Any of those for long
-          enough and the board calls it.
+          {% trans "Water moving while the whole barangay is asleep, pressure falling with no tap open, or flow that simply never stops. Any of those for long enough and the board calls it." %}
         </p>
       </li>
       <li class="stage">
         <span class="stage-num" aria-hidden="true">3</span>
-        <h3>Somebody is told, by name</h3>
+        <h3>{% trans "Somebody is told, by name" %}</h3>
         <p>
-          The facilitator gets a text and the household gets one too, saying which
-          line it is. Each hose serves one house, so the alert names that house
-          rather than a stretch of ground to go and search.
+          {% trans "The facilitator gets a text and the household gets one too, saying which line it is. Each hose serves one house, so the alert names that house rather than a stretch of ground to go and search." %}
         </p>
       </li>
     </ol>
@@ -214,38 +202,89 @@
     something to publish to strangers.
   {% endcomment %}
   <section class="roles">
-    <h2>Who signs in</h2>
+    <h2>{% trans "Who signs in" %}</h2>
 
     <div class="role">
-      <h3>Water system facilitator</h3>
+      <h3>{% trans "Water system facilitator" %}</h3>
       <div>
         <p>
-          The live leak map, pressure for every household, the household records,
-          the complaints inbox, and the tools for sending notices and texts.
+          {% trans "The live leak map, pressure for every household, the household records, the complaints inbox, and the tools for sending notices and texts." %}
         </p>
       </div>
     </div>
 
     <div class="role">
-      <h3>Registered household owner</h3>
+      <h3>{% trans "Registered household owner" %}</h3>
       <div>
         <p>
-          See the pressure on your own line, report a problem with your water, and
-          read notices from the facilitator.
+          {% trans "See the pressure on your own line, report a problem with your water, and read notices from the facilitator." %}
         </p>
         <p class="role-note">
-          Accounts are issued by the water system facilitator. If you are a
-          registered subscriber without a login, ask them for one.
+          {% trans "Accounts are issued by the water system facilitator. If you are a registered subscriber without a login, ask them for one." %}
         </p>
+
+        {% comment %}
+          Install the household app straight from the front door. The blocks are
+          all written out and hidden; app.js (SHL.initSettings) reveals the one
+          that fits this device - the install button on Android/desktop Chrome,
+          the Safari steps on iPhone, or nothing when it is already installed or
+          the address is not https. Hidden from a signed-in facilitator, since
+          the installable app is the household one.
+        {% endcomment %}
+        {% if not is_facilitator %}
+          <div class="role-install" id="install-section">
+            <p class="set-lede">{% trans "Household owner? Put the app on your phone &mdash; it opens full screen, works on a weak signal, and can alert you about your water. No app store needed." %}</p>
+
+            <p class="set-warn" data-install="insecure" hidden>
+              {% blocktrans %}Installing needs a secure <strong>https://</strong> address. Open the link your facilitator shared.{% endblocktrans %}
+            </p>
+            <p class="set-done" data-install="installed" hidden>
+              {% trans "The app is already installed on this device." %}
+            </p>
+            <div data-install="prompt" hidden>
+              <button type="button" class="btn btn-primary" id="install-now">{% trans "Install the app on my phone" %}</button>
+            </div>
+            <details class="set-steps" data-install="ios" hidden>
+              <summary>{% trans "Install on an iPhone or iPad" %}</summary>
+              <ol>
+                <li>{% blocktrans %}Open this page in <strong>Safari</strong>.{% endblocktrans %}</li>
+                <li>{% blocktrans %}Tap the <strong>Share</strong> button at the bottom &mdash; the square with an arrow pointing up.{% endblocktrans %}</li>
+                <li>{% blocktrans %}Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>.{% endblocktrans %}</li>
+              </ol>
+            </details>
+            <details class="set-steps" data-install="android" hidden>
+              <summary>{% trans "Install on an Android phone" %}</summary>
+              <ol>
+                <li>{% blocktrans %}Open this page in <strong>Chrome</strong>.{% endblocktrans %}</li>
+                <li>{% blocktrans %}Tap the <strong>three dots</strong>, then <strong>Install app</strong> (or <strong>Add to Home screen</strong>).{% endblocktrans %}</li>
+              </ol>
+            </details>
+          </div>
+        {% endif %}
       </div>
     </div>
 
     {% if not user.is_authenticated %}
       <div class="roles-cta">
-        <a class="btn btn-primary btn-lg" href="{% url 'login' %}">Sign in</a>
+        <a class="btn btn-primary btn-lg" href="{% url 'login' %}" data-modal-open="login-modal">{% trans "Sign in" %}</a>
       </div>
     {% endif %}
   </section>
 
 </div>
+
+{% comment %}
+  The sign-in dialog, hidden until a Sign in button opens it. Reopened by the
+  server with the error inside when a password is wrong. Only the public ever
+  sees this page, so the guard is belt and braces.
+{% endcomment %}
+{% if not user.is_authenticated %}{% include "_login_modal.html" %}{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% comment %}
+  Drives the install option above: reveals the right state and wires the
+  button. initSettings also handles push, but no-ops here with no VAPID key.
+{% endcomment %}
+{% if not is_facilitator %}<script>SHL.initSettings();</script>{% endif %}
 {% endblock %}

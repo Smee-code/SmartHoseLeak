@@ -280,7 +280,9 @@
     el.hidden = false;
     openModalEl = el;
     document.body.classList.add('modal-open');
-    var first = focusables(el)[0];
+    // Prefer a field marked autofocus (the sign-in dialog wants the username,
+    // not its close button); otherwise the first focusable thing.
+    var first = el.querySelector('[autofocus]') || focusables(el)[0];
     if (first) first.focus();
   }
 
@@ -355,6 +357,7 @@
       setValue('edit_owner_name', trigger.getAttribute('data-owner'));
       setValue('edit_address', trigger.getAttribute('data-address'));
       setValue('edit_contact_number', trigger.getAttribute('data-contact'));
+      setValue('edit_email', trigger.getAttribute('data-email'));
       setValue('edit_segment', trigger.getAttribute('data-segment'));
       setValue('edit_account_status', trigger.getAttribute('data-status'));
       setValue('edit_latitude', trigger.getAttribute('data-lat'));
@@ -400,6 +403,107 @@
           list.appendChild(li);
         });
       }
+
+      openModal(modal);
+    });
+  });
+
+  /* ------------------------------------------- row-driven activation dialog */
+
+  $$('[data-activate-household]').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      var modal = $('#household-activate-modal');
+      var form = $('#household-activate-form');
+      if (!modal || !form) return;
+      form.setAttribute('action', trigger.getAttribute('data-action'));
+
+      // What the administrator entered, shown read-only.
+      ['hid', 'owner', 'address', 'contact', 'email', 'line'].forEach(function (name) {
+        var cell = $('[data-activate-field="' + name + '"]', modal);
+        if (!cell) return;
+        var value = trigger.getAttribute('data-' + name) || '';
+        cell.textContent = value || cell.getAttribute('data-empty') || '';
+        cell.classList.toggle('muted', !value);
+      });
+      setValue('activate_latitude', trigger.getAttribute('data-lat'));
+      setValue('activate_longitude', trigger.getAttribute('data-lng'));
+
+      openModal(modal);
+    });
+  });
+
+  /* ------------------------------------------ row-driven facilitator dialogs */
+
+  $$('[data-edit-facilitator]').forEach(function (trigger) {
+    trigger.addEventListener('click', function (event) {
+      var modal = $('#facilitator-edit-modal');
+      var form = $('#facilitator-edit-form');
+      if (!modal || !form) return;          // no dialog here: follow the link
+      event.preventDefault();
+
+      form.setAttribute('action', trigger.getAttribute('data-action'));
+      setValue('edit_first_name', trigger.getAttribute('data-first'));
+      setValue('edit_last_name', trigger.getAttribute('data-last'));
+      setValue('edit_contact_number', trigger.getAttribute('data-contact'));
+      setValue('edit_email', trigger.getAttribute('data-email'));
+
+      var subtitle = $('[data-edit-subtitle]', modal);
+      if (subtitle) subtitle.textContent = trigger.getAttribute('data-fid') + ' \u00b7 login ' + trigger.getAttribute('data-login');
+
+      openModal(modal);
+    });
+  });
+
+  $$('[data-delete-facilitator]').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      var modal = $('#facilitator-delete-modal');
+      var form = $('#facilitator-delete-form');
+      if (!modal || !form) return;
+      form.setAttribute('action', trigger.getAttribute('data-action'));
+
+      var fid = trigger.getAttribute('data-fid');
+      var name = trigger.getAttribute('data-name');
+      var subtitle = $('[data-delete-subtitle]', modal);
+      if (subtitle) subtitle.textContent = fid + ' \u00b7 ' + name;
+      var who = $('[data-delete-name]', modal);
+      if (who) who.textContent = fid + ' (' + name + ')';
+
+      var list = $('[data-delete-list]', modal);
+      if (list) {
+        var visits = Number(trigger.getAttribute('data-visits') || 0);
+        var items = ['the login \u201c' + trigger.getAttribute('data-login') + '\u201d'];
+        items.push(visits
+          ? visits + (visits === 1 ? ' open visit becomes' : ' open visits become') + ' unassigned (they stay on the schedule)'
+          : 'no open visits are assigned to them');
+        list.innerHTML = '';
+        items.forEach(function (text) {
+          var li = document.createElement('li');
+          li.textContent = text;
+          list.appendChild(li);
+        });
+      }
+
+      openModal(modal);
+    });
+  });
+
+  /* --------------------------------------------- row-driven account dialog */
+
+  $$('[data-edit-account]').forEach(function (trigger) {
+    trigger.addEventListener('click', function (event) {
+      var modal = $('#account-edit-modal');
+      var form = $('#account-edit-form');
+      if (!modal || !form) return;          // no dialog here: follow the link
+      event.preventDefault();
+
+      form.setAttribute('action', trigger.getAttribute('data-action'));
+      setValue('edit_first_name', trigger.getAttribute('data-first'));
+      setValue('edit_last_name', trigger.getAttribute('data-last'));
+      setValue('edit_contact_number', trigger.getAttribute('data-contact'));
+      setValue('edit_email', trigger.getAttribute('data-email'));
+
+      var subtitle = $('[data-edit-subtitle]', modal);
+      if (subtitle) subtitle.textContent = trigger.getAttribute('data-login') + ' \u00b7 ' + trigger.getAttribute('data-role');
 
       openModal(modal);
     });
@@ -573,7 +677,14 @@
   // Reopened by the server after a validation error, so the typed values and
   // the messages stay in front of the user instead of on a separate page.
   var autoOpen = $('[data-modal-autoopen]');
-  if (autoOpen) openModal(autoOpen);
+  if (autoOpen) {
+    openModal(autoOpen);
+    // A dialog reopened with an error (the sign-in after a wrong password)
+    // puts focus on that error, so it is read out and the visitor tabs
+    // straight on to the field rather than hunting for what went wrong.
+    var alertBox = autoOpen.querySelector('[role="alert"][tabindex="-1"]');
+    if (alertBox) alertBox.focus();
+  }
 
   /* ------------------------------------------------- conversation search */
 
@@ -608,6 +719,58 @@
         runSearch();
       }
     });
+  }
+
+  /* --------------------------------------------- live table quick filter
+     The households table grows with the barangay. Narrowing it works on
+     the rows already on the page - the live poll keeps updating hidden
+     rows too, and clearing the box always brings everything back - and
+     the address carries the filter so a reload or a shared link keeps it. */
+
+  var liveFilter = $('[data-live-filter]');
+  var problemsToggle = $('[data-problems-toggle]');
+  if (liveFilter || problemsToggle) {
+    var liveRows = $$('tr[data-segment-id][data-search]');
+    var filterCount = $('[data-filter-count]');
+    var filterEmpty = $('[data-filter-empty]');
+
+    var applyFilter = function () {
+      var term = liveFilter ? liveFilter.value.trim().toLowerCase() : '';
+      var onlyProblems = !!(problemsToggle && problemsToggle.checked);
+      var shown = 0;
+
+      liveRows.forEach(function (row) {
+        var hit = (!term || row.getAttribute('data-search').indexOf(term) !== -1) &&
+                  (!onlyProblems || row.getAttribute('data-problem') === '1');
+        row.hidden = !hit;
+        if (hit) shown += 1;
+      });
+
+      if (filterCount) {
+        filterCount.textContent = (term || onlyProblems)
+          ? 'Showing ' + shown + ' of ' + liveRows.length
+          : '';
+      }
+      if (filterEmpty) filterEmpty.hidden = !(liveRows.length && shown === 0);
+
+      if (window.history && window.history.replaceState && window.URLSearchParams) {
+        var params = new URLSearchParams(window.location.search);
+        if (term) params.set('q', term); else params.delete('q');
+        if (onlyProblems) params.set('problems', '1'); else params.delete('problems');
+        var qs = params.toString();
+        window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+      }
+    };
+
+    if (liveFilter) {
+      liveFilter.addEventListener('input', applyFilter);
+      liveFilter.addEventListener('search', applyFilter);   // the native clear (x)
+      liveFilter.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') { liveFilter.value = ''; applyFilter(); }
+      });
+    }
+    if (problemsToggle) problemsToggle.addEventListener('change', applyFilter);
+    applyFilter();
   }
 
   /* --------------------------------------------------------------- toasts */
@@ -1250,13 +1413,89 @@
   refreshTimestamps();
   setInterval(refreshTimestamps, 30000);
 
-  /* ----------------------------------------------------------- PWA worker */
+  /* ------------------------------------------------- show/hide password
+     The eye on a password field. Flips the input between password and text
+     and says which way it is now; the icon swaps so the state is visible
+     without reading the label. Focus returns to the field so typing can
+     carry on where it left off. */
 
+  $$('[data-password-toggle]').forEach(function (button) {
+    var wrap = button.closest('.pw-field');
+    var input = wrap ? wrap.querySelector('input') : null;
+    if (!input) return;
+    var use = button.querySelector('use');
+    button.addEventListener('click', function () {
+      var showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      var label = showing ? 'Show password' : 'Hide password';
+      button.setAttribute('aria-label', label);
+      button.setAttribute('title', label);
+      button.setAttribute('aria-pressed', showing ? 'false' : 'true');
+      if (use) use.setAttribute('href', showing ? '#i-eye' : '#i-eye-off');
+      input.focus();
+    });
+  });
+
+  /* ------------------------------------------------- sign-in dialog details
+     Caps Lock is the usual reason a right password reads as wrong, so it is
+     said while the key is held rather than after a failed attempt. On
+     submit the button shows it is working, so a slow server is not mistaken
+     for a frozen one, and a second tap cannot send the form twice. */
+
+  $$('[data-login-form]').forEach(function (form) {
+    var password = form.querySelector('input[name="password"]');
+    var caps = form.querySelector('[data-caps-hint]');
+    if (password && caps) {
+      var sync = function (event) {
+        var on = !!(event.getModifierState && event.getModifierState('CapsLock'));
+        caps.hidden = !on;
+      };
+      password.addEventListener('keydown', sync);
+      password.addEventListener('keyup', sync);
+      password.addEventListener('blur', function () { caps.hidden = true; });
+    }
+
+    var submit = form.querySelector('[data-login-submit]');
+    form.addEventListener('submit', function () {
+      if (!submit) return;
+      submit.setAttribute('aria-busy', 'true');
+      submit.disabled = true;
+      submit.textContent = 'Signing in…';
+    });
+  });
+
+  /* ----------------------------------------------------------- PWA worker
+     Owner-only: the service worker (offline shell + push) is registered on the
+     household portal, and actively removed on the facilitator side so that
+     half of the app stays an ordinary, non-installable web app. Public pages
+     are left untouched so an owner signing in does not churn their worker. */
+
+  // Every role: the shell is cached so the app opens on a weak signal, and
+  // every navigation and API call still goes to the network first, so no
+  // dashboard ever shows a stale reading as if it were live.
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('/sw.js').catch(function () { /* not fatal */ });
     });
   }
+
+  /* --------------------------------------------- install from the user menu
+     The prompt is caught in <head> before this script runs; the menu button
+     appears only once the browser has actually offered it. */
+  $$('[data-install-trigger]').forEach(function (button) {
+    function sync() { button.hidden = !window.__shlInstallPrompt; }
+    document.addEventListener('shl-install-available', sync);
+    document.addEventListener('shl-installed', sync);
+    sync();
+    button.addEventListener('click', function () {
+      var prompt = window.__shlInstallPrompt;
+      if (!prompt) return;
+      prompt.prompt();
+      prompt.userChoice
+        .then(function () { window.__shlInstallPrompt = null; sync(); })
+        .catch(function () { /* dismissed */ });
+    });
+  });
 
   /* ------------------------------------------------- install & alerts
      The owner's Settings page. Everything here answers a question only the
@@ -1307,57 +1546,62 @@
       });
     };
 
-    /* ---- install ---- */
+    /* ---- install ----
+       Show exactly ONE state, and prefer the one-tap button whenever the
+       browser has offered a prompt. The manual steps are only a fallback for
+       iPhone (which never fires the event) and for browsers that decline it. */
 
-    /* Secure context, not protocol: localhost counts as secure even on http,
-       which is exactly the case a student testing on their own laptop hits. */
-    if (!window.isSecureContext) {
-      show('install', 'insecure');
-    }
+    var setInstall = function (which) {
+      $$('[data-install]').forEach(function (node) {
+        var on = node.getAttribute('data-install') === which;
+        node.hidden = !on;
+        if (on && node.tagName === 'DETAILS') node.open = true;
+      });
+    };
 
-    if (isInstalled()) {
-      show('install', 'installed');
-    } else if (isIOS()) {
-      /* Safari has never fired beforeinstallprompt and shows no install
-         button. The steps are the only route, so they are open from the
-         start rather than folded away behind a summary nobody taps. */
-      var ios = $('[data-install="ios"]');
-      if (ios) { ios.hidden = false; ios.open = true; }
-    } else {
-      show('install', 'android');
-    }
+    /* The prompt may already be waiting, caught by the early listener in the
+       page head before this script ran. */
+    var deferred = window.__shlInstallPrompt || null;
 
-    var deferred = null;
-    window.addEventListener('beforeinstallprompt', function (event) {
-      /* Chrome offers this once the app qualifies. Holding it lets the button
-         on this page do the install, instead of sending somebody hunting
-         through a browser menu. */
-      event.preventDefault();
-      deferred = event;
-      show('install', 'prompt');
-    });
+    var renderInstall = function () {
+      if (isInstalled())           return setInstall('installed');
+      if (deferred)                return setInstall('prompt');    // one-tap button
+      if (!window.isSecureContext) return setInstall('insecure');
+      if (isIOS())                 return setInstall('ios');       // Safari: manual
+      return setInstall('android');                               // fallback steps
+    };
+    renderInstall();
+
+    /* If the prompt arrives (or was already captured), swap to the button. */
+    var onPrompt = function (event) {
+      if (event && event.preventDefault) event.preventDefault();
+      deferred = window.__shlInstallPrompt || event || deferred;
+      window.__shlInstallPrompt = deferred;
+      setInstall('prompt');
+    };
+    document.addEventListener('shl-install-available', onPrompt);
+    window.addEventListener('beforeinstallprompt', onPrompt);
 
     var installButton = $('#install-now');
     if (installButton) {
       installButton.addEventListener('click', function () {
-        if (!deferred) return;
+        if (!deferred) { renderInstall(); return; }
         deferred.prompt();
         deferred.userChoice.then(function (choice) {
-          if (choice.outcome === 'accepted') {
-            var block = $('[data-install="prompt"]');
-            if (block) block.hidden = true;
-            show('install', 'installed');
-          }
+          if (choice.outcome === 'accepted') setInstall('installed');
           deferred = null;
+          window.__shlInstallPrompt = null;
         });
       });
     }
 
-    window.addEventListener('appinstalled', function () {
-      var block = $('[data-install="prompt"]');
-      if (block) block.hidden = true;
-      show('install', 'installed');
-    });
+    var onInstalled = function () {
+      deferred = null;
+      window.__shlInstallPrompt = null;
+      setInstall('installed');
+    };
+    window.addEventListener('appinstalled', onInstalled);
+    document.addEventListener('shl-installed', onInstalled);
 
     /* ---- alerts ---- */
 
@@ -1462,3 +1706,68 @@
   SHL.timeAgo = timeAgo;
   window.SHL = SHL;
 })();
+
+/* ---- Owner: My device -------------------------------------------------
+   Polls the board's state and repaints the card, so the owner standing in
+   the yard sees it turn to Connected without reloading. The server-rendered
+   card is the no-JavaScript version of the same thing. */
+SHL.initOwnerDevice = function () {
+  var section = document.querySelector('[data-device-poll]');
+  if (!section || !window.fetch) return;
+  var url = section.getAttribute('data-device-poll');
+  // The dialog lives outside the section, so look page-wide.
+  var pick = function (name) { return document.querySelector('[data-device="' + name + '"]'); };
+  var tones = ['ok', 'warn', 'danger', 'muted', 'info'];
+
+  var buttonText = {
+    lost: 'What to check', claimed_silent: 'Set up again', connecting: 'Setup steps'
+  };
+  var noButton = { connected: true, no_board: true, awaiting_activation: true };
+
+  var paint = function (state) {
+    var card = pick('card');
+    if (card) card.setAttribute('data-device-state', state.key);
+    ['label', 'mlabel'].forEach(function (name) {
+      var label = pick(name);
+      if (!label) return;
+      label.textContent = state.label;
+      tones.forEach(function (t) { label.classList.remove('pill-' + t); });
+      label.classList.add('pill-' + state.tone);
+    });
+    var note = pick('note'); if (note) note.textContent = state.note;
+    var mnote = pick('mnote'); if (mnote) mnote.textContent = state.note;
+
+    var codeBox = pick('code-box');
+    if (codeBox) {
+      codeBox.hidden = !state.code;
+      var code = pick('code'); if (code) code.textContent = state.code || '';
+      var exp = pick('expires'); if (exp) exp.textContent = state.code_expires || '';
+    }
+    var steps = pick('steps');
+    if (steps) steps.hidden = !(state.show_steps || state.can_reissue || state.key === 'connecting');
+    var trouble = pick('trouble');
+    if (trouble) trouble.hidden = !(state.key === 'lost' || state.key === 'claimed_silent');
+    var resend = pick('resend'); if (resend) resend.hidden = !state.can_resend;
+    var reissue = pick('reissue'); if (reissue) reissue.hidden = !state.can_reissue;
+
+    var open = pick('open');
+    if (open) {
+      open.hidden = !!noButton[state.key];
+      open.textContent = buttonText[state.key] || 'Set up my board';
+    }
+  };
+
+  var tick = function () {
+    fetch(url, { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (state) { if (state && state.key) paint(state); })
+      .catch(function () { /* offline: keep what is shown */ });
+  };
+  // Every 5 s is quick enough to feel live and slow enough for a weak signal.
+  tick();
+  var timer = setInterval(tick, 5000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { clearInterval(timer); timer = null; }
+    else if (!timer) { tick(); timer = setInterval(tick, 5000); }
+  });
+};

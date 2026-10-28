@@ -8,6 +8,8 @@ from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 
 from .models import (
+    Announcement,
+    Barangay,
     Complaint,
     ComplaintMessage,
     Device,
@@ -15,6 +17,7 @@ from .models import (
     Notification,
     Segment,
     WaterSource,
+    WorkOrder,
 )
 
 
@@ -69,6 +72,41 @@ class WaterSourceForm(forms.ModelForm):
 User = get_user_model()
 
 
+def owner_credentials(owner_name):
+    """A unique portal username from the owner's name, and a temporary password."""
+    base = slugify(owner_name).replace("-", ".")[:20] or "owner"
+    username = base
+    suffix = 1
+    while User.objects.filter(username=username).exists():
+        suffix += 1
+        username = f"{base}{suffix}"
+    return username, secrets.token_urlsafe(6)
+
+
+class HouseholdActivationForm(forms.Form):
+    """
+    The facilitator's half of registering a household: where the house is.
+
+    Everything else was entered by the administrator and is shown read-only
+    beside these two fields. Both are required - an activated household is
+    one that is on the map.
+    """
+
+    latitude = forms.FloatField(
+        label="Latitude",
+        widget=forms.NumberInput(attrs={"step": "any", "placeholder": "9.7167"}),
+    )
+    longitude = forms.FloatField(
+        label="Longitude",
+        widget=forms.NumberInput(attrs={"step": "any", "placeholder": "125.5333"}),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        check_within_municipality(self, cleaned.get("latitude"), cleaned.get("longitude"))
+        return cleaned
+
+
 class HouseholdForm(forms.ModelForm):
     """
     Facilitator-side household record.
@@ -121,6 +159,7 @@ class HouseholdForm(forms.ModelForm):
             "owner_name",
             "address",
             "contact_number",
+            "email",
             "account_status",
             "latitude",
             "longitude",
@@ -130,6 +169,7 @@ class HouseholdForm(forms.ModelForm):
             "address": forms.TextInput(),
             "notes": forms.Textarea(attrs={"rows": 3}),
             "contact_number": forms.TextInput(attrs={"placeholder": "+639171234567"}),
+            "email": forms.EmailInput(attrs={"placeholder": "name@example.com (optional)"}),
             # step=any allows full decimal precision; a plain number input
             # otherwise rejects anything with decimals in some browsers.
             "latitude": forms.NumberInput(attrs={"step": "any", "placeholder": "9.7167"}),
@@ -146,8 +186,8 @@ class HouseholdForm(forms.ModelForm):
             segments__isnull=True
         ).order_by("device_id")
 
-        if self.instance.pk and self.instance.user_id:
-            # The account already exists; do not offer to create a second one.
+        if self.instance.pk:
+            # Editing never creates the login: that is what activation is for.
             del self.fields["create_account"]
 
         if self.instance.pk:
@@ -205,13 +245,273 @@ class HouseholdForm(forms.ModelForm):
 
     def generate_credentials(self):
         """Build a unique username and a temporary password for the owner."""
-        base = slugify(self.cleaned_data["owner_name"]).replace("-", ".")[:20] or "owner"
+        return owner_credentials(self.cleaned_data["owner_name"])
+
+
+class BarangayForm(forms.ModelForm):
+    """A barangay the system serves. Managed only from the admin console."""
+
+    class Meta:
+        model = Barangay
+        fields = ["name", "municipality", "province", "is_active"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "e.g. Lower Dakong Patag"}),
+            "municipality": forms.TextInput(),
+            "province": forms.TextInput(),
+        }
+        help_texts = {
+            "is_active": (
+                "Inactive barangays keep their households and history but stop "
+                "appearing when registering new ones or assigning facilitators."
+            ),
+        }
+
+
+class FacilitatorForm(forms.ModelForm):
+    """
+    Create a facilitator login for a barangay, from the admin console.
+
+    Mirrors how owner accounts are made: the admin gives the person and the
+    barangay, and a username and a one-time password are generated and shown
+    once. There is no open sign-up for facilitators.
+    """
+
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "contact_number", "email"]
+        widgets = {
+            "contact_number": forms.TextInput(attrs={"placeholder": "+639171234567"}),
+            "email": forms.EmailInput(attrs={"placeholder": "name@example.com"}),
+        }
+        labels = {"first_name": "First name", "last_name": "Last name"}
+        help_texts = {
+            "contact_number": "Where leak alerts and sign-in codes are texted.",
+            "email": "Optional. Sign-in codes and notices by email instead of text.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["first_name"].required = True
+        self.generated_username = None
+        self.generated_password = None
+
+    def generate_credentials(self):
+        """A unique username from the name, and a one-time password."""
+        whole = f"{self.cleaned_data['first_name']} {self.cleaned_data.get('last_name', '')}"
+        base = slugify(whole).replace("-", ".")[:20] or "facilitator"
         username = base
         suffix = 1
         while User.objects.filter(username=username).exists():
             suffix += 1
             username = f"{base}{suffix}"
         return username, secrets.token_urlsafe(6)
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if user.pk:
+            # Editing: the person's details change; the login, password and
+            # facilitator number stay exactly as they were.
+            if commit:
+                user.save()
+            return user
+        user.role = User.Role.FACILITATOR
+        user.must_change_password = True
+        # The one barangay the system serves; nothing asks which.
+        user.barangay = Barangay.default()
+        username, password = self.generate_credentials()
+        user.username = username
+        user.set_password(password)
+        self.generated_username = username
+        self.generated_password = password
+        if commit:
+            user.save()
+        return user
+
+
+class AccountContactForm(forms.ModelForm):
+    """
+    The administrator editing how a login can be reached.
+
+    Exists because the sign-in code and notices go to the number or email
+    on the account, and an account with neither cannot be sent either. The
+    name is here too so a login made by the demo setup can be given a real
+    one. A household owner's number also lives on the household record,
+    which the facilitator maintains; this edits the login's own.
+    """
+
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "contact_number", "email"]
+        widgets = {
+            "contact_number": forms.TextInput(attrs={"placeholder": "+639171234567"}),
+            "email": forms.EmailInput(attrs={"placeholder": "name@example.com"}),
+        }
+        labels = {"first_name": "First name", "last_name": "Last name"}
+        help_texts = {
+            "contact_number": "Sign-in codes and alerts are texted here.",
+            "email": "Sign-in codes and notices can be emailed here instead.",
+        }
+
+
+class AdminHouseholdForm(HouseholdForm):
+    """
+    Household registration from the admin console.
+
+    The same form the facilitator uses. The barangay is the one the system
+    serves, attached here rather than asked for.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # The administrator records who and where in words. The coordinates
+        # and the owner's login are the facilitator's, at activation - and
+        # the board is not a choice: every household gets a new one.
+        for name in ("latitude", "longitude", "create_account",
+                     "device_choice", "device_label", "existing_device"):
+            self.fields.pop(name, None)
+        # One barangay served, so the address is the part that differs house
+        # to house; province, municipality and barangay are shown read-only.
+        self.fields["address"].label = "Purok or street"
+        self.fields["address"].widget.attrs["placeholder"] = "e.g. Purok 2, or the street and house no."
+        self.fields["address"].help_text = "The barangay, municipality and province are added automatically."
+
+    def save(self, commit=True):
+        household = super().save(commit=False)
+        if household.barangay_id is None:
+            household.barangay = Barangay.default()
+        if commit:
+            household.save()
+        return household
+
+
+class AnnouncementForm(forms.ModelForm):
+    """
+    An admin announcement: who it goes to, on which channels, and the words.
+
+    Mirrors the facilitator's notice form, but with a barangay scope the
+    facilitator cannot have - the administrator is the only one who can speak
+    to more than one barangay at a time.
+    """
+
+    households = forms.ModelMultipleChoiceField(
+        queryset=Household.objects.none(),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Households",
+    )
+
+    class Meta:
+        model = Announcement
+        fields = ["audience", "households", "title", "body", "in_app", "by_sms", "by_email"]
+        widgets = {
+            "audience": forms.RadioSelect,
+            "title": forms.TextInput(attrs={"placeholder": "e.g. Scheduled maintenance this weekend"}),
+            "body": forms.Textarea(attrs={"rows": 3, "data-sms-counter": "true"}),
+        }
+        labels = {"by_email": "Also send by email"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # One barangay served, so the audience is everyone or a selection.
+        self.fields["audience"].choices = [
+            (value, label) for value, label in Announcement.Audience.choices
+            if value != Announcement.Audience.BARANGAY
+        ]
+        self.fields["households"].queryset = Household.objects.filter(
+            account_status=Household.AccountStatus.ACTIVE
+        ).order_by("household_id")
+        self.fields["in_app"].initial = True
+
+    def clean(self):
+        cleaned = super().clean()
+        audience = cleaned.get("audience")
+
+        if not (cleaned.get("in_app") or cleaned.get("by_sms") or cleaned.get("by_email")):
+            raise forms.ValidationError(
+                "Choose at least one way to send this - in the app, by SMS, by email, or any mix."
+            )
+        if audience == Announcement.Audience.SELECTED and not cleaned.get("households"):
+            self.add_error("households", "Pick at least one household, or choose a wider audience.")
+        return cleaned
+
+    def recipients(self):
+        """The active households this announcement reaches."""
+        audience = self.cleaned_data["audience"]
+        active = Household.objects.filter(account_status=Household.AccountStatus.ACTIVE)
+        if audience == Announcement.Audience.SELECTED:
+            return list(self.cleaned_data["households"])
+        return list(active)
+
+
+class HouseholdImportForm(forms.Form):
+    """Bulk household intake from a CSV the LGU already keeps on a spreadsheet."""
+
+    csv_file = forms.FileField(
+        label="CSV file",
+        help_text="Columns: owner_name, address, contact_number, and optionally barangay.",
+    )
+    default_barangay = forms.ModelChoiceField(
+        queryset=Barangay.objects.none(),
+        label="Barangay for rows that do not name one",
+        empty_label="Choose a barangay",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["default_barangay"].queryset = Barangay.objects.filter(is_active=True)
+
+
+class RestoreForm(forms.Form):
+    """Restore the database from a backup file. Guarded by a typed word."""
+
+    backup_file = forms.FileField(label="Backup file (.json)")
+    confirm = forms.CharField(
+        label="Type RESTORE to confirm",
+        help_text="Restoring overwrites current records that share an id with the backup.",
+    )
+
+    def clean_confirm(self):
+        value = (self.cleaned_data.get("confirm") or "").strip()
+        if value != "RESTORE":
+            raise forms.ValidationError("Type RESTORE exactly to confirm.")
+        return value
+
+
+class WorkOrderForm(forms.ModelForm):
+    """
+    Admin-side work order: create one, or edit and approve a reported one.
+
+    Status is not on the form - the view owns the transitions (approve,
+    reject, mark done). This is only the describable part: what the work is,
+    where, who does it, and when.
+    """
+
+    class Meta:
+        model = WorkOrder
+        fields = ["household", "title", "details", "assigned_to", "scheduled_for"]
+        widgets = {
+            "details": forms.Textarea(attrs={"rows": 3}),
+            "scheduled_for": forms.DateInput(attrs={"type": "date"}),
+            "title": forms.TextInput(attrs={"placeholder": "e.g. Application visit - check the tap and the hose run"}),
+        }
+        labels = {"scheduled_for": "Visit date", "assigned_to": "Facilitator"}
+        help_texts = {
+            "assigned_to": "Who will make the visit. Choosing one schedules it and texts them and the household.",
+            "household": "The household to visit. It need not have a portal account yet - the text goes to the number on its record.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["household"].queryset = Household.objects.order_by("household_id")
+        self.fields["household"].required = True
+        # Field work is carried out by facilitators. Admins triage and
+        # schedule it but do not do it themselves, so only facilitators are
+        # offered here - and only a facilitator can act on an assignment.
+        self.fields["assigned_to"].queryset = User.objects.filter(
+            role=User.Role.FACILITATOR, is_active=True
+        ).order_by("first_name", "username")
+        self.fields["assigned_to"].required = False
+        self.fields["assigned_to"].empty_label = "Unassigned"
 
 
 class ComplaintForm(forms.ModelForm):
@@ -340,22 +640,29 @@ class NotificationForm(forms.Form):
     by_sms = forms.BooleanField(
         required=False, initial=False, label="Also send as SMS",
     )
+    by_email = forms.BooleanField(
+        required=False, initial=False, label="Also send by email",
+        help_text="To households with an email on their record or their login.",
+    )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, barangay=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["households"].queryset = Household.objects.filter(
-            account_status=Household.AccountStatus.ACTIVE
-        ).order_by("household_id")
+        # Scoped to the facilitator's own barangay. One with no barangay yet
+        # can address nobody, and the page says why.
+        self.barangay = barangay
+        households = Household.objects.filter(account_status=Household.AccountStatus.ACTIVE)
+        households = households.filter(barangay=barangay) if barangay is not None else households.none()
+        self.fields["households"].queryset = households.order_by("household_id")
 
     def clean(self):
         cleaned = super().clean()
 
-        if not cleaned.get("in_app") and not cleaned.get("by_sms"):
-            # Submitting with neither ticked would look like it worked and
+        if not (cleaned.get("in_app") or cleaned.get("by_sms") or cleaned.get("by_email")):
+            # Submitting with nothing ticked would look like it worked and
             # deliver nothing at all, which is the worst possible outcome for
             # a message about the water being off.
             raise forms.ValidationError(
-                "Choose at least one way to send this - in the app, by SMS, or both."
+                "Choose at least one way to send this - in the app, by SMS, by email, or any mix."
             )
 
         if not cleaned.get("to_all") and not cleaned.get("households"):
@@ -366,10 +673,9 @@ class NotificationForm(forms.Form):
     def recipients(self):
         """The households to write rows for, and what kind of notice this is."""
         if self.cleaned_data.get("to_all"):
-            return (
-                list(Household.objects.filter(account_status=Household.AccountStatus.ACTIVE)),
-                Notification.Kind.BROADCAST,
-            )
+            # "All" means all of this barangay's active households - the
+            # same set the picker offers, never the whole system.
+            return list(self.fields["households"].queryset), Notification.Kind.BROADCAST
         return list(self.cleaned_data["households"]), Notification.Kind.TARGETED
 
 

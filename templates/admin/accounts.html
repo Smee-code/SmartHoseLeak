@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Accounts - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>Accounts</h1>
+      <p class="sub">Every login in the system. Suspend blocks sign-in; it can be undone.</p>
+    </div>
+  </div>
+
+  <form method="get" class="filters filters-inline">
+    <div class="field">
+      <label for="q">Search</label>
+      <input type="search" id="q" name="q" value="{{ query }}" placeholder="Login, name or contact">
+    </div>
+    <div class="field">
+      <label for="role">Role</label>
+      <select id="role" name="role">
+        <option value="">All roles</option>
+        {% for value, label in roles %}
+          <option value="{{ value }}" {% if value == role %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn">Filter</button>
+    {% if query or role %}<a class="btn" href="{% url 'account_list' %}">Clear</a>{% endif %}
+  </form>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Login</th><th>Name</th><th>Role</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for row in page %}
+          <tr>
+            <td class="mono small">{{ row.user.username }}</td>
+            <td>
+              {{ row.user.get_full_name|default:"&mdash;" }}
+              {% if row.user.household %}<span class="small muted">{{ row.user.household.household_id }}</span>{% endif %}
+            </td>
+            <td>{{ row.user.get_role_display }}</td>
+            <td>
+              {% if row.user.is_active %}<span class="pill pill-ok">active</span>
+              {% else %}<span class="pill pill-muted">suspended</span>{% endif %}
+            </td>
+            <td class="right">
+              {% if row.editable %}
+                <div class="btn-row" style="justify-content:flex-end;flex-wrap:nowrap">
+                  <a class="btn btn-sm" href="{% url 'account_edit' row.user.pk %}"
+                     data-edit-account
+                     data-action="{% url 'account_edit' row.user.pk %}"
+                     data-login="{{ row.user.username }}"
+                     data-role="{{ row.user.get_role_display }}"
+                     data-first="{{ row.user.first_name }}"
+                     data-last="{{ row.user.last_name }}"
+                     data-contact="{{ row.user.contact_number }}"
+                     data-email="{{ row.user.email }}">Edit</a>
+                  {% if row.manageable %}
+                  <form method="post" action="{% url 'account_suspend' row.user.pk %}" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm">
+                      {% if row.user.is_active %}Suspend{% else %}Restore{% endif %}
+                    </button>
+                  </form>
+                  <form method="post" action="{% url 'account_delete' row.user.pk %}" style="display:inline"
+                        onsubmit="return confirm('Delete the login {{ row.user.username|escapejs }}? This cannot be undone.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-quiet-danger">Delete</button>
+                  </form>
+                  {% endif %}
+                </div>
+              {% else %}
+                <span class="small muted">&mdash;</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="empty">No accounts match this filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page.has_other_pages %}
+    <div class="pager">
+      {% if page.has_previous %}
+        <a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;q={{ query }}&amp;role={{ role }}">Previous</a>
+      {% endif %}
+      <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}
+        <a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;q={{ query }}&amp;role={{ role }}">Next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{% comment %}
+  Shared edit dialog: its action and values are set from the clicked row
+  (app.js); after a failed save the server re-renders it bound to that
+  login with the errors in place. The Edit link still works without
+  JavaScript, as the full page.
+{% endcomment %}
+<div class="modal-backdrop" id="account-edit-modal" hidden
+     {% if edit_form_errors %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="account-edit-title" style="max-width:520px">
+    <form method="post" id="account-edit-form"
+          action="{% if edit_user %}{% url 'account_edit' edit_user.pk %}{% endif %}" novalidate>
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="account-edit-title">Edit contact details</h2>
+          <p class="sub" data-edit-subtitle>{% if edit_user %}{{ edit_user.username }} &middot; {{ edit_user.get_role_display }}{% endif %}</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        {% if edit_form.non_field_errors %}
+          <div class="message message-error"><span>{{ edit_form.non_field_errors }}</span></div>
+        {% endif %}
+        <div class="field-pair">
+          {% include "_form_field.html" with field=edit_form.first_name %}
+          {% include "_form_field.html" with field=edit_form.last_name %}
+        </div>
+        {% include "_form_field.html" with field=edit_form.contact_number %}
+        {% include "_form_field.html" with field=edit_form.email %}
+        <p class="helptext">Where sign-in codes, alerts and notices for this login go. A household record keeps its own number and email, on the facilitator side.</p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save contact details</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

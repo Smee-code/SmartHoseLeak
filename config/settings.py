@@ -137,11 +137,19 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # Picks the active language from the user's choice (a cookie set by the
+    # EN/FIL toggle), falling back to the browser's Accept-Language. Must sit
+    # after sessions and before common.
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # After auth, so maintenance mode can let admins through, and so the error
+    # logger sees the signed-in user. Both are defined in core/middleware.py.
+    "core.middleware.MaintenanceModeMiddleware",
+    "core.middleware.ErrorLogMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -197,6 +205,10 @@ else:
 
 AUTH_USER_MODEL = "core.User"
 
+# Sign in with a username or an email address. The backend subclasses
+# ModelBackend, so it carries the usual permission checks too.
+AUTHENTICATION_BACKENDS = ["core.auth.EmailOrUsernameBackend"]
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -208,10 +220,18 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "post_login"
 LOGOUT_REDIRECT_URL = "home"
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "en"
 TIME_ZONE = "Asia/Manila"
 USE_I18N = True
 USE_TZ = True
+
+# The two languages the toggle offers. Filipino (Tagalog) is the national
+# language; English stays the default. Translations live in locale/<code>/.
+LANGUAGES = [
+    ("en", "English"),
+    ("fil", "Filipino"),
+]
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
@@ -266,17 +286,12 @@ MUNICIPALITY_NAME = "Sison, Surigao del Norte"
 # spinner because an API is slow - nor lose the message by reloading.
 SMS_ENABLED = env_bool("SMS_ENABLED", True)
 
-# From semaphore.co. Without it nothing is sent and messages wait in the
+# From iprogsms.com. Without it nothing is sent and messages wait in the
 # queue, which is the same way the system behaves when any other part of the
 # delivery path is missing.
-SEMAPHORE_API_KEY = env("SEMAPHORE_API_KEY", "")
+IPROGSMS_API_TOKEN = env("IPROGSMS_API_TOKEN", "")
 
-# What the message appears to come from. Semaphore's default works with no
-# registration; a custom name has to be registered with them first, and an
-# unregistered one is rejected at send time.
-SEMAPHORE_SENDER_NAME = env("SEMAPHORE_SENDER_NAME", "")
-
-SEMAPHORE_BASE_URL = env("SEMAPHORE_BASE_URL", "https://api.semaphore.co/api/v4")
+IPROGSMS_BASE_URL = env("IPROGSMS_BASE_URL", "https://www.iprogsms.com/api/v1")
 
 # Text the household automatically when their line is flagged. Off would mean
 # a leak at 2 AM waits for somebody to open a browser.
@@ -294,9 +309,9 @@ SMS_FACILITATOR_ON_LEAK = env_bool("SMS_FACILITATOR_ON_LEAK", True)
 SMS_POLL_SECONDS = int(env("SMS_POLL_SECONDS", "10"))
 SMS_MAX_ATTEMPTS = int(env("SMS_MAX_ATTEMPTS", "3"))
 
-# Semaphore knows whether a message reached the handset, but only tells us if
-# we ask. Without this the log could say "sent" for a message that never
-# arrived, which is the one thing an alert log must not do.
+# iprogSMS reports delivery status via a status endpoint. Without this the
+# log could say "sent" for a message that never arrived, which is the one
+# thing an alert log must not do.
 SMS_TRACK_DELIVERY = env_bool("SMS_TRACK_DELIVERY", True)
 SMS_DELIVERY_POLL_SECONDS = int(env("SMS_DELIVERY_POLL_SECONDS", "60"))
 
@@ -334,6 +349,71 @@ VAPID_SUBJECT = env("VAPID_SUBJECT", "mailto:facilitator@example.com")
 # channel can be silenced on its own while testing.
 PUSH_AUTO_ON_LEAK = env_bool("PUSH_AUTO_ON_LEAK", True)
 
+# ---------------------------------------------------------------- visit routes
+#
+# Road-following routes from the barangay's water source to each household,
+# so a facilitator can see how to GET there, not just where it is. The hose
+# on the map stays a straight line - the pipe goes cross-country and the
+# line means "this house is on this hose"; the route is a separate layer.
+#
+# Fetched ONCE from OpenRouteService when a household's coordinates are
+# saved (or the source moves) and stored on the record, so the map draws
+# routes with no internet and no further calls. Without a key nothing is
+# fetched and the map simply shows no routes. See core/routing.py.
+ROUTING_ENABLED = env_bool("ROUTING_ENABLED", True)
+
+# From openrouteservice.org - free, and the daily allowance is thousands of
+# routes where this system needs a handful, ever.
+ORS_API_KEY = env("ORS_API_KEY", "")
+ORS_BASE_URL = env("ORS_BASE_URL", "https://api.openrouteservice.org")
+
+# A motorcycle or tricycle follows the same roads as a car; "driving-car" is
+# the profile with the best coverage. "foot-walking" allows footpaths.
+ROUTING_PROFILE = env("ROUTING_PROFILE", "driving-car")
+
+# One route per save, done inline; short, so a slow service cannot hold a
+# household save for long. A failure keeps the old route and says why.
+ROUTING_TIMEOUT_S = int(env("ROUTING_TIMEOUT_S", "8"))
+
+# The one barangay this installation serves. Records are attached to it
+# without asking; see Barangay.default().
+DEFAULT_BARANGAY_NAME = env("DEFAULT_BARANGAY_NAME", "Lower Dakong Patag")
+
+# ------------------------------------------------------------- sign-in codes
+#
+# After the password, a 6-digit code by text or email, for every role. Ten
+# minutes to use it, five guesses, one use. "Remember this device" sets a
+# signed cookie that skips the code on that phone for 30 days. An account
+# with neither a number nor an email cannot be sent a code and signs in on
+# the password alone, with a warning - a lockout would be worse than a
+# missing second step. With DEBUG on, the code is also shown on the page so
+# a demo can sign in with no SMS credit and no mailbox.
+OTP_ENABLED = env_bool("OTP_ENABLED", True)
+OTP_VALIDITY_MINUTES = int(env("OTP_VALIDITY_MINUTES", "10"))
+OTP_TRUSTED_DEVICE_DAYS = int(env("OTP_TRUSTED_DEVICE_DAYS", "30"))
+OTP_RESEND_SECONDS = int(env("OTP_RESEND_SECONDS", "60"))
+
+# ------------------------------------------------------------------- email
+#
+# Used for sign-in codes and for notices sent "by email". A Gmail account
+# with an app password is the expected setup (EMAIL_HOST_USER is the
+# address, EMAIL_HOST_PASSWORD the app password). Until BOTH are set, mail
+# is printed to the server terminal instead of sent - nothing breaks, and
+# the pages say email is not set up. (An address with no app password would
+# otherwise switch SMTP on and have every send refused by Gmail.)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = env("EMAIL_HOST", "smtp.gmail.com")
+    EMAIL_PORT = int(env("EMAIL_PORT", "587"))
+    EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+    EMAIL_TIMEOUT = int(env("EMAIL_TIMEOUT", "10"))
+    DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", f"Smart Hose Leak <{EMAIL_HOST_USER}>")
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    DEFAULT_FROM_EMAIL = "Smart Hose Leak <no-reply@localhost>"
+
 MUNICIPALITY_BOUNDS = (9.61325, 125.43605, 9.69744, 125.54105)  # S, W, N, E
 MUNICIPALITY_BOUNDS_MARGIN_DEG = 0.05  # about 5.5 km
 
@@ -345,6 +425,19 @@ MUNICIPALITY_BOUNDS_MARGIN_DEG = 0.05  # about 5.5 km
 # rather than a minute. Raise it if the link is poor enough to cause false
 # offline reports; it is the single value that decides detection speed.
 DEVICE_OFFLINE_AFTER_SECONDS = int(env("DEVICE_OFFLINE_AFTER_SECONDS", "10"))
+
+# ------------------------------------------------------- owner board setup
+#
+# The owner connects their own board: the setup code is sent to them at
+# activation, and Settings > My device tells them how it is going. The
+# hotspot name and password are what the firmware raises in setup mode;
+# change both together with the sketch. The grace periods are longer than
+# the dashboard's 10 s so the owner's status does not flicker on a weak
+# signal.
+BOARD_SETUP_SSID = env("BOARD_SETUP_SSID", "LeakDetect-Setup")
+BOARD_SETUP_PASSWORD = env("BOARD_SETUP_PASSWORD", "leakdetect123")
+OWNER_DEVICE_GRACE_SECONDS = int(env("OWNER_DEVICE_GRACE_SECONDS", "180"))
+OWNER_DEVICE_CONNECTING_SECONDS = int(env("OWNER_DEVICE_CONNECTING_SECONDS", "180"))
 
 # Minute rollups older than this are pruned by `manage.py prune_rollups`.
 ROLLUP_RETENTION_DAYS = int(env("ROLLUP_RETENTION_DAYS", "90"))

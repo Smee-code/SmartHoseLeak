@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maintenance - Smart Hose Leak Detection System</title>
+
+{% comment %}
+  Standalone, like the error pages, and for the same reasons: it must not
+  depend on the layout, and it is shown to households and facilitators who are
+  held out during maintenance, so it carries no navigation into pages that
+  would only turn them away again. The reassurance is the real content - the
+  board at each house keeps watching the water whether or not this site is up.
+{% endcomment %}
+
+<style>
+  :root {
+    --bg: #f4f7fa; --surface: #ffffff; --border: #d6e0ea;
+    --text: #16232e; --muted: #5b6b7a; --brand: #0b6ea8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e161d; --surface: #172530; --border: #2a3f52;
+      --text: #e8eef4; --muted: #9aabbb; --brand: #7cc9f0;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2.5rem 1rem; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+  }
+  main { max-width: 34rem; margin: 0 auto; }
+  h1 { margin: 0 0 .8rem; font-size: 1.6rem; letter-spacing: -.02em; line-height: 1.2; }
+  p { margin: 0 0 1rem; }
+  .lede { font-size: 1.05rem; }
+  .still {
+    margin: 1.4rem 0; padding: .9rem 1rem; background: var(--surface);
+    border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: 8px;
+  }
+  .still strong { display: block; margin-bottom: .2rem; }
+  .code { margin-top: 1.6rem; font-size: .9rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Briefly down for maintenance</h1>
+  <p class="lede">{{ message }}</p>
+
+  <div class="still">
+    <strong>Your water is still being watched.</strong>
+    Each household&rsquo;s line is monitored by the board fitted at the house,
+    not by this website. It keeps reading the pressure and the flow while this
+    page is down.
+  </div>
+
+  <p class="code">Error 503. Please try again shortly.</p>
+</main>
+</body>
+</html>

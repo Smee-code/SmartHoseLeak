@@ -1,26 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Sign in - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Sign in" %} - {{ SITE_NAME }}{% endblock %}
 {% block content %}
-<div class="auth-shell">
-  <div class="card auth-card">
-    <h1 style="font-size:1.3rem">Sign in</h1>
-    <p class="muted small">Use the account issued by the water system facilitator.</p>
+{% comment %}
+  The sign-in dialog, shown as the page itself.
 
-    {% if form.errors %}
-      <div class="message message-error" style="margin-bottom:1rem">
-        <span>The username or password is incorrect. Please try again.</span>
-      </div>
-    {% endif %}
-
-    <form method="post" novalidate>
-      {% csrf_token %}
-      {% for field in form %}{% include "_form_field.html" %}{% endfor %}
-      <button type="submit" class="btn btn-primary btn-block">Sign in</button>
-    </form>
-
-    <p class="small muted" style="margin-top:1rem">
-      Forgot your password? The facilitator can issue a new temporary one from the household record.
-    </p>
-  </div>
-</div>
+  This is where a protected URL sends a signed-out visitor, and what works
+  with no JavaScript. The landing page opens the very same dialog in place
+  without leaving the page; a wrong password on either comes back to the
+  landing page with the dialog reopened (see LandingLoginView). "next" is
+  carried through so a deep link still lands where it was going.
+{% endcomment %}
+{% include "_login_modal.html" with standalone=True %}
 {% endblock %}

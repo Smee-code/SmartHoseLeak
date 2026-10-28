@@ -145,6 +145,16 @@
               <label for="{{ form.by_sms.id_for_label }}">{{ form.by_sms.label }}</label>
             </span>
           </div>
+          <div class="channel-row">
+            <span class="check-row">
+              {{ form.in_app }}
+              <label for="{{ form.in_app.id_for_label }}">{{ form.in_app.label }}</label>
+            </span>
+            <span class="check-row">
+              {{ form.by_email }}
+              <label for="{{ form.by_email.id_for_label }}">{{ form.by_email.label }}</label>
+            </span>
+          </div>
           <p class="channel-note">
             In the app it appears under Notices in their portal. By SMS it is texted to
             each household&rsquo;s contact number.

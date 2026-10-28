@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Facilitators - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>Facilitators <span class="count-chip">{{ facilitators|length }}</span></h1>
+      <p class="sub">The people who run the water system. Each is numbered automatically when added.</p>
+    </div>
+    <div class="btn-row">
+      {# Opens the dialog below; without JavaScript it is a plain link to the full page. #}
+      <a class="btn btn-primary btn-sm" href="{% url 'facilitator_create' %}" data-modal-open="facilitator-modal">Add facilitator</a>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Facilitator ID</th><th>Login</th><th>Name</th><th>Contact</th><th>Email</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for facilitator in facilitators %}
+          <tr>
+            <td class="hh-id"><strong>{{ facilitator.facilitator_id|default:"&mdash;" }}</strong></td>
+            <td class="mono small">{{ facilitator.username }}</td>
+            <td class="hh-owner">{{ facilitator.get_full_name|default:"&mdash;" }}</td>
+            <td class="nowrap small">{{ facilitator.contact_number|default:"&mdash;" }}</td>
+            <td class="small">{{ facilitator.email|default:"&mdash;" }}</td>
+            <td>
+              {% if facilitator.is_active %}<span class="pill pill-ok">active</span>
+              {% else %}<span class="pill pill-muted">suspended</span>{% endif %}
+            </td>
+            {% comment %}
+              One shared edit dialog and one shared delete dialog are filled
+              from these attributes on click (app.js). The Edit href is a
+              working link to the full page without JavaScript.
+            {% endcomment %}
+            <td class="right">
+              <div class="btn-row" style="justify-content:flex-end;flex-wrap:nowrap">
+                <a class="btn btn-sm" href="{% url 'facilitator_edit' facilitator.pk %}"
+                   data-edit-facilitator
+                   data-action="{% url 'facilitator_edit' facilitator.pk %}"
+                   data-fid="{{ facilitator.facilitator_id }}"
+                   data-login="{{ facilitator.username }}"
+                   data-first="{{ facilitator.first_name }}"
+                   data-last="{{ facilitator.last_name }}"
+                   data-contact="{{ facilitator.contact_number }}"
+                   data-email="{{ facilitator.email }}">Edit</a>
+                {% if facilitator.manageable %}
+                  <button type="button" class="btn btn-sm btn-quiet-danger"
+                          data-delete-facilitator
+                          data-action="{% url 'facilitator_delete' facilitator.pk %}"
+                          data-fid="{{ facilitator.facilitator_id }}"
+                          data-login="{{ facilitator.username }}"
+                          data-name="{{ facilitator.get_full_name|default:facilitator.username }}"
+                          data-visits="{{ facilitator.open_visits }}">Delete</button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="empty">
+            No facilitators yet. <a href="{% url 'facilitator_create' %}" data-modal-open="facilitator-modal">Add the first one</a>.
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% comment %}
+  Add-facilitator dialog. Posts to the same view as the standalone page, so
+  validation behaves identically; on error the view re-renders this page
+  with the dialog reopened and the values intact. ?open=facilitator opens it
+  on arrival (the Overview's "Add facilitator" button lands here that way).
+{% endcomment %}
+<div class="modal-backdrop" id="facilitator-modal" hidden
+     {% if create_form_errors or open_modal == 'facilitator' %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="facilitator-modal-title" style="max-width:520px">
+    <form method="post" action="{% url 'facilitator_create' %}" novalidate>
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="facilitator-modal-title">Add a facilitator</h2>
+          <p class="sub">A username and a one-time password are generated and shown once after saving.</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        {% if create_form.non_field_errors %}
+          <div class="message message-error"><span>{{ create_form.non_field_errors }}</span></div>
+        {% endif %}
+
+        <div class="field">
+          <label>Facilitator ID</label>
+          <p class="assigned-id mono">{{ next_facilitator_id }}</p>
+          <span class="helptext">Assigned automatically when you save.</span>
+        </div>
+
+        <div class="field-pair">
+          {% include "_form_field.html" with field=create_form.first_name %}
+          {% include "_form_field.html" with field=create_form.last_name %}
+        </div>
+        {% include "_form_field.html" with field=create_form.contact_number %}
+        {% include "_form_field.html" with field=create_form.email %}
+        <p class="helptext">
+          The account is created with a temporary password and is prompted to change it on first sign-in.
+        </p>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Create facilitator</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% comment %}
+  Shared edit dialog: its action and values are set from the clicked row.
+  The number and the login are shown, not editable; when a save fails
+  validation the server re-renders it bound, errors in place.
+{% endcomment %}
+<div class="modal-backdrop" id="facilitator-edit-modal" hidden
+     {% if edit_form_errors %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="facilitator-edit-title" style="max-width:520px">
+    <form method="post" id="facilitator-edit-form"
+          action="{% if edit_user %}{% url 'facilitator_edit' edit_user.pk %}{% endif %}" novalidate>
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="facilitator-edit-title">Edit facilitator</h2>
+          <p class="sub" data-edit-subtitle>{% if edit_user %}{{ edit_user.facilitator_id }} &middot; login {{ edit_user.username }}{% endif %}</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        {% if edit_form.non_field_errors %}
+          <div class="message message-error">{{ edit_form.non_field_errors }}</div>
+        {% endif %}
+        <div class="field-pair">
+          {% include "_form_field.html" with field=edit_form.first_name %}
+          {% include "_form_field.html" with field=edit_form.last_name %}
+        </div>
+        {% include "_form_field.html" with field=edit_form.contact_number %}
+        {% include "_form_field.html" with field=edit_form.email %}
+        <p class="helptext">The facilitator ID, login and password are not changed here. To reset a password, use Accounts.</p>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% comment %}
+  Shared delete confirmation. Says what happens to the visits on that
+  person's schedule, because that is the one thing an administrator would
+  not expect to survive.
+{% endcomment %}
+<div class="modal-backdrop" id="facilitator-delete-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="facilitator-delete-title" style="max-width:460px">
+    <form method="post" id="facilitator-delete-form" action="">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="facilitator-delete-title">Delete facilitator?</h2>
+          <p class="sub" data-delete-subtitle></p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>This cannot be undone. Deleting <strong data-delete-name></strong> also removes:</p>
+        <ul class="delete-list" data-delete-list></ul>
+        <p class="small muted">Households, hose lines and readings are not affected.</p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-danger">Delete facilitator</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

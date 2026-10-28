@@ -174,11 +174,14 @@ a { color: var(--brand); }
 
 .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 
-.appshell { display: flex; align-items: flex-start; min-height: 100vh; }
+/* 100dvh after 100vh: on a phone, 100vh includes the address bar, so the
+   page runs a little past the screen and the footer jumps as the bar shows
+   and hides. The dynamic unit is the visible height; older browsers keep vh. */
+.appshell { display: flex; align-items: flex-start; min-height: 100vh; min-height: 100dvh; }
 
 /* min-width:0 is what stops a wide table or chart inside the content column
    from forcing the whole flex row wider than the viewport. */
-.appmain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 100vh; }
+.appmain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
 
 .sidenav {
   flex: 0 0 250px; width: 250px;
@@ -257,6 +260,22 @@ a { color: var(--brand); }
 .topbar .navtoggle { display: none; flex: 0 0 auto; font-size: 1.1rem; }
 
 .topbar-actions { display: flex; align-items: center; gap: .4rem; margin-left: auto; }
+
+/* EN/FIL language switch: a two-segment pill, the active language filled.
+   Restyled for the landing page's dark top bar further down. */
+.lang-toggle {
+  display: inline-flex; align-items: center; margin: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; background: var(--surface);
+}
+.lang-opt {
+  appearance: none; border: 0; background: none; cursor: pointer;
+  padding: .32rem .5rem; font: 600 .72rem/1 var(--sans);
+  letter-spacing: .03em; color: var(--text-muted);
+}
+.lang-opt:hover { color: var(--text); }
+.lang-opt.is-active { background: var(--brand); color: #fff; }
+.lang-opt:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 
 .icon-btn {
   background: transparent; border: 1px solid var(--border); color: var(--text);
@@ -1252,6 +1271,10 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .is-landing .topbar .brand small { color: #8fb2c4; }
 .is-landing .topbar .icon-btn { border-color: rgba(255, 255, 255, .3); color: #e9f3f7; }
 .is-landing .topbar .icon-btn:hover { background: rgba(255, 255, 255, .1); }
+.is-landing .lang-toggle { border-color: rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .06); }
+.is-landing .lang-opt { color: #cfe0ea; }
+.is-landing .lang-opt:hover { color: #fff; }
+.is-landing .lang-opt.is-active { background: var(--brand); color: #fff; }
 
 /* ==========================================================================
    DEAD ENDS  (404, 403, 400)
@@ -2413,3 +2436,219 @@ a.sent-row:hover { background: var(--surface-2); }
 /* The subject leads a row, so it gets the room a name used to have. */
 .thread-item-top strong { line-height: 1.3; }
 .thread-item.is-unread .thread-item-sub { font-weight: 500; }
+
+/* Install option on the landing page's household-owner row (owner PWA). */
+.role-install { margin-top: 1rem; display: flex; flex-direction: column; gap: .6rem; align-items: flex-start; }
+.role-install .set-lede { margin: 0; }
+
+/* Landing hero fills the first screen: the dark instrument panel occupies the
+   viewport (below the topbar), the copy + recorder sit centered, and the
+   telemetry rides the bottom rail. The rest of the page scrolls below. */
+.is-landing .lead {
+  min-height: calc(100vh - 52px);
+  min-height: calc(100dvh - 52px);
+  display: flex;
+  flex-direction: column;
+}
+.is-landing .lead-grid { flex: 1 1 auto; align-content: center; }
+
+/* ---------- Analytics bars ----------
+   Server-computed widths, no chart library: every bar is a percentage the
+   view already worked out, so the page needs no JavaScript and the colours
+   come from the same tokens as everything else, light and dark alike. */
+.barchart { display: grid; gap: .55rem; margin: .4rem 0 0; }
+.barrow { display: grid; grid-template-columns: 10rem 1fr 2.5rem; align-items: center; gap: .75rem; }
+.barrow-label { font-size: .85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bartrack { background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; height: .7rem; overflow: hidden; }
+.barfill { height: 100%; background: var(--info); border-radius: 999px; min-width: 2px; }
+.barrow-value { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; font-size: .9rem; }
+@media (max-width: 560px) { .barrow { grid-template-columns: 6.5rem 1fr 2.2rem; gap: .5rem; } }
+
+/* ---------- Show/hide password ----------
+   The eye sits inside the field; the input keeps room for it on the right
+   so the last characters typed are never hidden under the button. */
+.pw-field { position: relative; }
+.pw-field input { padding-right: 2.6rem; }
+.pw-toggle {
+  position: absolute; right: .35rem; top: 50%; transform: translateY(-50%);
+  width: 2rem; height: 2rem; display: grid; place-items: center; padding: 0;
+  background: none; border: 0; border-radius: var(--radius-sm);
+  color: var(--text-muted); cursor: pointer;
+}
+.pw-toggle:hover, .pw-toggle:focus-visible { color: var(--text); background: var(--surface-2); }
+.pw-toggle .ico { width: 18px; height: 18px; }
+
+/* The sign-in dialog: one full-width button, nothing else in the foot. */
+.login-modal .modal-foot { display: block; }
+
+/* ---------- Sign-in dialog details ----------
+   The system's own door, not a generic login. One accent only - the brand
+   edge along the top - and icons only where they aid recognition. Fields and
+   the eye are sized for a thumb, because most sign-ins happen on a phone. */
+.login-modal { border-top: 3px solid var(--brand); }
+.login-head { align-items: center; }
+.login-brand { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.login-brand img { flex: 0 0 auto; }
+.login-brand h2 { font-size: 1.15rem; }
+.login-lede { margin: 0 0 1rem; font-size: .9rem; line-height: 1.5; color: var(--text-muted); }
+.login-modal .field input { min-height: 44px; }
+
+/* A leading icon inside a field. The icon is decoration for the eye, so it
+   takes no clicks and the input keeps room for it on the left. */
+.input-icon { position: relative; }
+.input-icon > .ico {
+  position: absolute; left: .7rem; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; color: var(--text-muted); pointer-events: none;
+}
+.input-icon input { padding-left: 2.4rem; }
+.input-icon:focus-within > .ico { color: var(--brand); }
+
+/* After a failed attempt both fields are marked, and the alert can take
+   focus so it is announced and the visitor tabs straight on to the field. */
+.login-modal input[aria-invalid="true"] { border-color: var(--danger); }
+.login-modal input[aria-invalid="true"]:focus { box-shadow: 0 0 0 3px var(--danger-soft); }
+.login-error { margin-bottom: 1rem; }
+.login-error:focus { outline: 2px solid var(--danger); outline-offset: 2px; }
+.login-caps { color: var(--warn); }
+.login-help { margin: .25rem 0 0; }
+
+.login-modal .pw-toggle { width: 2.75rem; height: 2.75rem; right: .15rem; }
+.login-modal .pw-field input { padding-right: 3rem; }
+.login-modal [data-login-submit] { min-height: 46px; }
+.login-modal [data-login-submit][aria-busy="true"] { opacity: .75; cursor: progress; }
+
+/* The code-channel choice. Borderless, so it is one quiet block in the form
+   rather than a boxed panel competing with the fields above it. The two
+   channels are one decision, so they share a segmented toggle; "remember this
+   device" is a separate thought and sits on its own line below. */
+.otp-choice { border: 0; padding: 0; margin: 1.2rem 0 .3rem; min-width: 0; }
+.otp-choice legend { padding: 0; font-size: .85rem; color: var(--text-muted); }
+
+.seg {
+  display: grid; grid-template-columns: 1fr 1fr; gap: .25rem;
+  margin-top: .45rem; padding: .25rem;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+/* Real radios, hidden but still focusable via the label. */
+.seg input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.seg label {
+  display: flex; align-items: center; justify-content: center; gap: .45rem;
+  margin: 0; min-height: 40px; border-radius: 6px;
+  font-weight: 600; font-size: .92rem; color: var(--text-muted);
+  cursor: pointer; transition: background .12s ease, color .12s ease;
+}
+.seg label .ico { width: 16px; height: 16px; flex: 0 0 16px; }
+.seg input:checked + label { background: var(--surface); color: var(--brand); box-shadow: var(--shadow); }
+.seg input:focus-visible + label { outline: 2px solid var(--brand); outline-offset: 2px; }
+.seg label:hover { color: var(--text); }
+.seg input:checked + label:hover { color: var(--brand); }
+
+.remember-device {
+  display: flex; align-items: center; gap: .55rem;
+  margin: .9rem 0 0; font-weight: 500; font-size: .92rem; cursor: pointer;
+}
+.remember-device input { width: auto; margin: 0; flex: 0 0 auto; }
+
+@media (prefers-reduced-motion: reduce) { .seg label { transition: none; } }
+
+/* ---------- Escalate a complaint to the administrator ----------
+   One row under the thread header: what the household needs, an optional
+   note, and the button. Wraps on a phone rather than overflowing. */
+.thread-escalate {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  padding: .6rem 1rem; border-bottom: 1px solid var(--border); font-size: .9rem;
+}
+.thread-escalate-form { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; width: 100%; }
+.thread-escalate-form select { width: auto; }
+.thread-escalate-form input[type=text] { flex: 1 1 12rem; width: auto; }
+
+/* ---------- Visit routes on the leak map ----------
+   The checkbox beside the map switch, and the two legend swatches that say
+   which kind of line is which: solid is the hose, dotted is the road. */
+.route-toggle { display: inline-flex; align-items: center; gap: .35rem; margin: 0; white-space: nowrap; }
+.route-toggle input { width: auto; margin: 0; }
+.legend .legend-solid { background: #64748b; height: 3px; width: 18px; border-radius: 2px; }
+.legend .legend-dotted {
+  width: 18px; height: 4px; border-radius: 2px;
+  background: repeating-linear-gradient(90deg, #64748b 0 3px, transparent 3px 7px);
+}
+
+/* ---------- Sign-in code page ----------
+   The resend row sits under the dialog form: a question, the two channels
+   and one button, wrapping on a phone. */
+.login-resend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
+  padding: .75rem 1.1rem 1rem; border-top: 1px solid var(--border);
+}
+.login-resend label { display: inline-flex; align-items: center; gap: .3rem; margin: 0; }
+.login-resend input[type=radio] { width: auto; margin: 0; }
+#login-code { font-size: 1.35rem; letter-spacing: .35em; font-variant-numeric: tabular-nums; }
+
+/* ---------- Dashboards for numbers that grow ----------
+   A tile says which way it moved this week; the one tile that can mean
+   harm (open leaks) is allowed to turn red. Short attention strip, counts
+   on section headings, relative dates on visits. */
+.stat-delta {
+  margin-top: .3rem; font-size: .78rem; color: var(--text-muted);
+  display: flex; align-items: center; gap: .25rem;
+}
+.stat-delta .ico { width: 14px; height: 14px; flex: 0 0 auto; }
+.stat-delta.is-up { color: var(--ok); }
+.stat-delta.is-down { color: var(--danger); }
+.stat.is-alert { border-color: var(--danger); background: var(--danger-soft); }
+.stat.is-alert .stat-value { color: var(--danger); }
+
+.attention { display: grid; gap: .5rem; margin: 1.2rem 0 0; padding: 0; list-style: none; }
+.attention li {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .6rem .8rem; background: var(--surface);
+  border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius-sm);
+}
+.attention li[data-level="danger"] { border-left-color: var(--danger); }
+.attention li[data-level="warn"]   { border-left-color: var(--warn); }
+.attention li[data-level="info"]   { border-left-color: var(--info); }
+.attention-count { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+.attention li > a { margin-left: auto; white-space: nowrap; }
+
+.count-chip {
+  display: inline-block; margin-left: .35rem; padding: 0 .5rem; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-muted);
+  font-size: .78rem; font-weight: 600; line-height: 1.5; vertical-align: middle;
+}
+.live-filter { margin: .8rem 0 0; }
+.live-filter .check-row { white-space: nowrap; }
+.when-overdue { color: var(--danger); font-weight: 650; }
+.when-today   { color: var(--ok); font-weight: 650; }
+.when-soon    { font-weight: 600; }
+.audit-feed .sent-text { font-size: .92rem; }
+
+/* The owner's next visit and past week, in the same quiet register as the
+   rest of the owner page: one bordered card, three small counts. */
+.owner-visit {
+  margin-top: .9rem; padding: .9rem 1rem; background: var(--surface);
+  border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: var(--radius);
+}
+.owner-visit-head { margin: 0; font-weight: 650; }
+.owner-visit-sub { margin: .2rem 0 0; font-size: .9rem; color: var(--text-muted); }
+.owner-week { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: .9rem 0 0; }
+.owner-week div { min-width: 0; padding: .55rem .7rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.owner-week dt { margin: 0; font-size: .74rem; color: var(--text-muted); }
+.owner-week dd { margin: .1rem 0 0; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.owner-week dd.is-live { color: var(--danger); }
+@media (max-width: 380px) { .owner-week { grid-template-columns: 1fr 1fr; } }
+
+/* Activation dialog: the administrator's entries, read-only, above the two
+   fields the facilitator fills in. */
+.activate-facts { padding: .75rem .9rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2, var(--surface)); margin-bottom: .25rem; }
+
+/* Owner > Settings > My device */
+.device-card { border: 1px solid var(--border); border-radius: var(--radius); padding: .9rem 1rem; background: var(--surface); }
+.device-card[data-device-state="connected"] { border-color: var(--ok); }
+.device-card[data-device-state="lost"], .device-card[data-device-state="claimed_silent"], .device-card[data-device-state="expired"] { border-color: var(--danger, #c0392b); }
+.device-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.device-note { margin: .6rem 0 0; }
+.setup-code { font-size: 1.9rem; letter-spacing: .12em; margin: 0; font-weight: 700; }
+.modal > .modal-inner { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.device-steps { padding-left: 1.25rem; margin: .25rem 0 .5rem; }
+.device-steps li { margin: .35rem 0; }

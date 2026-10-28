@@ -60,6 +60,32 @@
   {% endif %}
 
   {% comment %}
+    A visit the administrator has scheduled for this house, so a knock on
+    the door is expected rather than a surprise. Shown only when there is
+    one; the card does not exist otherwise.
+  {% endcomment %}
+  {% if next_visit %}
+    <section class="owner-visit" aria-label="Next visit">
+      <p class="owner-visit-head">
+        A facilitator is coming{% if next_visit.scheduled_for %} on {{ next_visit.scheduled_for|date:"l, M j" }}{% else %} soon{% endif %}
+      </p>
+      <p class="owner-visit-sub">
+        {{ next_visit.title }}{% if next_visit.assigned_to %} &middot; {{ next_visit.assigned_to.get_full_name|default:next_visit.assigned_to.username }}{% endif %}
+      </p>
+    </section>
+  {% endif %}
+
+  {% comment %}
+    The past week in three numbers: has anything happened, without reading
+    the feed. Only alerts turn red; the others are just counts.
+  {% endcomment %}
+  <dl class="owner-week" aria-label="The past 7 days">
+    <div><dt>Alerts, past 7 days</dt><dd{% if week_alerts %} class="is-live"{% endif %}>{{ week_alerts }}</dd></div>
+    <div><dt>Notices, past 7 days</dt><dd>{{ week_notices }}</dd></div>
+    <div><dt>Open complaints</dt><dd>{{ open_complaints }}</dd></div>
+  </dl>
+
+  {% comment %}
     The one thing an owner can actually do. Full width, thumb height, and it
     says what happens rather than naming a form.
   {% endcomment %}
@@ -101,7 +127,7 @@
     </div>
 
     {% if recent_notifications %}
-      <a class="owner-more" href="{% url 'owner_notifications' %}">All notices</a>
+      <a class="owner-more" href="{% url 'owner_notifications' %}">All notices ({{ notice_total }}{% if unread %}, {{ unread }} unread{% endif %})</a>
     {% endif %}
   </section>
 </div>

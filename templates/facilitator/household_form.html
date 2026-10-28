@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}{% if household %}Edit household{% else %}Add household{% endif %} - {{ SITE_NAME }}{% endblock %}
+{% block title %}Edit {{ household.household_id }} - {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="wrap-narrow">
   <div class="page-head">
     <div>
-      <h1>{% if household %}Edit {{ household.household_id }}{% else %}Add a household{% endif %}</h1>
-      <p class="sub">The supply line assignment decides who is notified when a leak is detected.</p>
+      <h1>Edit {{ household.household_id }}</h1>
+      <p class="sub">The household's own details. New households are registered by the administrator and activated from the Households list.</p>
     </div>
   </div>
 
@@ -17,15 +17,12 @@
       {% endif %}
       <div class="field">
         <label>Household ID</label>
-        <p class="assigned-id mono">{% if household %}{{ household.household_id }}{% else %}{{ next_household_id }}{% endif %}</p>
-        <span class="helptext">
-          {% if household %}Assigned when this household was registered; it does not change.
-          {% else %}Assigned automatically when you save.{% endif %}
-        </span>
+        <p class="assigned-id mono">{{ household.household_id }}</p>
+        <span class="helptext">Assigned when this household was registered; it does not change.</span>
       </div>
       {% for field in form %}{% include "_form_field.html" %}{% endfor %}
       <div class="btn-row" style="margin-top:1rem">
-        <button type="submit" class="btn btn-primary">Save household</button>
+        <button type="submit" class="btn btn-primary">Save changes</button>
         <a class="btn" href="{% url 'household_list' %}">Cancel</a>
       </div>
     </form>

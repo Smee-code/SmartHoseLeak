@@ -26,9 +26,10 @@
     a four-field form across the top of the page. Collapsed it is one line
     stating where it is; opened it is the same form it always was.
   {% endcomment %}
+  {% if source %}
   <details class="source-block" {% if not source.has_location %}open{% endif %}>
     <summary>
-      <span class="source-title">Main source</span>
+      <span class="source-title">Main source{% if barangay %} &middot; {{ barangay.name }}{% endif %}</span>
       <span class="source-where">
         {% if source.has_location %}{{ source.latitude|floatformat:5 }}, {{ source.longitude|floatformat:5 }}
         {% else %}Location not set{% endif %}
@@ -63,6 +64,11 @@
       </div>
     </form>
   </details>
+  {% else %}
+    <p class="muted small">
+      No barangay is assigned to your account yet, so there is no water source to place. Ask the administrator.
+    </p>
+  {% endif %}
 
   <div class="table-wrap">
     <table>

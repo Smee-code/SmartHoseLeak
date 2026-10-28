@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{% if facilitator %}Edit {{ facilitator.facilitator_id }}{% else %}Add facilitator{% endif %} - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      {% if facilitator %}
+        <h1>Edit {{ facilitator.facilitator_id }}</h1>
+        <p class="sub">Login <span class="mono">{{ facilitator.username }}</span>. The number and the login do not change.</p>
+      {% else %}
+        <h1>Add a facilitator</h1>
+        <p class="sub">A username and a one-time password are generated and shown once after saving.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="message message-error"><span>{{ form.non_field_errors }}</span></div>
+      {% endif %}
+
+      <div class="field-pair">
+        {% include "_form_field.html" with field=form.first_name %}
+        {% include "_form_field.html" with field=form.last_name %}
+      </div>
+      {% include "_form_field.html" with field=form.contact_number %}
+      {% include "_form_field.html" with field=form.email %}
+
+      {% if not facilitator %}
+      <p class="helptext">
+        The account is created with a temporary password and is prompted to change
+        it on first sign-in. It has the full facilitator dashboard.
+      </p>
+      {% endif %}
+
+      <div class="btn-row" style="margin-top:1rem">
+        <button type="submit" class="btn btn-primary">{% if facilitator %}Save changes{% else %}Create facilitator{% endif %}</button>
+        <a class="btn" href="{% url 'facilitator_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

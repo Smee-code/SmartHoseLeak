@@ -33,6 +33,12 @@
   // load and never again: a leak arriving two seconds later left the map
   // showing a healthy white outline until somebody reloaded the page.
   var hoseLayers = {};
+
+  // The visit routes - the ROAD to each house, as distinct from its hose -
+  // as one group so the checkbox can show or hide them together. Drawn from
+  // the page data (fetched once by the server and stored), never live.
+  var routeGroup = null;
+  var routeToggle = document.getElementById('route-toggle');
   var mode = 'schematic';
   var userForced = false;
 
@@ -368,6 +374,37 @@
       });
     }
 
+    // Visit routes: the road from the source to each house. Not the hose -
+    // the hose goes cross-country and is drawn straight above - but how a
+    // person gets there. Dotted, in the house's own colour over a white
+    // casing, so a route and a hose never read alike even where they cross.
+    routeGroup = window.L.layerGroup();
+    var routeCount = 0;
+    households.forEach(function (house) {
+      if (!house.route || house.route.length < 2) return;
+      window.L.polyline(house.route, {
+        color: '#ffffff', weight: 7, opacity: 0.7, interactive: false,
+        lineCap: 'round', lineJoin: 'round'
+      }).addTo(routeGroup);
+      window.L.polyline(house.route, {
+        color: lineColor(house), weight: 4, opacity: 0.95,
+        dashArray: '1 9', lineCap: 'round', lineJoin: 'round'
+      })
+        .addTo(routeGroup)
+        .bindTooltip(
+          'Road to ' + escapeHtml(house.household_id) + ' &mdash; ' + routeSummary(house),
+          { sticky: true }
+        );
+      routeCount += 1;
+    });
+    if (routeCount && routesWanted()) routeGroup.addTo(leafletMap);
+    if (routeToggle) {
+      // Disabled, not hidden, when there is nothing to show: it says the
+      // feature exists and routes have simply not been fetched yet.
+      routeToggle.disabled = routeCount === 0;
+      routeToggle.checked = routeCount > 0 && routesWanted();
+    }
+
     // Household pins. Fill = which supply line, ring = that line's status, so
     // the grouping survives every line being in the same state at once.
     households.forEach(function (house) {
@@ -387,6 +424,12 @@
         (house.segment
           ? '<br>Line: M' + escapeHtml(house.module) + ' &mdash; ' + escapeHtml(house.segment) +
             '<br>Status: ' + escapeHtml(STATUS_LABEL[house.status] || house.status)
+          : '') +
+        // Getting there: the stored road route in one line, and the one-tap
+        // directions link that takes over for the last stretch.
+        (house.route && house.route.length > 1 ? '<br>Road: ' + routeSummary(house) : '') +
+        (house.navigate_url
+          ? '<br><a href="' + escapeHtml(house.navigate_url) + '" target="_blank" rel="noopener">Navigate (Google Maps)</a>'
           : '')
       );
       bounds.push(house.coords);
@@ -410,6 +453,29 @@
     return String(value === null || value === undefined ? '' : value)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // '1.2 km, about 4 min by road' from the stored route summary.
+  function routeSummary(house) {
+    var parts = [];
+    if (house.route_distance_m) {
+      parts.push(house.route_distance_m >= 1000
+        ? (house.route_distance_m / 1000).toFixed(1) + ' km'
+        : Math.round(house.route_distance_m) + ' m');
+    }
+    if (house.route_duration_s) {
+      parts.push('about ' + Math.max(1, Math.round(house.route_duration_s / 60)) + ' min');
+    }
+    return (parts.length ? parts.join(', ') + ' ' : '') + 'by road';
+  }
+
+  // Whether this viewer wants the routes shown. A per-viewer convenience
+  // only, so it lives in localStorage and must survive that being blocked.
+  function routesWanted() {
+    try { return localStorage.getItem('shl-routes') !== 'off'; } catch (e) { return true; }
+  }
+  function setRoutesWanted(on) {
+    try { localStorage.setItem('shl-routes', on ? 'on' : 'off'); } catch (e) { /* private mode */ }
   }
 
   function bindPopup(segment) {
@@ -490,6 +556,15 @@
         if (ok) showLeaflet();
         else showSchematic('Map tiles could not be loaded - showing the offline schematic view.');
       });
+    });
+  }
+
+  if (routeToggle) {
+    routeToggle.addEventListener('change', function () {
+      setRoutesWanted(routeToggle.checked);
+      if (!leafletMap || !routeGroup) return;
+      if (routeToggle.checked) routeGroup.addTo(leafletMap);
+      else leafletMap.removeLayer(routeGroup);
     });
   }
 

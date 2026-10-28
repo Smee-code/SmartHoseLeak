@@ -1,0 +1,12 @@
+{% comment %}A simple horizontal bar chart. Expects `rows` of {label, value, pct}.{% endcomment %}
+<div class="barchart">
+  {% for row in rows %}
+    <div class="barrow">
+      <span class="barrow-label" title="{{ row.label }}">{{ row.label }}</span>
+      <span class="bartrack"><span class="barfill" style="width: {{ row.pct }}%"></span></span>
+      <span class="barrow-value">{{ row.value }}</span>
+    </div>
+  {% empty %}
+    <p class="muted" style="margin:0">No data yet.</p>
+  {% endfor %}
+</div>

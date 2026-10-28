@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Register household - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>{% if household %}Edit {{ household.household_id }}{% else %}Register a household{% endif %}</h1>
+      <p class="sub">During application or intake. A hose line is created automatically; a board and an owner login are optional.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="message message-error"><span>{{ form.non_field_errors }}</span></div>
+      {% endif %}
+
+      <div class="field">
+        <label>Household ID</label>
+        <p class="assigned-id mono">{{ next_household_id }}</p>
+        <span class="helptext">Assigned automatically when you save.</span>
+      </div>
+
+      {% include "_form_field.html" with field=form.owner_name %}
+      {% comment %}
+        One barangay served: the province, municipality and barangay are
+        facts, not questions. Only the part that differs house to house is
+        asked for.
+      {% endcomment %}
+      <div class="field-pair">
+        <div class="field">
+          <label>Province</label>
+          <input type="text" value="{{ barangay.province }}" readonly aria-readonly="true" tabindex="-1">
+        </div>
+        <div class="field">
+          <label>Municipality</label>
+          <input type="text" value="{{ barangay.municipality }}" readonly aria-readonly="true" tabindex="-1">
+        </div>
+      </div>
+      <div class="field">
+        <label>Barangay</label>
+        <input type="text" value="{{ barangay.name }}" readonly aria-readonly="true" tabindex="-1">
+      </div>
+      {% include "_form_field.html" with field=form.address %}
+      {% include "_form_field.html" with field=form.contact_number %}
+      {% include "_form_field.html" with field=form.email %}
+      {% include "_form_field.html" with field=form.account_status %}
+
+
+      {% include "_form_field.html" with field=form.notes %}
+
+      {% if form.device_choice %}
+      <fieldset class="channel-box">
+        <legend class="small">Hardware</legend>
+        <p class="helptext" style="margin-top:0">A hose line is created for this household automatically.</p>
+
+        <div class="field">
+          <label>{{ form.device_choice.label }}</label>
+          {% for choice in form.device_choice %}
+            <div class="check-row">{{ choice.tag }}
+              <label for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
+            </div>
+          {% endfor %}
+          {{ form.device_choice.errors }}
+        </div>
+
+        <div data-device-when="new" hidden>
+          {% include "_form_field.html" with field=form.device_label %}
+          <p class="helptext">The Device ID and API key are generated when you save, and shown on the Lines page.</p>
+        </div>
+        <div data-device-when="existing" hidden>
+          {% include "_form_field.html" with field=form.existing_device %}
+        </div>
+      </fieldset>
+      {% endif %}
+
+
+      <div class="btn-row" style="margin-top:1rem">
+        <button type="submit" class="btn btn-primary">{% if household %}Save changes{% else %}Register household{% endif %}</button>
+        <a class="btn" href="{% url 'admin_household_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

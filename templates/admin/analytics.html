@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Analytics - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>Analytics</h1>
+      <p class="sub">The whole system in numbers. Rates and leaks cover the last 30 days.</p>
+    </div>
+  </div>
+
+  <section class="stats" aria-label="Headline figures">
+    <div class="stat"><div class="stat-value">{{ kpis.households }}</div><div class="stat-label">Households</div></div>
+    <div class="stat"><div class="stat-value">{{ kpis.lines }}</div><div class="stat-label">Active hose lines</div></div>
+    <div class="stat"><div class="stat-value">{{ kpis.boards_online }}/{{ kpis.boards_total }}</div><div class="stat-label">Boards online</div></div>
+    <div class="stat"><div class="stat-value">{{ kpis.open_leaks }}</div><div class="stat-label">Open leak alerts</div></div>
+    <div class="stat"><div class="stat-value">{{ kpis.open_work }}</div><div class="stat-label">Open work orders</div></div>
+  </section>
+
+  <div class="tiles" style="margin-top:1.5rem">
+    <div class="card">
+      <div class="card-head"><h2>Leak alerts by household</h2></div>
+      <p class="sub" style="margin-top:0">Possible-leak events, last 30 days - the lines with the most trouble.</p>
+      {% include "_barchart.html" with rows=leaks_by_household %}
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Households by account status</h2></div>
+      {% include "_barchart.html" with rows=households_by_status %}
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Work orders by status</h2></div>
+      {% include "_barchart.html" with rows=work_by_status %}
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Work orders by kind</h2></div>
+      {% include "_barchart.html" with rows=work_by_kind %}
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Complaints by status</h2></div>
+      {% include "_barchart.html" with rows=complaints_by_status %}
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>SMS, last 30 days</h2></div>
+      {% include "_barchart.html" with rows=sms_bars %}
+      <p class="sub" style="margin-top:.6rem">Delivery is confirmed by the gateway, not assumed. See Notices &amp; SMS for the full log.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

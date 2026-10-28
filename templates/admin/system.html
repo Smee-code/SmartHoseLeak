@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}System status - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>System status</h1>
+      <p class="sub">Outside services, maintenance mode, and recent server errors.</p>
+    </div>
+  </div>
+
+  {% comment %}
+    Whether email, SMS and routing can actually be used right now, in the
+    services' own words. The sentence says what to do when one is not.
+  {% endcomment %}
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="card-head"><h2>Services</h2></div>
+    <dl class="definition">
+      {% for service in services %}
+        <dt>{{ service.name }}
+          {% if service.ready %}<span class="pill pill-ok">ready</span>{% else %}<span class="pill pill-warn">not set up</span>{% endif %}
+        </dt>
+        <dd>{{ service.note }}</dd>
+      {% endfor %}
+    </dl>
+    <p class="helptext" style="margin-bottom:0">
+      To prove email end to end: <span class="mono">python manage.py send_email you@example.com</span>
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Maintenance mode</h2></div>
+    <p class="sub" style="margin-top:0">
+      While on, households and facilitators see a short notice and are kept out. The admin console and the
+      device ingest stay live, so you can still work and the boards never stop recording.
+    </p>
+    <p>
+      Currently:
+      {% if setting.maintenance_mode %}<span class="pill pill-warn">on</span>
+      {% else %}<span class="pill pill-ok">off</span>{% endif %}
+    </p>
+    <form method="post" action="{% url 'maintenance_toggle' %}">
+      {% csrf_token %}
+      {% if not setting.maintenance_mode %}
+        <div class="field">
+          <label for="maintenance_message">Notice to show (optional)</label>
+          <input type="text" id="maintenance_message" name="maintenance_message" maxlength="255"
+                 value="{{ setting.maintenance_message }}">
+        </div>
+      {% endif %}
+      <div class="btn-row">
+        {% if setting.maintenance_mode %}
+          <button type="submit" class="btn btn-primary">Turn maintenance off</button>
+        {% else %}
+          <button type="submit" class="btn btn-danger">Turn maintenance on</button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <section style="margin-top:1.5rem">
+    <h2>Recent errors</h2>
+    <p class="sub">Unhandled server errors, newest first. The full traceback stays in the server log.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>When</th><th>Type</th><th>Path</th><th>Message</th><th>User</th></tr></thead>
+        <tbody>
+          {% for e in errors %}
+            <tr>
+              <td class="small nowrap">{{ e.created_at|date:"M j, H:i" }}</td>
+              <td class="small mono">{{ e.exception_type }}</td>
+              <td class="small mono">{{ e.method }} {{ e.path }}</td>
+              <td class="small">{{ e.message|truncatechars:80 }}</td>
+              <td class="small">{% if e.user %}{{ e.user.username }}{% else %}&mdash;{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">No errors recorded. Good.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

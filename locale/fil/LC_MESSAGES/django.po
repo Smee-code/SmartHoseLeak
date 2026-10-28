@@ -1,0 +1,271 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Smart Hose Leak\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-28 19:22+0800\n"
+"PO-Revision-Date: 2026-10-28 19:30+0800\n"
+"Last-Translator: \n"
+"Language-Team: Filipino\n"
+"Language: fil\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Sign in"
+msgstr "Mag-sign in"
+
+msgid "Back to the front page"
+msgstr "Bumalik sa unang pahina"
+
+msgid "Close"
+msgstr "Isara"
+
+msgid "The username or password is incorrect. Check both and try again."
+msgstr "Mali ang username o password. Suriin pareho at subukan muli."
+
+msgid "Email or username"
+msgstr "Email o username"
+
+msgid "Password"
+msgstr "Password"
+
+msgid "Show password"
+msgstr "Ipakita ang password"
+
+msgid "Caps Lock is on."
+msgstr "Naka-on ang Caps Lock."
+
+msgid "Send my 6-digit code by"
+msgstr "Ipadala ang 6-digit na code sa pamamagitan ng"
+
+msgid "Text"
+msgstr "Text"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "Remember this device for 30 days"
+msgstr "Tandaan ang device na ito sa loob ng 30 araw"
+
+msgid "Forgot your password?"
+msgstr "Nakalimutan ang password?"
+
+msgid "We'll email a reset link to the address on your account."
+msgstr "Ipapadala namin ang reset link sa email na nakatala sa iyong account."
+
+msgid "Change password"
+msgstr "Palitan ang password"
+
+msgid "Install the app on this device"
+msgstr "I-install ang app sa device na ito"
+
+msgid "Admin"
+msgstr "Admin"
+
+msgid "Sign out"
+msgstr "Mag-sign out"
+
+msgid "One hose to every house. A sensor on every hose. Leaks show up in seconds."
+msgstr "Isang hose sa bawat bahay. May sensor ang bawat hose. Agad na lumalabas ang tagas sa ilang segundo."
+
+#, python-format
+msgid "Water reaches %(locale)s downhill from one source, through a hose to every household. When a hose splits, the water runs into the ground and nobody knows until a tap upstream goes dry. A sensor on each line notices in seconds, and says whose line it is."
+msgstr "Dumarating ang tubig sa %(locale)s pababa mula sa iisang pinagmumulan, sa pamamagitan ng hose papunta sa bawat sambahayan. Kapag napunit ang hose, tumatagas ang tubig sa lupa at walang nakakaalam hanggang sa matuyo ang gripo sa itaas. Napapansin ito ng sensor sa bawat linya sa loob ng ilang segundo, at sinasabi kung kaninong linya ito."
+
+msgid "Go to my dashboard"
+msgstr "Pumunta sa aking dashboard"
+
+msgid "How it works"
+msgstr "Paano ito gumagana"
+
+msgid "Supply line &mdash; pressure, overnight"
+msgstr "Linya ng suplay &mdash; presyon, magdamag"
+
+msgid "bar"
+msgstr "bar"
+
+msgid "Pressure on one hose line overnight"
+msgstr "Presyon sa isang linya ng hose magdamag"
+
+msgid "A chart-recorder trace. Pressure holds steady near 0.6 bar from 10pm, then falls away after about 1:40am while no tap is open, and the leak is flagged at 1:52am as it crosses the low-supply line."
+msgstr "Isang trace ng chart-recorder. Matatag ang presyon malapit sa 0.6 bar mula 10pm, pagkatapos ay bumababa makalipas ang mga 1:40am habang walang bukas na gripo, at natuklasan ang tagas sa 1:52am habang tumatawid ito sa linya ng mababang suplay."
+
+msgid "no taps open &mdash; recorded overnight"
+msgstr "walang bukas na gripo &mdash; itinala magdamag"
+
+msgid "low-supply threshold"
+msgstr "hangganan ng mababang suplay"
+
+msgid "Leak flagged"
+msgstr "Natuklasang tagas"
+
+msgid "01:52 &mdash; 12 min in"
+msgstr "01:52 &mdash; 12 min na"
+
+msgid "The pattern a board watches for. Pressure sliding away while no tap is open means the water is going somewhere else. Shown for one line; an illustration of the shape, not a live reading."
+msgstr "Ang pattern na binabantayan ng board. Ang presyong dahan-dahang bumababa habang walang bukas na gripo ay nangangahulugang may ibang pinupuntahan ang tubig. Ipinapakita para sa isang linya; isang paglalarawan ng hugis, hindi live na pagbasa."
+
+msgid "Hose lines"
+msgstr "Mga linya ng hose"
+
+msgid "Households"
+msgstr "Mga sambahayan"
+
+msgid "Boards fitted"
+msgstr "Mga board na nakakabit"
+
+msgid "Leak alerts, last 30 days"
+msgstr "Mga alerto ng tagas, nakaraang 30 araw"
+
+msgid "What happens when a hose splits"
+msgstr "Ano ang nangyayari kapag napunit ang hose"
+
+msgid "The line is read, every second"
+msgstr "Binabasa ang linya, bawat segundo"
+
+msgid "A flow sensor and a pressure sensor sit on the hose where it leaves the source. The board beside them samples both every second and keeps the steady value, not the spikes."
+msgstr "May flow sensor at pressure sensor sa hose kung saan ito umaalis mula sa pinagmumulan. Ang board sa tabi nito ay kumukuha ng dalawa bawat segundo at iniingatan ang matatag na halaga, hindi ang mga biglaang pagtaas."
+
+msgid "The pattern gives it away"
+msgstr "Ang pattern ang nagbubunyag nito"
+
+msgid "Water moving while the whole barangay is asleep, pressure falling with no tap open, or flow that simply never stops. Any of those for long enough and the board calls it."
+msgstr "Tubig na gumagalaw habang tulog ang buong barangay, presyong bumababa nang walang bukas na gripo, o daloy na tuluy-tuloy lang. Alinman sa mga iyon nang sapat na tagal at tatawagin ito ng board."
+
+msgid "Somebody is told, by name"
+msgstr "May pinagsasabihan, sa pangalan"
+
+msgid "The facilitator gets a text and the household gets one too, saying which line it is. Each hose serves one house, so the alert names that house rather than a stretch of ground to go and search."
+msgstr "Nakakatanggap ng text ang facilitator at pati na rin ang sambahayan, na nagsasabi kung aling linya ito. Isang bahay lang ang sineserbisyuhan ng bawat hose, kaya pinapangalanan ng alerto ang bahay na iyon sa halip na isang bahagi ng lupa na hahanapin pa."
+
+msgid "Who signs in"
+msgstr "Sino ang nag-sa-sign in"
+
+msgid "Water system facilitator"
+msgstr "Facilitator ng sistema ng tubig"
+
+msgid "The live leak map, pressure for every household, the household records, the complaints inbox, and the tools for sending notices and texts."
+msgstr "Ang live na mapa ng tagas, presyon para sa bawat sambahayan, ang mga tala ng sambahayan, ang inbox ng mga reklamo, at ang mga tool para sa pagpapadala ng mga paunawa at text."
+
+msgid "Registered household owner"
+msgstr "Rehistradong may-ari ng sambahayan"
+
+msgid "See the pressure on your own line, report a problem with your water, and read notices from the facilitator."
+msgstr "Tingnan ang presyon sa sarili mong linya, mag-ulat ng problema sa iyong tubig, at basahin ang mga paunawa mula sa facilitator."
+
+msgid "Accounts are issued by the water system facilitator. If you are a registered subscriber without a login, ask them for one."
+msgstr "Ang mga account ay ibinibigay ng facilitator ng sistema ng tubig. Kung ikaw ay rehistradong subscriber na walang login, humingi ng isa sa kanila."
+
+msgid "Household owner? Put the app on your phone &mdash; it opens full screen, works on a weak signal, and can alert you about your water. No app store needed."
+msgstr "May-ari ng sambahayan? Ilagay ang app sa iyong telepono &mdash; bumubukas ito nang full screen, gumagana sa mahinang signal, at maaari kang bigyang-alerto tungkol sa iyong tubig. Hindi kailangan ng app store."
+
+msgid "Installing needs a secure <strong>https://</strong> address. Open the link your facilitator shared."
+msgstr "Kailangan ng secure na <strong>https://</strong> address para mag-install. Buksan ang link na ibinahagi ng iyong facilitator."
+
+msgid "The app is already installed on this device."
+msgstr "Naka-install na ang app sa device na ito."
+
+msgid "Install the app on my phone"
+msgstr "I-install ang app sa aking telepono"
+
+msgid "Install on an iPhone or iPad"
+msgstr "I-install sa iPhone o iPad"
+
+msgid "Open this page in <strong>Safari</strong>."
+msgstr "Buksan ang pahinang ito sa <strong>Safari</strong>."
+
+msgid "Tap the <strong>Share</strong> button at the bottom &mdash; the square with an arrow pointing up."
+msgstr "Pindutin ang <strong>Share</strong> na buton sa ibaba &mdash; ang parisukat na may arrow na pataas."
+
+msgid "Scroll down and tap <strong>Add to Home Screen</strong>, then <strong>Add</strong>."
+msgstr "Mag-scroll pababa at pindutin ang <strong>Add to Home Screen</strong>, pagkatapos ay <strong>Add</strong>."
+
+msgid "Install on an Android phone"
+msgstr "I-install sa Android na telepono"
+
+msgid "Open this page in <strong>Chrome</strong>."
+msgstr "Buksan ang pahinang ito sa <strong>Chrome</strong>."
+
+msgid "Tap the <strong>three dots</strong>, then <strong>Install app</strong> (or <strong>Add to Home screen</strong>)."
+msgstr "Pindutin ang <strong>tatlong tuldok</strong>, pagkatapos ay <strong>Install app</strong> (o <strong>Add to Home screen</strong>)."
+
+msgid "Enter your code"
+msgstr "Ilagay ang iyong code"
+
+msgid "Back to sign in"
+msgstr "Bumalik sa sign in"
+
+#, python-format
+msgid "A 6-digit code was sent by text to <strong>%(dest)s</strong>. It expires %(minutes)s minutes after it was sent."
+msgstr "Isang 6-digit na code ang ipinadala sa text sa <strong>%(dest)s</strong>. Mag-e-expire ito %(minutes)s minuto matapos ipadala."
+
+#, python-format
+msgid "A 6-digit code was sent by email to <strong>%(dest)s</strong>. It expires %(minutes)s minutes after it was sent."
+msgstr "Isang 6-digit na code ang ipinadala sa email sa <strong>%(dest)s</strong>. Mag-e-expire ito %(minutes)s minuto matapos ipadala."
+
+msgid "No code is waiting. Request one below."
+msgstr "Walang naghihintay na code. Humiling ng isa sa ibaba."
+
+msgid "Code"
+msgstr "Code"
+
+msgid "Did not get it?"
+msgstr "Hindi natanggap?"
+
+msgid "text"
+msgstr "text"
+
+msgid "email"
+msgstr "email"
+
+msgid "Wait a minute before asking again"
+msgstr "Maghintay ng isang minuto bago muling humiling"
+
+msgid "Send a new code"
+msgstr "Magpadala ng bagong code"
+
+msgid "Password changed"
+msgstr "Napalitan ang password"
+
+msgid "Your new password is ready. Sign in with it now."
+msgstr "Handa na ang iyong bagong password. Mag-sign in gamit ito ngayon."
+
+msgid "Go to sign in"
+msgstr "Pumunta sa sign in"
+
+msgid "Choose a new password"
+msgstr "Pumili ng bagong password"
+
+msgid "Pick something only you know. You'll sign in with it next time."
+msgstr "Pumili ng alam mo lang. Gagamitin mo ito sa susunod na pag-sign in."
+
+msgid "Save new password"
+msgstr "I-save ang bagong password"
+
+msgid "This link has expired"
+msgstr "Nag-expire na ang link na ito"
+
+msgid "A reset link works once and only for a short time. Request a fresh one and use the newest email."
+msgstr "Isang beses lang gumagana ang reset link at sa maikling panahon lang. Humiling ng bago at gamitin ang pinakabagong email."
+
+msgid "Request a new link"
+msgstr "Humiling ng bagong link"
+
+msgid "Check your email"
+msgstr "Tingnan ang iyong email"
+
+msgid "If an account matches that address, a reset link is on its way. Open it and choose a new password. It can take a minute to arrive; check spam if you don't see it."
+msgstr "Kung may account na tumutugma sa address na iyon, parating na ang reset link. Buksan ito at pumili ng bagong password. Maaaring tumagal ng isang minuto bago dumating; tingnan ang spam kung hindi mo ito makita."
+
+msgid "No email on your account? Ask your facilitator to set a new password for you."
+msgstr "Walang email sa iyong account? Hilingin sa iyong facilitator na magtakda ng bagong password para sa iyo."
+
+msgid "Reset your password"
+msgstr "I-reset ang iyong password"
+
+msgid "Enter the email on your account. If we have it on file, we'll send a link to choose a new password. The link works for a short time and once only."
+msgstr "Ilagay ang email na nakatala sa iyong account. Kung mayroon kami nito, magpapadala kami ng link para pumili ng bagong password. Gumagana ang link sa maikling panahon at isang beses lang."
+
+msgid "Email me a reset link"
+msgstr "Padalhan ako ng reset link"

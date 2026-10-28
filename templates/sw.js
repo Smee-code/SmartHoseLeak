@@ -1,4 +1,4 @@
-/* Service worker for the Owner Portal PWA.
+/* Service worker for the app - every role installs the same one.
 
    Deliberately conservative: the app shell (CSS, JS, icons, offline page) is
    cached so the portal opens on a weak signal, but every navigation and every
@@ -112,7 +112,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || '/portal/';
+  const target = (event.notification.data && event.notification.data.url) || '/post-login/';
 
   /* Focus the portal if it is already open rather than stacking another
      window on top of it. Somebody who left the app open and got an alert
@@ -120,7 +120,7 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
       for (const client of windows) {
-        if (client.url.includes('/portal') && 'focus' in client) {
+        if ('focus' in client) {
           client.navigate(target).catch(() => {});
           return client.focus();
         }

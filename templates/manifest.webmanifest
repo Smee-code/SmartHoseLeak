@@ -2,7 +2,7 @@
   "name": "Smart Hose Leak Detection System",
   "short_name": "Smart Hose Leak",
   "description": "Automated leak detection and water supply monitoring for the community water system.",
-  "start_url": "/portal/",
+  "start_url": "/post-login/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -13,10 +13,5 @@
     {"src": "/static/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
     {"src": "/static/img/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
     {"src": "/static/img/icon.svg", "sizes": "any", "type": "image/svg+xml"}
-  ],
-  "shortcuts": [
-    {"name": "My water pressure", "url": "/portal/pressure/"},
-    {"name": "Submit a complaint", "url": "/portal/complaints/"},
-    {"name": "Notices", "url": "/portal/notifications/"}
   ]
 }

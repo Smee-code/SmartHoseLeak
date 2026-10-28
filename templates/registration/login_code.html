@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% block title %}{% trans "Enter your code" %} - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+{% comment %}
+  Step two of signing in. The same dialog shape as the sign-in itself, shown
+  as the page: the password was right, the code has gone out, and nothing is
+  signed in until it comes back. In development the code is also in the
+  message above (DEBUG only), so the flow can be walked through anywhere.
+{% endcomment %}
+<div class="modal-backdrop" id="code-modal">
+  <div class="modal login-modal" role="dialog" aria-modal="true" aria-labelledby="code-title" style="max-width:440px">
+    <form method="post" action="{% url 'login_code' %}" novalidate data-login-form>
+      {% csrf_token %}
+      <div class="modal-head login-head">
+        <div class="login-brand">
+          <img src="{% static 'img/icon.svg' %}" alt="" width="36" height="36">
+          <div>
+            <h2 id="code-title">{% trans "Enter your code" %}</h2>
+            <p class="sub">{{ SITE_NAME }}</p>
+          </div>
+        </div>
+        <a class="icon-btn" href="{% url 'login' %}" aria-label="{% trans 'Back to sign in' %}">
+          <span aria-hidden="true">&times;</span>
+        </a>
+      </div>
+
+      <div class="modal-body">
+        <p class="login-lede">
+          {% if code %}
+            {% if code.channel == 'sms' %}
+              {% blocktrans with dest=code.masked_destination %}A 6-digit code was sent by text to <strong>{{ dest }}</strong>. It expires {{ minutes }} minutes after it was sent.{% endblocktrans %}
+            {% else %}
+              {% blocktrans with dest=code.masked_destination %}A 6-digit code was sent by email to <strong>{{ dest }}</strong>. It expires {{ minutes }} minutes after it was sent.{% endblocktrans %}
+            {% endif %}
+          {% else %}
+            {% trans "No code is waiting. Request one below." %}
+          {% endif %}
+        </p>
+
+        {% if error %}
+          <div class="message message-error login-error" id="code-error" role="alert" tabindex="-1">
+            <span>{{ error }}</span>
+          </div>
+        {% endif %}
+
+        <div class="field">
+          <label for="login-code">{% trans "Code" %}</label>
+          <div class="input-icon">
+            <svg class="ico" aria-hidden="true"><use href="#i-lock"></use></svg>
+            <input type="text" id="login-code" name="code" inputmode="numeric" pattern="[0-9]*"
+                   maxlength="6" autocomplete="one-time-code" autofocus required
+                   {% if error %}aria-invalid="true" aria-describedby="code-error"{% endif %}>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button type="submit" class="btn btn-primary btn-block" data-login-submit>{% trans "Sign in" %}</button>
+      </div>
+    </form>
+
+    {% comment %}
+      Resend, with the choice of channel again. Throttled to one a minute so
+      a nervous tap-tap-tap does not send three texts.
+    {% endcomment %}
+    <form method="post" action="{% url 'login_code_resend' %}" class="login-resend">
+      {% csrf_token %}
+      <span class="small muted">{% trans "Did not get it?" %}</span>
+      <label class="small"><input type="radio" name="otp_channel" value="sms" {% if not code or code.channel == 'sms' %}checked{% endif %}{% if not channels.sms %} disabled{% endif %}> {% trans "text" %}</label>
+      <label class="small"><input type="radio" name="otp_channel" value="email" {% if code and code.channel == 'email' %}checked{% endif %}{% if not channels.email %} disabled{% endif %}> {% trans "email" %}</label>
+      <button type="submit" class="btn btn-sm" {% if not can_resend %}disabled title="{% trans 'Wait a minute before asking again' %}"{% endif %}>{% trans "Send a new code" %}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // A reopened error takes focus, as on the sign-in dialog.
+  (function () { var box = document.getElementById('code-error'); if (box) box.focus(); })();
+</script>
+{% endblock %}

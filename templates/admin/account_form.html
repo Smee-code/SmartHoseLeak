@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ account.username }} - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>{{ account.username }}</h1>
+      <p class="sub">{{ account.get_role_display }}. Where sign-in codes, alerts and notices for this login go.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="message message-error"><span>{{ form.non_field_errors }}</span></div>
+      {% endif %}
+      <div class="field-pair">
+        {% include "_form_field.html" with field=form.first_name %}
+        {% include "_form_field.html" with field=form.last_name %}
+      </div>
+      {% include "_form_field.html" with field=form.contact_number %}
+      {% include "_form_field.html" with field=form.email %}
+
+      {% if account.household %}
+        <p class="helptext">
+          This is the login's own contact. The household record for
+          {{ account.household.household_id }} has its own number and email, kept by the facilitator.
+        </p>
+      {% endif %}
+
+      <div class="btn-row" style="margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Save contact details</button>
+        <a class="btn" href="{% url 'account_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

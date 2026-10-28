@@ -25,10 +25,64 @@ def psi(bar):
     return round(bar * BAR_TO_PSI, 1)
 
 
+class Barangay(models.Model):
+    """
+    One barangay served by the system.
+
+    The project began in a single barangay (Lower Dakong Patag), and for a
+    long time "the barangay" was a line of settings text, not a record.
+    Supporting more than one - each with its own facilitator, households and
+    hose lines - is what makes a system administrator meaningful: someone
+    above the facilitators who can see and manage every barangay at once,
+    while each facilitator still works only within their own.
+    """
+
+    name = models.CharField(max_length=120, unique=True)
+    municipality = models.CharField(max_length=120, default="Sison")
+    province = models.CharField(max_length=120, default="Surigao del Norte")
+    # Deactivated rather than deleted: a barangay with households and readings
+    # behind it should never vanish from the records because it stopped being
+    # served. Inactive ones drop out of the pickers but keep their history.
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Barangay"
+        verbose_name_plural = "Barangays"
+
+    @property
+    def location_label(self):
+        return f"Brgy. {self.name}, {self.municipality}, {self.province}"
+
+    @classmethod
+    def default(cls):
+        """
+        The barangay this installation serves.
+
+        The system serves one barangay, so nothing asks which; records are
+        attached to this one. The model still allows several - this is the
+        one place that decides "which", so switching that back on later is a
+        matter of asking here instead of assuming. Created on first use so a
+        fresh database works without a fixture.
+        """
+        barangay = cls.objects.filter(is_active=True).order_by("pk").first()
+        if barangay is None:
+            barangay, _ = cls.objects.get_or_create(
+                name=settings.DEFAULT_BARANGAY_NAME,
+                defaults={"municipality": "Sison", "province": "Surigao del Norte"},
+            )
+        return barangay
+
+    def __str__(self):
+        return self.name
+
+
 class User(AbstractUser):
-    """One account table for both portals, separated by role."""
+    """One account table for every portal, separated by role."""
 
     class Role(models.TextChoices):
+        ADMIN = "admin", "System Administrator"
         FACILITATOR = "facilitator", "Water System Facilitator"
         OWNER = "owner", "Household Owner"
 
@@ -36,9 +90,52 @@ class User(AbstractUser):
     contact_number = models.CharField(max_length=20, blank=True)
     must_change_password = models.BooleanField(default=False)
 
+    # Which barangay a facilitator is responsible for. Null for an admin, who
+    # oversees every barangay, and for a household owner, whose barangay is
+    # carried on their household record instead of here.
+    barangay = models.ForeignKey(
+        "Barangay", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="facilitators",
+        help_text="The barangay this facilitator manages.",
+    )
+
+    # A facilitator's own reference number (FAC-001), given out in sequence
+    # the way households get HH-001. Blank for admins and owners.
+    FAC_ID_PREFIX = "FAC-"
+    FAC_ID_DIGITS = 3
+    facilitator_id = models.CharField(
+        max_length=12, blank=True, null=True, unique=True,
+        help_text="Assigned automatically to facilitator accounts.",
+    )
+
+    @property
+    def is_admin(self):
+        return self.role == self.Role.ADMIN or self.is_superuser
+
     @property
     def is_facilitator(self):
-        return self.role == self.Role.FACILITATOR or self.is_superuser
+        # Admin and facilitator are separate roles: an admin is not a
+        # facilitator and cannot open the facilitator dashboard, just as a
+        # facilitator cannot open the admin console. Each sees only its own
+        # side. (A Django superuser counts as an admin, above, not here.)
+        return self.role == self.Role.FACILITATOR
+
+    @classmethod
+    def next_facilitator_id(cls):
+        """The next free FAC- number, from the highest one in use."""
+        pattern = re.compile(rf"^{re.escape(cls.FAC_ID_PREFIX)}(\d+)$")
+        highest = 0
+        for existing in cls.objects.exclude(facilitator_id__isnull=True).values_list("facilitator_id", flat=True):
+            match = pattern.match(existing or "")
+            if match:
+                highest = max(highest, int(match.group(1)))
+        return f"{cls.FAC_ID_PREFIX}{highest + 1:0{cls.FAC_ID_DIGITS}d}"
+
+    def save(self, *args, **kwargs):
+        # Every facilitator gets a number on first save; nobody types one.
+        if self.role == self.Role.FACILITATOR and not self.facilitator_id:
+            self.facilitator_id = self.next_facilitator_id()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.get_full_name() or self.username} ({self.get_role_display()})"
@@ -260,6 +357,16 @@ class Segment(models.Model):
         default=1, help_text="Sensor module on the board. One per board now, so always 1."
     )
     name = models.CharField(max_length=120)
+
+    # Which barangay this line runs in. A line belongs to one household, which
+    # also carries the barangay, but it is stored here as well so a line laid
+    # before its household is registered is still attributed to the right
+    # place - and so the leak map can be filtered by barangay without joining
+    # back through the household every time.
+    barangay = models.ForeignKey(
+        "Barangay", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="segments",
+    )
 
     # Optional geography. When these are set the dashboard can draw the run on
     # a real Leaflet map; when blank, the schematic view is used instead.
@@ -544,6 +651,18 @@ class Household(models.Model):
     owner_name = models.CharField(max_length=120)
     address = models.CharField(max_length=255)
     contact_number = models.CharField(max_length=20)
+    # Optional. Where sign-in codes and notices go when the household would
+    # rather have email than a text; copied onto the owner's login when one
+    # is created. Most households here have a number and no email, so blank
+    # is the common and perfectly fine state.
+    email = models.EmailField(blank=True)
+    # Which barangay this household is in. Nullable so existing records survive
+    # the move to multiple barangays; a data migration stamps them all with the
+    # founding barangay, and new households are given one when registered.
+    barangay = models.ForeignKey(
+        "Barangay", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="households",
+    )
     # One hose runs from the main source to this house and nowhere else, so
     # the line and the household are the same thing seen from two ends. Kept
     # nullable because a household is registered before its hose is built.
@@ -573,6 +692,38 @@ class Household(models.Model):
     )
     date_registered = models.DateField(default=timezone.localdate)
     notes = models.TextField(blank=True)
+
+    # Two people make a household real. The administrator enters the record
+    # at application; the facilitator activates it - confirms where the
+    # house is and creates the owner's login. Until then it is pending.
+    activated_at = models.DateTimeField(null=True, blank=True)
+    activated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="activated_households",
+    )
+
+    @property
+    def is_pending(self):
+        """Entered by the administrator, not yet activated by the facilitator."""
+        return self.user_id is None and self.activated_at is None
+
+    @property
+    def device_setup(self):
+        """Where this household's board is in its setup, as a dict (core.setup)."""
+        from . import setup
+        return setup.device_setup(self)
+
+    # The road-following route from the barangay's water source to this
+    # house, for visits - as distinct from the hose, which goes cross-country.
+    # Fetched once from the routing service when the coordinates are saved
+    # and kept here, so the map draws it with no internet and no further
+    # calls. A list of [lat, lng] points; None until there is one. The error
+    # is the short reason the last attempt did not produce a route, if any.
+    visit_route = models.JSONField(null=True, blank=True)
+    visit_route_distance_m = models.FloatField(null=True, blank=True)
+    visit_route_duration_s = models.FloatField(null=True, blank=True)
+    visit_route_fetched_at = models.DateTimeField(null=True, blank=True)
+    visit_route_error = models.CharField(max_length=200, blank=True)
 
     class Meta:
         ordering = ["household_id"]
@@ -625,6 +776,46 @@ class Household(models.Model):
                 # against a primary key the failed save may have set.
                 self.pk = None
 
+    @property
+    def has_location(self):
+        return self.latitude is not None and self.longitude is not None
+
+    @property
+    def navigate_url(self):
+        """
+        Turn-by-turn directions to this house in the phone's maps app.
+
+        Google's directions link needs no key and opens the app people here
+        already have, which is what actually guides someone to the door - the
+        drawn route is the overview, this is the last stretch. Starts from
+        the barangay's water source when that has a location, otherwise from
+        wherever the phone is.
+        """
+        if not self.has_location:
+            return None
+        source = getattr(self.barangay, "water_source", None) if self.barangay_id else None
+        origin = (
+            f"&origin={source.latitude},{source.longitude}"
+            if source is not None and source.has_location else ""
+        )
+        return (
+            "https://www.google.com/maps/dir/?api=1"
+            f"{origin}&destination={self.latitude},{self.longitude}&travelmode=driving"
+        )
+
+    @property
+    def visit_route_label(self):
+        """'1.2 km, about 4 min' - what the stored route amounts to, or ''."""
+        if not self.visit_route:
+            return ""
+        parts = []
+        if self.visit_route_distance_m:
+            metres = self.visit_route_distance_m
+            parts.append(f"{metres / 1000:.1f} km" if metres >= 1000 else f"{metres:.0f} m")
+        if self.visit_route_duration_s:
+            parts.append(f"about {max(1, round(self.visit_route_duration_s / 60))} min")
+        return ", ".join(parts)
+
     def __str__(self):
         return f"{self.household_id} - {self.owner_name}"
 
@@ -657,14 +848,25 @@ class WaterSource(models.Model):
     notes = models.CharField(max_length=200, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # One source per barangay. The system began with a single row for a
+    # single barangay; each barangay has its own spring box or tank, and its
+    # facilitator edits only theirs. Nullable only so the founding row
+    # survives the migration that attaches it to its barangay.
+    barangay = models.OneToOneField(
+        "Barangay", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="water_source",
+    )
+
     class Meta:
         verbose_name = "water source"
-        verbose_name_plural = "water source"
+        verbose_name_plural = "water sources"
 
     @classmethod
-    def get(cls):
-        """The single row, created on first use so no fixture is needed."""
-        source, _ = cls.objects.get_or_create(pk=1)
+    def for_barangay(cls, barangay):
+        """That barangay's source, created on first use so no fixture is needed."""
+        if barangay is None:
+            return None
+        source, _ = cls.objects.get_or_create(barangay=barangay)
         return source
 
     @property
@@ -1121,3 +1323,370 @@ class PushSubscription(models.Model):
             "endpoint": self.endpoint,
             "keys": {"p256dh": self.p256dh, "auth": self.auth},
         }
+
+
+class WorkOrder(models.Model):
+    """
+    A piece of field work: a household visit, a repair, or maintenance.
+
+    One model carries the whole life of that work, because in a barangay they
+    are one process seen at different stages. Something needs attention - a
+    household complains, a facilitator notices a leaking coupling, a line is
+    flagged by its board. That becomes a REQUESTED order: the "reported
+    anomaly" the administrator triages. Approving it assigns a facilitator and
+    a date and moves it to SCHEDULED; rejecting it closes it with a reason.
+    From there the assigned facilitator works it to DONE.
+
+    Keeping anomaly, repair and visit in one table means the administrator
+    sees one queue of outstanding work rather than three that have to be
+    reconciled by hand - and a complaint, a flagged line and a facilitator's
+    own report all land in the same place to be dealt with the same way.
+    """
+
+    class Kind(models.TextChoices):
+        VISIT = "visit", "Household visit"
+        REPAIR = "repair", "Repair"
+        MAINTENANCE = "maintenance", "Maintenance"
+
+    class Status(models.TextChoices):
+        REQUESTED = "requested", "Requested"        # reported, awaiting triage
+        SCHEDULED = "scheduled", "Scheduled"         # approved, assigned, dated
+        IN_PROGRESS = "in_progress", "In progress"
+        DONE = "done", "Done"
+        REJECTED = "rejected", "Rejected"
+        CANCELLED = "cancelled", "Cancelled"
+
+    # Statuses that need nobody to do anything more. Used for the "open work"
+    # queues and badges so a done or rejected order drops out of them.
+    CLOSED_STATUSES = {Status.DONE, Status.REJECTED, Status.CANCELLED}
+
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.VISIT)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.REQUESTED)
+
+    barangay = models.ForeignKey(
+        "Barangay", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="work_orders",
+    )
+    # What the work is about. A visit names a household; a repair or
+    # maintenance usually names a hose line. Both are optional and SET_NULL so
+    # deleting the household or line does not erase the record that work was
+    # done - the title and barangay still say what it was.
+    household = models.ForeignKey(
+        "Household", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="work_orders",
+    )
+    segment = models.ForeignKey(
+        "Segment", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="work_orders",
+    )
+
+    title = models.CharField(max_length=200)
+    details = models.TextField(blank=True)
+
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="assignments",
+        help_text="The facilitator who will carry out this work.",
+    )
+    scheduled_for = models.DateField(
+        null=True, blank=True, help_text="The day the visit or repair is planned for.",
+    )
+
+    # Where it came from, so an approved order remembers what raised it.
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="reported_work_orders",
+        help_text="The facilitator who reported this, when it did not come from the admin.",
+    )
+    source_complaint = models.ForeignKey(
+        "Complaint", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="work_orders",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="created_work_orders",
+    )
+
+    # Triage and completion trail.
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="reviewed_work_orders",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.CharField(max_length=300, blank=True)
+    resolution_note = models.TextField(blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @property
+    def is_open(self):
+        return self.status not in self.CLOSED_STATUSES
+
+    @property
+    def is_requested(self):
+        return self.status == self.Status.REQUESTED
+
+    @property
+    def target_household(self):
+        """The household this work ultimately concerns, directly or via a line."""
+        if self.household is not None:
+            return self.household
+        if self.segment is not None:
+            return getattr(self.segment, "household", None)
+        return None
+
+    @property
+    def where_label(self):
+        household = self.target_household
+        if household is not None:
+            return f"{household.household_id} ({household.owner_name})"
+        if self.segment is not None:
+            return self.segment.name
+        if self.barangay is not None:
+            return self.barangay.name
+        return "-"
+
+    def __str__(self):
+        return f"{self.get_kind_display()}: {self.title}"
+
+
+class Announcement(models.Model):
+    """
+    An administrator's message to households, across one or every barangay.
+
+    The facilitator's notice tool (NotificationForm) only ever reaches the one
+    barangay they run, so it cannot say "every barangay" or "just Barangay X".
+    The administrator can, which is the whole reason this is separate.
+
+    The announcement is recorded here for the history and the counts; delivery
+    reuses what households already read - a Notification row per household (so
+    it appears in their Notices feed with no change on the owner side) and,
+    optionally, an SMS through the same queue as everything else.
+    """
+
+    class Audience(models.TextChoices):
+        ALL = "all", "All active households"
+        BARANGAY = "barangay", "One barangay"
+        SELECTED = "selected", "Selected households"
+
+    title = models.CharField(max_length=150)
+    body = models.TextField()
+    audience = models.CharField(max_length=20, choices=Audience.choices, default=Audience.ALL)
+    barangay = models.ForeignKey(
+        "Barangay", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="announcements",
+    )
+    in_app = models.BooleanField(default=True)
+    by_sms = models.BooleanField(default=False)
+    by_email = models.BooleanField(default=False)
+
+    # Recorded at send time so the history shows reach without recounting
+    # against households that may since have been added or removed.
+    recipients_count = models.PositiveIntegerField(default=0)
+    sms_count = models.PositiveIntegerField(default=0)
+    email_count = models.PositiveIntegerField(default=0)
+
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="announcements",
+    )
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @property
+    def audience_label(self):
+        if self.audience == self.Audience.BARANGAY and self.barangay is not None:
+            return f"Brgy. {self.barangay.name}"
+        return self.get_audience_display()
+
+    def __str__(self):
+        return self.title
+
+
+class AuditLog(models.Model):
+    """
+    An append-only record of significant administrative actions.
+
+    Who did what, and when. Deliberately write-once - there is no edit path
+    anywhere in the app - because a log you can change is not evidence of
+    anything. The actor's name is copied in as text as well as kept as a
+    foreign key, so the record still reads after that account is deleted.
+    """
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="audit_entries",
+    )
+    actor_name = models.CharField(max_length=150, blank=True)
+    action = models.CharField(max_length=60, db_index=True)
+    summary = models.CharField(max_length=255)
+    target = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @classmethod
+    def record(cls, actor, action, summary, target=""):
+        """Write one entry. `actor` may be a user or None (a system action)."""
+        name = ""
+        if actor is not None and getattr(actor, "is_authenticated", False):
+            name = actor.get_full_name() or actor.username
+        return cls.objects.create(
+            actor=actor if (actor is not None and getattr(actor, "is_authenticated", False)) else None,
+            actor_name=name,
+            action=action,
+            summary=summary[:255],
+            target=target[:255],
+        )
+
+    def __str__(self):
+        return f"{self.action}: {self.summary}"
+
+
+class SystemSetting(models.Model):
+    """
+    System-wide switches, kept as a single row so they can be changed from the
+    console instead of by editing a file and restarting.
+
+    Just maintenance mode for now: a hold that shows households and
+    facilitators a short notice and keeps them out, while leaving the admin
+    console and the device ingest endpoint working so the person turning it on
+    can still work and the boards never stop recording.
+    """
+
+    maintenance_mode = models.BooleanField(default=False)
+    maintenance_message = models.CharField(
+        max_length=255, blank=True,
+        default="The system is briefly down for maintenance. Please check back shortly.",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+",
+    )
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # one row, always
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return "System settings"
+
+
+class ErrorLog(models.Model):
+    """
+    One row per unhandled server error, written by middleware.
+
+    So a 500 leaves a trace the administrator can see in the console without
+    reading the terminal, and without a log line scrolling away unseen during
+    a demo. The message is the exception text, never a full traceback shown to
+    a user - that stays in the server log where it belongs.
+    """
+
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    path = models.CharField(max_length=255, blank=True)
+    method = models.CharField(max_length=8, blank=True)
+    status = models.PositiveSmallIntegerField(default=500)
+    exception_type = models.CharField(max_length=120, blank=True)
+    message = models.TextField(blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.exception_type} at {self.path}"
+
+
+class LoginCode(models.Model):
+    """
+    A one-time sign-in code, texted or emailed after the password is right.
+
+    Ten minutes to use it, five guesses, one use. Stored as typed rather than
+    hashed on purpose: it is short-lived, single-use and attempt-limited, and
+    in development it has to be readable so a demo can sign in with no SMS
+    credit and no mailbox - the login page shows it when DEBUG is on. A code
+    somebody could brute-force in five tries would not be made safer by
+    hashing; the limit is the protection.
+    """
+
+    CODE_LENGTH = 6
+    MAX_ATTEMPTS = 5
+
+    class Channel(models.TextChoices):
+        SMS = "sms", "Text message"
+        EMAIL = "email", "Email"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="login_codes",
+    )
+    code = models.CharField(max_length=12)
+    channel = models.CharField(max_length=8, choices=Channel.choices)
+    # Where it went, as text, so the page can say "sent to +63917...501"
+    # without a second lookup and the record survives the account changing.
+    sent_to = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    @classmethod
+    def generate(cls):
+        return f"{secrets.randbelow(10 ** cls.CODE_LENGTH):0{cls.CODE_LENGTH}d}"
+
+    @classmethod
+    def issue(cls, user, channel, sent_to=""):
+        """
+        A fresh code for this user, replacing any earlier unused one.
+
+        One live code at a time: two would let an old text be used after a
+        newer one was requested, which makes "resend" a way to extend a code
+        rather than replace it.
+        """
+        cls.objects.filter(user=user, used_at__isnull=True).update(used_at=timezone.now())
+        return cls.objects.create(
+            user=user,
+            code=cls.generate(),
+            channel=channel,
+            sent_to=sent_to[:120],
+            expires_at=timezone.now() + timezone.timedelta(minutes=settings.OTP_VALIDITY_MINUTES),
+        )
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    @property
+    def is_usable(self):
+        return self.used_at is None and not self.is_expired and self.attempts < self.MAX_ATTEMPTS
+
+    def masked_destination(self):
+        """'+63917***501' or 'ma***@gmail.com' - enough to recognise, not to copy."""
+        value = self.sent_to or ""
+        if "@" in value:
+            name, _, domain = value.partition("@")
+            return f"{name[:2]}***@{domain}"
+        digits = value
+        return f"{digits[:6]}***{digits[-3:]}" if len(digits) > 9 else "your number"
+
+    def __str__(self):
+        return f"{self.user} via {self.channel} ({'used' if self.used_at else 'open'})"

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}{{ order.title }} - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>{{ order.title }}</h1>
+      <p class="sub">{{ order.get_kind_display }} &middot; {% include "_wo_status.html" %}</p>
+    </div>
+    <div class="btn-row">
+      {# Opens the dialog at the foot of the page; a plain link to the edit page without JavaScript. #}
+      <a class="btn btn-sm" href="{% url 'work_order_edit' order.pk %}" data-modal-open="visit-edit-modal">Edit details</a>
+      <a class="btn btn-sm" href="{% url 'work_order_list' %}">Back to list</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+    <table class="kv-table" style="width:100%;border-collapse:collapse">
+      <tbody>
+        <tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">Where</th><td style="padding:.35rem 0">{{ order.where_label }}{% with house=order.target_household %}{% if house and house.navigate_url %} &middot; <a href="{{ house.navigate_url }}" target="_blank" rel="noopener">Navigate</a>{% if house.visit_route_label %} <span class="muted small">({{ house.visit_route_label }} by road)</span>{% endif %}{% endif %}{% endwith %}</td></tr>
+        <tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">Barangay</th><td style="padding:.35rem 0">{{ order.barangay.name|default:"&mdash;" }}</td></tr>
+        <tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">Assigned to</th><td style="padding:.35rem 0">{% if order.assigned_to %}{{ order.assigned_to.get_full_name|default:order.assigned_to.username }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td></tr>
+        <tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">Scheduled for</th><td style="padding:.35rem 0">{{ order.scheduled_for|date:"l, M j, Y"|default:"&mdash;" }}</td></tr>
+        {% if order.reported_by %}<tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">Reported by</th><td style="padding:.35rem 0">{{ order.reported_by.get_full_name|default:order.reported_by.username }}</td></tr>{% endif %}
+        {% if order.source_complaint %}<tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">From complaint</th><td style="padding:.35rem 0">{{ order.source_complaint.reference }}</td></tr>{% endif %}
+        {% if order.details %}<tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">Details</th><td style="padding:.35rem 0">{{ order.details|linebreaksbr }}</td></tr>{% endif %}
+        {% if order.review_note %}<tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">Review note</th><td style="padding:.35rem 0">{{ order.review_note }}</td></tr>{% endif %}
+        {% if order.resolution_note %}<tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">Resolution</th><td style="padding:.35rem 0">{{ order.resolution_note|linebreaksbr }}</td></tr>{% endif %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  {% if order.status == 'requested' %}
+    <div class="card" style="margin-top:1rem">
+      <h2 style="margin-top:0">Approve &amp; schedule</h2>
+      <p class="sub">Assign a facilitator and a date. Both the household and the facilitator are texted.</p>
+      <form method="post" action="{% url 'work_order_approve' order.pk %}">
+        {% csrf_token %}
+        <div class="field-pair">
+          <div class="field">
+            <label for="assigned_to">Assign to</label>
+            <select id="assigned_to" name="assigned_to" required>
+              <option value="">Choose a facilitator</option>
+              {% for f in facilitators %}
+                <option value="{{ f.pk }}">{{ f.get_full_name|default:f.username }}{% if f.barangay %} - {{ f.barangay.name }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="scheduled_for">Scheduled for</label>
+            <input type="date" id="scheduled_for" name="scheduled_for" value="{{ order.scheduled_for|date:'Y-m-d' }}">
+          </div>
+        </div>
+        <div class="btn-row"><button type="submit" class="btn btn-primary">Approve &amp; schedule</button></div>
+      </form>
+
+      <hr style="border:0;border-top:1px solid var(--border);margin:1.25rem 0">
+
+      <h2 style="margin:0">Reject</h2>
+      <p class="sub">Close this report without scheduling work. Say why, so the record explains itself.</p>
+      <form method="post" action="{% url 'work_order_reject' order.pk %}">
+        {% csrf_token %}
+        <div class="field">
+          <label for="review_note">Reason</label>
+          <input type="text" id="review_note" name="review_note" maxlength="300" placeholder="e.g. Duplicate of an order already scheduled">
+        </div>
+        <div class="btn-row"><button type="submit" class="btn btn-quiet-danger">Reject report</button></div>
+      </form>
+    </div>
+
+  {% elif order.status == 'scheduled' or order.status == 'in_progress' %}
+    <div class="card" style="margin-top:1rem">
+      <h2 style="margin-top:0">Update progress</h2>
+      <form method="post" action="{% url 'work_order_status' order.pk %}">
+        {% csrf_token %}
+        <div class="field">
+          <label for="resolution_note">Note (optional)</label>
+          <textarea id="resolution_note" name="resolution_note" rows="2" placeholder="What was found or done">{{ order.resolution_note }}</textarea>
+        </div>
+        <div class="btn-row">
+          {% if order.status == 'scheduled' %}
+            <button type="submit" name="status" value="in_progress" class="btn">Mark in progress</button>
+          {% endif %}
+          <button type="submit" name="status" value="done" class="btn btn-primary">Mark done</button>
+          <button type="submit" name="status" value="cancelled" class="btn btn-quiet-danger">Cancel</button>
+        </div>
+      </form>
+    </div>
+  {% else %}
+    <p class="muted" style="margin-top:1rem">
+      This work order is {{ order.get_status_display|lower }}{% if order.completed_at %}, {{ order.completed_at|date:"M j, Y" }}{% endif %}.
+    </p>
+  {% endif %}
+</div>
+
+{% comment %}
+  Edit dialog, bound to this order. Status is not here - the cards above own
+  the transitions; this is only what the visit is, where, who and when.
+{% endcomment %}
+<div class="modal-backdrop" id="visit-edit-modal" hidden
+     {% if edit_form_errors %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="visit-edit-title">
+    <form method="post" action="{% url 'work_order_edit' order.pk %}" novalidate>
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="visit-edit-title">Edit visit</h2>
+          <p class="sub">{{ order.where_label }}</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        {% if edit_form.non_field_errors %}
+          <div class="message message-error"><span>{{ edit_form.non_field_errors }}</span></div>
+        {% endif %}
+        {% include "_form_field.html" with field=edit_form.household %}
+        {% include "_form_field.html" with field=edit_form.title %}
+        {% include "_form_field.html" with field=edit_form.details %}
+        <div class="field-pair">
+          {% include "_form_field.html" with field=edit_form.assigned_to %}
+          {% include "_form_field.html" with field=edit_form.scheduled_for %}
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

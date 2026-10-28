@@ -12,11 +12,11 @@
         "Facilitator Dashboard" named the screen to the only person who ever
         opens it. The barangay it watches is the useful thing to say.
       {% endcomment %}
-      <h1>{{ SITE_LOCALE }}</h1>
+      <h1>{% if barangay %}{{ barangay.location_label }}{% else %}{{ SITE_LOCALE }}{% endif %}</h1>
       <p class="sub">Water supply monitoring</p>
     </div>
     <div class="btn-row">
-      <a class="btn btn-sm" href="{% url 'household_create' %}">Add household</a>
+      <a class="btn btn-sm" href="{% url 'household_list' %}?show=pending">Activate households</a>
       <a class="btn btn-sm" href="{% url 'notification_center' %}">Send a notice</a>
       <a class="btn btn-sm" href="{% url 'reports' %}">Reports</a>
     </div>
@@ -24,6 +24,20 @@
 
   {# Populated live by app.js whenever a critical alert is open. #}
   <div id="alert-banner" class="messages" style="padding:0;margin:0 0 1rem" hidden></div>
+
+  {% comment %}
+    A facilitator with no barangay yet sees nothing - never another
+    barangay's households as a fallback - and is told why in one place.
+  {% endcomment %}
+  {% if no_barangay %}
+    <section class="card" style="margin:0 0 1rem;border-left:4px solid var(--warn)">
+      <div class="card-head"><h2>No barangay assigned yet</h2></div>
+      <p class="muted small" style="margin:0">
+        Your account is not assigned to a barangay, so there is nothing to show here.
+        Ask the administrator to assign one; your households, lines and alerts appear as soon as they do.
+      </p>
+    </section>
+  {% endif %}
 
   {% comment %}
     The page answers itself in a sentence before it shows a single number.
@@ -51,7 +65,7 @@
     {% endcomment %}
     <p class="standing-line">
       {% if open_events %}
-        {{ open_events|length }} line{{ open_events|length|pluralize }} need{{ open_events|length|pluralize:"s," }} attention
+        {{ open_events_total }} line{{ open_events_total|pluralize }} need{{ open_events_total|pluralize:"s," }} attention
       {% elif silent_count %}
         {{ silent_count }} board{{ silent_count|pluralize }}
         {% if silent_count == 1 %}has{% else %}have{% endif %} stopped reporting
@@ -87,7 +101,7 @@
       </div>
       <div>
         <dt>Open alerts</dt>
-        <dd{% if open_events %} class="is-live"{% endif %}>{{ open_events|length }}</dd>
+        <dd{% if open_events %} class="is-live"{% endif %}>{{ open_events_total }}</dd>
       </div>
       <div>
         <dt>Pending complaints</dt>
@@ -101,11 +115,43 @@
   </section>
 
   {% comment %}
+    The facilitator's own field work, summarised: what is next and how much
+    is open. The schedule page has the whole list; this is the glance.
+  {% endcomment %}
+  {% if not no_barangay %}
+    <section class="card" style="margin-top:1.2rem">
+      <div class="card-head">
+        <h2>Your schedule</h2>
+        <a class="btn btn-sm" href="{% url 'my_assignments' %}">Open schedule</a>
+      </div>
+      {% if upcoming %}
+        <p class="muted small" style="margin:0 0 .6rem">
+          {{ open_assignment_count }} open job{{ open_assignment_count|pluralize }}. Next up:
+        </p>
+        <div class="sent-feed">
+          {% for order in upcoming %}
+            <a class="sent-row" href="{% url 'my_assignments' %}">
+              <span class="sent-icon" aria-hidden="true"><svg class="ico"><use href="#i-route"></use></svg></span>
+              <span class="sent-main">
+                <span class="sent-text"><strong>{{ order.title }}</strong></span>
+                <span class="sent-meta">{{ order.get_kind_display }} &middot; {{ order.where_label }}</span>
+              </span>
+              <time class="sent-time">{% if order.scheduled_for %}{{ order.scheduled_for|date:"D, M j" }}{% else %}no date yet{% endif %}</time>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty" style="margin:0">Nothing scheduled for you right now.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  {% comment %}
     Shown only while nothing has reported in. The address is echoed back from
     the request rather than derived from the machine's interfaces: whatever
     host reached this page demonstrably works on this network.
   {% endcomment %}
-  {% if not devices.0.last_seen %}
+  {% if not no_barangay and not devices.0.last_seen %}
     <section class="card setup-hint" style="margin-top:1.2rem">
       <div class="card-head"><h2>Device setup</h2></div>
       <p class="muted small" style="margin-bottom:.6rem">
@@ -134,10 +180,28 @@
     </section>
   {% endif %}
 
-  <h2 style="margin-top:1.6rem">Households</h2>
+  <h2 style="margin-top:1.6rem">Households <span class="count-chip">{{ segment_rows|length }}</span></h2>
   <p class="muted small">
     One hose line per household, each with its own device. Updates automatically.
+    Lines that need attention are listed first.
   </p>
+
+  {% comment %}
+    A table that grows with the barangay needs a way to find one house and
+    a way to see only the trouble. Both work on the rows already here (the
+    live poll keeps updating hidden rows), and the address carries the
+    filter so a reload or a shared link keeps it.
+  {% endcomment %}
+  <form class="filters filters-inline live-filter" method="get" action="{% url 'dashboard' %}">
+    <div class="field">
+      <label for="hh-filter">Find</label>
+      <input type="search" id="hh-filter" name="q" value="{{ filter_q }}" placeholder="Household ID or name" data-live-filter autocomplete="off">
+    </div>
+    <label class="check-row" style="margin:0">
+      <input type="checkbox" name="problems" value="1" data-problems-toggle{% if filter_problems %} checked{% endif %}> Problems only
+    </label>
+    <span class="small muted" data-filter-count aria-live="polite"></span>
+  </form>
 
   {% comment %}
     A row per household rather than a card per household. Cards read well at
@@ -165,8 +229,10 @@
           </tr>
         </thead>
         <tbody>
-          {% for segment in segments %}
-            <tr data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}">
+          {% for segment in segment_rows %}
+            <tr data-segment-id="{{ segment.id }}" data-status="{{ segment.status }}"
+                data-problem="{% if segment.is_problem %}1{% else %}0{% endif %}"
+                data-search="{% if segment.household %}{{ segment.household.household_id|lower }} {{ segment.household.owner_name|lower }} {% endif %}{{ segment.name|lower }}">
               <td>
                 <span class="swatch" style="background:{{ segment.color }}" aria-hidden="true"></span>
                 {% if segment.household %}
@@ -250,6 +316,9 @@
               </td>
             </tr>
           {% endfor %}
+          <tr data-filter-empty hidden>
+            <td colspan="7" class="empty">No households match. Clear the search or untick "Problems only".</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -260,7 +329,16 @@
     <div class="card" id="map-panel">
       <div class="card-head">
         <h2>Leak map</h2>
-        <button type="button" class="btn btn-sm" id="map-toggle">Switch view</button>
+        <div class="btn-row">
+          {% comment %}
+            Show or hide the road routes. Disabled (not hidden) until a
+            household has one, so the feature is visible before it is used.
+          {% endcomment %}
+          <label class="route-toggle small">
+            <input type="checkbox" id="route-toggle" disabled> Visit routes
+          </label>
+          <button type="button" class="btn btn-sm" id="map-toggle">Switch view</button>
+        </div>
       </div>
       <div id="leak-map" hidden></div>
       <div id="map-schematic"></div>
@@ -284,12 +362,21 @@
         {% endfor %}
         <span><i style="background:#7e22ce;border-radius:2px"></i>Main source</span>
       </div>
+      {% comment %}
+        Two kinds of line on one map, so say which is which: the hose (where
+        the water goes) and the road route (how a person gets there).
+      {% endcomment %}
+      <div class="legend">
+        <span class="legend-head">Lines:</span>
+        <span><i class="legend-solid"></i>solid &mdash; the hose, which house it serves</span>
+        <span><i class="legend-dotted"></i>dotted &mdash; visit route by road (tap a pin to navigate)</span>
+      </div>
     </div>
 
     <div class="card">
       <div class="card-head">
-        <h2>Open alerts</h2>
-        <a class="small" href="{% url 'event_list' %}?status=open">View all</a>
+        <h2>Open alerts{% if open_events_total %} <span class="count-chip">{{ open_events_total }}</span>{% endif %}</h2>
+        <a class="small" href="{% url 'event_list' %}?status=open">View all{% if open_events_total > 6 %} ({{ open_events_total }}){% endif %}</a>
       </div>
       {% if open_events %}
         <div class="notice-list">

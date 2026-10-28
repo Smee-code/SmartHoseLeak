@@ -1,41 +1,41 @@
 {% extends "base.html" %}
-{% block title %}Household database - {{ SITE_NAME }}{% endblock %}
+{% block title %}Households - {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="wrap">
   <div class="page-head">
     <div>
       {% comment %}
-        "Database" is how the system is built, not what this is. It is the
-        register of the people the water system serves.
+        The register of the people the water system serves. The administrator
+        enters each household during application; it arrives here as
+        "Pending activation" and the facilitator finishes it - confirms where
+        the house is and creates the owner's login.
       {% endcomment %}
-      <h1>Households</h1>
-      <p class="sub">Everyone the water system serves, and the line that reaches them.</p>
+      <h1>Households <span class="count-chip">{{ total }}</span></h1>
+      <p class="sub">
+        Entered by the administrator; activated here.
+        {% if pending_total %}<strong>{{ pending_total }}</strong> awaiting activation.{% endif %}
+      </p>
     </div>
     <div class="btn-row">
       <a class="btn btn-sm" href="{% url 'export_csv' 'households' %}">Export CSV</a>
-      {# Falls back to the standalone page if JavaScript is unavailable. #}
-      <a class="btn btn-primary btn-sm" href="{% url 'household_create' %}"
-         data-modal-open="household-modal">Add household</a>
     </div>
   </div>
 
-  {% comment %}
-    One line, not a stacked field above a button. A label, an input and a
-    submit are a single act - "find this household" - and stacking them put
-    three rows of chrome above a list of seven people.
-  {% endcomment %}
   <form method="get" class="filters filters-inline">
     <div class="field">
       <label for="q">Search</label>
       <input type="search" id="q" name="q" value="{{ query }}" placeholder="ID, name, address or contact">
     </div>
-    {% comment %}
-      There was a "Supply line" filter here. A line serves exactly one
-      household now, so narrowing the list by line narrowed it to one row -
-      the same thing the search box does, with more clicks.
-    {% endcomment %}
+    <div class="field">
+      <label for="show">Show</label>
+      <select id="show" name="show">
+        <option value="">All households</option>
+        <option value="pending" {% if show == 'pending' %}selected{% endif %}>Pending activation</option>
+        <option value="active" {% if show == 'active' %}selected{% endif %}>Activated</option>
+      </select>
+    </div>
     <button type="submit" class="btn">Filter</button>
-    {% if query %}<a class="btn" href="{% url 'household_list' %}">Clear</a>{% endif %}
+    {% if query or show %}<a class="btn" href="{% url 'household_list' %}">Clear</a>{% endif %}
   </form>
 
   <div class="table-wrap">
@@ -51,31 +51,49 @@
             <td class="hh-owner">{{ household.owner_name }}</td>
             <td class="small">{{ household.address }}</td>
             <td class="nowrap small">{{ household.contact_number }}</td>
-            {% comment %}
-              Every value in this column is the two columns to its left, run
-              together: "HH-001 - Maria Santos" beside HH-001 and Maria
-              Santos. It is the line's real name and the CSV carries it, so it
-              stays - but a column that repeats its neighbours is reference,
-              not signal, and it gets the ink of one.
-            {% endcomment %}
             <td class="small hh-line">
               {% if household.segment %}{{ household.segment.name }}
               {% else %}<span class="muted">Unassigned</span>{% endif %}
             </td>
             <td>
-              <span class="pill {% if household.account_status == 'active' %}pill-ok{% else %}pill-muted{% endif %}">
-                {{ household.get_account_status_display }}
-              </span>
+              {% if household.is_pending %}
+                <span class="pill pill-warn">Pending activation</span>
+              {% else %}
+                <span class="pill {% if household.account_status == 'active' %}pill-ok{% else %}pill-muted{% endif %}">
+                  {{ household.get_account_status_display }}
+                </span>
+              {% endif %}
             </td>
             <td class="small mono">{% if household.user %}{{ household.user.username }}{% else %}<span class="muted">none</span>{% endif %}</td>
             {% comment %}
-              One shared edit dialog and one shared delete dialog are filled
-              from these attributes on click, rather than rendering a pair of
-              dialogs per row - 25 rows would otherwise mean 50 forms in the
-              page. The href stays a working link for the no-JavaScript case.
+              One shared dialog of each kind - activate, edit, delete - filled
+              from the clicked row's attributes (app.js). The hrefs stay
+              working links for the no-JavaScript case.
             {% endcomment %}
             <td class="right">
               <div class="btn-row" style="justify-content:flex-end;flex-wrap:nowrap">
+                {% if household.is_pending %}
+                  {% if household.segment and household.segment.device %}
+                    <button type="button" class="btn btn-primary btn-sm"
+                            data-activate-household
+                            data-action="{% url 'household_activate' household.pk %}"
+                            data-hid="{{ household.household_id }}"
+                            data-owner="{{ household.owner_name }}"
+                            data-address="{{ household.address }}"
+                            data-contact="{{ household.contact_number }}"
+                            data-email="{{ household.email }}"
+                            data-line="{% if household.segment %}{{ household.segment.name }}{% endif %}"
+                            data-board="{{ household.segment.device.device_id }}"
+                            data-lat="{{ household.latitude|default_if_none:'' }}"
+                            data-lng="{{ household.longitude|default_if_none:'' }}">Activate</button>
+                  {% else %}
+                    {# No board, no code to send: register one first; the activation dialog opens on return. #}
+                    <form method="post" action="{% url 'household_register_board' household.pk %}" style="display:inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-primary btn-sm" title="Activation needs a board to send the setup code for">Register board</button>
+                    </form>
+                  {% endif %}
+                {% endif %}
                 <a class="btn btn-sm" href="{% url 'household_edit' household.pk %}"
                    data-edit-household
                    data-action="{% url 'household_edit' household.pk %}"
@@ -83,18 +101,12 @@
                    data-owner="{{ household.owner_name }}"
                    data-address="{{ household.address }}"
                    data-contact="{{ household.contact_number }}"
+                   data-email="{{ household.email }}"
                    data-segment="{{ household.segment_id|default_if_none:'' }}"
                    data-status="{{ household.account_status }}"
                    data-lat="{{ household.latitude|default_if_none:'' }}"
                    data-lng="{{ household.longitude|default_if_none:'' }}"
                    data-notes="{{ household.notes }}">Edit</a>
-                {% comment %}
-                  Delete is demoted to a quiet control that only turns red
-                  when reached. Seven saturated red buttons made a stripe
-                  down the right edge of a page whose job is to show people,
-                  and sent the eye to the one action nobody came here to
-                  take. The confirmation dialog is where the danger belongs.
-                {% endcomment %}
                 <button type="button" class="btn btn-sm btn-quiet-danger"
                         data-delete-household
                         data-action="{% url 'household_delete' household.pk %}"
@@ -107,7 +119,10 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="8" class="empty">No households match this filter.</td></tr>
+          <tr><td colspan="8" class="empty">
+            {% if query or show %}No households match this filter.
+            {% else %}No households yet. The administrator registers them; they appear here to be activated.{% endif %}
+          </td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -116,30 +131,32 @@
   {% if page.has_other_pages %}
     <div class="pager">
       {% if page.has_previous %}
-        <a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;q={{ query }}">Previous</a>
+        <a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;q={{ query }}&amp;show={{ show }}">Previous</a>
       {% endif %}
       <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
       {% if page.has_next %}
-        <a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;q={{ query }}">Next</a>
+        <a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;q={{ query }}&amp;show={{ show }}">Next</a>
       {% endif %}
     </div>
   {% endif %}
 </div>
 
 {% comment %}
-  Add-household dialog. The form posts to the same view the standalone page
-  uses, so validation and account creation behave identically; on error the
-  view re-renders this page with the modal reopened and the values intact.
+  Activation dialog. What the administrator entered is shown, not editable;
+  the facilitator adds the one thing only a visit can confirm - where the
+  house is - and the owner's login is created on save. When the coordinates
+  fail validation the server re-renders this bound to the same household.
 {% endcomment %}
-<div class="modal-backdrop" id="household-modal" hidden
-     {% if create_form_errors %}data-modal-autoopen{% endif %}>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="household-modal-title">
-    <form method="post" action="{% url 'household_create' %}">
+<div class="modal-backdrop" id="household-activate-modal" hidden
+     {% if activation_autoopen %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="household-activate-title">
+    <form method="post" id="household-activate-form" novalidate
+          action="{% if activate_household %}{% url 'household_activate' activate_household.pk %}{% endif %}">
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="household-modal-title">Add household</h2>
-          <p class="sub">Coordinates are optional, and place the household on the leak map.</p>
+          <h2 id="household-activate-title">Activate household</h2>
+          <p class="sub" data-activate-field="hid">{% if activate_household %}{{ activate_household.household_id }}{% endif %}</p>
         </div>
         <button type="button" class="icon-btn" data-modal-close aria-label="Close">
           <span aria-hidden="true">&times;</span>
@@ -147,75 +164,35 @@
       </div>
 
       <div class="modal-body">
-        {% if create_form.non_field_errors %}
-          <div class="message message-error">{{ create_form.non_field_errors }}</div>
+        {% if activation_form.non_field_errors %}
+          <div class="message message-error">{{ activation_form.non_field_errors }}</div>
         {% endif %}
 
-        <div class="field">
-          <label>Household ID</label>
-          <p class="assigned-id mono">{{ next_household_id }}</p>
-          <span class="helptext">Assigned automatically when you save.</span>
-        </div>
-
-        {% include "_form_field.html" with field=create_form.owner_name %}
-        {% include "_form_field.html" with field=create_form.address %}
-        {% include "_form_field.html" with field=create_form.contact_number %}
-
-        {% include "_form_field.html" with field=create_form.account_status %}
+        <dl class="definition activate-facts" aria-label="Entered by the administrator">
+          <dt>Owner</dt><dd data-activate-field="owner">{{ activate_household.owner_name|default:"" }}</dd>
+          <dt>Address</dt><dd data-activate-field="address">{{ activate_household.address|default:"" }}</dd>
+          <dt>Contact</dt><dd data-activate-field="contact">{{ activate_household.contact_number|default:"" }}</dd>
+          <dt>Email</dt><dd data-activate-field="email" data-empty="none on file">{{ activate_household.email|default:"" }}</dd>
+          <dt>Supply line</dt><dd data-activate-field="line">{% if activate_household.segment %}{{ activate_household.segment.name }}{% endif %}</dd>
+          <dt>Board</dt><dd data-activate-field="board">{% if activate_household.segment.device %}{{ activate_household.segment.device.device_id }}{% endif %}</dd>
+        </dl>
+        <p class="helptext">These were entered by the administrator. To correct them, use Edit instead.</p>
 
         <div class="field-pair">
-          {% include "_form_field.html" with field=create_form.latitude %}
-          {% include "_form_field.html" with field=create_form.longitude %}
+          {% include "_form_field.html" with field=activation_form.latitude %}
+          {% include "_form_field.html" with field=activation_form.longitude %}
         </div>
 
-        {% include "_form_field.html" with field=create_form.notes %}
-
-        {% comment %}
-          The hose line is not asked for. One house has one hose, so picking
-          it from a list of lines that each belong to exactly one other house
-          was a question with only one right answer.
-        {% endcomment %}
-        <fieldset class="channel-box">
-          <legend class="small">Hardware</legend>
-          <p class="helptext" style="margin-top:0">
-            A hose line is created for this household automatically.
-          </p>
-
-          <div class="field">
-            <label>{{ create_form.device_choice.label }}</label>
-            {% for choice in create_form.device_choice %}
-              <div class="check-row">{{ choice.tag }}
-                <label for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
-              </div>
-            {% endfor %}
-            {{ create_form.device_choice.errors }}
-          </div>
-
-          {% comment %}
-            Shown by app.js only for the option they picked. Both are in the
-            DOM so a failed submission still renders its own error, which a
-            hidden-by-template field would swallow.
-          {% endcomment %}
-          <div data-device-when="new" hidden>
-            {% include "_form_field.html" with field=create_form.device_label %}
-            <p class="helptext">
-              The Device ID and API key are generated when you save, and shown
-              on the Lines page whenever you need them.
-            </p>
-          </div>
-          <div data-device-when="existing" hidden>
-            {% include "_form_field.html" with field=create_form.existing_device %}
-          </div>
-        </fieldset>
-
-        {% if create_form.create_account %}
-          {% include "_form_field.html" with field=create_form.create_account %}
-        {% endif %}
+        <p class="helptext">
+          Saving creates the Owner Portal login and issues the board's setup code. Both are shown
+          once and sent to the household by text and, if they have an address on file, by email -
+          the owner connects the board to their own WiFi from Settings &gt; My device.
+        </p>
       </div>
 
       <div class="modal-foot">
         <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Save household</button>
+        <button type="submit" class="btn btn-primary">Create account</button>
       </div>
     </form>
   </div>
@@ -252,6 +229,7 @@
         {% include "_form_field.html" with field=edit_form.owner_name %}
         {% include "_form_field.html" with field=edit_form.address %}
         {% include "_form_field.html" with field=edit_form.contact_number %}
+        {% include "_form_field.html" with field=edit_form.email %}
 
         {% include "_form_field.html" with field=edit_form.account_status %}
 

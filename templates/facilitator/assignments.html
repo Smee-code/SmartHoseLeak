@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Schedule - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      {% comment %}
+        "My assignments" said what the records were. "Schedule" says what the
+        page is for: who I am visiting, and when. Grouped by day, because
+        that is the order a facilitator actually asks the question in.
+      {% endcomment %}
+      <h1>Schedule</h1>
+      <p class="sub">Who you will visit and when. {{ open_count }} open job{{ open_count|pluralize }}.</p>
+    </div>
+  </div>
+
+  {% for title, orders, note in sections %}
+    {% if orders %}
+      <h2 style="margin-top:1.2rem">{{ title }} <span class="small muted">{{ orders|length }}</span></h2>
+      {% if note %}<p class="muted small">{{ note }}</p>{% endif %}
+      {% for order in orders %}
+        <div class="card" style="margin-bottom:.8rem">
+          <div class="page-head" style="margin-bottom:.4rem">
+            <div>
+              <h3 style="margin:0">{{ order.title }}</h3>
+              <p class="sub" style="margin:.15rem 0 0">
+                {{ order.get_kind_display }} &middot; {% include "_wo_status.html" %}
+                {% if order.scheduled_for %} &middot; {{ order.scheduled_for|date:"l, M j" }}{% endif %}
+              </p>
+            </div>
+          </div>
+          <p class="small"><strong>Where:</strong> {{ order.where_label }}</p>
+          {% with house=order.target_household %}
+            {% if house and house.navigate_url %}
+              <p class="small" style="margin:.2rem 0 .6rem">
+                <a class="btn btn-sm" href="{{ house.navigate_url }}" target="_blank" rel="noopener">Navigate (Google Maps)</a>
+                {% if house.visit_route_label %}<span class="muted">{{ house.visit_route_label }} by road</span>{% endif %}
+              </p>
+            {% endif %}
+          {% endwith %}
+          {% if order.details %}<p class="small">{{ order.details|linebreaksbr }}</p>{% endif %}
+
+          <form method="post" action="{% url 'assignment_update' order.pk %}">
+            {% csrf_token %}
+            <div class="field">
+              <label for="note-{{ order.pk }}">Note (optional)</label>
+              <textarea id="note-{{ order.pk }}" name="resolution_note" rows="2" placeholder="What you found or did">{{ order.resolution_note }}</textarea>
+            </div>
+            <div class="btn-row">
+              {% if order.status == 'scheduled' %}
+                <button type="submit" name="status" value="in_progress" class="btn">Start</button>
+              {% endif %}
+              <button type="submit" name="status" value="done" class="btn btn-primary">Mark done</button>
+            </div>
+          </form>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endfor %}
+
+  {% if not open_count %}
+    <div class="card"><p class="empty" style="margin:0">Nothing scheduled for you right now. New jobs from the administrator appear here.</p></div>
+  {% endif %}
+
+  {% if done_orders %}
+    <h2 style="margin-top:1.5rem">Recently finished</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Title</th><th>Kind</th><th>Where</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for order in done_orders %}
+            <tr>
+              <td>{{ order.title }}</td>
+              <td class="small">{{ order.get_kind_display }}</td>
+              <td class="small">{{ order.where_label }}</td>
+              <td>{% include "_wo_status.html" %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

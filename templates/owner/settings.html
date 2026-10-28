@@ -21,6 +21,106 @@
   <h1 class="owner-h1">Settings</h1>
 
   {% comment %}
+    My device. The owner connects the board themselves: the setup code came
+    to them by text/email at activation and is shown here, with the steps,
+    and the status below is polled so they can watch it go green from the
+    yard. Every state carries what to do about it.
+  {% endcomment %}
+  <section class="owner-section" id="device-section" data-device-poll="{% url 'owner_device_status' %}">
+    <h2>My device</h2>
+    <p class="set-lede">
+      The small board on your water line. It sends readings to the system once it is on your WiFi.
+    </p>
+
+    <div class="device-card" data-device="card" data-device-state="{{ device.key }}">
+      <div class="device-row">
+        <span class="pill pill-{{ device.tone }}" data-device="label" role="status" aria-live="polite">{{ device.label }}</span>
+        {% if device.device_id %}<span class="mono small muted" data-device="id">{{ device.device_id }}</span>{% endif %}
+      </div>
+      <p class="set-note device-note" data-device="note">{{ device.note }}</p>
+    </div>
+
+    {% comment %}
+      One button, worded for the state: the steps when there is a code to
+      enter, what to check when a working board has gone quiet, nothing at
+      all once readings are arriving. The dialog carries the code, the steps
+      and the actions, and repeats the live status so the owner can stay in
+      it until it says Connected.
+    {% endcomment %}
+    <div style="margin-top:.75rem">
+      <button type="button" class="owner-action" data-device="open" data-modal-open="device-modal"
+              {% if device.key == 'connected' or device.key == 'no_board' or device.key == 'awaiting_activation' %}hidden{% endif %}>
+        {% if device.key == 'lost' %}What to check{% elif device.key == 'claimed_silent' %}Set up again{% elif device.key == 'connecting' %}Setup steps{% else %}Set up my board{% endif %}
+      </button>
+    </div>
+  </section>
+
+  <div class="modal-backdrop" id="device-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="device-modal-title">
+      <div class="modal-inner">
+        <div class="modal-head">
+          <div>
+            <h2 id="device-modal-title">Set up your board</h2>
+            <p class="sub">
+              <span class="pill pill-sm pill-{{ device.tone }}" data-device="mlabel" role="status" aria-live="polite">{{ device.label }}</span>
+              {% if device.device_id %}<span class="mono small muted">{{ device.device_id }}</span>{% endif %}
+            </p>
+          </div>
+          <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p class="set-note" data-device="mnote" style="margin-top:0">{{ device.note }}</p>
+
+          <div data-device="code-box" {% if not device.code %}hidden{% endif %}>
+            <p class="set-lede" style="margin-bottom:.25rem">Your setup code</p>
+            <p class="setup-code mono" data-device="code">{{ device.code }}</p>
+            <p class="set-note">Works once. Expires <span data-device="expires">{{ device.code_expires }}</span>.</p>
+          </div>
+
+          <div data-device="steps" {% if not device.show_steps and not device.can_reissue and device.key != 'connecting' %}hidden{% endif %}>
+            <p class="set-lede" style="margin-bottom:.25rem">How to connect the board</p>
+            <ol class="device-steps">
+              <li>Plug in the board and wait about a minute.</li>
+              <li>On your phone, join the WiFi network <strong>{{ setup_ssid }}</strong> (password: <strong>{{ setup_password }}</strong>).</li>
+              <li>A setup page opens by itself. If it does not, open <strong>http://192.168.4.1/</strong> in your browser.</li>
+              <li>Choose your home WiFi, type its password, and enter your setup code. Leave the server address as it is.</li>
+              <li>Press <strong>Save</strong>. The board restarts and joins your WiFi; the setup network disappears.</li>
+            </ol>
+            <p class="set-note">Keep this open. Within a minute or two the status above should say Connected.</p>
+          </div>
+
+          <div data-device="trouble" {% if device.key != 'lost' and device.key != 'claimed_silent' %}hidden{% endif %}>
+            <p class="set-lede" style="margin-bottom:.25rem">What to check</p>
+            <ol class="device-steps">
+              <li>Is the board plugged in and its light on? After a power cut it reconnects by itself within a minute.</li>
+              <li>Is your home WiFi working, with internet? Try opening any website on your phone.</li>
+              <li>Did the WiFi name or password change? The board needs to be told: unplug it, wait two minutes, plug it in - the <strong>{{ setup_ssid }}</strong> network reappears and you can enter the new WiFi, without a code.</li>
+              <li>Still nothing after that? Contact the water system facilitator.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="modal-foot" style="justify-content:space-between">
+          <div class="set-row" style="margin:0">
+            <form method="post" action="{% url 'owner_device_resend' %}" data-device="resend" {% if not device.can_resend %}hidden{% endif %}>
+              {% csrf_token %}
+              <button type="submit" class="btn">Send the code to me again</button>
+            </form>
+            <form method="post" action="{% url 'owner_device_reissue' %}" data-device="reissue" {% if not device.can_reissue %}hidden{% endif %}>
+              {% csrf_token %}
+              <button type="submit" class="btn btn-primary">Get a new setup code</button>
+            </form>
+          </div>
+          <button type="button" class="btn" data-modal-close>Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% comment %}
     Install.
 
     Three states, decided in the browser because only the browser knows:
@@ -146,5 +246,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>SHL.initSettings();</script>
+<script>SHL.initSettings(); SHL.initOwnerDevice();</script>
 {% endblock %}

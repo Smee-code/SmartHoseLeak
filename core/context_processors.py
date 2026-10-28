@@ -3,7 +3,7 @@ from pathlib import Path
 
 from django.conf import settings
 
-from .models import Complaint, Notification
+from .models import Complaint, Notification, WorkOrder
 
 # Files the service worker keeps in its offline shell cache. Their combined
 # fingerprint names that cache, so editing any of them retires the old one.
@@ -40,22 +40,37 @@ def site_context(request):
         "SITE_NAME": settings.SITE_NAME,
         "SITE_LOCALE": settings.SITE_LOCALE,
         "LIVE_POLL_INTERVAL_MS": settings.LIVE_POLL_INTERVAL_MS,
+        "OTP_ENABLED": settings.OTP_ENABLED,
         "ASSET_VERSION": asset_version(),
         "is_facilitator": False,
+        "is_admin": False,
         "household": None,
         "unread_count": 0,
         "pending_complaint_count": 0,
+        "my_assignment_count": 0,
     }
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
         return context
 
     context["is_facilitator"] = user.is_facilitator
+    context["is_admin"] = user.is_admin
     if user.is_facilitator:
-        context["pending_complaint_count"] = Complaint.objects.filter(
-            status=Complaint.Status.PENDING
-        ).count()
-    else:
+        # Only this facilitator's barangay; a facilitator with none yet has
+        # no complaints to count.
+        barangay_id = getattr(user, "barangay_id", None)
+        context["pending_complaint_count"] = (
+            Complaint.objects.filter(
+                status=Complaint.Status.PENDING, household__barangay_id=barangay_id
+            ).count()
+            if barangay_id else 0
+        )
+        context["my_assignment_count"] = (
+            WorkOrder.objects.filter(assigned_to=user)
+            .exclude(status__in=WorkOrder.CLOSED_STATUSES)
+            .count()
+        )
+    if not user.is_facilitator:
         household = getattr(user, "household", None)
         context["household"] = household
         if household is not None:

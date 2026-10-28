@@ -1,0 +1,125 @@
+{% load static i18n %}
+{% comment %}
+  The sign-in dialog.
+
+  Included hidden on the landing page, where any Sign in button opens it in
+  place; included visible on /login/, so that page simply IS the dialog (it
+  is where a protected URL sends a signed-out visitor, and it works with no
+  JavaScript). `standalone` means it is the page itself: there is nothing
+  behind it to return to, so the x goes to the front page instead of
+  closing. A wrong password re-renders the landing page with this reopened
+  (data-modal-autoopen) and the error inside it, keeping the typed username
+  and the "next" destination.
+
+  It is deliberately the system's own door and not a generic login: the
+  mark and the name are in the head, and the one line of copy says the thing
+  a visitor actually needs - that there is one sign-in and it takes each
+  role to its own portal.
+{% endcomment %}
+<div class="modal-backdrop" id="login-modal"{% if not standalone %} hidden{% endif %}{% if login_modal_open %} data-modal-autoopen{% endif %}>
+  <div class="modal login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title" style="max-width:440px">
+    <form method="post" action="{% url 'login' %}" novalidate data-login-form>
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next|default:'' }}">
+
+      <div class="modal-head login-head">
+        <div class="login-brand">
+          <img src="{% static 'img/icon.svg' %}" alt="" width="36" height="36">
+          <div>
+            <h2 id="login-title">{% trans "Sign in" %}</h2>
+            <p class="sub">{{ SITE_NAME }}</p>
+          </div>
+        </div>
+        {% if standalone %}
+          <a class="icon-btn" href="{% url 'home' %}" aria-label="{% trans 'Back to the front page' %}">
+            <span aria-hidden="true">&times;</span>
+          </a>
+        {% else %}
+          <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        {% endif %}
+      </div>
+
+      <div class="modal-body">
+        {% comment %}
+          The error is a live alert and takes focus when the dialog reopens, so
+          it is read out and the visitor tabs straight on to the field. Both
+          fields are marked invalid because the sign-in check cannot say which
+          of the two was wrong - saying so would tell an attacker which
+          usernames exist.
+        {% endcomment %}
+        {% if login_failed %}
+          <div class="message message-error login-error" id="login-error" role="alert" tabindex="-1">
+            <span>{% if login_problem %}{{ login_problem }}{% else %}{% trans "The username or password is incorrect. Check both and try again." %}{% endif %}</span>
+          </div>
+        {% endif %}
+
+        <div class="field">
+          <label for="login-username">{% trans "Email or username" %}</label>
+          <div class="input-icon">
+            <svg class="ico" aria-hidden="true"><use href="#i-user"></use></svg>
+            <input type="text" id="login-username" name="username"
+                   value="{{ login_username|default:'' }}"
+                   autocomplete="username" autocapitalize="none" spellcheck="false"
+                   autofocus required{% if login_failed %} aria-invalid="true" aria-describedby="login-error"{% endif %}>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="login-password">{% trans "Password" %}</label>
+          {% comment %}
+            The eye shows or hides what was typed. On a phone, where most of
+            these are entered, a hidden password that fails is otherwise a
+            guessing game about which character was mistyped. The Caps Lock
+            line below answers the other usual cause while the key is held,
+            rather than after a failed attempt.
+          {% endcomment %}
+          <div class="input-icon pw-field">
+            <svg class="ico" aria-hidden="true"><use href="#i-lock"></use></svg>
+            <input type="password" id="login-password" name="password"
+                   autocomplete="current-password" required
+                   aria-describedby="login-caps{% if login_failed %} login-error{% endif %}"{% if login_failed %} aria-invalid="true"{% endif %}>
+            <button type="button" class="pw-toggle" data-password-toggle
+                    aria-label="{% trans 'Show password' %}" aria-pressed="false" title="{% trans 'Show password' %}">
+              <svg class="ico" aria-hidden="true"><use href="#i-eye"></use></svg>
+            </button>
+          </div>
+          <p class="helptext login-caps" id="login-caps" aria-live="polite" hidden data-caps-hint>{% trans "Caps Lock is on." %}</p>
+        </div>
+
+        {% if OTP_ENABLED %}
+          {% comment %}
+            Step two. The person chooses where the code goes before they are
+            known, so no choice reveals what is on file; if the one they pick
+            is not on the account the other is used and the code page says so.
+            The two channels are one decision - where does the code go - so
+            they sit in a single segmented toggle rather than a stacked list.
+          {% endcomment %}
+          <fieldset class="otp-choice">
+            <legend>{% trans "Send my 6-digit code by" %}</legend>
+            <div class="seg">
+              <input type="radio" id="otp-sms" name="otp_channel" value="sms" checked>
+              <label for="otp-sms"><svg class="ico" aria-hidden="true"><use href="#i-sms"></use></svg>{% trans "Text" %}</label>
+              <input type="radio" id="otp-email" name="otp_channel" value="email">
+              <label for="otp-email"><svg class="ico" aria-hidden="true"><use href="#i-mail"></use></svg>{% trans "Email" %}</label>
+            </div>
+            <label class="remember-device" for="remember-device">
+              <input type="checkbox" id="remember-device" name="remember_device" value="1">
+              <span>{% trans "Remember this device for 30 days" %}</span>
+            </label>
+          </fieldset>
+        {% endif %}
+
+        <p class="small muted login-help">
+          <a href="{% url 'password_reset' %}">{% trans "Forgot your password?" %}</a>
+          {% trans "We'll email a reset link to the address on your account." %}
+        </p>
+      </div>
+
+      <div class="modal-foot">
+        <button type="submit" class="btn btn-primary btn-block" data-login-submit>{% trans "Sign in" %}</button>
+      </div>
+    </form>
+  </div>
+</div>

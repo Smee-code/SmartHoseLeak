@@ -4,7 +4,7 @@ SMART HOSE LEAK DETECTION SYSTEM - OPERATOR GUIDE
 Keep this open when you are setting up. Everything you need to run the
 system, connect the ESP32, and fix the things that usually go wrong.
 
-Last updated: 16 September 2026 (per-household firmware)
+Last updated: 28 October 2026 (admin role + multi-barangay console)
 
 
 ============================================================================
@@ -71,11 +71,64 @@ To stop the server: press Ctrl+C in that terminal window.
 ============================================================================
 3. LOGINS
 ============================================================================
+  Administrator (admin console)     admin / <shown once by setup_demo>
   Facilitator (full dashboard)      facilitator / facilitator123
   Household owner (owner portal)    hh001 / demo12345
 
   ESP32 settings page (/wifi)       admin / leakadmin
   ESP32 setup hotspot               LeakDetect-Setup / leakdetect123
+
+THREE ROLES NOW, NOT TWO. setup_demo creates a separate "admin" login as
+well as the facilitator:
+
+  - Admin signs in and lands on the ADMIN CONSOLE at /console/. From there
+    they manage everything: facilitator accounts, household registration,
+    visit scheduling, every login in the system (suspend or delete),
+    announcements, analytics, data/backups, the audit log and maintenance.
+  - Sidebar -> Administration -> Households (/console/households/) is the
+    admin's register of households: a searchable list of everyone added,
+    with Edit and Delete on each row (both open as dialogs on the page),
+    and a "Register household" button that opens the registration dialog.
+    The admin enters the household in words only: owner, purok/street
+    (province, municipality and barangay are shown read-only - one barangay
+    is served), contact, email, notes. A hose line AND a new board are
+    registered with it automatically. It then shows "Pending activation" until
+    the facilitator activates it - adds the coordinates and creates the
+    owner's login (section 3e). The list shows who activated it and when.
+    Adding a facilitator works the same way on the Facilitators page
+    (/console/facilitators/): every facilitator is numbered FAC-001,
+    FAC-002 ... automatically on creation (never typed, never editable),
+    shown in the first column; Edit changes name/contact/email only (the
+    login, password and number stay), Delete removes the account - visits
+    assigned to that person stay on the schedule as Unassigned.
+    Deleting a household also removes its complaints, notices and the
+    owner's login; the hose line and its readings stay. Every add, edit and
+    delete is written to the audit log.
+  - EVERY ADD/EDIT FORM OPENS AS A DIALOG on the page it belongs to, for
+    all roles: register household / add facilitator / schedule a visit /
+    new announcement / edit a visit (on the visit's page) / edit a login's
+    contact details (Accounts), and on the facilitator side add/edit a
+    household (list and record pages) or a hose line. The Overview buttons
+    land on the right page with the dialog already open (?open=...).
+    Without JavaScript each button is still a plain link to a full-page
+    version of the same form.
+    Admin and facilitator are SEPARATE roles: an admin sees only the
+    console, not the facilitator dashboard.
+  - THE SYSTEM SERVES ONE BARANGAY (Lower Dakong Patag). Nothing asks which
+    barangay anything belongs to; records are attached to it automatically.
+    (The data model can hold more than one - that is simply switched off in
+    the screens.)
+  - A facilitator lands on the monitoring dashboard at /dashboard/ and works
+    inside their own barangay only. They CANNOT open the console.
+  - Neither role can open the other's pages; each is turned away with a 403.
+  - Any Django superuser is treated as an admin. The demo facilitator is not
+    a superuser, so it exercises the plain facilitator role.
+
+  setup_demo prints the admin password once when it first creates the
+  account. To set a known one:  python manage.py setup_demo --password <pw>
+  (that password is used for BOTH the admin and the facilitator on first
+  creation). A forgotten admin password is reset with createsuperuser or
+  "python manage.py changepassword admin".
 
 Households hh002-hh006 have generated passwords that cannot be recovered.
 To give an owner a new one: log in as facilitator, open the household, and
@@ -83,6 +136,275 @@ use the reset-password button on their record.
 
 CHANGE "leakadmin" AND "leakdetect123" BEFORE THE DEFENCE. They are the
 shipped defaults and are written in the firmware source.
+
+
+============================================================================
+3b. VISIT SCHEDULING
+============================================================================
+The admin schedules household visits; the facilitator carries them out.
+
+ADMIN  (console sidebar -> Visits -> Visit schedule -> "Schedule a visit")
+  Pick the household (it needs NO portal account yet - the text goes to the
+  number on its record), give the visit a title, choose the FACILITATOR and
+  the DATE. Saving with a facilitator chosen schedules it and TEXTS both the
+  household and the facilitator. Saved without a facilitator it waits as
+  "Requested" until one is assigned from the visit's page.
+  The console Overview shows the next visits; "All visits" lists them with a
+  status filter.
+
+FACILITATOR  (sidebar -> Schedule)
+  Who they will visit and when, grouped by day: Overdue, Today, Tomorrow,
+  Later this week, Later, Not yet scheduled. "Start" and "Mark done" with a
+  note. The dashboard carries a "Your schedule" card with the next three,
+  and each visit has a NAVIGATE link (section 3f).
+
+THE SMS
+  Uses the same SMS queue as everything else (section 9c). With no
+  credit or no API key the texts wait in the queue and go out later - the
+  visit is scheduled either way. So "scheduled but nobody got a text yet" is
+  usually the SMS queue, not a fault here.
+
+
+============================================================================
+3c. ANNOUNCEMENTS & ANALYTICS (admin console)
+============================================================================
+ANNOUNCEMENTS  (console sidebar -> Communications -> Announcements)
+  The admin's version of the facilitator's "Notices & SMS", but able to reach
+  more than one barangay. Pick an audience - every active household, one
+  barangay, or specific households - a title and a message, and the channels
+  (in the app, by SMS, or both). It is delivered the same way a facilitator
+  notice is: it shows up in each household's Notices feed, and SMS goes
+  through the same SMS queue (section 9c). The list is a history with
+  the reach of each one.
+
+PRESSURE & FLOW  (console sidebar -> Administration -> Pressure & flow)
+  The admin's read-only view of live pressure and flow for EVERY household,
+  across every barangay - the same tiles, table and history chart the
+  facilitator monitors, widened to the whole system. Export pressure log
+  (CSV) gives the last 24h of minute rollups. The facilitator acts on these;
+  the admin oversees them.
+
+ANALYTICS  (console sidebar -> Administration -> Analytics)
+  Headline totals plus simple bar charts across every barangay: households
+  and leak alerts per barangay, work orders by status and kind, complaints by
+  status, and SMS delivery. Leaks and SMS cover the last 30 days. The charts
+  are drawn in the page itself (no chart library), so they need no internet
+  and print cleanly for the defence.
+
+
+============================================================================
+3d. DATA & SYSTEM OPS (admin console)
+============================================================================
+DATA & BACKUPS  (console sidebar -> System -> Data & backups)
+  - Export: households, work orders and the audit log as CSV, across every
+    barangay, for the LGU's records.
+  - Import households: upload a CSV with a header row of owner_name, address,
+    contact_number and optionally barangay. Rows that name no barangay use
+    the one you pick on the page; a row with no owner_name is skipped.
+  - Backup: downloads a full JSON copy of the data. It contains sensitive
+    details (logins, device keys) - keep the file somewhere safe.
+  - Restore: upload a backup JSON. It OVERWRITES records that share an id with
+    the backup and adds any it is missing; it does NOT delete newer rows. You
+    must type RESTORE to confirm. Built on Django's dumpdata/loaddata.
+
+AUDIT LOG  (console sidebar -> System -> Audit log)
+  Who did what, and when: account suspensions and deletions, facilitator
+  creation, work-order approvals and rejections, announcements, backups,
+  restores and maintenance toggles. Write-once - there is no edit or delete.
+
+SYSTEM STATUS  (console sidebar -> System -> System status)
+  - Maintenance mode: turn it on to show households and facilitators a short
+    notice and keep them out while you work. The ADMIN CONSOLE and the DEVICE
+    INGEST stay live on purpose - you can still turn it off, and the boards
+    never stop recording water. Turn it off to let everyone back in.
+  - Recent errors: the last server errors, newest first, so a 500 leaves a
+    trace you can see here instead of only in the terminal. The full traceback
+    stays in the server log.
+
+
+============================================================================
+3e. THE FACILITATOR SIDE  (one barangay each)
+============================================================================
+A FACILITATOR SEES ONLY THEIR OWN BARANGAY. Every facilitator screen -
+dashboard, households, lines, pressure, alerts, complaints, notices & SMS,
+reports and exports, and the live map feed - shows only the barangay the
+admin assigned to their account. A link into another barangay's record
+simply comes back "not found". A facilitator with NO barangay assigned sees
+an empty dashboard with a notice saying so; the admin assigns one at
+Console -> Facilitators / Accounts.
+
+  - Each barangay has its OWN main water source (Lines page, top). The
+    facilitator places theirs; the map draws that barangay's hoses from it.
+  - Leak-alert texts go to the facilitator OF THAT LINE'S BARANGAY, not to
+    every facilitator in the system.
+
+EVERYTHING THE FACILITATOR COULD DO BEFORE STILL WORKS (households, lines,
+boards, alerts, complaints, notices, reports). New on top of it:
+
+TEXTING A HOUSEHOLD ITS LOGIN
+  REGISTERING A HOUSEHOLD IS A TWO-PERSON JOB.
+    1. The ADMIN enters the household during application (console ->
+       Households -> Register household): owner, purok/street, contact,
+       email, notes. The hose line and a new board are created at once.
+       No location, no login: the record shows "Pending activation".
+    2. The FACILITATOR opens Households (the dashboard's "Activate
+       households" button lists the pending ones; the search box finds a
+       name, ID, address or number), clicks ACTIVATE on the household, sees
+       what the admin entered read-only, types the LATITUDE and LONGITUDE
+       of the house, and clicks Create account. That creates the Owner
+       Portal login: the username and temporary password are shown once
+       and sent to the household by text and, if it has an email, by
+       email. The owner is asked to change the password on first sign-in.
+       ACTIVATION NEEDS A BOARD on the household's line (the row says
+       "Register board" until there is one): the board's setup code is
+       issued at the same moment and sent to the owner as a second text /
+       email. The OWNER connects the board to their own WiFi - section 9d.
+    The admin's list shows who activated each household and when. The
+    facilitator can still Edit a household (including its coordinates) and
+    reset or re-send a password from the household's record.
+
+SCHEDULE  (sidebar -> Schedule)
+  Who you will visit and when, grouped by day: Overdue, Today, Tomorrow,
+  Later this week, Later, Not yet scheduled. "Start" and "Mark done" with a
+  note. The dashboard carries a "Your schedule" card with the next three.
+
+NOTICES BY EMAIL
+  Notices & SMS has a third tick, "Also send by email", for households with
+  an email on their record (or on their login). Needs the mailbox in
+  section 3g; without it the email is printed to the server terminal.
+
+
+============================================================================
+3f. VISIT ROUTES ON THE MAP, AND NAVIGATE
+============================================================================
+TWO KINDS OF LINE ON THE LEAK MAP
+  - SOLID line  = the hose. It runs cross-country from the source and is
+                  drawn STRAIGHT on purpose: it means "this house is on this
+                  hose", not "this is the path of the pipe".
+  - DOTTED line = the VISIT ROUTE: the road from the barangay's water source
+                  to the house, for a facilitator going out there. Tick
+                  "Visit routes" above the map to show or hide them.
+
+WHERE ROUTES COME FROM
+  Fetched ONCE from OpenRouteService (a free routing service) when a
+  household's coordinates are saved - or when the barangay's water source is
+  moved - and stored on the household. The map then draws them with no
+  internet and no further calls, exactly like the hoses.
+
+SETTING IT UP  (once)
+  1. Sign up free at openrouteservice.org and copy your API key.
+  2. Put it in .env:
+         ORS_API_KEY=your-key-here
+  3. Restart the server.
+  4. For households surveyed BEFORE the key existed:
+         python manage.py fetch_routes          (only the ones without a route)
+         python manage.py fetch_routes --all    (redo every one)
+  Without a key nothing is fetched and the map simply shows no routes; the
+  hoses and everything else are unaffected. The household record says why
+  ("No OpenRouteService key set").
+
+ON THE HOUSEHOLD RECORD  ("Getting there")
+  The route's length and time by road, a "Fetch route / Refetch route"
+  button for when the first attempt failed, and NAVIGATE.
+
+NAVIGATE  (household record, Schedule cards, admin work order, map pins)
+  Opens Google Maps directions on the phone, from the water source to the
+  house - real turn-by-turn, in the app people already have. Needs no key.
+  This is the thing that actually gets someone to the door; the dotted route
+  is the overview.
+
+A CAVEAT ABOUT RURAL ROADS
+  OpenStreetMap's road data around Sison is thin in places. A house on a
+  footpath the map does not know about routes to the nearest known road and
+  ends in a short straight stub. That is the map data, not a fault - use
+  Navigate for the last stretch. ROUTING_PROFILE=foot-walking in .env makes
+  the service use footpaths where it has them.
+
+
+============================================================================
+3g. SIGN-IN CODES (OTP), EMAIL, AND THE APP ON EVERY PHONE
+============================================================================
+SIGNING IN NOW HAS TWO STEPS, FOR EVERY ROLE
+  1. EMAIL OR USERNAME, plus password. Either identifier works: households
+     built on short usernames (hh002) still use those; anyone with an email
+     on their account can type that instead. (Email only resolves when one
+     account carries it; it is not forced to be unique on the table.) On the
+     sign-in dialog, pick where the code should go - Text or Email - and
+     optionally "Remember this device for 30 days".
+  2. A 6-DIGIT CODE arrives by text (iprogSMS) or email. Type it in. It is
+     good for 10 MINUTES and 5 wrong guesses; "Send a new code" is allowed
+     once a minute and can switch channel.
+
+  FORGOT A PASSWORD: the "Forgot your password?" link on the sign-in dialog
+  emails a one-time reset link to the address on the account. The link is
+  built from the host the page was opened on, so open it through the public
+  tunnel (not 127.0.0.1) for a link that works off this machine. Accounts
+  with no email on file cannot self-reset - a facilitator sets a new password
+  from the household record (section above), or use Django admin.
+
+  If the channel you picked is not on your account (no email, say), the
+  other one is used and the code page says where it went. An account with
+  NEITHER a number nor an email signs in on the password alone, with a
+  warning - add one in the console (Accounts) or Django admin.
+
+  REMEMBER THIS DEVICE sets a signed cookie on that browser for 30 days;
+  signing out does not clear it (the device is trusted, not the session).
+  Clearing the browser's cookies does.
+
+  IN DEVELOPMENT (DEBUG=True) THE CODE IS ALSO SHOWN ON THE SIGN-IN PAGE,
+  so a demo never depends on SMS credit or a mailbox. Never in production.
+  To switch the step off entirely: OTP_ENABLED=False in .env.
+
+EMAIL  (one-time setup, about 5 minutes)
+  Sign-in codes by email, and "Also send by email" on notices and
+  announcements, go out from the project mailbox smarthoseleak@gmail.com.
+  It needs an APP PASSWORD, which is a 16-letter code Google issues for
+  one program - not the Gmail password:
+
+    1. Sign in to Gmail as smarthoseleak@gmail.com.
+    2. Google Account -> Security -> turn on 2-Step Verification (required).
+    3. Google Account -> Security -> 2-Step Verification -> App passwords
+       (or search "App passwords" in the account settings). Name it
+       "Smart Hose Leak", click Create, copy the 16 letters.
+    4. In .env, paste it (spaces or not, both work):
+          EMAIL_HOST_USER=smarthoseleak@gmail.com       (already there)
+          EMAIL_HOST_PASSWORD=abcd efgh ijkl mnop
+    5. Restart the server, then prove it:
+          python manage.py send_email your.own@address.com
+       It says "Sent" and the message arrives (check spam the first time).
+
+  Admin console -> System status -> Services shows whether email, SMS and
+  routes are set up, in one place. Until the app password is in, every
+  email is PRINTED TO THE SERVER TERMINAL instead of sent, the pages say
+  email is not set up, and a sign-in code by email that cannot be sent is
+  reported as such (it is not claimed as sent).
+  Households get an email address on their record (Add/Edit household);
+  facilitators on their account (console -> Facilitators -> Add).
+
+LANGUAGE: ENGLISH / FILIPINO
+  A small EN/FIL switch sits in the top bar on every page. It stores the
+  choice in a cookie (django_language) and is also honoured from the
+  browser's language setting. Translated so far: the public landing page and
+  the whole sign-in flow (login, the code step, and password reset). The rest
+  of the app stays English; untranslated text simply shows in English.
+
+  Strings are Django's gettext catalogs under locale/fil/. To change or add
+  Filipino wording, edit locale/fil/LC_MESSAGES/django.po, then compile:
+        python manage.py compilemessages -l fil
+  After wrapping NEW text in a template ({% trans "..." %} or
+  {% blocktrans %}...{% endblocktrans %}, with {% load i18n %} at the top),
+  re-extract first:
+        python manage.py makemessages -l fil --ignore=.venv --ignore=staticfiles
+  Both need GNU gettext on PATH (msgfmt/xgettext; MinGW provides them here).
+  Restart the server after compiling.
+
+THE APP ON EVERY PHONE
+  All three roles can install the app (the same one). On an https address
+  the user menu (top right) shows "Install the app on this device" when
+  the browser offers it; the public landing page has the install button for
+  households. The installed icon opens straight into whichever portal the
+  signed-in person belongs to. Section 12f has the https requirement and
+  the iPhone steps.
 
 
 ============================================================================
@@ -423,7 +745,7 @@ NOTES
 9c. SENDING SMS  (Notices & SMS tab)
 ============================================================================
 WHAT SENDS IT
-  Semaphore (semaphore.co), a Philippine SMS gateway, over the internet.
+  Semaphore (iprogsms.com), a Philippine SMS gateway, over the internet.
   There is NO GSM module on the server any more.
 
   The earlier plan was a SIM800L plugged into this laptop. It was dropped
@@ -437,11 +759,11 @@ WHAT SENDS IT
   reach the server at all. Different module, different job.
 
 SETTING IT UP  (about 5 minutes)
-  1. Sign up at semaphore.co. They give trial credits.
+  1. Sign up at iprogsms.com. They give trial credits.
   2. Copy your API key.
   3. Put it in .env in the project folder:
 
-         SEMAPHORE_API_KEY=your-key-here
+         IPROGSMS_API_TOKEN=your-key-here
 
   4. Restart the server. It prints:
 
@@ -455,14 +777,14 @@ SETTING IT UP  (about 5 minutes)
          Texts are going out, but credit is low - 12 left.   top up soon
          There is no SMS credit left, so no text can be sent.    AMBER
 
-  The last one is a stop, not a warning: at zero credit Semaphore refuses
+  The last one is a stop, not a warning: at zero credit the gateway refuses
   every send with "402: insufficient credit". Messages you send are still
   written down and still go out after you top up - nothing is lost, it just
   waits. Only that state is coloured; a working gateway is a quiet grey line,
   so colour on this page always means something needs you.
 
-  The balance is looked up at most once every 5 minutes. Semaphore rate-
-  limits that call hard, and being told "too many attempts" instead of a
+  The balance is looked up at most once every 5 minutes. iprogSMS rate-
+  limits that call, and being told "too many attempts" instead of a
   number would be worse than a number a few minutes old. A top-up therefore
   takes up to 5 minutes to show.
 
@@ -557,21 +879,60 @@ CHECKING IT FROM THE TERMINAL
 
 
 ============================================================================
-9d. SETTING UP A BOARD  (claim code - no re-flashing, no laptop)
+9d. SETTING UP A BOARD  (the OWNER does it - claim code, no laptop)
 ============================================================================
 The SAME sketch goes on every board. What makes a board belong to a household
-is a short claim code typed on its own setup page.
+is a short setup (claim) code typed on the board's own setup page - and the
+HOUSEHOLD OWNER types it, on their own phone, with their own WiFi password.
+Nobody else needs to know that password.
 
-  1. Dashboard -> Households -> Add household, and pick "Register a new
-     board". The claim code is shown, e.g. Q9B-G3G. It is also on
-     Dashboard -> Lines -> Devices, in the Claim code column.
-  2. Power the board. Join its "LeakDetect-Setup" WiFi on a phone.
-     (Password: leakdetect123 - CHANGE THIS before deployment.)
-  3. Enter: the household's WiFi network, its password, and the claim code.
-     The server address is already filled in - leave it alone.
-  4. Save. The board reboots, joins the WiFi, hands the code to the server,
-     and receives its real ID and key.
-  5. Open http://<board-ip>/ . The top row should say "Claimed as esp32-01".
+HOW THE CODE REACHES THEM
+  1. Admin -> Households -> Register household. A new board is registered
+     with every household automatically (for an older record without one,
+     the facilitator presses REGISTER BOARD on the household's row).
+  2. Facilitator -> Households -> ACTIVATE (needs a board - the button says
+     "Register board" until there is one). Entering the coordinates and
+     pressing Create account does three things: creates the owner's login,
+     issues the board's setup code, and sends the owner TWO messages by text
+     and (if on file) email - the login, and the setup code with the steps.
+     The facilitator's screen shows both too, for telling the owner in person.
+  3. Owner -> signs in -> Settings -> MY DEVICE. A live status card, and a
+     "Set up my board" button that opens a dialog with the code, the steps
+     and the resend / new-code actions (the status is repeated inside it, so
+     the owner can keep it open until it says Connected). Once connected the
+     button disappears; if the board later goes quiet it becomes "What to
+     check" and opens the troubleshooting steps instead.
+
+WHAT THE OWNER DOES  (also in their Settings page)
+  1. Plug in the board, wait about a minute.
+  2. On the phone, join WiFi "LeakDetect-Setup", password leakdetect123
+     (BOARD_SETUP_SSID / BOARD_SETUP_PASSWORD in .env - change them with the
+     firmware before deployment).
+  3. The setup page opens by itself; otherwise http://192.168.4.1/
+  4. Choose the home WiFi, type its password, enter the setup code. Leave
+     the server address alone - the board finds the server itself (sec 5).
+  5. Save. The board reboots and joins; the setup hotspot disappearing means
+     it worked. Settings > My device turns to CONNECTED within a minute.
+
+THE STATUS CARD  (Settings > My device, updates every 5 s)
+  No board fitted yet              nothing on the line - facilitator's job
+  Board fitted, awaiting activation  the facilitator has not activated yet
+  Ready to set up                  code shown; follow the steps
+  Setup code expired               codes last 14 days; "Get a new setup code"
+  Connecting...                    code accepted, waiting for first readings
+  Problem: not sending readings    code accepted >3 min ago, nothing arrived:
+                                   WiFi has no internet, or board unpowered.
+                                   A new code can be requested.
+  Connected                        readings arriving (last heard N ago)
+  Problem: connection lost         silent >3 min after having worked: power
+                                   cut, WiFi down, or WiFi password changed
+  The owner can re-send the current code or get a new one ONLY until the
+  board has connected once. After that, a new code (which lets a blank
+  board take over this identity) is the facilitator's call: Lines ->
+  Devices -> Issue code.
+  The facilitator is TEXTED when a board sends its first reading, and the
+  same state shows on the household's record and the admin's Households
+  list, so an owner who is stuck is visible without a phone call.
 
 YOU NEVER TYPE THE API KEY. The board fetches it. A key is 43 mixed-case
 characters and mistyping one gives a 401, which on the serial monitor looks
@@ -580,22 +941,23 @@ exactly like a wrong server address.
 WHEN A CODE DOES NOT WORK
   "could not reach the server"   The WiFi has no INTERNET, or the server is
                                  not running. WiFi alone is not enough.
-  "already been used"            Codes work once. Issue a new one from
+  "already been used"            Codes work once. The owner gets a new one
+                                 from Settings > My device (before the board
+                                 has connected) or the facilitator from
                                  Dashboard -> Lines -> Devices.
-  "has expired"                  Codes last 14 days. Issue a new one.
+  "has expired"                  Codes last 14 days. Same two places.
 
   Watch the serial monitor while it tries - it prints [CLAIM] lines.
 
 REPLACING A DEAD BOARD
   Flash the spare with the same sketch, issue a new claim code for that
-  household's board on the dashboard, and enter it. The household keeps its
-  history.
+  household's board on the dashboard (Lines -> Devices -> Issue code), and
+  enter it on the spare's setup page. The household keeps its history.
 
 A NOTE ON "FORGET SAVED NETWORK"
   It now forgets ONLY the network. The board's identity, the server address,
   the zero offsets and the thresholds are kept. Before this it wiped all of
   them, which is why zeroing appeared to be lost after a network change.
-
 
 ============================================================================
 9f. BENCH TESTING WITHOUT THE VALVE OR THE GSM MODULE
@@ -723,6 +1085,8 @@ Run these from D:\USB Drive\SmartHoseLeak with the venv activated.
     python manage.py migrate                  apply database changes
     python manage.py createsuperuser          make an admin login
     python manage.py setup_demo               rebuild demo data (SEE BELOW)
+                                              (creates the admin + facilitator
+                                               logins and the founding barangay)
     python manage.py mark_offline             log an offline event now
     python manage.py prune_rollups            delete history over 90 days
 
@@ -1318,8 +1682,8 @@ WHEN A HOUSEHOLD SAYS THEY GET NOTHING
                       entered on the board via a claim code (section 9d).
                       Both are on Dashboard -> Lines -> Devices.
 
-  SMS                 Semaphore gateway (semaphore.co) over the internet.
-                      Needs SEMAPHORE_API_KEY in .env - section 9c.
+  SMS                 Semaphore gateway (iprogsms.com) over the internet.
+                      Needs IPROGSMS_API_TOKEN in .env - section 9c.
                       No GSM module on the server.
 
   Notifications       Web Push, keys made by "manage.py make_push_keys"
@@ -1365,7 +1729,7 @@ WHEN A HOUSEHOLD SAYS THEY GET NOTHING
       decay), and the motorised valve. The server side is already built and
       accepts severity, trigger and valve_state.
   [ ] Buy and fit the motorised ball valves and 2-channel relays
-  [ ] Sign up at semaphore.co and put SEMAPHORE_API_KEY in .env, so SMS
+  [ ] Sign up at iprogsms.com and put IPROGSMS_API_TOKEN in .env, so SMS
       actually leaves the queue (section 9c)
   [ ] Put a contact number on the facilitator account (Django admin ->
       Users), or their copy of every leak alert is silently skipped
@@ -1558,9 +1922,8 @@ CHANGE LOG OF THIS GUIDE
              green on every load, including the load where it read "LOW
              CREDIT: 0 left" - the one state in which nothing can be sent
              looked the most reassuring. It is amber and plainly worded now,
-             a working gateway is a quiet grey line, and the Semaphore
-             billing account name has been dropped from the sentence. See
-             section 9c.
+             a working gateway is a quiet grey line, and the gateway
+             account name is not shown in the status line. See section 9c.
 
 11 Sep 2026  First version. Covers startup, WiFi setup, server address,
              troubleshooting, calibration, commands and key values.
@@ -1594,7 +1957,7 @@ CHANGE LOG OF THIS GUIDE
              retyped it. It now asks the network, and re-asks whenever
              uploads stop getting through. See section 5.
 
-16 Sep 2026  SMS now goes through the Semaphore gateway instead of a SIM800L
+16 Sep 2026  SMS now goes through the iprogSMS gateway instead of a SIM800L
              plugged into this machine. The modem was chosen for costing
              nothing per message, but pyserial can only open a port on the
              machine running the code, so the modem and the server would have

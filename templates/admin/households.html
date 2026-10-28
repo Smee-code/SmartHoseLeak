@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block title %}Households - {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      {% comment %}
+        The administrator's register of households: what has been added,
+        with edit and delete on each row, and the way to add one. The
+        register dialog lives here - the sidebar brings you to this list,
+        not straight into a form.
+      {% endcomment %}
+      <h1>Households <span class="count-chip">{{ total }}</span></h1>
+      <p class="sub">Register a household during application. The facilitator then activates it: confirms its location and creates the owner's login.</p>
+    </div>
+    <div class="btn-row">
+      <a class="btn btn-sm" href="{% url 'export_console' 'households' %}">Export CSV</a>
+      {# Opens the dialog below; without JavaScript it is a plain link to the full page. #}
+      <a class="btn btn-primary btn-sm" href="{% url 'admin_household_create' %}" data-modal-open="household-modal">Register household</a>
+    </div>
+  </div>
+
+  <form method="get" class="filters filters-inline">
+    <div class="field">
+      <label for="q">Search</label>
+      <input type="search" id="q" name="q" value="{{ query }}" placeholder="ID, name, address or contact">
+    </div>
+    <button type="submit" class="btn">Filter</button>
+    {% if query %}<a class="btn" href="{% url 'admin_household_list' %}">Clear</a>{% endif %}
+  </form>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Household ID</th><th>Owner</th><th>Address</th><th>Contact</th>
+            <th>Email</th><th>Line</th><th>Status</th><th>Activated</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for household in page %}
+          <tr>
+            <td class="hh-id"><strong>{{ household.household_id }}</strong></td>
+            <td class="hh-owner">{{ household.owner_name }}</td>
+            <td class="small">{{ household.address }}</td>
+            <td class="nowrap small">{{ household.contact_number }}</td>
+            <td class="small">{{ household.email|default:"&mdash;" }}</td>
+            <td class="small">
+              {% if household.segment %}{{ household.segment.name }}
+                {% with setup=household.device_setup %}<div class="pill pill-sm pill-{{ setup.tone }}">{{ setup.label }}</div>{% endwith %}
+              {% else %}<span class="muted">Unassigned</span>{% endif %}
+            </td>
+            <td>
+              {% if household.is_pending %}
+                <span class="pill pill-warn">Pending activation</span>
+              {% else %}
+                <span class="pill {% if household.account_status == 'active' %}pill-ok{% else %}pill-muted{% endif %}">
+                  {{ household.get_account_status_display }}
+                </span>
+              {% endif %}
+            </td>
+            <td class="small">
+              {% if household.is_pending %}
+                <span class="muted">awaiting the facilitator</span>
+              {% else %}
+                {% if household.user %}<span class="mono">{{ household.user.username }}</span>{% endif %}
+                {% if household.activated_at %}
+                  <div class="muted">{{ household.activated_at|date:"M j, Y" }}{% if household.activated_by %} by {{ household.activated_by.get_full_name|default:household.activated_by.username }}{% endif %}</div>
+                {% endif %}
+              {% endif %}
+            </td>
+            {% comment %}
+              One shared edit dialog and one shared delete dialog are filled
+              from these attributes on click (app.js), rather than a pair of
+              dialogs per row. The href stays a working link without JavaScript.
+            {% endcomment %}
+            <td class="right">
+              <div class="btn-row" style="justify-content:flex-end;flex-wrap:nowrap">
+                <a class="btn btn-sm" href="{% url 'admin_household_edit' household.pk %}"
+                   data-edit-household
+                   data-action="{% url 'admin_household_edit' household.pk %}"
+                   data-hid="{{ household.household_id }}"
+                   data-owner="{{ household.owner_name }}"
+                   data-address="{{ household.address }}"
+                   data-contact="{{ household.contact_number }}"
+                   data-email="{{ household.email }}"
+                   data-segment="{{ household.segment_id|default_if_none:'' }}"
+                   data-status="{{ household.account_status }}"
+                   data-lat="{{ household.latitude|default_if_none:'' }}"
+                   data-lng="{{ household.longitude|default_if_none:'' }}"
+                   data-notes="{{ household.notes }}">Edit</a>
+                <button type="button" class="btn btn-sm btn-quiet-danger"
+                        data-delete-household
+                        data-action="{% url 'admin_household_delete' household.pk %}"
+                        data-hid="{{ household.household_id }}"
+                        data-owner="{{ household.owner_name }}"
+                        data-login="{% if household.user %}{{ household.user.username }}{% endif %}"
+                        data-complaints="{{ household.complaint_count }}"
+                        data-notices="{{ household.notification_count }}">Delete</button>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9" class="empty">
+            {% if query %}No households match this search.{% else %}No households yet. <a href="{% url 'admin_household_create' %}" data-modal-open="household-modal">Register the first one</a>.{% endif %}
+          </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page.has_other_pages %}
+    <div class="pager">
+      {% if page.has_previous %}<a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;q={{ query }}">Previous</a>{% endif %}
+      <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;q={{ query }}">Next</a>{% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{% comment %}
+  Register dialog. Posts to the same view as the standalone page, so the hose
+  line, the optional board and the optional owner login behave identically;
+  on error this page re-renders with the dialog reopened and the values
+  intact. ?open=household opens it on arrival.
+{% endcomment %}
+<div class="modal-backdrop" id="household-modal" hidden
+     {% if create_form_errors or open_modal == 'household' %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="household-modal-title">
+    <form method="post" action="{% url 'admin_household_create' %}" novalidate>
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="household-modal-title">Register a household</h2>
+          <p class="sub">A hose line and a new board come with it. The facilitator adds the location and creates the owner's login when they activate it.</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        {% if create_form.non_field_errors %}
+          <div class="message message-error"><span>{{ create_form.non_field_errors }}</span></div>
+        {% endif %}
+
+        <div class="field">
+          <label>Household ID</label>
+          <p class="assigned-id mono">{{ next_household_id }}</p>
+          <span class="helptext">Assigned automatically when you save.</span>
+        </div>
+
+        {% include "_form_field.html" with field=create_form.owner_name %}
+        {% comment %}
+          One barangay served: the province, municipality and barangay are
+          facts, not questions. Only the part that differs house to house is
+          asked for.
+        {% endcomment %}
+        <div class="field-pair">
+          <div class="field">
+            <label>Province</label>
+            <input type="text" value="{{ barangay.province }}" readonly aria-readonly="true" tabindex="-1">
+          </div>
+          <div class="field">
+            <label>Municipality</label>
+            <input type="text" value="{{ barangay.municipality }}" readonly aria-readonly="true" tabindex="-1">
+          </div>
+        </div>
+        <div class="field">
+          <label>Barangay</label>
+          <input type="text" value="{{ barangay.name }}" readonly aria-readonly="true" tabindex="-1">
+        </div>
+        {% include "_form_field.html" with field=create_form.address %}
+        {% include "_form_field.html" with field=create_form.contact_number %}
+        {% include "_form_field.html" with field=create_form.email %}
+        {% include "_form_field.html" with field=create_form.account_status %}
+        {% include "_form_field.html" with field=create_form.notes %}
+
+        <fieldset class="channel-box">
+          <legend class="small">Hardware</legend>
+          <p class="helptext" style="margin:0">
+            A hose line and a new monitoring board are registered for this household automatically.
+            The board's setup code is sent to the owner when the facilitator activates the household;
+            the owner connects it to their own WiFi.
+          </p>
+        </fieldset>
+
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Register household</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% comment %}
+  Shared edit dialog: its action and values are set from the clicked row;
+  when a save fails validation the server re-renders it bound, errors in place.
+{% endcomment %}
+<div class="modal-backdrop" id="household-edit-modal" hidden
+     {% if edit_form_errors %}data-modal-autoopen{% endif %}>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="household-edit-title">
+    <form method="post" id="household-edit-form"
+          action="{% if edit_household %}{% url 'admin_household_edit' edit_household.pk %}{% endif %}">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="household-edit-title">Edit household</h2>
+          <p class="sub" data-edit-subtitle>{% if edit_household %}{{ edit_household.household_id }}{% endif %}</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        {% if edit_form.non_field_errors %}
+          <div class="message message-error">{{ edit_form.non_field_errors }}</div>
+        {% endif %}
+        {% include "_form_field.html" with field=edit_form.owner_name %}
+        {% comment %}
+          One barangay served: the province, municipality and barangay are
+          facts, not questions. Only the part that differs house to house is
+          asked for.
+        {% endcomment %}
+        <div class="field-pair">
+          <div class="field">
+            <label>Province</label>
+            <input type="text" value="{{ barangay.province }}" readonly aria-readonly="true" tabindex="-1">
+          </div>
+          <div class="field">
+            <label>Municipality</label>
+            <input type="text" value="{{ barangay.municipality }}" readonly aria-readonly="true" tabindex="-1">
+          </div>
+        </div>
+        <div class="field">
+          <label>Barangay</label>
+          <input type="text" value="{{ barangay.name }}" readonly aria-readonly="true" tabindex="-1">
+        </div>
+        {% include "_form_field.html" with field=edit_form.address %}
+        {% include "_form_field.html" with field=edit_form.contact_number %}
+        {% include "_form_field.html" with field=edit_form.email %}
+        {% include "_form_field.html" with field=edit_form.account_status %}
+        {% include "_form_field.html" with field=edit_form.notes %}
+        <p class="helptext">The location on the map is set by the facilitator at activation and kept on their side.</p>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% comment %}
+  Shared delete confirmation. Names what else disappears, because complaints,
+  notices and the owner's login go with the household and none of that is
+  recoverable from this screen.
+{% endcomment %}
+<div class="modal-backdrop" id="household-delete-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="household-delete-title" style="max-width:460px">
+    <form method="post" id="household-delete-form" action="">
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="household-delete-title">Delete household?</h2>
+          <p class="sub" data-delete-subtitle></p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>This cannot be undone. Deleting <strong data-delete-name></strong> also removes:</p>
+        <ul class="delete-list" data-delete-list></ul>
+        <p class="small muted">
+          Readings and leak events are recorded against the hose line, not the household, so the line's history is not affected.
+        </p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-danger">Delete household</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

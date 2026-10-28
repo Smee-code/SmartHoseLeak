@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}New announcement - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>New announcement</h1>
+      <p class="sub">Reaches households in the app, by SMS, or both. The same words go out on each channel.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="message message-error"><span>{{ form.non_field_errors }}</span></div>
+      {% endif %}
+
+      <div class="field">
+        <label>{{ form.audience.label }}</label>
+        {% for choice in form.audience %}
+          <div class="check-row">{{ choice.tag }}
+            <label for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
+          </div>
+        {% endfor %}
+        {{ form.audience.errors }}
+      </div>
+
+      <details class="set-steps">
+        <summary>Choose specific households (only used for the "Selected households" audience)</summary>
+        <div class="field" style="margin-top:.5rem">
+          {{ form.households }}
+          {{ form.households.errors }}
+        </div>
+      </details>
+
+      {% include "_form_field.html" with field=form.title %}
+      {% include "_form_field.html" with field=form.body %}
+
+      <fieldset class="channel-box">
+        <legend class="small">How to send it</legend>
+        {% include "_form_field.html" with field=form.in_app %}
+        {% include "_form_field.html" with field=form.by_sms %}
+        {% include "_form_field.html" with field=form.by_email %}
+      </fieldset>
+
+      <div class="btn-row" style="margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Send announcement</button>
+        <a class="btn" href="{% url 'announcement_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

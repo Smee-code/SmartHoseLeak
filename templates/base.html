@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load static i18n %}<!doctype html>
 <html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
@@ -6,9 +6,32 @@
   <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
   <meta name="description" content="Automated leak detection and water supply monitoring for {{ SITE_LOCALE }}.">
   <meta name="theme-color" content="#0b6ea8">
-  <link rel="manifest" href="{% url 'manifest' %}">
   <link rel="icon" href="{% static 'img/icon.svg' %}" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="{% static 'img/icon-192.png' %}">
+  {% comment %}
+    Every role can install the app: the manifest and the install prompt are
+    on every page. The manifest starts at /post-login/, which sends each
+    role to its own portal, so one installed icon serves the administrator,
+    the facilitator and the household alike.
+  {% endcomment %}
+  {% if True %}
+    <link rel="manifest" href="{% url 'manifest' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/icon-192.png' %}">
+    <script>
+      /* Catch the install prompt as early as possible. The browser can fire it
+         during load, before app.js runs at the end of the page, so holding it
+         here means the one-tap install button is never missed. */
+      window.__shlInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__shlInstallPrompt = e;
+        document.dispatchEvent(new CustomEvent('shl-install-available'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__shlInstallPrompt = null;
+        document.dispatchEvent(new CustomEvent('shl-installed'));
+      });
+    </script>
+  {% endif %}
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ ASSET_VERSION }}">
   {% block head %}{% endblock %}
   <script>
@@ -24,7 +47,7 @@
     })();
   </script>
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}" data-portal="{% if is_admin %}admin{% elif is_facilitator %}facilitator{% elif user.is_authenticated %}owner{% else %}public{% endif %}">
 
 <a class="skip-link" href="#main">Skip to main content</a>
 
@@ -39,6 +62,17 @@
   <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H14a4 4 0 0 1 0 8h-4a4 4 0 0 0 0 8h.5" transform="translate(0 -2)"/></symbol>
   <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 17v-5"/><path d="M13 17V8"/><path d="M18 17v-8"/></symbol>
   <symbol id="i-cog" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H2a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H22a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.5 7-11a7 7 0 1 0-14 0c0 4.5 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6.1"/><path d="M17 14.3A5.5 5.5 0 0 1 20.5 19"/></symbol>
+  <symbol id="i-id" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M5.8 16a3 3 0 0 1 5.4 0"/><path d="M14 10h4"/><path d="M14 13.5h4"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.9A9.8 9.8 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-3.2 3.9"/><path d="M6.6 6.6A16 16 0 0 0 2.5 12s3.5 6.5 9.5 6.5a9.6 9.6 0 0 0 4.4-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-trend-up" viewBox="0 0 24 24"><path d="M4 16l5-5 4 4 7-7"/><path d="M14 8h6v6"/></symbol>
+  <symbol id="i-trend-down" viewBox="0 0 24 24"><path d="M4 8l5 5 4-4 7 7"/><path d="M14 16h6v-6"/></symbol>
+  <symbol id="i-sms" viewBox="0 0 24 24"><path d="M20 14.5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5V6.5A2.5 2.5 0 0 1 7.5 4h10A2.5 2.5 0 0 1 20 6.5z"/><path d="M8.5 10.5h7"/><path d="M8.5 13.5h4"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="M4.5 7.5 12 12.5l7.5-5"/></symbol>
 </svg>
 
 <div class="appshell{% if not user.is_authenticated %} appshell-plain{% endif %}">
@@ -63,7 +97,48 @@
       </div>
 
       <nav class="sidenav-nav" aria-label="Sections">
-        {% if is_facilitator %}
+        {% if is_admin %}
+          <p class="sidenav-group">Administration</p>
+          <a href="{% url 'console_dashboard' %}" {% if request.resolver_match.url_name == 'console_dashboard' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg><span>Overview</span>
+          </a>
+          <a href="{% url 'admin_pressure' %}" {% if request.resolver_match.url_name == 'admin_pressure' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>Pressure &amp; flow</span>
+          </a>
+          <a href="{% url 'analytics' %}" {% if request.resolver_match.url_name == 'analytics' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-chart"></use></svg><span>Analytics</span>
+          </a>
+          <a href="{% url 'facilitator_list' %}" {% if 'facilitator' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-users"></use></svg><span>Facilitators</span>
+          </a>
+          <a href="{% url 'admin_household_list' %}" {% if 'admin_household' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-home"></use></svg><span>Households</span>
+          </a>
+          <a href="{% url 'account_list' %}" {% if 'account' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-id"></use></svg><span>Accounts</span>
+          </a>
+
+          <p class="sidenav-group">Visits</p>
+          <a href="{% url 'work_order_list' %}" {% if request.resolver_match.url_name == 'work_order_list' or request.resolver_match.url_name == 'work_order_detail' or request.resolver_match.url_name == 'work_order_create' or request.resolver_match.url_name == 'work_order_edit' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>Visit schedule</span>
+          </a>
+
+          <p class="sidenav-group">Communications</p>
+          <a href="{% url 'announcement_list' %}" {% if 'announcement' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>Announcements</span>
+          </a>
+
+          <p class="sidenav-group">System</p>
+          <a href="{% url 'data_tools' %}" {% if 'data' in request.resolver_match.url_name or request.resolver_match.url_name == 'export_console' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>Data &amp; backups</span>
+          </a>
+          <a href="{% url 'audit_log' %}" {% if request.resolver_match.url_name == 'audit_log' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-id"></use></svg><span>Audit log</span>
+          </a>
+          <a href="{% url 'system_status' %}" {% if 'system' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-cog"></use></svg><span>System status</span>
+          </a>
+        {% elif is_facilitator %}
           <p class="sidenav-group">Monitoring</p>
           <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>
             <svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg><span>Dashboard</span>
@@ -73,6 +148,10 @@
           </a>
           <a href="{% url 'event_list' %}" {% if 'event' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
             <svg class="ico" aria-hidden="true"><use href="#i-alert"></use></svg><span>Alerts</span>
+          </a>
+          <a href="{% url 'my_assignments' %}" {% if 'assignment' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>Schedule</span>
+            {% if my_assignment_count %}<span class="badge">{{ my_assignment_count }}</span>{% endif %}
           </a>
 
           <p class="sidenav-group">Management</p>
@@ -146,6 +225,13 @@
         </a>
 
         <div class="topbar-actions">
+          {% get_current_language as CUR_LANG %}
+          <form action="{% url 'set_language' %}" method="post" class="lang-toggle" aria-label="Language">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" name="language" value="en" class="lang-opt{% if CUR_LANG == 'en' %} is-active{% endif %}"{% if CUR_LANG == 'en' %} aria-current="true"{% endif %}>EN</button>
+            <button type="submit" name="language" value="fil" class="lang-opt{% if CUR_LANG == 'fil' %} is-active{% endif %}"{% if CUR_LANG == 'fil' %} aria-current="true"{% endif %}>FIL</button>
+          </form>
           <span id="conn-pill" class="pill pill-muted" title="Connection quality">&#8226; checking</span>
           <button type="button" id="theme-toggle" class="icon-btn" aria-label="Switch between light and dark mode">
             <span aria-hidden="true" data-theme-icon>&#9789;</span>
@@ -159,15 +245,18 @@
                 <p class="usermenu-name">{{ user.get_full_name|default:user.username }}</p>
                 <p class="usermenu-role">{{ user.get_role_display }}</p>
                 {% if household %}<p class="usermenu-role">{{ household.household_id }}</p>{% endif %}
-                <a href="{% url 'password_change' %}">Change password</a>
-                {% if user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
+                <a href="{% url 'password_change' %}">{% trans "Change password" %}</a>
+                {# Shown only once the browser has offered the install prompt. #}
+                <button type="button" class="linklike" data-install-trigger hidden>{% trans "Install the app on this device" %}</button>
+                {% if user.is_staff %}<a href="/admin/">{% trans "Admin" %}</a>{% endif %}
                 <form method="post" action="{% url 'logout' %}">{% csrf_token %}
-                  <button type="submit" class="linklike">Sign out</button>
+                  <button type="submit" class="linklike">{% trans "Sign out" %}</button>
                 </form>
               </div>
             </div>
           {% else %}
-            <a class="btn btn-primary btn-sm" href="{% url 'login' %}">Sign in</a>
+            {# On the landing page this opens the sign-in dialog; elsewhere it is a plain link. #}
+            <a class="btn btn-primary btn-sm" href="{% url 'login' %}" data-modal-open="login-modal">{% trans "Sign in" %}</a>
           {% endif %}
         </div>
       </div>

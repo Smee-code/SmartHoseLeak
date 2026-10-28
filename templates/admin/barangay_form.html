@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{% if barangay %}Edit barangay{% else %}Add barangay{% endif %} - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap-narrow">
+  <div class="page-head">
+    <div>
+      <h1>{% if barangay %}Edit {{ barangay.name }}{% else %}Add a barangay{% endif %}</h1>
+      <p class="sub">A facilitator and the households they serve are both attached to a barangay.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="message message-error"><span>{{ form.non_field_errors }}</span></div>
+      {% endif %}
+      {% for field in form %}{% include "_form_field.html" %}{% endfor %}
+      <div class="btn-row" style="margin-top:1rem">
+        <button type="submit" class="btn btn-primary">Save barangay</button>
+        <a class="btn" href="{% url 'barangay_list' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

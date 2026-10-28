@@ -8,7 +8,8 @@
       <p class="sub">{{ household.address }}</p>
     </div>
     <div class="btn-row">
-      <a class="btn btn-sm" href="{% url 'household_edit' household.pk %}">Edit</a>
+      {# Opens the dialog at the foot of the page; a plain link to the edit page without JavaScript. #}
+      <a class="btn btn-sm" href="{% url 'household_edit' household.pk %}" data-modal-open="household-edit-modal">Edit</a>
       <a class="btn btn-sm" href="{% url 'household_list' %}">Back to list</a>
     </div>
   </div>
@@ -18,13 +19,15 @@
       <div class="card-head"><h2>Record</h2></div>
       <dl class="definition">
         <dt>Contact</dt><dd>{{ household.contact_number }}</dd>
+        <dt>Email</dt><dd>{% if household.email %}{{ household.email }}{% else %}<span class="muted">none</span>{% endif %}</dd>
         <dt>Supply line</dt>
         <dd>
           {% if household.segment %}
             {{ household.segment.name }}
-            <span class="muted small">
-              {% if household.segment.has_device %}device fitted{% else %}awaiting device{% endif %}
-            </span>
+            {% with setup=household.device_setup %}
+              <span class="pill pill-sm pill-{{ setup.tone }}">{{ setup.label }}</span>
+              {% if setup.code %}<span class="muted small">setup code {{ setup.code }}</span>{% endif %}
+            {% endwith %}
           {% else %}<span class="muted">Unassigned</span>{% endif %}
         </dd>
         <dt>Account</dt><dd>{{ household.get_account_status_display }}</dd>
@@ -46,7 +49,58 @@
           {% csrf_token %}
           <button type="submit" class="btn btn-sm">Issue a new temporary password</button>
         </form>
+        {% comment %}
+          The household has no account to read a notice in yet, so a text is
+          how their login reaches them. A password cannot be read back, so
+          sending it always means issuing a fresh temporary one.
+        {% endcomment %}
+        {% if household.contact_number %}
+          <form method="post" action="{% url 'household_send_credentials' household.pk %}" style="margin-top:.5rem">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-primary">Text login details to {{ household.contact_number }}</button>
+          </form>
+          <p class="helptext" style="margin-top:.35rem">
+            Issues a new temporary password and texts it with the username.
+          </p>
+        {% endif %}
       {% endif %}
+
+      {% comment %}
+        Getting there. The road route is fetched once from the barangay's
+        water source and drawn on the dashboard map; Navigate hands the last
+        stretch to the phone's own maps app, which is what actually gets a
+        person to the door.
+      {% endcomment %}
+      <div style="margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--border)">
+        <h3 style="margin:0 0 .35rem;font-size:.95rem">Getting there</h3>
+        {% if not household.has_location %}
+          <p class="small muted" style="margin:0">
+            No coordinates on this record yet. Add latitude and longitude (Edit) to get a road route and directions.
+          </p>
+        {% else %}
+          {% if household.visit_route %}
+            <p class="small" style="margin:0 0 .5rem">
+              Road from the water source: <strong>{{ household.visit_route_label }}</strong>. Drawn on the dashboard map.
+            </p>
+          {% elif household.visit_route_error %}
+            <p class="small muted" style="margin:0 0 .5rem">Route not available: {{ household.visit_route_error }}.</p>
+          {% else %}
+            <p class="small muted" style="margin:0 0 .5rem">Road route not fetched yet.</p>
+          {% endif %}
+          <div class="btn-row">
+            {% if household.navigate_url %}
+              <a class="btn btn-sm btn-primary" href="{{ household.navigate_url }}" target="_blank" rel="noopener">Navigate (Google Maps)</a>
+            {% endif %}
+            {% if routing_ready %}
+              <form method="post" action="{% url 'household_refresh_route' household.pk %}" style="display:inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm">{% if household.visit_route %}Refetch route{% else %}Fetch route{% endif %}</button>
+              </form>
+            {% endif %}
+          </div>
+          {% if not routing_ready %}<p class="helptext" style="margin-top:.35rem">{{ routing_note }}</p>{% endif %}
+        {% endif %}
+      </div>
     </div>
 
     <div class="card">
@@ -134,6 +188,43 @@
         {% endfor %}
       </div>
     </div>
+  </div>
+</div>
+
+{% comment %}
+  Edit dialog, bound to this household. The same fields as the dialog on the
+  Households page; a save that fails validation reopens it there.
+{% endcomment %}
+<div class="modal-backdrop" id="household-edit-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="household-edit-title">
+    <form method="post" id="household-edit-form" action="{% url 'household_edit' household.pk %}" novalidate>
+      {% csrf_token %}
+      <div class="modal-head">
+        <div>
+          <h2 id="household-edit-title">Edit household</h2>
+          <p class="sub">{{ household.household_id }}</p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        {% include "_form_field.html" with field=edit_form.owner_name %}
+        {% include "_form_field.html" with field=edit_form.address %}
+        {% include "_form_field.html" with field=edit_form.contact_number %}
+        {% include "_form_field.html" with field=edit_form.email %}
+        {% include "_form_field.html" with field=edit_form.account_status %}
+        <div class="field-pair">
+          {% include "_form_field.html" with field=edit_form.latitude %}
+          {% include "_form_field.html" with field=edit_form.longitude %}
+        </div>
+        {% include "_form_field.html" with field=edit_form.notes %}
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save changes</button>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}

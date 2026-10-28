@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Data &amp; backups - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>Data &amp; backups</h1>
+      <p class="sub">Export records, bring households in from a spreadsheet, and back up or restore the database.</p>
+    </div>
+  </div>
+
+  <div class="tiles">
+    <div class="card">
+      <div class="card-head"><h2>Export</h2></div>
+      <p class="sub" style="margin-top:0">CSV across every barangay, for the LGU's own records.</p>
+      <div class="btn-row">
+        <a class="btn btn-sm" href="{% url 'export_console' 'households' %}">Households</a>
+        <a class="btn btn-sm" href="{% url 'export_console' 'workorders' %}">Work orders</a>
+        <a class="btn btn-sm" href="{% url 'export_console' 'pressure' %}">Pressure log (24h)</a>
+        <a class="btn btn-sm" href="{% url 'export_console' 'audit' %}">Audit log</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Import households</h2></div>
+      <p class="sub" style="margin-top:0">
+        A CSV with a header row: <code>owner_name, address, contact_number</code>, and
+        optionally <code>barangay</code>. Rows with no barangay use the one you pick.
+      </p>
+      <form method="post" action="{% url 'household_import' %}" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        {% include "_form_field.html" with field=import_form.default_barangay %}
+        {% include "_form_field.html" with field=import_form.csv_file %}
+        <div class="btn-row"><button type="submit" class="btn btn-primary">Import households</button></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Backup</h2></div>
+      <p class="sub" style="margin-top:0">
+        Downloads a full JSON copy of the data ({{ household_count }} household{{ household_count|pluralize }} and
+        everything else). It contains sensitive details &mdash; keep the file safe.
+      </p>
+      <div class="btn-row"><a class="btn btn-primary btn-sm" href="{% url 'backup_download' %}">Download backup</a></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Restore</h2></div>
+      <p class="sub" style="margin-top:0">
+        Loads records from a backup file. It <strong>overwrites</strong> current records that share an id with
+        the backup and adds any it is missing; it does not delete newer ones.
+      </p>
+      <form method="post" action="{% url 'restore_upload' %}" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        {% if restore_form.non_field_errors %}<div class="message message-error"><span>{{ restore_form.non_field_errors }}</span></div>{% endif %}
+        {% include "_form_field.html" with field=restore_form.backup_file %}
+        {% include "_form_field.html" with field=restore_form.confirm %}
+        <div class="btn-row"><button type="submit" class="btn btn-danger">Restore database</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
