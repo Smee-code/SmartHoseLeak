@@ -2493,6 +2493,15 @@ a.sent-row:hover { background: var(--surface-2); }
 .login-lede { margin: 0 0 1rem; font-size: .9rem; line-height: 1.5; color: var(--text-muted); }
 .login-modal .field input { min-height: 44px; }
 
+/* iOS/Safari zooms the whole page in when a focused field is under 16px.
+   Hold the sign-in and password-reset fields at 16px so tapping one on a
+   phone just focuses it, with no zoom. */
+.login-modal input[type=text],
+.login-modal input[type=password],
+.auth-card input[type=text],
+.auth-card input[type=password],
+.auth-card input[type=email] { font-size: 16px; }
+
 /* A leading icon inside a field. The icon is decoration for the eye, so it
    takes no clicks and the input keeps room for it on the left. */
 .input-icon { position: relative; }
