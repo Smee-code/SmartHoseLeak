@@ -59,6 +59,22 @@
     </form>
   </div>
 
+  <div class="card" style="margin-top:1.5rem">
+    <div class="card-head"><h2>Leak detection</h2></div>
+    <p class="sub" style="margin-top:0">
+      Thresholds the boards detect against. They work on these figures on their own &mdash; so they
+      keep running when the WiFi drops &mdash; and pick up any change here on their next reading, with
+      no re-flashing.
+    </p>
+    <form method="post" action="{% url 'detection_settings' %}">
+      {% csrf_token %}
+      {% for field in detection_form %}{% include "_form_field.html" %}{% endfor %}
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary">Save detection settings</button>
+      </div>
+    </form>
+  </div>
+
   <section style="margin-top:1.5rem">
     <h2>Recent errors</h2>
     <p class="sub">Unhandled server errors, newest first. The full traceback stays in the server log.</p>

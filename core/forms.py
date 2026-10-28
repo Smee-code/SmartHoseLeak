@@ -9,6 +9,7 @@ from django.utils.text import slugify
 
 from .models import (
     Announcement,
+    SystemSetting,
     Barangay,
     Complaint,
     ComplaintMessage,
@@ -363,12 +364,14 @@ class AdminHouseholdForm(HouseholdForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # The administrator records who and where in words. The coordinates
-        # and the owner's login are the facilitator's, at activation - and
-        # the board is not a choice: every household gets a new one.
-        for name in ("latitude", "longitude", "create_account",
-                     "device_choice", "device_label", "existing_device"):
+        # The administrator records who and where in words; the coordinates
+        # and the owner's login are the facilitator's, at activation. The
+        # board IS offered here, defaulting to a freshly registered one, so
+        # the admin can label it (or attach a board already registered).
+        for name in ("latitude", "longitude", "create_account"):
             self.fields.pop(name, None)
+        if "device_choice" in self.fields:
+            self.fields["device_choice"].initial = self.DEVICE_NEW
         # One barangay served, so the address is the part that differs house
         # to house; province, municipality and barangay are shown read-only.
         self.fields["address"].label = "Purok or street"
@@ -786,3 +789,39 @@ class MaintenanceForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={"placeholder": "e.g. Replacing coupling at the 22 m marker"}),
     )
+
+
+class DetectionSettingsForm(forms.ModelForm):
+    """
+    The leak/flow thresholds, edited on the admin console's System page.
+
+    They are stored once (SystemSetting is a single row) and handed to every
+    board on its next upload, so a change here takes effect within seconds
+    without touching the firmware.
+    """
+
+    class Meta:
+        model = SystemSetting
+        fields = [
+            "flow_warn_minutes",
+            "flow_leak_minutes",
+            "valve_test_hour",
+            "valve_test_grace_minutes",
+            "valve_test_drop_bar",
+            "auto_close_on_flow_leak",
+        ]
+        widgets = {
+            "valve_test_drop_bar": forms.NumberInput(attrs={"step": "0.01"}),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        warn = cleaned.get("flow_warn_minutes")
+        leak = cleaned.get("flow_leak_minutes")
+        # The warning has to come before the leak, or it never fires.
+        if warn is not None and leak is not None and warn >= leak:
+            self.add_error(
+                "flow_leak_minutes",
+                "The leak time must be longer than the water-running warning time.",
+            )
+        return cleaned

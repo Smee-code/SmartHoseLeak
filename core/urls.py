@@ -148,6 +148,7 @@ urlpatterns = [
     path("console/audit/", views.audit_log, name="audit_log"),
     path("console/system/", views.system_status, name="system_status"),
     path("console/system/maintenance/", views.maintenance_toggle, name="maintenance_toggle"),
+    path("console/system/detection/", views.detection_settings, name="detection_settings"),
 
     # Owner portal
     path("portal/", views.owner_home, name="owner_home"),

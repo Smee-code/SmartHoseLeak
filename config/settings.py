@@ -297,6 +297,11 @@ IPROGSMS_BASE_URL = env("IPROGSMS_BASE_URL", "https://www.iprogsms.com/api/v1")
 # a leak at 2 AM waits for somebody to open a browser.
 SMS_AUTO_ON_LEAK = env_bool("SMS_AUTO_ON_LEAK", True)
 
+# Email the household automatically on the same alerts, to the address on
+# their record. In addition to the text, not instead: email reaches a desktop
+# and leaves a record, but is read less urgently than a phone's lock screen.
+EMAIL_AUTO_ON_LEAK = env_bool("EMAIL_AUTO_ON_LEAK", True)
+
 # Copy the facilitator on every leak alert, at the contact number on their
 # account. They are the one who has to act on it, and hearing about a leak
 # first from the household that received the text is a poor way to find out.

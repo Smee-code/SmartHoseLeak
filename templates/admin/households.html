@@ -174,14 +174,33 @@
         {% include "_form_field.html" with field=create_form.account_status %}
         {% include "_form_field.html" with field=create_form.notes %}
 
+        {% if create_form.device_choice %}
         <fieldset class="channel-box">
           <legend class="small">Hardware</legend>
-          <p class="helptext" style="margin:0">
-            A hose line and a new monitoring board are registered for this household automatically.
-            The board's setup code is sent to the owner when the facilitator activates the household;
-            the owner connects it to their own WiFi.
+          <p class="helptext" style="margin-top:0">
+            A hose line is created automatically. The board's setup code is sent to the owner when the
+            facilitator activates the household; the owner connects it to their own WiFi.
           </p>
+
+          <div class="field">
+            <label>{{ create_form.device_choice.label }}</label>
+            {% for choice in create_form.device_choice %}
+              <div class="check-row">{{ choice.tag }}
+                <label for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label>
+              </div>
+            {% endfor %}
+            {{ create_form.device_choice.errors }}
+          </div>
+
+          <div data-device-when="new" hidden>
+            {% include "_form_field.html" with field=create_form.device_label %}
+            <p class="helptext">The Device ID and API key are generated when you save, and shown on the Lines page.</p>
+          </div>
+          <div data-device-when="existing" hidden>
+            {% include "_form_field.html" with field=create_form.existing_device %}
+          </div>
         </fieldset>
+        {% endif %}
 
       </div>
 

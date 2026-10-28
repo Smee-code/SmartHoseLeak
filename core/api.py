@@ -30,11 +30,12 @@ from .models import (
     ReadingRollup,
     Segment,
     SmsMessage,
+    SystemSetting,
     Trigger,
     ValveState,
     psi,
 )
-from . import push
+from . import mail, push
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +44,15 @@ DEVICE_STATUSES = {
     "NORMAL": Segment.Status.NORMAL,
     "LOW_SUPPLY": Segment.Status.LOW_SUPPLY,
     "LOW WATER SUPPLY": Segment.Status.LOW_SUPPLY,
+    "WATER_RUNNING": Segment.Status.WATER_RUNNING,
+    "WATER RUNNING": Segment.Status.WATER_RUNNING,
     "POSSIBLE_LEAK": Segment.Status.POSSIBLE_LEAK,
     "POSSIBLE LEAK": Segment.Status.POSSIBLE_LEAK,
 }
 
 SEVERITY_BY_STATUS = {
     Segment.Status.POSSIBLE_LEAK: LeakEvent.Severity.CRITICAL,
+    Segment.Status.WATER_RUNNING: LeakEvent.Severity.WARNING,
     Segment.Status.LOW_SUPPLY: LeakEvent.Severity.WARNING,
     Segment.Status.OFFLINE: LeakEvent.Severity.WARNING,
     Segment.Status.MAINTENANCE: LeakEvent.Severity.INFO,
@@ -100,6 +104,11 @@ def _push_body(event, in_app_body):
             "Check that your faucets are fully closed. If they are and water "
             "is still running, tell the facilitator."
         )
+    if event.status == Segment.Status.WATER_RUNNING:
+        return (
+            "Water has been running non-stop on your line. Turn off any tap or "
+            "hose; if all are closed, tell the facilitator."
+        )
     if event.status == Segment.Status.LOW_SUPPLY:
         return "Water may be slow at your tap. The source is probably low."
     if event.status == Segment.Status.NORMAL:
@@ -133,6 +142,15 @@ def _notify_households(segment, event):
             f"Reading at the time: {event.pressure_bar:.2f} bar, "
             f"{event.flow_lpm:.2f} L/min."
         )
+    elif event.status == Segment.Status.WATER_RUNNING:
+        title = "Water has been running on your line"
+        body = (
+            f"Water has been flowing without stopping on your line since before {when}. "
+            f"If you left a tap or hose on, please turn it off. If everything is closed "
+            f"and water is still running, you may have a leak - tell the water system "
+            f"facilitator.\n\n"
+            f"Reading at the time: {event.pressure_bar:.2f} bar, {event.flow_lpm:.2f} L/min."
+        )
     elif event.status == Segment.Status.LOW_SUPPLY:
         title = "Your water is weaker than usual"
         body = (
@@ -145,7 +163,11 @@ def _notify_households(segment, event):
         # Only announce a recovery if the household was told about the
         # problem in the first place. A device booting from OFFLINE into
         # NORMAL is not an all-clear anybody was waiting for.
-        if event.previous_status not in {Segment.Status.POSSIBLE_LEAK, Segment.Status.LOW_SUPPLY}:
+        if event.previous_status not in {
+            Segment.Status.POSSIBLE_LEAK,
+            Segment.Status.WATER_RUNNING,
+            Segment.Status.LOW_SUPPLY,
+        }:
             return
         title = "Your water is back to normal"
         body = f"The alert on your line was cleared on {when}. Readings are normal again."
@@ -186,26 +208,45 @@ def _notify_households(segment, event):
                 # ordinary failures; this is the belt to that braces.
                 logger.exception("Push failed for %s", household.household_id)
 
+    # The alert statuses that go out by text and email, not just in-app: a
+    # leak, and water that has been running non-stop. Low supply and the
+    # all-clear stay in-app and push only.
+    alert_statuses = {Segment.Status.POSSIBLE_LEAK, Segment.Status.WATER_RUNNING}
+
+    # Email the same notice to anyone with an address on file. In addition to
+    # the text, not instead - email reaches a desktop and leaves a record.
+    if settings.EMAIL_AUTO_ON_LEAK and event.status in alert_statuses:
+        for household in households:
+            if household.email:
+                try:
+                    mail.send_email(household.email, title, body)
+                except Exception:  # noqa: BLE001
+                    logger.exception("Alert email failed for %s", household.household_id)
+
     # Text them as well, unless that has been switched off.
     #
     # An in-app notice is only seen by somebody who opens the app, and a leak
     # at two in the morning cannot wait for that. The message is written
     # shorter than the in-app one on purpose: a text is read on a lock screen
     # and the useful half is the instruction, not the reading.
-    if not (settings.SMS_AUTO_ON_LEAK and event.status == Segment.Status.POSSIBLE_LEAK):
+    if not (settings.SMS_AUTO_ON_LEAK and event.status in alert_statuses):
         return
 
     notices = {n.recipient_id: n for n in created}
     for household in households:
         SmsMessage.queue(
             household,
-            _leak_sms_text(household, event),
+            _alert_sms_text(household, event),
             kind=SmsMessage.Kind.AUTOMATIC,
             notification=notices.get(household.id),
             event=event,
         )
 
-    _notify_facilitators(segment, event)
+    # Only a confirmed leak is escalated to the facilitator. A water-running
+    # warning is the owner's to act on first - they may simply have left a tap
+    # on - so it does not pull a crew.
+    if event.status == Segment.Status.POSSIBLE_LEAK:
+        _notify_facilitators(segment, event)
 
 
 def _notify_facilitators(segment, event):
@@ -255,6 +296,17 @@ def _notify_facilitators(segment, event):
             kind=SmsMessage.Kind.AUTOMATIC,
             event=event,
         )
+
+
+def _alert_sms_text(household, event):
+    """One text, chosen by what was detected: a leak, or water left running."""
+    if event.status == Segment.Status.WATER_RUNNING:
+        when = timezone.localtime(event.detected_at).strftime("%b %d %I:%M%p").replace(" 0", " ")
+        return (
+            f"WATER RUNNING {household.household_id}: water has run non-stop since {when}. "
+            f"Turn off any tap or hose. If all are closed and it still runs, tell the facilitator."
+        )
+    return _leak_sms_text(household, event)
 
 
 def _leak_sms_text(household, event):
@@ -533,10 +585,23 @@ def _device_config(segments):
     back. Built from the segments already loaded above, so this costs no
     extra queries.
     """
+    # Site-wide detection settings, the same for every line, tuned from the
+    # admin console (SystemSetting) and carried here so the board adopts them
+    # without a re-flash and keeps using the last set it saw while offline.
+    s = SystemSetting.load()
+    detection = {
+        "flow_warn_minutes": s.flow_warn_minutes,
+        "flow_leak_minutes": s.flow_leak_minutes,
+        "valve_test_hour": s.valve_test_hour,
+        "valve_test_grace_minutes": s.valve_test_grace_minutes,
+        "valve_test_drop_bar": round(s.valve_test_drop_bar, 3),
+        "auto_close_on_flow_leak": s.auto_close_on_flow_leak,
+    }
     return {
         str(index): {
             "low_pressure_bar": round(segment.low_pressure_bar, 3),
             "run_valve_test": segment.valve_test_requested,
+            **detection,
         }
         for index, segment in segments.items()
         if segment.is_active

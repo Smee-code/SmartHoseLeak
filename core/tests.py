@@ -955,15 +955,18 @@ class AdminConsoleTests(TestCase):
         response = self.client.post(reverse("admin_household_create"), {
             "owner_name": "Pedro Lim", "address": "Purok 2",
             "contact_number": "+639170000002",
-            "account_status": "active", "device_choice": "none",
+            "account_status": "active",
+            # The board is registered here now, and the admin can label it.
+            "device_choice": "new", "device_label": "Pedro's line board",
             # Neither of these is the administrator's to set any more.
             "create_account": "on", "latitude": "9.7", "longitude": "125.5",
         })
         self.assertRedirects(response, reverse("admin_household_list"))
         household = Household.objects.get(owner_name="Pedro Lim")
         self.assertEqual(household.barangay, Barangay.default())
-        self.assertIsNotNone(household.segment)          # the hose line is still created
-        self.assertIsNotNone(household.segment.device)   # and a new board, always
+        self.assertIsNotNone(household.segment)          # the hose line is created
+        self.assertIsNotNone(household.segment.device)   # and the board that was asked for
+        self.assertEqual(household.segment.device.label, "Pedro's line board")  # with the label
         self.assertEqual(household.device_setup["key"], "awaiting_activation")
         self.assertIsNone(household.user)                # the login is the facilitator's job
         self.assertIsNone(household.latitude)            # so is the location
@@ -972,11 +975,34 @@ class AdminConsoleTests(TestCase):
         self.assertIn("Pending activation", html)
         self.assertNotIn('name="create_account"', html)
         self.assertNotIn('name="latitude"', html)
-        self.assertNotIn('name="device_choice"', html)   # a new board is not a choice
+        self.assertIn('name="device_choice"', html)      # the board can now be chosen and labelled
         self.assertIn("Purok or street", html)
         self.assertIn('value="Surigao del Norte" readonly', html)
         self.assertIn('value="Sison" readonly', html)
         self.assertIn('value="Lower Dakong Patag" readonly', html)
+
+    def test_admin_registration_without_a_board_leaves_the_line_bare(self):
+        self.client.login(username="admin", password="pw")
+        self.client.post(reverse("admin_household_create"), {
+            "owner_name": "Ana Reyes", "address": "Purok 3",
+            "contact_number": "+639170000003",
+            "account_status": "active", "device_choice": "none",
+        })
+        household = Household.objects.get(owner_name="Ana Reyes")
+        self.assertIsNotNone(household.segment)           # the hose line is always made
+        self.assertIsNone(household.segment.device)       # but no board when none is chosen
+
+    def test_admin_new_board_without_a_label_gets_a_recognisable_one(self):
+        self.client.login(username="admin", password="pw")
+        self.client.post(reverse("admin_household_create"), {
+            "owner_name": "Rosa Mendoza", "address": "Purok 4",
+            "contact_number": "+639170000004",
+            "account_status": "active", "device_choice": "new", "device_label": "",
+        })
+        household = Household.objects.get(owner_name="Rosa Mendoza")
+        self.assertIsNotNone(household.segment.device)
+        self.assertIn(household.household_id, household.segment.device.label)
+        self.assertIn("Rosa Mendoza", household.segment.device.label)
 
     # -- suspend & delete ---------------------------------------------------
 
@@ -2750,3 +2776,115 @@ class OwnerBoardSetupTests(TestCase):
         self._activate()
         self.client.login(username="faci", password="pw")
         self.assertEqual(self.client.get(reverse("owner_device_status")).status_code, 403)
+
+
+class WaterRunningAlertTests(TestCase):
+    """
+    The board's new 'water running' warning, and that the detection settings
+    ride back to it on the ingest reply.
+    """
+
+    def setUp(self):
+        from django.core import mail as django_mail
+        django_mail.outbox.clear()
+        self.brgy = Barangay.objects.create(name="Lower Dakong Patag")
+        self.device = Device.objects.create(label="board-70")
+        self.segment = Segment.objects.create(
+            module_index=1, name="HH-070 line", device=self.device,
+            barangay=self.brgy, status=Segment.Status.NORMAL,
+        )
+        self.hh = Household.objects.create(
+            household_id="HH-070", owner_name="Nora Cruz", address="Purok 7",
+            contact_number="+639170000070", email="nora@example.com",
+            barangay=self.brgy, account_status=Household.AccountStatus.ACTIVE,
+        )
+        self.hh.segment = self.segment
+        self.hh.save(update_fields=["segment"])
+
+    def _ingest(self, status):
+        return self.client.post(
+            reverse("api_ingest"),
+            data=json.dumps({
+                "device_id": self.device.device_id,
+                "readings": [{"module": 1, "pressure_bar": 0.8, "flow_lpm": 9.0, "status": status}],
+            }),
+            content_type="application/json",
+            HTTP_X_DEVICE_KEY=self.device.api_key,
+        )
+
+    @override_settings(SMS_AUTO_ON_LEAK=True, EMAIL_AUTO_ON_LEAK=True, PUSH_AUTO_ON_LEAK=False)
+    def test_water_running_alerts_by_notice_sms_and_email(self):
+        from django.core import mail as django_mail
+        resp = self._ingest("WATER_RUNNING")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.status, Segment.Status.WATER_RUNNING)
+        self.assertTrue(
+            Notification.objects.filter(recipient=self.hh, title__icontains="running").exists()
+        )
+        self.assertTrue(
+            SmsMessage.objects.filter(household=self.hh, body__icontains="WATER RUNNING").exists()
+        )
+        self.assertEqual(len(django_mail.outbox), 1)
+        self.assertIn("running", django_mail.outbox[0].subject.lower())
+
+    @override_settings(SMS_FACILITATOR_ON_LEAK=True)
+    def test_water_running_does_not_pull_the_facilitator(self):
+        faci = User.objects.create_user(
+            username="faci70", password="pw", role=User.Role.FACILITATOR,
+            barangay=self.brgy, contact_number="+639170000001",
+        )
+        # Already connected, so the one-time "board connected" text to the
+        # facilitator does not fire and muddy the check.
+        self.device.last_seen = timezone.now()
+        self.device.save(update_fields=["last_seen"])
+        self._ingest("WATER_RUNNING")
+        self.assertFalse(SmsMessage.objects.filter(to_number=faci.contact_number).exists())
+
+    def test_config_push_carries_the_detection_settings(self):
+        s = SystemSetting.load()
+        s.flow_warn_minutes = 25
+        s.valve_test_hour = 3
+        s.save()
+        cfg = self._ingest("NORMAL").json()["config"]["1"]
+        self.assertEqual(cfg["flow_warn_minutes"], 25)
+        self.assertEqual(cfg["valve_test_hour"], 3)
+        self.assertIn("flow_leak_minutes", cfg)
+        self.assertIn("valve_test_drop_bar", cfg)
+        self.assertIn("auto_close_on_flow_leak", cfg)
+
+
+class DetectionSettingsConsoleTests(TestCase):
+    """Editing the leak-detection thresholds from the admin console."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="admin", password="pw", role=User.Role.ADMIN,
+            is_staff=True, is_superuser=True,
+        )
+        self.client.login(username="admin", password="pw")
+
+    def test_admin_can_edit_detection_settings(self):
+        resp = self.client.post(reverse("detection_settings"), {
+            "flow_warn_minutes": 20, "flow_leak_minutes": 90,
+            "valve_test_hour": 3, "valve_test_grace_minutes": 45,
+            "valve_test_drop_bar": "0.2", "auto_close_on_flow_leak": "on",
+        })
+        self.assertRedirects(resp, reverse("system_status"))
+        s = SystemSetting.load()
+        self.assertEqual(s.flow_warn_minutes, 20)
+        self.assertEqual(s.flow_leak_minutes, 90)
+        self.assertEqual(s.valve_test_hour, 3)
+        self.assertEqual(s.valve_test_grace_minutes, 45)
+        self.assertTrue(s.auto_close_on_flow_leak)
+        self.assertTrue(AuditLog.objects.filter(action="system.detection").exists())
+
+    def test_warning_time_must_be_before_the_leak_time(self):
+        resp = self.client.post(reverse("detection_settings"), {
+            "flow_warn_minutes": 60, "flow_leak_minutes": 30,
+            "valve_test_hour": 2, "valve_test_grace_minutes": 60,
+            "valve_test_drop_bar": "0.15", "auto_close_on_flow_leak": "on",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "must be longer")
+        self.assertEqual(SystemSetting.load().flow_warn_minutes, 30)   # unchanged

@@ -35,6 +35,7 @@ from .forms import (
     HouseholdForm,
     HouseholdImportForm,
     owner_credentials,
+    DetectionSettingsForm,
     MaintenanceForm,
     NotificationForm,
     RestoreForm,
@@ -2140,23 +2141,32 @@ def admin_household_create(request):
     if request.method == "POST" and form.is_valid():
         record = form.save()
         routing.update_household_route(record)
-        form.attach_hardware(record)                    # the hose line
-        # Every household gets a new board of its own, registered now. No
-        # code is shown here: it is issued at activation and goes to the
-        # owner, who connects the board themselves.
-        device = Device.objects.create(label=f"{record.household_id} {record.owner_name}"[:120])
-        record.segment.device = device
-        record.segment.save(update_fields=["device"])
+        # Makes the hose line and, from the board choice on the form,
+        # registers a new board (the default), attaches one already
+        # registered, or leaves it without hardware. The board's setup code
+        # is issued at activation and goes to the owner, not shown here.
+        device = form.attach_hardware(record)
+        # A newly registered board left unlabelled gets a recognisable one.
+        if device is not None and not device.label:
+            device.label = f"{record.household_id} {record.owner_name}"[:120]
+            device.save(update_fields=["label"])
         AuditLog.record(
             request.user, "household.create",
             f"Registered household {record.household_id} ({record.owner_name})", target=record.household_id,
         )
-        messages.success(
-            request,
-            f"Household {record.household_id} registered with board {device.device_id}. It is pending "
-            f"activation: the facilitator confirms its location and creates the owner's login, and "
-            f"the board's setup code is sent to the owner then.",
-        )
+        if device is not None:
+            messages.success(
+                request,
+                f"Household {record.household_id} registered with board {device.device_id}. It is pending "
+                f"activation: the facilitator confirms its location and creates the owner's login, and "
+                f"the board's setup code is sent to the owner then.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Household {record.household_id} registered, with no board yet. It is pending activation: "
+                f"the facilitator confirms its location and creates the owner's login.",
+            )
         return redirect("admin_household_list")
 
     # A failed submission came from the dialog on the Households page, so
@@ -2905,7 +2915,7 @@ def audit_log(request):
 
 
 @admin_required
-def system_status(request):
+def system_status(request, detection_form=None):
     setting = SystemSetting.load()
     errors = ErrorLog.objects.select_related("user")[:50]
     # The outside services the system leans on, each answering for itself.
@@ -2919,8 +2929,31 @@ def system_status(request):
         services.append({"name": name, "ready": ready, "note": note})
     return render(
         request, "admin/system.html",
-        {"setting": setting, "errors": errors, "services": services},
+        {
+            "setting": setting,
+            "errors": errors,
+            "services": services,
+            "detection_form": detection_form or DetectionSettingsForm(instance=setting),
+        },
     )
+
+
+@admin_required
+@require_POST
+def detection_settings(request):
+    setting = SystemSetting.load()
+    form = DetectionSettingsForm(request.POST, instance=setting)
+    if not form.is_valid():
+        return system_status(request, detection_form=form)
+    setting = form.save(commit=False)
+    setting.updated_by = request.user
+    setting.save()
+    AuditLog.record(request.user, "system.detection", "Updated leak detection settings")
+    messages.success(
+        request,
+        "Detection settings saved. Boards pick up the new values on their next reading.",
+    )
+    return redirect("system_status")
 
 
 @admin_required

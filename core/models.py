@@ -345,6 +345,7 @@ class Segment(models.Model):
     class Status(models.TextChoices):
         NORMAL = "NORMAL", "Normal"
         LOW_SUPPLY = "LOW_SUPPLY", "Low Water Supply"
+        WATER_RUNNING = "WATER_RUNNING", "Water Running"
         POSSIBLE_LEAK = "POSSIBLE_LEAK", "Possible Leak"
         MAINTENANCE = "MAINTENANCE", "Under Maintenance"
         OFFLINE = "OFFLINE", "Offline"
@@ -1567,6 +1568,43 @@ class SystemSetting(models.Model):
         max_length=255, blank=True,
         default="The system is briefly down for maintenance. Please check back shortly.",
     )
+
+    # Leak/flow detection thresholds. The board decides against these locally
+    # (so it keeps working when the WiFi drops), but the figures belong to the
+    # site: they are sent to every board on the ingest reply
+    # (core.api._device_config), so a change here reaches the hardware within
+    # seconds, with no re-flashing.
+    flow_warn_minutes = models.PositiveSmallIntegerField(
+        default=30, validators=[MinValueValidator(1), MaxValueValidator(1440)],
+        verbose_name="Water-running warning after",
+        help_text="Continuous flow for this many minutes raises a 'water running' warning.",
+    )
+    flow_leak_minutes = models.PositiveSmallIntegerField(
+        default=60, validators=[MinValueValidator(1), MaxValueValidator(1440)],
+        verbose_name="Treat as leak after",
+        help_text="Continuous flow for this many minutes is treated as a leak.",
+    )
+    valve_test_hour = models.PositiveSmallIntegerField(
+        default=2, validators=[MinValueValidator(0), MaxValueValidator(23)],
+        verbose_name="Nightly test hour",
+        help_text="Hour of the day (0-23) when the board closes the valve for its sealed-line pressure test.",
+    )
+    valve_test_grace_minutes = models.PositiveSmallIntegerField(
+        default=60, validators=[MinValueValidator(1), MaxValueValidator(240)],
+        verbose_name="Test grace period",
+        help_text="How long the valve stays closed while the board watches for a pressure drop.",
+    )
+    valve_test_drop_bar = models.FloatField(
+        default=0.15, validators=[MinValueValidator(0.0), MaxValueValidator(12.0)],
+        verbose_name="Leak if pressure drops more than",
+        help_text="A pressure drop larger than this (bar) during the sealed-line test is treated as a leak.",
+    )
+    auto_close_on_flow_leak = models.BooleanField(
+        default=True,
+        verbose_name="Auto-close valve on a continuous-flow leak",
+        help_text="Close the valve automatically when continuous flow has run long enough to count as a leak.",
+    )
+
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
