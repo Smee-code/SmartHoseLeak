@@ -80,7 +80,7 @@
     NORMAL: 'Normal',
     LOW_SUPPLY: 'Low Water Supply',
     POSSIBLE_LEAK: 'Possible Leak',
-    MAINTENANCE: 'Under Maintenance',
+    MAINTENANCE: 'Offline',
     OFFLINE: 'Offline'
   };
 
