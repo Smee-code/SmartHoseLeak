@@ -821,7 +821,7 @@
     close.setAttribute('aria-label', 'Dismiss');
     close.innerHTML = '&times;';
 
-    var ms = opts.timeout === undefined ? 8000 : opts.timeout;
+    var ms = opts.timeout === undefined ? 3000 : opts.timeout;
     var timer = null;
 
     function dismiss() {
@@ -887,8 +887,7 @@
       SHL.toast({
         type: type,
         title: content,
-        // Long text needs longer on screen; capped so it cannot linger.
-        timeout: sticky ? 0 : Math.min(14000, 5000 + content.length * 45)
+        timeout: sticky ? 0 : 3000
       });
       converted += 1;
     });
@@ -968,8 +967,8 @@
       SHL.toast({
         type: 'danger',
         title: 'Device went offline',
-        body: 'No readings received recently. Check the board’s power and Wi-Fi.',
-        timeout: 12000
+        body: ‘No readings received recently. Check the board’s power and Wi-Fi.’,
+        timeout: 3000
       });
     }
   });

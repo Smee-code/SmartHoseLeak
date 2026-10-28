@@ -790,7 +790,7 @@ body.modal-open { overflow: hidden; }
 
 .toasts {
   position: fixed; z-index: 1400;
-  right: 1rem; bottom: 1rem;
+  right: 1rem; top: 1rem;
   width: min(360px, calc(100vw - 2rem));
   display: flex; flex-direction: column; gap: .5rem;
   pointer-events: none;
@@ -833,7 +833,7 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 560px) {
   .toasts {
     left: .75rem; right: .75rem; width: auto;
-    bottom: calc(.75rem + env(safe-area-inset-bottom, 0px));
+    top: calc(.75rem + env(safe-area-inset-top, 0px)); bottom: auto;
   }
 }
 
