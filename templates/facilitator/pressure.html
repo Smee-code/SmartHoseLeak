@@ -30,25 +30,21 @@
     arrives, so a line that starts reporting grows on its own.
   {% endcomment %}
   <section class="tiles tiles-live">
-    {% for segment in segments %}
-      <article class="tile" data-segment-id="{{ segment.id }}"
-               data-status="{{ segment.status }}"
-               {% if not segment.latest %}data-empty="true"{% endif %}>
+    {% for household in households %}
+      <article class="tile"
+               {% if household.segment %}data-segment-id="{{ household.segment.id }}"
+               data-status="{{ household.segment.status }}"{% else %}data-status="OFFLINE"{% endif %}
+               {% if not household.segment or not household.segment.latest %}data-empty="true"{% endif %}>
         <div class="tile-head">
           <div>
-            {% comment %}
-              The line is named after its household, so the title and the
-              subtitle were "HH-001 - Maria Santos" above "Maria Santos".
-              The id identifies, the name belongs to a person.
-            {% endcomment %}
-            <div class="tile-title">
-              {% if segment.household %}{{ segment.household.household_id }}{% else %}{{ segment.name }}{% endif %}
-            </div>
-            <div class="tile-sub">
-              {% if segment.household %}{{ segment.household.owner_name }}{% else %}No household{% endif %}
-            </div>
+            <div class="tile-title">{{ household.household_id }}</div>
+            <div class="tile-sub">{{ household.owner_name }}</div>
           </div>
-          <span class="pill pill-{{ segment.status }}" data-field="status">{{ segment.get_status_display }}</span>
+          {% if household.segment %}
+            <span class="pill pill-{{ household.segment.status }}" data-field="status">{{ household.segment.get_status_display }}</span>
+          {% else %}
+            <span class="pill pill-OFFLINE" data-field="status">Offline</span>
+          {% endif %}
         </div>
         <div class="readouts">
           <div class="readout">
@@ -59,15 +55,7 @@
           <div class="readout">
             <div class="readout-label">Flow rate</div>
             <div class="readout-value"><span data-field="flow_lpm">--</span> <span class="readout-alt">L/min</span></div>
-            {% comment %}
-              This slot read "0 household(s)" on every tile, forever. Nothing
-              has written to it since a line came to serve exactly one house,
-              so it was stating a falsehood in the one place a facilitator
-              looks to check a number. It now carries the line's own
-              low-supply threshold, which is what the pressure beside it is
-              actually being judged against.
-            {% endcomment %}
-            <div class="readout-alt">low below <span data-field="low_bar">{{ segment.low_pressure_bar|floatformat:"-2" }}</span> bar</div>
+            <div class="readout-alt">{% if household.segment %}low below <span data-field="low_bar">{{ household.segment.low_pressure_bar|floatformat:"-2" }}</span> bar{% else %}&mdash;{% endif %}</div>
           </div>
         </div>
         <div class="tile-foot"><span data-field="updated">no data yet</span></div>

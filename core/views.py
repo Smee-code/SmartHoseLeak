@@ -515,10 +515,7 @@ def pressure_monitor(request):
     return render(
         request,
         "facilitator/pressure.html",
-        {
-            "households": households,
-            "segments": _scoped_segments(request.user).filter(is_active=True).select_related("latest"),
-        },
+        {"households": households},
     )
 
 
