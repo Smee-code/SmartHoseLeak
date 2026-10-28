@@ -149,6 +149,10 @@ urlpatterns = [
     path("console/system/", views.system_status, name="system_status"),
     path("console/system/maintenance/", views.maintenance_toggle, name="maintenance_toggle"),
     path("console/system/detection/", views.detection_settings, name="detection_settings"),
+    # Archive
+    path("console/archive/", views.archive_list, name="archive_list"),
+    path("console/archive/households/<int:pk>/restore/", views.archive_restore_household, name="archive_restore_household"),
+    path("console/archive/facilitators/<int:pk>/restore/", views.archive_restore_facilitator, name="archive_restore_facilitator"),
 
     # Owner portal
     path("portal/", views.owner_home, name="owner_home"),

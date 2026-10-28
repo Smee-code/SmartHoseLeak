@@ -1979,7 +1979,7 @@ def facilitator_list(request, create_form=None, edit_form=None, edit_user=None):
     errors still on screen rather than sending the administrator to a page.
     """
     facilitators = list(
-        User.objects.filter(role=User.Role.FACILITATOR)
+        User.objects.filter(role=User.Role.FACILITATOR, is_archived=False)
         .select_related("barangay")
         .annotate(open_visits=Count("assignments", filter=~Q(assignments__status__in=WorkOrder.CLOSED_STATUSES)))
         .order_by("facilitator_id", "username")
@@ -3236,7 +3236,7 @@ def admin_household_list(request, create_form=None, edit_form=None, edit_househo
     dialog reopens with the typed values and the errors still on screen.
     """
     query = (request.GET.get("q") or "").strip()
-    households = Household.objects.select_related("segment", "segment__device", "user")
+    households = Household.objects.filter(is_archived=False).select_related("segment", "segment__device", "user")
     if query:
         households = households.filter(
             Q(household_id__icontains=query)
@@ -3255,7 +3255,7 @@ def admin_household_list(request, create_form=None, edit_form=None, edit_househo
         {
             "page": page,
             "query": query,
-            "total": Household.objects.count(),
+            "total": Household.objects.filter(is_archived=False).count(),
             "barangay": Barangay.default(),
             "create_form": create_form or AdminHouseholdForm(),
             "create_form_errors": bool(create_form and create_form.errors),
@@ -3295,27 +3295,24 @@ def admin_household_edit(request, pk):
 @require_POST
 def admin_household_delete(request, pk):
     """
-    Remove a household and everything that only exists because of it - the
-    same rules as the facilitator's delete: complaints and notices cascade,
-    and the owner's login is removed explicitly rather than left able to
-    sign in to nothing.
+    Archive a household instead of deleting it. The household, its hose line
+    and the owner login are kept but hidden from the active lists. The admin
+    can restore them from the archive page.
     """
     household = get_object_or_404(Household.objects.select_related("user"), pk=pk)
     label = f"{household.household_id} ({household.owner_name})"
-    complaints = household.complaints.count()
-    notifications = household.notifications.count()
-    username = household.user.username if household.user else None
 
     with transaction.atomic():
+        household.is_archived = True
+        household.archived_at = timezone.now()
+        household.save(update_fields=["is_archived", "archived_at"])
         if household.user is not None:
-            household.user.delete()
-        household.delete()
+            household.user.is_archived = True
+            household.user.is_active = False
+            household.user.save(update_fields=["is_archived", "is_active"])
 
-    AuditLog.record(request.user, "household.delete", f"Deleted {label}", target=label)
-    removed = [f"{complaints} complaint(s)", f"{notifications} notice(s)"]
-    if username:
-        removed.append(f"the login '{username}'")
-    messages.success(request, f"Deleted {label}, along with {', '.join(removed)}.")
+    AuditLog.record(request.user, "household.archive", f"Archived {label}", target=label)
+    messages.success(request, f"Archived {label}. You can restore it from the archive page.")
     return redirect("admin_household_list")
 
 
@@ -3341,21 +3338,72 @@ def facilitator_edit(request, pk):
 @require_POST
 def facilitator_delete(request, pk):
     """
-    Remove a facilitator account. Visits assigned to them stay on the
-    schedule but become unassigned (the link is SET_NULL), so nothing that
-    was promised to a household disappears with the person.
+    Archive a facilitator account instead of deleting it. The login is
+    disabled and the account hidden from the active list. Open visits
+    stay assigned. The admin can restore from the archive page.
     """
     user = get_object_or_404(User, pk=pk, role=User.Role.FACILITATOR)
     if not _manageable(user, request.user):
-        return HttpResponseForbidden("That account cannot be deleted from here.")
+        return HttpResponseForbidden("That account cannot be archived from here.")
     label = f"{user.facilitator_id} ({user.get_full_name() or user.username})"
-    username = user.username
-    open_visits = user.assignments.exclude(status__in=WorkOrder.CLOSED_STATUSES).count()
-    user.delete()
-    AuditLog.record(request.user, "facilitator.delete", f"Deleted facilitator {label}", target=username)
-    note = f" {open_visits} open visit(s) are now unassigned." if open_visits else ""
-    messages.success(request, f"Deleted {label} and the login '{username}'.{note}")
+    user.is_archived = True
+    user.is_active = False
+    user.save(update_fields=["is_archived", "is_active"])
+    AuditLog.record(request.user, "facilitator.archive", f"Archived facilitator {label}", target=user.username)
+    messages.success(request, f"Archived {label}. You can restore it from the archive page.")
     return redirect("facilitator_list")
+
+
+@admin_required
+def archive_list(request):
+    """Archived households and facilitators, with the option to restore."""
+    households = (
+        Household.objects.filter(is_archived=True)
+        .select_related("segment", "user")
+        .order_by("-archived_at")
+    )
+    facilitators = (
+        User.objects.filter(role=User.Role.FACILITATOR, is_archived=True)
+        .select_related("barangay")
+        .order_by("facilitator_id")
+    )
+    return render(request, "admin/archive.html", {
+        "households": households,
+        "facilitators": facilitators,
+    })
+
+
+@admin_required
+@require_POST
+def archive_restore_household(request, pk):
+    """Bring back an archived household and re-enable its owner login."""
+    household = get_object_or_404(Household, pk=pk, is_archived=True)
+    label = f"{household.household_id} ({household.owner_name})"
+    with transaction.atomic():
+        household.is_archived = False
+        household.archived_at = None
+        household.save(update_fields=["is_archived", "archived_at"])
+        if household.user is not None:
+            household.user.is_archived = False
+            household.user.is_active = True
+            household.user.save(update_fields=["is_archived", "is_active"])
+    AuditLog.record(request.user, "household.restore", f"Restored {label}", target=label)
+    messages.success(request, f"Restored {label}.")
+    return redirect("archive_list")
+
+
+@admin_required
+@require_POST
+def archive_restore_facilitator(request, pk):
+    """Bring back an archived facilitator and re-enable the login."""
+    user = get_object_or_404(User, pk=pk, role=User.Role.FACILITATOR, is_archived=True)
+    label = f"{user.facilitator_id} ({user.get_full_name() or user.username})"
+    user.is_archived = False
+    user.is_active = True
+    user.save(update_fields=["is_archived", "is_active"])
+    AuditLog.record(request.user, "facilitator.restore", f"Restored facilitator {label}", target=user.username)
+    messages.success(request, f"Restored {label}.")
+    return redirect("archive_list")
 
 
 # ---------------------------------------------------------------------------

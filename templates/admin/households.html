@@ -283,7 +283,7 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="household-delete-title">Delete household?</h2>
+          <h2 id="household-delete-title">Archive household?</h2>
           <p class="sub" data-delete-subtitle></p>
         </div>
         <button type="button" class="icon-btn" data-modal-close aria-label="Close">
@@ -291,15 +291,11 @@
         </button>
       </div>
       <div class="modal-body">
-        <p>This cannot be undone. Deleting <strong data-delete-name></strong> also removes:</p>
-        <ul class="delete-list" data-delete-list></ul>
-        <p class="small muted">
-          Readings and leak events are recorded against the hose line, not the household, so the line's history is not affected.
-        </p>
+        <p>Archiving <strong data-delete-name></strong> hides it from the active lists. The owner login will be disabled. You can restore it anytime from the archive page.</p>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-danger">Delete household</button>
+        <button type="submit" class="btn btn-danger">Archive household</button>
       </div>
     </form>
   </div>

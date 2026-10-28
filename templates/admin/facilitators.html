@@ -173,7 +173,7 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="facilitator-delete-title">Delete facilitator?</h2>
+          <h2 id="facilitator-delete-title">Archive facilitator?</h2>
           <p class="sub" data-delete-subtitle></p>
         </div>
         <button type="button" class="icon-btn" data-modal-close aria-label="Close">
@@ -181,13 +181,11 @@
         </button>
       </div>
       <div class="modal-body">
-        <p>This cannot be undone. Deleting <strong data-delete-name></strong> also removes:</p>
-        <ul class="delete-list" data-delete-list></ul>
-        <p class="small muted">Households, hose lines and readings are not affected.</p>
+        <p>Archiving <strong data-delete-name></strong> disables their login and hides them from the active list. You can restore them anytime from the archive page.</p>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-danger">Delete facilitator</button>
+        <button type="submit" class="btn btn-danger">Archive facilitator</button>
       </div>
     </form>
   </div>

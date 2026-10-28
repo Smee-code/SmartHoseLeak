@@ -138,6 +138,9 @@
           <a href="{% url 'system_status' %}" {% if 'system' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
             <svg class="ico" aria-hidden="true"><use href="#i-cog"></use></svg><span>System status</span>
           </a>
+          <a href="{% url 'archive_list' %}" {% if request.resolver_match.url_name == 'archive_list' %}aria-current="page"{% endif %}>
+            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>Archive</span>
+          </a>
         {% elif is_facilitator %}
           <p class="sidenav-group">Monitoring</p>
           <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>

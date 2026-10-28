@@ -89,6 +89,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.OWNER)
     contact_number = models.CharField(max_length=20, blank=True)
     must_change_password = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False)
 
     # Which barangay a facilitator is responsible for. Null for an admin, who
     # oversees every barangay, and for a household owner, whose barangay is
@@ -693,6 +694,8 @@ class Household(models.Model):
     )
     date_registered = models.DateField(default=timezone.localdate)
     notes = models.TextField(blank=True)
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
 
     # Two people make a household real. The administrator enters the record
     # at application; the facilitator activates it - confirms where the
