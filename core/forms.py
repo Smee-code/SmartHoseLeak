@@ -227,6 +227,7 @@ class HouseholdForm(forms.ModelForm):
                 module_index=1,
                 name=f"{household.household_id} - {household.owner_name}",
                 color=Segment.next_color(),
+                barangay=household.barangay,
             )
             household.save(update_fields=["segment"])
 
