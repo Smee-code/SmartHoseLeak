@@ -1260,7 +1260,7 @@
       var pill = $('[data-field="status"]', tile);
       if (pill) {
         pill.className = 'pill pill-' + segment.status;
-        pill.textContent = segment.status === 'MAINTENANCE' ? 'Offline' : segment.status_label;
+        pill.textContent = segment.status_label;
       }
 
       var setText = function (field, value) {

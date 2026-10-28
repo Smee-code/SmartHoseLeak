@@ -348,7 +348,7 @@ class Segment(models.Model):
         LOW_SUPPLY = "LOW_SUPPLY", "Low Water Supply"
         WATER_RUNNING = "WATER_RUNNING", "Water Running"
         POSSIBLE_LEAK = "POSSIBLE_LEAK", "Possible Leak"
-        MAINTENANCE = "MAINTENANCE", "Under Maintenance"
+        MAINTENANCE = "MAINTENANCE", "Offline"
         OFFLINE = "OFFLINE", "Offline"
 
     device = models.ForeignKey(
