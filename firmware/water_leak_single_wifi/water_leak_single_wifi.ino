@@ -147,6 +147,9 @@ void loadConfig() {
   dsTestGraceMin = prefs.getInt("gracemin", 60);
   dsTestDropBar  = prefs.getFloat("dropbar", 0.15f);
   dsAutoClose    = prefs.getBool("autoclose", true);
+  // A valve an admin sealed by hand must stay sealed across a power cut, so
+  // the "manual" ownership is remembered rather than lost on reboot.
+  valveReason    = prefs.getString("valvern", "");
   prefs.end();
 }
 
@@ -176,6 +179,13 @@ void saveDetectionSettings() {
   prefs.putInt("gracemin", dsTestGraceMin);
   prefs.putFloat("dropbar", dsTestDropBar);
   prefs.putBool("autoclose", dsAutoClose);
+  prefs.end();
+}
+
+// Remember who owns the valve, so a manual close survives a reboot.
+void saveValveReason() {
+  prefs.begin("shl", false);
+  prefs.putString("valvern", valveReason);
   prefs.end();
 }
 
@@ -248,6 +258,23 @@ void applyServerConfig(const String &resp) {
     saveDetectionSettings();
     Serial.printf("[CFG] warn=%d leak=%d testHr=%d grace=%d drop=%.2f auto=%d\n",
                   dsFlowWarnMin, dsFlowLeakMin, dsTestHour, dsTestGraceMin, dsTestDropBar, dsAutoClose);
+  }
+
+  // Manual valve command from the admin console. A close takes ownership
+  // ("manual") so the flow and nightly-test logic leave it sealed; an open
+  // releases it back to automatic. Acted on only when the valve is not
+  // already where the command wants it, so the command riding out on every
+  // reply until the server sees it does not re-pulse the relay each cycle.
+  String vcmd;
+  if (extractJsonString(resp, "valve_command", vcmd)) {
+    if (vcmd == "close" && valveState != "closed") {
+      valveCloseNow(); valveReason = "manual"; saveValveReason();
+      Serial.println("[VALVE] manual close (admin)");
+    } else if (vcmd == "open" && valveState != "open") {
+      valveOpenNow(); valveReason = ""; flowStartMs = 0; pressureTestLeak = false;
+      saveValveReason();
+      Serial.println("[VALVE] manual open (admin)");
+    }
   }
 }
 
@@ -426,7 +453,8 @@ void uploadReadings() {
     "\"module\":1,"
     "\"pressure_bar\":" + String(lastPressureBar, 3) + ","
     "\"flow_lpm\":" + String(lastFlowLpm, 3) + ","
-    "\"status\":\"" + reportStatus + "\""
+    "\"status\":\"" + reportStatus + "\","
+    "\"valve_state\":\"" + String(valveState == "closed" ? "closed" : "open") + "\""
     "}]}";
 
   WiFiClientSecure tls; HTTPClient http;
@@ -503,8 +531,10 @@ void handleSave() {
 // in charge until the next automatic action.
 void handleValve() {
   String cmd = web.arg("cmd");
-  if (cmd == "open")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; }
-  else if (cmd == "close") { valveCloseNow(); valveReason = ""; }
+  // Local close latches the same way an admin close does, so a valve shut
+  // from the board's own page also stays shut across a reboot.
+  if (cmd == "open")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; saveValveReason(); }
+  else if (cmd == "close") { valveCloseNow(); valveReason = "manual"; saveValveReason(); }
   web.sendHeader("Location", "/");
   web.send(303, "text/plain", "");
 }
@@ -551,6 +581,12 @@ void setup() {
   lastPulseReset = millis();
 
   loadConfig();
+  // A line the admin sealed stays sealed through a power cut: re-close it
+  // before anything else can decide the valve should be open.
+  if (valveReason == "manual") {
+    valveCloseNow();
+    Serial.println("[VALVE] restored manual close after reboot");
+  }
   if (!connectWiFi()) {
     startAP();
   } else if (apiKey.length() == 0 && cfgCode.length() > 0) {
@@ -571,8 +607,8 @@ void loop() {
   if (Serial.available()) {
     String c = Serial.readStringUntil('\n');
     c.trim(); c.toUpperCase();
-    if (c == "OPEN")  { valveOpenNow();  valveReason = ""; }
-    else if (c == "CLOSE") { valveCloseNow(); valveReason = ""; }
+    if (c == "OPEN")  { valveOpenNow();  valveReason = ""; saveValveReason(); }
+    else if (c == "CLOSE") { valveCloseNow(); valveReason = "manual"; saveValveReason(); }
   }
 
   if (!apMode && millis() - lastUploadMs >= UPLOAD_INTERVAL_MS) {

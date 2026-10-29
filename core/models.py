@@ -410,6 +410,22 @@ class Segment(models.Model):
     # dropped reply instead of being lost the moment it is sent.
     valve_test_requested = models.BooleanField(default=False)
 
+    # A manual valve command from the admin console, parked here and handed to
+    # the board on the reply to its next upload - the same store-and-forward as
+    # the valve test above, because the board dials out and cannot be reached.
+    # CLOSE latches: the board holds the line shut until an OPEN is sent, so a
+    # line an administrator sealed does not reopen on its own at the nightly
+    # test or when a flow run ends. Cleared once the board reports it reached
+    # the commanded position.
+    class ValveCommand(models.TextChoices):
+        NONE = "", "No command"
+        OPEN = "open", "Open valve"
+        CLOSE = "close", "Close valve"
+
+    valve_command = models.CharField(
+        max_length=5, choices=ValveCommand.choices, default=ValveCommand.NONE, blank=True
+    )
+
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OFFLINE)
     status_changed_at = models.DateTimeField(default=timezone.now)
     maintenance_note = models.CharField(max_length=200, blank=True)
@@ -916,6 +932,13 @@ class LeakEvent(models.Model):
         null=True, blank=True, related_name="acknowledged_events",
     )
     resolution_note = models.TextField(blank=True)
+
+    # A test alert fired by an administrator to prove the notification path
+    # reaches a household, without a real board or waiting for a real
+    # condition. It raises a genuine notice, text and email, but is kept out
+    # of the facilitator's event list and the leak statistics so a rehearsal
+    # does not read as a real leak.
+    is_test = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-detected_at"]

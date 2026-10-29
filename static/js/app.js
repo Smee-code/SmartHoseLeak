@@ -147,6 +147,18 @@
     });
   });
 
+  // A form carrying data-confirm asks before it submits. Used where an action
+  // is disruptive and easy to fire by accident - closing a valve shuts off a
+  // household's water. Delegated so forms the live poll shows later are caught
+  // too. Without JavaScript the form still posts; the confirmation is a guard,
+  // not the gate.
+  document.addEventListener('submit', function (event) {
+    var form = event.target.closest('[data-confirm]');
+    if (form && !window.confirm(form.getAttribute('data-confirm'))) {
+      event.preventDefault();
+    }
+  });
+
 
   /* -------------------------------------------------- connection quality
      Decides whether the dashboard may load Leaflet tiles. Three signals,
@@ -1310,6 +1322,34 @@
       var valveForm = $('[data-valve-form]', tile);
       if (valveForm) {
         valveForm.hidden = !segment.valve_state || segment.valve_state === 'not_fitted';
+      }
+
+      // Admin manual valve control: show it once a valve is fitted, name the
+      // current state, and offer only the button that does something - Open
+      // when the line is shut, Close when it is open. A pending command (sent
+      // but not yet acknowledged by the board) is shown so a double tap while
+      // the board is still moving does not look like nothing happened.
+      var valveControl = $('[data-valve-control]', tile);
+      if (valveControl) {
+        var fitted = segment.valve_state && segment.valve_state !== 'not_fitted';
+        valveControl.hidden = !fitted;
+        if (fitted) {
+          var closed = segment.valve_state === 'closed';
+          var moving = segment.valve_state === 'moving';
+          var pending = segment.valve_command;
+          var label = moving ? 'moving'
+            : pending === 'close' ? 'closing…'
+            : pending === 'open' ? 'opening…'
+            : closed ? 'closed' : 'open';
+          var txt = $('[data-field="valve_state_text"]', valveControl);
+          if (txt) txt.textContent = label;
+          // Offer Open when shut (or closing); Close when open (or opening).
+          var openForm = $('[data-valve-open]', valveControl);
+          var closeForm = $('[data-valve-close]', valveControl);
+          var showOpen = closed || pending === 'close';
+          if (openForm) openForm.hidden = !showOpen;
+          if (closeForm) closeForm.hidden = showOpen;
+        }
       }
 
       // The owner's screen says it in words. The facilitator's wording below

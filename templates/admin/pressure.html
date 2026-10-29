@@ -50,11 +50,75 @@
           </div>
         </div>
         <div class="tile-foot"><span data-field="updated">no data yet</span></div>
+
+        {% comment %}
+          Manual valve control, admin only. Hidden until the board reports a
+          valve is fitted (app.js). A close latches the line shut until opened.
+          The two forms post the command; the board picks it up on its next
+          upload. data-valve-state is kept current by the live poll so only the
+          relevant button shows.
+        {% endcomment %}
+        {% if segment.has_device %}
+        <div class="tile-valve" data-valve-control hidden>
+          <span class="valve-readout">Valve: <strong data-field="valve_state_text">--</strong></span>
+          <div class="valve-actions">
+            <form method="post" action="{% url 'segment_valve_command' segment.pk %}" data-valve-open hidden>
+              {% csrf_token %}
+              <input type="hidden" name="command" value="open">
+              <input type="hidden" name="next" value="{{ request.path }}">
+              <button type="submit" class="btn btn-sm">Open valve</button>
+            </form>
+            <form method="post" action="{% url 'segment_valve_command' segment.pk %}" data-valve-close
+                  data-confirm="Close the valve on this line? This shuts off the household's water until you open it again.">
+              {% csrf_token %}
+              <input type="hidden" name="command" value="close">
+              <input type="hidden" name="next" value="{{ request.path }}">
+              <button type="submit" class="btn btn-sm btn-quiet-danger">Close valve</button>
+            </form>
+          </div>
+        </div>
+        {% endif %}
       </article>
     {% empty %}
       <p class="empty">No hose lines registered yet.</p>
     {% endfor %}
   </section>
+
+  {% comment %}
+    Send a realistic test alert. Proves a household is actually reached - in
+    the app, by text and by email - for either watched condition, without a
+    board or waiting for a real leak. The facilitator is not pulled and the
+    leak statistics are untouched.
+  {% endcomment %}
+  <div class="card" style="margin-top:1.6rem">
+    <div class="card-head">
+      <h2>Send a test alert</h2>
+      <span class="small muted">Rehearse the household notification path.</span>
+    </div>
+    <form method="post" action="{% url 'send_test_alert' %}" class="filters filters-inline"
+          data-confirm="Send a real test notification to this household? They will get an in-app notice, a text and an email.">
+      {% csrf_token %}
+      <div class="field">
+        <label for="test-household">Household</label>
+        <select id="test-household" name="household" required>
+          {% for household in households %}
+            {% if household.segment %}
+              <option value="{{ household.pk }}">{{ household.household_id }} &mdash; {{ household.owner_name }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="test-condition">Condition</label>
+        <select id="test-condition" name="condition" required>
+          <option value="water_running">Water running (continuous flow)</option>
+          <option value="flow_leak">Possible leak (water never stopped)</option>
+          <option value="pressure_leak">Possible leak (pressure dropped in the night test)</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Send test alert</button>
+    </form>
+  </div>
 
   <div class="card" style="margin-top:1.6rem">
     <div class="card-head">

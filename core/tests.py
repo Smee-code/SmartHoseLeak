@@ -2485,10 +2485,12 @@ class AdminDialogTests(TestCase):
 
         response = self.client.post(reverse("facilitator_delete", args=[fac.pk]))
         self.assertRedirects(response, reverse("facilitator_list"))
-        self.assertFalse(User.objects.filter(pk=fac.pk).exists())
-        self.assertTrue(AuditLog.objects.filter(action="facilitator.delete").exists())
-        # Deleting the newest hands its number out again - the same rule as households.
-        self.assertEqual(User.next_facilitator_id(), "FAC-001")
+        fac.refresh_from_db()
+        self.assertTrue(fac.is_archived)                  # archived, not deleted
+        self.assertFalse(fac.is_active)                   # the login is disabled
+        self.assertTrue(AuditLog.objects.filter(action="facilitator.archive").exists())
+        # An archived facilitator keeps its number, so the next one is FAC-002.
+        self.assertEqual(User.next_facilitator_id(), "FAC-002")
 
     def test_only_facilitators_can_be_deleted_from_the_facilitators_page(self):
         other_admin = User.objects.create_user(username="admin2", password="pw", role=User.Role.ADMIN)
@@ -2604,8 +2606,11 @@ class AdminDialogTests(TestCase):
         self.assertTrue(AuditLog.objects.filter(action="household.edit").exists())
         response = self.client.post(reverse("admin_household_delete", args=[hh.pk]))
         self.assertRedirects(response, reverse("admin_household_list"))
-        self.assertFalse(Household.objects.filter(pk=hh.pk).exists())
-        self.assertFalse(User.objects.filter(pk=owner.pk).exists())   # the login goes with it
+        hh.refresh_from_db()
+        self.assertTrue(hh.is_archived)                   # archived, not deleted
+        owner.refresh_from_db()
+        self.assertTrue(owner.is_archived)
+        self.assertFalse(owner.is_active)                 # the login is disabled
 
     def test_failed_household_save_reopens_the_dialog_on_the_households_page(self):
         response = self.client.post(reverse("admin_household_create"), {
@@ -2852,6 +2857,149 @@ class WaterRunningAlertTests(TestCase):
         self.assertIn("flow_leak_minutes", cfg)
         self.assertIn("valve_test_drop_bar", cfg)
         self.assertIn("auto_close_on_flow_leak", cfg)
+
+
+class ManualValveCommandTests(TestCase):
+    """Admin opens and closes a line's valve by hand; the board picks it up."""
+
+    def setUp(self):
+        self.brgy = Barangay.objects.create(name="Lower Dakong Patag")
+        self.device = Device.objects.create(label="board-80")
+        self.segment = Segment.objects.create(
+            module_index=1, name="HH-080 line", device=self.device,
+            barangay=self.brgy, status=Segment.Status.NORMAL,
+        )
+        self.admin = User.objects.create_user(
+            username="admin", password="pw", role=User.Role.ADMIN,
+        )
+        self.faci = User.objects.create_user(
+            username="faci", password="pw", role=User.Role.FACILITATOR,
+            barangay=self.brgy,
+        )
+
+    def _ingest(self, valve_state):
+        return self.client.post(
+            reverse("api_ingest"),
+            data=json.dumps({
+                "device_id": self.device.device_id,
+                "readings": [{
+                    "module": 1, "pressure_bar": 0.8, "flow_lpm": 0.0,
+                    "status": "NORMAL", "valve_state": valve_state,
+                }],
+            }),
+            content_type="application/json",
+            HTTP_X_DEVICE_KEY=self.device.api_key,
+        )
+
+    def test_admin_close_parks_the_command_and_rides_out_on_config(self):
+        self.client.login(username="admin", password="pw")
+        resp = self.client.post(
+            reverse("segment_valve_command", args=[self.segment.pk]),
+            data={"command": "close"},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.CLOSE)
+
+        # The board sees the command on its next upload reply.
+        cfg = self._ingest("open").json()["config"]["1"]
+        self.assertEqual(cfg["valve_command"], "close")
+
+        # It reports the valve reached closed; the command clears so it is not
+        # re-sent forever.
+        self._ingest("closed")
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.NONE)
+
+    def test_admin_open_clears_once_the_board_reports_open(self):
+        self.segment.valve_command = Segment.ValveCommand.OPEN
+        self.segment.save(update_fields=["valve_command"])
+        self.client.login(username="admin", password="pw")
+        self._ingest("open")
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.NONE)
+
+    def test_a_facilitator_cannot_command_the_valve(self):
+        self.client.login(username="faci", password="pw")
+        resp = self.client.post(
+            reverse("segment_valve_command", args=[self.segment.pk]),
+            data={"command": "close"},
+        )
+        self.assertIn(resp.status_code, (302, 403))
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.NONE)
+
+
+class TestAlertTests(TestCase):
+    """The admin 'send test alert' tool reaches the household like a real one."""
+
+    def setUp(self):
+        from django.core import mail as django_mail
+        django_mail.outbox.clear()
+        self.brgy = Barangay.objects.create(name="Lower Dakong Patag")
+        self.device = Device.objects.create(label="board-90")
+        self.segment = Segment.objects.create(
+            module_index=1, name="HH-090 line", device=self.device,
+            barangay=self.brgy, status=Segment.Status.NORMAL,
+        )
+        self.hh = Household.objects.create(
+            household_id="HH-090", owner_name="Rosa Lim", address="Purok 9",
+            contact_number="+639170000090", email="rosa@example.com",
+            barangay=self.brgy, account_status=Household.AccountStatus.ACTIVE,
+        )
+        self.hh.segment = self.segment
+        self.hh.save(update_fields=["segment"])
+        self.admin = User.objects.create_user(username="admin", password="pw", role=User.Role.ADMIN)
+        self.faci = User.objects.create_user(
+            username="faci", password="pw", role=User.Role.FACILITATOR,
+            barangay=self.brgy, contact_number="+639170000001",
+        )
+
+    @override_settings(SMS_AUTO_ON_LEAK=True, EMAIL_AUTO_ON_LEAK=True,
+                       PUSH_AUTO_ON_LEAK=False, SMS_FACILITATOR_ON_LEAK=True)
+    def test_water_running_test_alert_reaches_the_household_only(self):
+        from django.core import mail as django_mail
+        self.client.login(username="admin", password="pw")
+        resp = self.client.post(reverse("send_test_alert"), {
+            "household": self.hh.pk, "condition": "water_running",
+        })
+        self.assertRedirects(resp, reverse("admin_pressure"))
+        # The household is reached in-app, by text and by email.
+        self.assertTrue(Notification.objects.filter(recipient=self.hh, title__icontains="running").exists())
+        self.assertTrue(SmsMessage.objects.filter(household=self.hh).exists())
+        self.assertEqual(len(django_mail.outbox), 1)
+        # The live status is untouched and the event is a cleared test event.
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.status, Segment.Status.NORMAL)
+        ev = LeakEvent.objects.get(segment=self.segment)
+        self.assertTrue(ev.is_test)
+        self.assertIsNotNone(ev.cleared_at)
+
+    @override_settings(SMS_FACILITATOR_ON_LEAK=True)
+    def test_a_leak_test_alert_does_not_pull_the_facilitator(self):
+        self.client.login(username="admin", password="pw")
+        self.client.post(reverse("send_test_alert"), {
+            "household": self.hh.pk, "condition": "pressure_leak",
+        })
+        self.assertTrue(Notification.objects.filter(recipient=self.hh).exists())
+        self.assertFalse(SmsMessage.objects.filter(to_number=self.faci.contact_number).exists())
+
+    def test_test_events_stay_out_of_the_facilitator_event_list(self):
+        self.client.login(username="admin", password="pw")
+        self.client.post(reverse("send_test_alert"), {
+            "household": self.hh.pk, "condition": "flow_leak",
+        })
+        self.client.login(username="faci", password="pw")
+        html = self.client.get(reverse("event_list")).content.decode()
+        self.assertNotIn("HH-090", html)
+
+    def test_a_facilitator_cannot_send_a_test_alert(self):
+        self.client.login(username="faci", password="pw")
+        resp = self.client.post(reverse("send_test_alert"), {
+            "household": self.hh.pk, "condition": "water_running",
+        })
+        self.assertIn(resp.status_code, (302, 403))
+        self.assertFalse(Notification.objects.filter(recipient=self.hh).exists())
 
 
 class DetectionSettingsConsoleTests(TestCase):

@@ -461,6 +461,15 @@ input[type=checkbox] { width: auto; margin-right: .4rem; }
   font-size: .8rem; color: var(--text-muted);
 }
 
+/* Admin manual valve control on a live tile. */
+.tile-valve {
+  margin-top: .6rem; padding-top: .6rem; border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+}
+.valve-readout { font-size: .8rem; color: var(--text-muted); }
+.valve-readout strong { color: var(--text); text-transform: capitalize; }
+.valve-actions { display: flex; gap: .4rem; }
+
 /* Pulse only while an alert is live; respects reduced-motion. */
 @keyframes shl-pulse {
   0%, 100% { box-shadow: var(--shadow); }

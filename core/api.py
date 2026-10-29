@@ -244,9 +244,55 @@ def _notify_households(segment, event):
 
     # Only a confirmed leak is escalated to the facilitator. A water-running
     # warning is the owner's to act on first - they may simply have left a tap
-    # on - so it does not pull a crew.
-    if event.status == Segment.Status.POSSIBLE_LEAK:
+    # on - so it does not pull a crew. A test alert never escalates: it is a
+    # rehearsal of the household's path, not a real leak for a crew to chase.
+    if event.status == Segment.Status.POSSIBLE_LEAK and not event.is_test:
         _notify_facilitators(segment, event)
+
+
+def send_test_alert(segment, status, trigger=Trigger.NONE,
+                    device_severity=DeviceSeverity.NONE):
+    """
+    Fire a realistic alert for a line without a board or a real condition.
+
+    An administrator uses this to prove the household is actually reached -
+    in-app, by text and by email - for each of the two conditions the system
+    watches: water left running, and a pressure drop after the night valve
+    test. It builds a genuine event with plausible readings and runs it
+    through the same notification path a real detection would, so what the
+    household receives is identical to the real thing.
+
+    The event is flagged is_test and recorded already cleared, so it never
+    shows as an open alert, never pulls a crew, and is kept out of the leak
+    statistics. Nothing on the segment's live status is touched.
+    """
+    now = timezone.now()
+
+    # Readings chosen to match the condition, because the notice quotes them.
+    # Water running: flow present, pressure normal. A pressure-decay leak:
+    # the valve is shut so flow is nil and the pressure has fallen.
+    if status == Segment.Status.WATER_RUNNING:
+        pressure_bar, flow_lpm = 2.0, 9.0
+    elif trigger == Trigger.DECAY:
+        pressure_bar, flow_lpm = 1.2, 0.0
+    else:
+        pressure_bar, flow_lpm = 1.8, 9.0
+
+    event = LeakEvent.objects.create(
+        segment=segment,
+        status=status,
+        previous_status=Segment.Status.NORMAL,
+        severity=SEVERITY_BY_STATUS.get(status, LeakEvent.Severity.INFO),
+        pressure_bar=pressure_bar,
+        flow_lpm=flow_lpm,
+        device_severity=device_severity,
+        trigger=trigger,
+        detected_at=now,
+        cleared_at=now,
+        is_test=True,
+    )
+    _notify_households(segment, event)
+    return event
 
 
 def _notify_facilitators(segment, event):
@@ -533,6 +579,17 @@ def ingest(request):
                 segment.valve_test_requested = False
                 segment.save(update_fields=["valve_test_requested"])
 
+            # A manual open/close clears once the board reports it reached the
+            # commanded position. Until then the command keeps riding out on
+            # every config reply, so a close survives a dropped reply or a
+            # board reboot and the line ends up where the admin put it.
+            if segment.valve_command == Segment.ValveCommand.CLOSE and valve_state == ValveState.CLOSED:
+                segment.valve_command = Segment.ValveCommand.NONE
+                segment.save(update_fields=["valve_command"])
+            elif segment.valve_command == Segment.ValveCommand.OPEN and valve_state == ValveState.OPEN:
+                segment.valve_command = Segment.ValveCommand.NONE
+                segment.save(update_fields=["valve_command"])
+
             rollup, _ = ReadingRollup.objects.get_or_create(segment=segment, minute=minute)
             rollup.fold(pressure_bar, flow_lpm, mapped_status == Segment.Status.POSSIBLE_LEAK)
             rollup.save()
@@ -601,6 +658,7 @@ def _device_config(segments):
         str(index): {
             "low_pressure_bar": round(segment.low_pressure_bar, 3),
             "run_valve_test": segment.valve_test_requested,
+            "valve_command": segment.valve_command,
             **detection,
         }
         for index, segment in segments.items()
@@ -645,6 +703,7 @@ def _segment_payload(segment):
         "trigger_label": latest.get_trigger_display() if latest else "",
         "valve_state": latest.valve_state if latest else ValveState.NOT_FITTED,
         "valve_label": latest.get_valve_state_display() if latest else "Not fitted",
+        "valve_command": segment.valve_command,
         "calibrating": latest.calibrating if latest else False,
         "simulated": latest.simulated if latest else False,
         "updated_at": latest.updated_at.isoformat() if latest else None,

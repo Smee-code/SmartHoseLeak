@@ -136,6 +136,8 @@ urlpatterns = [
     path("console/work/<int:pk>/status/", views.work_order_status, name="work_order_status"),
     # Communications & analytics
     path("console/pressure/", views.admin_pressure, name="admin_pressure"),
+    path("console/lines/<int:pk>/valve/", views.segment_valve_command, name="segment_valve_command"),
+    path("console/test-alert/", views.send_test_alert, name="send_test_alert"),
     path("console/analytics/", views.analytics, name="analytics"),
     path("console/announcements/", views.announcement_list, name="announcement_list"),
     path("console/announcements/new/", views.announcement_create, name="announcement_create"),

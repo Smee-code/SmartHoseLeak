@@ -62,6 +62,7 @@ from .models import (
     Segment,
     SmsMessage,
     SystemSetting,
+    Trigger,
     WaterSource,
     WorkOrder,
     psi,
@@ -134,7 +135,9 @@ def _scoped_events(user):
     barangay = _barangay_of(user)
     if barangay is None:
         return LeakEvent.objects.none()
-    return LeakEvent.objects.filter(segment__barangay=barangay)
+    # Test alerts an admin fired to rehearse the notification path are left
+    # out: they are not real leaks and must not sit in the facilitator's list.
+    return LeakEvent.objects.filter(segment__barangay=barangay, is_test=False)
 
 
 def _scoped_rollups(user):
@@ -255,7 +258,7 @@ def _landing_context():
         ).count(),
         "events_30d": LeakEvent.objects.filter(
             detected_at__gte=timezone.now() - timezone.timedelta(days=30),
-            status=Segment.Status.POSSIBLE_LEAK,
+            status=Segment.Status.POSSIBLE_LEAK, is_test=False,
         ).count(),
     }
     return {"segments": segments, "stats": stats}
@@ -1088,6 +1091,92 @@ def segment_valve_test(request, pk):
     return redirect(request.POST.get("next") or "dashboard")
 
 
+@admin_required
+@require_POST
+def segment_valve_command(request, pk):
+    """
+    Open or close a line's motorised ball valve by hand, from the admin console.
+
+    Nothing is pushed: the board dials out, so the command is parked on the
+    line and handed over on the reply to its next upload. A close latches -
+    the board holds the line shut until an open is sent - so sealing a line
+    does not quietly reopen at the nightly test. The command clears itself
+    once the board reports the valve reached the commanded position.
+    """
+    segment = get_object_or_404(Segment, pk=pk)
+    action = request.POST.get("command", "")
+
+    if not segment.has_device:
+        messages.error(
+            request, f"{segment.name} has no device fitted, so there is no valve to control."
+        )
+        return redirect(request.POST.get("next") or "admin_pressure")
+
+    if action == Segment.ValveCommand.CLOSE:
+        segment.valve_command = Segment.ValveCommand.CLOSE
+        segment.save(update_fields=["valve_command"])
+        messages.success(
+            request,
+            f"Closing the valve on {segment.name}. The line stays shut until you open it again.",
+        )
+    elif action == Segment.ValveCommand.OPEN:
+        segment.valve_command = Segment.ValveCommand.OPEN
+        segment.save(update_fields=["valve_command"])
+        messages.success(
+            request,
+            f"Opening the valve on {segment.name}. Water will be restored within seconds.",
+        )
+    else:
+        messages.error(request, "Unknown valve command.")
+
+    return redirect(request.POST.get("next") or "admin_pressure")
+
+
+@admin_required
+@require_POST
+def send_test_alert(request):
+    """
+    Send a realistic test alert to a household, admin only.
+
+    Proves the whole notification path - in-app, text and email - for each of
+    the two conditions the system watches, without a board or a real leak.
+    The household gets the same message a real detection would send; the
+    facilitator is not pulled and the leak statistics are not touched.
+    """
+    from . import api
+
+    household = get_object_or_404(
+        Household.objects.select_related("segment"), pk=request.POST.get("household")
+    )
+    if household.segment is None:
+        messages.error(request, f"{household.household_id} has no hose line to alert on.")
+        return redirect("admin_pressure")
+
+    condition = request.POST.get("condition", "")
+    if condition == "water_running":
+        status, trigger = Segment.Status.WATER_RUNNING, Trigger.SUSTAINED
+    elif condition == "flow_leak":
+        status, trigger = Segment.Status.POSSIBLE_LEAK, Trigger.SUSTAINED
+    elif condition == "pressure_leak":
+        status, trigger = Segment.Status.POSSIBLE_LEAK, Trigger.DECAY
+    else:
+        messages.error(request, "Choose which condition to test.")
+        return redirect("admin_pressure")
+
+    api.send_test_alert(household.segment, status, trigger=trigger)
+    AuditLog.record(
+        request.user, "alert.test",
+        f"Sent a {condition} test alert to {household.household_id}",
+        target=household.household_id,
+    )
+    messages.success(
+        request,
+        f"Test alert sent to {household.household_id} ({household.owner_name}). "
+        "Check the household's notifications, email and texts.",
+    )
+    return redirect("admin_pressure")
+
+
 @facilitator_required
 @require_POST
 def segment_maintenance(request, pk):
@@ -1479,7 +1568,8 @@ def reports(request):
                 "max_pressure_bar": round(agg["max_p"] or 0, 2),
                 "minutes_logged": agg["samples"] or 0,
                 "leak_events": LeakEvent.objects.filter(
-                    segment=segment, status=Segment.Status.POSSIBLE_LEAK, detected_at__gte=since
+                    segment=segment, status=Segment.Status.POSSIBLE_LEAK,
+                    detected_at__gte=since, is_test=False,
                 ).count(),
             }
         )
@@ -2665,7 +2755,9 @@ def analytics(request):
 
     # Leak alerts in the last 30 days, per household - where the trouble is.
     leak_rows = (
-        LeakEvent.objects.filter(status=Segment.Status.POSSIBLE_LEAK, detected_at__gte=since)
+        LeakEvent.objects.filter(
+            status=Segment.Status.POSSIBLE_LEAK, detected_at__gte=since, is_test=False
+        )
         .values("segment__household__household_id")
         .annotate(n=Count("id"))
         .order_by("-n")[:10]
