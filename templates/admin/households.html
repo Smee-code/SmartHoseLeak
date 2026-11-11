@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Households - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Households" %} - {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="wrap">
   <div class="page-head">
@@ -10,30 +11,30 @@
         register dialog lives here - the sidebar brings you to this list,
         not straight into a form.
       {% endcomment %}
-      <h1>Households <span class="count-chip">{{ total }}</span></h1>
-      <p class="sub">Register a household during application. The facilitator then activates it: confirms its location and creates the owner's login.</p>
+      <h1>{% trans "Households" %} <span class="count-chip">{{ total }}</span></h1>
+      <p class="sub">{% trans "Register a household during application. The facilitator then activates it: confirms its location and creates the owner's login." %}</p>
     </div>
     <div class="btn-row">
-      <a class="btn btn-sm" href="{% url 'export_console' 'households' %}">Export CSV</a>
+      <a class="btn btn-sm" href="{% url 'export_console' 'households' %}">{% trans "Export CSV" %}</a>
       {# Opens the dialog below; without JavaScript it is a plain link to the full page. #}
-      <a class="btn btn-primary btn-sm" href="{% url 'admin_household_create' %}" data-modal-open="household-modal">Register household</a>
+      <a class="btn btn-primary btn-sm" href="{% url 'admin_household_create' %}" data-modal-open="household-modal">{% trans "Register household" %}</a>
     </div>
   </div>
 
   <form method="get" class="filters filters-inline">
     <div class="field">
-      <label for="q">Search</label>
-      <input type="search" id="q" name="q" value="{{ query }}" placeholder="ID, name, address or contact">
+      <label for="q">{% trans "Search" %}</label>
+      <input type="search" id="q" name="q" value="{{ query }}" placeholder="{% trans 'ID, name, address or contact' %}">
     </div>
-    <button type="submit" class="btn">Filter</button>
-    {% if query %}<a class="btn" href="{% url 'admin_household_list' %}">Clear</a>{% endif %}
+    <button type="submit" class="btn">{% trans "Filter" %}</button>
+    {% if query %}<a class="btn" href="{% url 'admin_household_list' %}">{% trans "Clear" %}</a>{% endif %}
   </form>
 
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Household ID</th><th>Owner</th><th>Address</th><th>Contact</th>
-            <th>Email</th><th>Line</th><th>Status</th><th>Activated</th><th></th></tr>
+        <tr><th>{% trans "Household ID" %}</th><th>{% trans "Owner" %}</th><th>{% trans "Address" %}</th><th>{% trans "Contact" %}</th>
+            <th>{% trans "Email" %}</th><th>{% trans "Line" %}</th><th>{% trans "Status" %}</th><th>{% trans "Activated" %}</th><th></th></tr>
       </thead>
       <tbody>
         {% for household in page %}
@@ -46,11 +47,11 @@
             <td class="small">
               {% if household.segment %}{{ household.segment.name }}
                 {% with setup=household.device_setup %}<div class="pill pill-sm pill-{{ setup.tone }}">{{ setup.label }}</div>{% endwith %}
-              {% else %}<span class="muted">Unassigned</span>{% endif %}
+              {% else %}<span class="muted">{% trans "Unassigned" %}</span>{% endif %}
             </td>
             <td>
               {% if household.is_pending %}
-                <span class="pill pill-warn">Pending activation</span>
+                <span class="pill pill-warn">{% trans "Pending activation" %}</span>
               {% else %}
                 <span class="pill {% if household.account_status == 'active' %}pill-ok{% else %}pill-muted{% endif %}">
                   {{ household.get_account_status_display }}
@@ -59,11 +60,11 @@
             </td>
             <td class="small">
               {% if household.is_pending %}
-                <span class="muted">awaiting the facilitator</span>
+                <span class="muted">{% trans "awaiting the facilitator" %}</span>
               {% else %}
                 {% if household.user %}<span class="mono">{{ household.user.username }}</span>{% endif %}
                 {% if household.activated_at %}
-                  <div class="muted">{{ household.activated_at|date:"M j, Y" }}{% if household.activated_by %} by {{ household.activated_by.get_full_name|default:household.activated_by.username }}{% endif %}</div>
+                  <div class="muted">{{ household.activated_at|date:"M j, Y" }}{% if household.activated_by %} {% blocktrans trimmed with who=household.activated_by.get_full_name|default:household.activated_by.username %}by {{ who }}{% endblocktrans %}{% endif %}</div>
                 {% endif %}
               {% endif %}
             </td>
@@ -86,7 +87,7 @@
                    data-status="{{ household.account_status }}"
                    data-lat="{{ household.latitude|default_if_none:'' }}"
                    data-lng="{{ household.longitude|default_if_none:'' }}"
-                   data-notes="{{ household.notes }}">Edit</a>
+                   data-notes="{{ household.notes }}">{% trans "Edit" %}</a>
                 <button type="button" class="btn btn-sm btn-quiet-danger"
                         data-delete-household
                         data-action="{% url 'admin_household_delete' household.pk %}"
@@ -94,13 +95,13 @@
                         data-owner="{{ household.owner_name }}"
                         data-login="{% if household.user %}{{ household.user.username }}{% endif %}"
                         data-complaints="{{ household.complaint_count }}"
-                        data-notices="{{ household.notification_count }}">Delete</button>
+                        data-notices="{{ household.notification_count }}">{% trans "Delete" %}</button>
               </div>
             </td>
           </tr>
         {% empty %}
           <tr><td colspan="9" class="empty">
-            {% if query %}No households match this search.{% else %}No households yet. <a href="{% url 'admin_household_create' %}" data-modal-open="household-modal">Register the first one</a>.{% endif %}
+            {% if query %}{% trans "No households match this search." %}{% else %}{% trans "No households yet." %} <a href="{% url 'admin_household_create' %}" data-modal-open="household-modal">{% trans "Register the first one" %}</a>.{% endif %}
           </td></tr>
         {% endfor %}
       </tbody>
@@ -109,9 +110,9 @@
 
   {% if page.has_other_pages %}
     <div class="pager">
-      {% if page.has_previous %}<a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;q={{ query }}">Previous</a>{% endif %}
-      <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-      {% if page.has_next %}<a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;q={{ query }}">Next</a>{% endif %}
+      {% if page.has_previous %}<a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;q={{ query }}">{% trans "Previous" %}</a>{% endif %}
+      <span class="muted">{% blocktrans trimmed with n=page.number total=page.paginator.num_pages %}Page {{ n }} of {{ total }}{% endblocktrans %}</span>
+      {% if page.has_next %}<a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;q={{ query }}">{% trans "Next" %}</a>{% endif %}
     </div>
   {% endif %}
 </div>
@@ -129,10 +130,10 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="household-modal-title">Register a household</h2>
-          <p class="sub">A hose line and a new board come with it. The facilitator adds the location and creates the owner's login when they activate it.</p>
+          <h2 id="household-modal-title">{% trans "Register a household" %}</h2>
+          <p class="sub">{% trans "A hose line and a new board come with it. The facilitator adds the location and creates the owner's login when they activate it." %}</p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -143,9 +144,9 @@
         {% endif %}
 
         <div class="field">
-          <label>Household ID</label>
+          <label>{% trans "Household ID" %}</label>
           <p class="assigned-id mono">{{ next_household_id }}</p>
-          <span class="helptext">Assigned automatically when you save.</span>
+          <span class="helptext">{% trans "Assigned automatically when you save." %}</span>
         </div>
 
         {% include "_form_field.html" with field=create_form.owner_name %}
@@ -156,30 +157,33 @@
         {% endcomment %}
         <div class="field-pair">
           <div class="field">
-            <label>Province</label>
+            <label>{% trans "Province" %}</label>
             <input type="text" value="{{ barangay.province }}" readonly aria-readonly="true" tabindex="-1">
           </div>
           <div class="field">
-            <label>Municipality</label>
+            <label>{% trans "Municipality" %}</label>
             <input type="text" value="{{ barangay.municipality }}" readonly aria-readonly="true" tabindex="-1">
           </div>
         </div>
         <div class="field">
-          <label>Barangay</label>
+          <label>{% trans "Barangay" %}</label>
           <input type="text" value="{{ barangay.name }}" readonly aria-readonly="true" tabindex="-1">
         </div>
         {% include "_form_field.html" with field=create_form.address %}
         {% include "_form_field.html" with field=create_form.contact_number %}
         {% include "_form_field.html" with field=create_form.email %}
+        {% include "_form_field.html" with field=create_form.language %}
         {% include "_form_field.html" with field=create_form.account_status %}
         {% include "_form_field.html" with field=create_form.notes %}
 
         {% if create_form.device_choice %}
         <fieldset class="channel-box">
-          <legend class="small">Hardware</legend>
+          <legend class="small">{% trans "Hardware" %}</legend>
           <p class="helptext" style="margin-top:0">
+            {% blocktrans trimmed %}
             A hose line is created automatically. The board's setup code is sent to the owner when the
             facilitator activates the household; the owner connects it to their own WiFi.
+            {% endblocktrans %}
           </p>
 
           <div class="field">
@@ -194,7 +198,7 @@
 
           <div data-device-when="new" hidden>
             {% include "_form_field.html" with field=create_form.device_label %}
-            <p class="helptext">The Device ID and API key are generated when you save, and shown on the Lines page.</p>
+            <p class="helptext">{% trans "The Device ID and API key are generated when you save, and shown on the Lines page." %}</p>
           </div>
           <div data-device-when="existing" hidden>
             {% include "_form_field.html" with field=create_form.existing_device %}
@@ -205,8 +209,8 @@
       </div>
 
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Register household</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary">{% trans "Register household" %}</button>
       </div>
     </form>
   </div>
@@ -224,10 +228,10 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="household-edit-title">Edit household</h2>
+          <h2 id="household-edit-title">{% trans "Edit household" %}</h2>
           <p class="sub" data-edit-subtitle>{% if edit_household %}{{ edit_household.household_id }}{% endif %}</p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -244,29 +248,30 @@
         {% endcomment %}
         <div class="field-pair">
           <div class="field">
-            <label>Province</label>
+            <label>{% trans "Province" %}</label>
             <input type="text" value="{{ barangay.province }}" readonly aria-readonly="true" tabindex="-1">
           </div>
           <div class="field">
-            <label>Municipality</label>
+            <label>{% trans "Municipality" %}</label>
             <input type="text" value="{{ barangay.municipality }}" readonly aria-readonly="true" tabindex="-1">
           </div>
         </div>
         <div class="field">
-          <label>Barangay</label>
+          <label>{% trans "Barangay" %}</label>
           <input type="text" value="{{ barangay.name }}" readonly aria-readonly="true" tabindex="-1">
         </div>
         {% include "_form_field.html" with field=edit_form.address %}
         {% include "_form_field.html" with field=edit_form.contact_number %}
         {% include "_form_field.html" with field=edit_form.email %}
+        {% include "_form_field.html" with field=edit_form.language %}
         {% include "_form_field.html" with field=edit_form.account_status %}
         {% include "_form_field.html" with field=edit_form.notes %}
-        <p class="helptext">The location on the map is set by the facilitator at activation and kept on their side.</p>
+        <p class="helptext">{% trans "The location on the map is set by the facilitator at activation and kept on their side." %}</p>
       </div>
 
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Save changes</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary">{% trans "Save changes" %}</button>
       </div>
     </form>
   </div>
@@ -283,19 +288,19 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="household-delete-title">Archive household?</h2>
+          <h2 id="household-delete-title">{% trans "Archive household?" %}</h2>
           <p class="sub" data-delete-subtitle></p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
       <div class="modal-body">
-        <p>Archiving <strong data-delete-name></strong> hides it from the active lists. The owner login will be disabled. You can restore it anytime from the archive page.</p>
+        <p>{% blocktrans trimmed %}Archiving <strong data-delete-name></strong> hides it from the active lists. The owner login will be disabled. You can restore it anytime from the archive page.{% endblocktrans %}</p>
       </div>
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-danger">Archive household</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-danger">{% trans "Archive household" %}</button>
       </div>
     </form>
   </div>

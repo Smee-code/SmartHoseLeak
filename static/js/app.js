@@ -1,3 +1,15 @@
+/* Translation helpers. base.html loads Django's JavaScript catalog before
+   this file, which defines gettext(), ngettext() and interpolate() in the
+   active language. If that request ever fails, the page must still work -
+   in English - so the three are defined here as pass-throughs. */
+if (typeof window.gettext !== 'function') {
+  window.gettext = function (s) { return s; };
+  window.ngettext = function (s, p, n) { return n === 1 ? s : p; };
+  window.interpolate = function (fmt, obj, named) {
+    if (named) return fmt.replace(/%\(\w+\)s/g, function (m, k) { return String(obj[k]); });
+    return fmt.replace(/%s/g, function () { return String(obj.shift()); });
+  };
+}
 /* =========================================================================
    Smart Hose Leak Detection System - shared frontend behaviour.
    Plain ES5-compatible JavaScript, no build step and no framework.
@@ -19,13 +31,13 @@
   }
 
   function timeAgo(iso) {
-    if (!iso) return 'no data yet';
+    if (!iso) return gettext('no data yet');
     var seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-    if (seconds < 10) return 'just now';
-    if (seconds < 60) return Math.round(seconds) + 's ago';
-    if (seconds < 3600) return Math.round(seconds / 60) + ' min ago';
-    if (seconds < 86400) return Math.round(seconds / 3600) + ' hr ago';
-    return Math.round(seconds / 86400) + ' d ago';
+    if (seconds < 10) return gettext('just now');
+    if (seconds < 60) return interpolate(gettext('%(n)ss ago'), {n: Math.round(seconds)}, true);
+    if (seconds < 3600) return interpolate(gettext('%(n)s min ago'), {n: Math.round(seconds / 60)}, true);
+    if (seconds < 86400) return interpolate(gettext('%(n)s hr ago'), {n: Math.round(seconds / 3600)}, true);
+    return interpolate(gettext('%(n)s d ago'), {n: Math.round(seconds / 86400)}, true);
   }
 
   var STATUS_COLORS = {
@@ -240,17 +252,17 @@
     var pill = $('#conn-pill');
     if (!pill) return;
     var labels = {
-      strong: ['pill pill-ok', '&#8226; online'],
-      weak: ['pill pill-warn', '&#8226; weak signal'],
-      offline: ['pill pill-danger', '&#8226; offline']
+      strong: ['pill pill-ok', '&#8226; ' + gettext('online')],
+      weak: ['pill pill-warn', '&#8226; ' + gettext('weak signal')],
+      offline: ['pill pill-danger', '&#8226; ' + gettext('offline')]
     };
     var chosen = labels[quality] || labels.offline;
     pill.className = chosen[0];
     pill.innerHTML = chosen[1];
     pill.title = {
-      strong: 'Internet connection is good. The interactive map is available.',
-      weak: 'Weak connection detected. The offline schematic view is being used instead of the map.',
-      offline: 'No internet connection. Showing the offline schematic view.'
+      strong: gettext('Internet connection is good. The interactive map is available.'),
+      weak: gettext('Weak connection detected. The offline schematic view is being used instead of the map.'),
+      offline: gettext('No internet connection. Showing the offline schematic view.')
     }[quality] || '';
   }
 
@@ -587,7 +599,7 @@
       var value = button.getAttribute('data-copy') || '';
       var done = function (ok) {
         var original = button.textContent;
-        button.textContent = ok ? 'Copied' : 'Press Ctrl+C';
+        button.textContent = ok ? gettext('Copied') : gettext('Press Ctrl+C');
         button.classList.toggle('is-copied', ok);
         setTimeout(function () {
           button.textContent = original;
@@ -635,8 +647,8 @@
       var consequence = $('[data-newkey-consequence]', modal);
       if (consequence) {
         consequence.textContent = line
-          ? line + ' will stop reporting until you enter the new key on the board.'
-          : 'This board is not fitted to a line yet, so nothing stops reporting.';
+          ? interpolate(gettext('%(line)s will stop reporting until you enter the new key on the board.'), {line: line}, true)
+          : gettext('This board is not fitted to a line yet, so nothing stops reporting.');
       }
       openModal(modal);
     });
@@ -661,8 +673,8 @@
       var list = $('[data-delete-list]', modal);
       if (list) {
         list.innerHTML = '';
-        [rollups + (rollups === 1 ? ' minute of pressure history' : ' minutes of pressure history'),
-         events + (events === 1 ? ' leak event' : ' leak events')]
+        [interpolate(ngettext('%(n)s minute of pressure history', '%(n)s minutes of pressure history', rollups), {n: rollups}, true),
+         interpolate(ngettext('%(n)s leak event', '%(n)s leak events', events), {n: events}, true)]
           .forEach(function (text) {
             var li = document.createElement('li');
             li.textContent = text;
@@ -676,10 +688,11 @@
       var note = $('[data-delete-households]', modal);
       if (note) {
         note.textContent = households
-          ? households + (households === 1 ? ' household is' : ' households are') +
-            ' served by this line. They are kept, but become Unassigned and stop ' +
-            'receiving alerts until you move them to another line.'
-          : 'No households are assigned to this line.';
+          ? interpolate(ngettext(
+              '%(n)s household is served by this line. It is kept, but becomes Unassigned and stops receiving alerts until you move it to another line.',
+              '%(n)s households are served by this line. They are kept, but become Unassigned and stop receiving alerts until you move them to another line.',
+              households), {n: households}, true)
+          : gettext('No households are assigned to this line.');
       }
 
       openModal(modal);
@@ -760,7 +773,7 @@
 
       if (filterCount) {
         filterCount.textContent = (term || onlyProblems)
-          ? 'Showing ' + shown + ' of ' + liveRows.length
+          ? interpolate(gettext('Showing %(shown)s of %(total)s'), {shown: shown, total: liveRows.length}, true)
           : '';
       }
       if (filterEmpty) filterEmpty.hidden = !(liveRows.length && shown === 0);
@@ -910,8 +923,28 @@
   var pollTimer = null;
   var failures = 0;
 
+  // "Somebody is at the valve buttons": this page has them, and a person has
+  // touched the mouse, keyboard or screen in the last two minutes. The poll
+  // tells the server so (X-Valve-Watch) and speeds up to 2 s; the server
+  // passes it on to the board, which starts asking for commands every 2 s.
+  // An idle dashboard left open all day does neither, which is what keeps
+  // the hosted server inside its daily CPU allowance.
+  var ACTIVE_WINDOW_MS = 120000;
+  var lastActivity = Date.now();
+  function noteActivity() { lastActivity = Date.now(); }
+  ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'].forEach(function (name) {
+    document.addEventListener(name, noteActivity, { passive: true });
+  });
+  function watchingValves() {
+    return !!document.querySelector('[data-valve-control]') &&
+      Date.now() - lastActivity < ACTIVE_WINDOW_MS;
+  }
+
   function poll() {
-    fetch('/api/live/', { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+    var watching = watchingValves();
+    var headers = { 'X-Requested-With': 'fetch' };
+    if (watching) headers['X-Valve-Watch'] = '1';
+    fetch('/api/live/', { headers: headers, credentials: 'same-origin' })
       .then(function (response) {
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
@@ -931,7 +964,8 @@
       .then(function () {
         // Back off when the server is unreachable so a lost link does not
         // hammer the connection; return to normal cadence once it recovers.
-        var delay = failures > 2 ? Math.min(SHL.pollMs * failures, 30000) : SHL.pollMs;
+        var base = watching ? Math.min(SHL.pollMs, 2000) : SHL.pollMs;
+        var delay = failures > 2 ? Math.min(base * failures, 30000) : base;
         pollTimer = setTimeout(poll, delay);
       });
   }
@@ -969,14 +1003,14 @@
     if (online) {
       SHL.toast({
         type: 'ok',
-        title: 'Device is online',
-        body: 'Readings are arriving from the ESP32 again.'
+        title: gettext('Device is online'),
+        body: gettext('Readings are arriving from the ESP32 again.')
       });
     } else {
       SHL.toast({
         type: 'danger',
-        title: 'Device went offline',
-        body: ‘No readings received recently. Check the board’s power and Wi-Fi.’,
+        title: gettext('Device went offline'),
+        body: gettext('No readings received recently. Check the board’s power and Wi-Fi.'),
         timeout: 3000
       });
     }
@@ -1022,8 +1056,8 @@
 
       var length = body.value.length;
       var parts = length <= limit ? 1 : Math.ceil(length / PART);
-      out.textContent = length + ' characters' +
-        (parts > 1 ? ' - sends as ' + parts + ' text messages' : ' - one text message');
+      out.textContent = interpolate(gettext('%(n)s characters'), {n: length}, true) +
+        (parts > 1 ? interpolate(gettext(' - sends as %(n)s text messages'), {n: parts}, true) : gettext(' - one text message'));
       out.classList.toggle('warn-text', parts > 1);
     }
 
@@ -1105,10 +1139,10 @@
       if (summary) {
         var count = chosen().length;
         summary.textContent = all && all.checked
-          ? 'Sending to every active household.'
+          ? gettext('Sending to every active household.')
           : count
-            ? count + ' household' + (count === 1 ? '' : 's') + ' selected.'
-            : 'Nobody selected yet.';
+            ? interpolate(ngettext('%(n)s household selected.', '%(n)s households selected.', count), {n: count}, true)
+            : gettext('Nobody selected yet.');
       }
     }
 
@@ -1133,8 +1167,8 @@
         var none = document.createElement('li');
         none.className = 'token-none';
         none.textContent = input.value.trim()
-          ? 'No household matches that.'
-          : 'Everyone is already selected.';
+          ? gettext('No household matches that.')
+          : gettext('Everyone is already selected.');
         menu.appendChild(none);
       } else {
         found.forEach(function (option, index) {
@@ -1241,24 +1275,24 @@
    */
   var OWNER_STATE = {
     NORMAL: {
-      head: 'Your water is normal',
-      sub: 'Nothing wrong with your line right now.'
+      head: gettext('Your water is normal'),
+      sub: gettext('Nothing wrong with your line right now.')
     },
     LOW_SUPPLY: {
-      head: 'Your water is weak',
-      sub: 'Pressure is lower than usual on your line. It may be slow at the tap.'
+      head: gettext('Your water is weak'),
+      sub: gettext('Pressure is lower than usual on your line. It may be slow at the tap.')
     },
     POSSIBLE_LEAK: {
-      head: 'Possible leak on your line',
-      sub: 'Please check that all your faucets are fully closed. If they are and water is still running, tell the water system facilitator.'
+      head: gettext('Possible leak on your line'),
+      sub: gettext('Please check that all your faucets are fully closed. If they are and water is still running, tell the water system facilitator.')
     },
     MAINTENANCE: {
-      head: 'Under repair',
-      sub: 'The facilitator is working on your line. Supply may stop for a while.'
+      head: gettext('Under repair'),
+      sub: gettext('The facilitator is working on your line. Supply may stop for a while.')
     },
     OFFLINE: {
-      head: 'Not being checked',
-      sub: 'No readings are coming from your line. Your water may still be fine - the device has stopped reporting.'
+      head: gettext('Not being checked'),
+      sub: gettext('No readings are coming from your line. Your water may still be fine - the device has stopped reporting.')
     }
   };
 
@@ -1285,6 +1319,10 @@
       setText('flow_lpm', fmt(segment.flow_lpm, 2));
       setText('updated', timeAgo(segment.updated_at));
       setText('valve', segment.has_device ? (segment.valve_label || '--') : '--');
+      // The sentence under the state - why the valve is where it is. Written
+      // once on the server so the owner, the facilitator and the admin read
+      // the same words.
+      setText('valve_detail', segment.has_device ? (segment.valve_detail || '') : '');
       setText('low_bar', fmt(segment.low_pressure_bar, 2));
 
       // A tile is collapsed until it has something to show. Cleared here so a
@@ -1298,7 +1336,7 @@
       if (deviceDot) {
         var live = segment.device_online && !segment.stale;
         deviceDot.className = 'dot ' + (live ? 'dot-live' : 'dot-down');
-        setText('device', live ? 'live' : 'not reporting');
+        setText('device', live ? gettext('live') : gettext('not reporting'));
       }
 
       // A link to the board's own page. Hidden until it has reported at
@@ -1324,11 +1362,17 @@
         valveForm.hidden = !segment.valve_state || segment.valve_state === 'not_fitted';
       }
 
-      // Admin manual valve control: show it once a valve is fitted, name the
-      // current state, and offer only the button that does something - Open
-      // when the line is shut, Close when it is open. A pending command (sent
-      // but not yet acknowledged by the board) is shown so a double tap while
-      // the board is still moving does not look like nothing happened.
+      // Manual valve control, on three screens: the admin's pressure tile,
+      // the facilitator's dashboard row and the household's portal. Shown
+      // once a valve is fitted, names the current state, and offers only the
+      // button that does something - Open when the line is shut, Close when
+      // it is open. A pending command (sent but not yet acknowledged by the
+      // board) is shown so a double tap while the board is still moving does
+      // not look like nothing happened.
+      //
+      // data-valve-role says whose screen this is. A line the administrator
+      // closed is locked: everyone but the admin loses the Open button and
+      // sees why, rather than pressing a button the server would refuse.
       var valveControl = $('[data-valve-control]', tile);
       if (valveControl) {
         var fitted = segment.valve_state && segment.valve_state !== 'not_fitted';
@@ -1337,18 +1381,22 @@
           var closed = segment.valve_state === 'closed';
           var moving = segment.valve_state === 'moving';
           var pending = segment.valve_command;
-          var label = moving ? 'moving'
-            : pending === 'close' ? 'closing…'
-            : pending === 'open' ? 'opening…'
-            : closed ? 'closed' : 'open';
+          var label = moving ? gettext('moving')
+            : pending === 'close' ? gettext('closing…')
+            : pending === 'open' ? gettext('opening…')
+            : closed ? gettext('closed') : gettext('open');
           var txt = $('[data-field="valve_state_text"]', valveControl);
           if (txt) txt.textContent = label;
+          var role = valveControl.getAttribute('data-valve-role') || 'admin';
+          var locked = !!segment.valve_locked && role !== 'admin';
           // Offer Open when shut (or closing); Close when open (or opening).
           var openForm = $('[data-valve-open]', valveControl);
           var closeForm = $('[data-valve-close]', valveControl);
+          var lockNote = $('[data-valve-locked]', valveControl);
           var showOpen = closed || pending === 'close';
-          if (openForm) openForm.hidden = !showOpen;
+          if (openForm) openForm.hidden = !showOpen || locked;
           if (closeForm) closeForm.hidden = showOpen;
+          if (lockNote) lockNote.hidden = !(showOpen && locked);
         }
       }
 
@@ -1378,26 +1426,26 @@
           var detail = [];
           if (segment.severity_label && segment.severity !== 'none') detail.push(segment.severity_label);
           if (segment.trigger_label && segment.trigger !== 'none') detail.push(segment.trigger_label);
-          note.textContent = detail.length ? detail.join(' - ') : 'Suspected leak.';
+          note.textContent = detail.length ? detail.join(' - ') : gettext('Suspected leak.');
         } else if (segment.status === 'MAINTENANCE') {
-          note.textContent = segment.maintenance_note || 'Alerts paused for this line.';
+          note.textContent = segment.maintenance_note || gettext('Alerts paused for this line.');
         } else if (segment.status === 'OFFLINE') {
           // A line with no board was being told to check the power and Wi-Fi
           // of a device that does not exist. Six rows said it at once, which
           // made the rollout look like six faults - and sent the facilitator
           // hunting for a problem that was never there.
           note.textContent = segment.has_device
-            ? 'No readings received. Check the board’s power and Wi-Fi.'
-            : 'No board fitted to this line yet.';
+            ? gettext('No readings received. Check the board’s power and Wi-Fi.')
+            : gettext('No board fitted to this line yet.');
         } else if (segment.status === 'LOW_SUPPLY') {
           // Naming the figure turns a verdict into something checkable:
           // the facilitator can see at a glance whether the line is genuinely
           // weak or the threshold is simply set too high for this line.
           note.textContent = segment.low_pressure_bar
-            ? 'Pressure is under this line’s ' + fmt(segment.low_pressure_bar, 2) + ' bar threshold.'
-            : 'Pressure below the normal operating threshold.';
+            ? interpolate(gettext('Pressure is under this line’s %(bar)s bar threshold.'), {bar: fmt(segment.low_pressure_bar, 2)}, true)
+            : gettext('Pressure below the normal operating threshold.');
         } else {
-          note.textContent = segment.simulated ? 'Simulated input.' : '';
+          note.textContent = segment.simulated ? gettext('Simulated input.') : '';
         }
       }
     });
@@ -1463,7 +1511,7 @@
     button.addEventListener('click', function () {
       var showing = input.type === 'text';
       input.type = showing ? 'password' : 'text';
-      var label = showing ? 'Show password' : 'Hide password';
+      var label = showing ? gettext('Show password') : gettext('Hide password');
       button.setAttribute('aria-label', label);
       button.setAttribute('title', label);
       button.setAttribute('aria-pressed', showing ? 'false' : 'true');
@@ -1496,7 +1544,7 @@
       if (!submit) return;
       submit.setAttribute('aria-busy', 'true');
       submit.disabled = true;
-      submit.textContent = 'Signing in…';
+      submit.textContent = gettext('Signing in…');
     });
   });
 
@@ -1668,7 +1716,7 @@
       var onButton = $('#push-on');
       if (onButton) {
         onButton.addEventListener('click', function () {
-          say('Asking for permission…');
+          say(gettext('Asking for permission…'));
           Notification.requestPermission().then(function (permission) {
             if (permission !== 'granted') {
               say('');
@@ -1693,12 +1741,12 @@
                 .then(function (response) {
                   if (!response.ok) throw new Error('server');
                   paint(subscription);
-                  say('Alerts are on for this phone.');
+                  say(gettext('Alerts are on for this phone.'));
                 });
             }).catch(function (error) {
               say(error && error.message === 'browser'
-                ? 'This browser will not set up notifications. If you are using a private or incognito window, open the portal normally and try again.'
-                : 'Could not turn alerts on. Check your connection and try again.');
+                ? gettext('This browser will not set up notifications. If you are using a private or incognito window, open the portal normally and try again.')
+                : gettext('Could not turn alerts on. Check your connection and try again.'));
             });
           });
         });
@@ -1715,8 +1763,8 @@
                handset which can no longer receive it. */
             postJSON('/api/push/unsubscribe/', { endpoint: endpoint })
               .then(function () { return subscription.unsubscribe(); })
-              .then(function () { paint(null); say('Alerts are off for this phone.'); })
-              .catch(function () { say('Could not turn alerts off. Try again.'); });
+              .then(function () { paint(null); say(gettext('Alerts are off for this phone.')); })
+              .catch(function () { say(gettext('Could not turn alerts off. Try again.')); });
           });
         });
       }
@@ -1724,13 +1772,13 @@
       var testButton = $('#push-test');
       if (testButton) {
         testButton.addEventListener('click', function () {
-          say('Sending…');
+          say(gettext('Sending…'));
           postJSON('/api/push/test/').then(function (response) {
             return response.json().then(function (data) {
-              say(response.ok ? 'Sent. It should appear in a moment.'
-                              : (data.error || 'Could not send a test.'));
+              say(response.ok ? gettext('Sent. It should appear in a moment.')
+                              : (data.error || gettext('Could not send a test.')));
             });
-          }).catch(function () { say('Could not send a test.'); });
+          }).catch(function () { say(gettext('Could not send a test.')); });
         });
       }
     });
@@ -1756,7 +1804,7 @@ SHL.initOwnerDevice = function () {
   var tones = ['ok', 'warn', 'danger', 'muted', 'info'];
 
   var buttonText = {
-    lost: 'What to check', claimed_silent: 'Set up again', connecting: 'Setup steps'
+    lost: gettext('What to check'), claimed_silent: gettext('Set up again'), connecting: gettext('Setup steps')
   };
   var noButton = { connected: true, no_board: true, awaiting_activation: true };
 
@@ -1789,7 +1837,7 @@ SHL.initOwnerDevice = function () {
     var open = pick('open');
     if (open) {
       open.hidden = !!noButton[state.key];
-      open.textContent = buttonText[state.key] || 'Set up my board';
+      open.textContent = buttonText[state.key] || gettext('Set up my board');
     }
   };
 

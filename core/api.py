@@ -1,13 +1,16 @@
 """
 JSON endpoints.
 
-/api/ingest/  - the ESP32 posts here every sample interval (device-key auth)
-/api/live/    - dashboards poll here for current values (session auth)
+/api/ingest/   - the ESP32 posts here every upload interval (device-key auth)
+/api/commands/ - the ESP32 asks here for a pending valve command, every couple
+                 of seconds while somebody is at a valve screen (device-key auth)
+/api/live/     - dashboards poll here for current values (session auth)
 /api/history/ - chart data from the minute rollups (session auth)
 """
 
 import json
 import logging
+import math
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -17,6 +20,8 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
+from django.utils import translation
+from django.utils.translation import gettext as _
 
 from .models import (
     ClaimCode,
@@ -32,7 +37,10 @@ from .models import (
     SmsMessage,
     SystemSetting,
     Trigger,
+    ValveReason,
     ValveState,
+    describe_valve,
+    offline_after_seconds,
     psi,
 )
 from . import mail, push
@@ -101,21 +109,76 @@ def _push_body(event, in_app_body):
     """
     if event.status == Segment.Status.POSSIBLE_LEAK:
         return (
-            "Check that your faucets are fully closed. If they are and water "
-            "is still running, tell the facilitator."
+            _("Check that your faucets are fully closed. If they are and water "
+            "is still running, tell the facilitator.")
         )
     if event.status == Segment.Status.WATER_RUNNING:
         return (
-            "Water has been running non-stop on your line. Turn off any tap or "
-            "hose; if all are closed, tell the facilitator."
+            _("Water has been running non-stop on your line. Turn off any tap or "
+            "hose; if all are closed, tell the facilitator.")
         )
     if event.status == Segment.Status.LOW_SUPPLY:
-        return "Water may be slow at your tap. The source is probably low."
+        return _("Water may be slow at your tap. The source is probably low.")
     if event.status == Segment.Status.NORMAL:
-        return "The alert on your line has been cleared."
+        return _("The alert on your line has been cleared.")
     # Nothing else raises a notice, but a sentence is better than an empty
     # notification if that ever changes.
     return in_app_body.split("\n\n")[0]
+
+
+def _household_notice(event, when):
+    """
+    The in-app notice for a status change, in the active language: (title,
+    body), or None when this status raises nothing.
+
+    Written to the person who lives there, not about them. Lines are named
+    after their household now, so "Possible leak on HH-001 - Maria Santos"
+    told Maria her own name twice and located the problem at the only
+    address she already knew. To her it is simply her line.
+    """
+    if event.status == Segment.Status.POSSIBLE_LEAK:
+        return (
+            _("Possible leak on your water line"),
+            _("A possible leak was detected on your line on {when}. Please check "
+              "that all your faucets are fully closed. If they are and water is "
+              "still running, tell the water system facilitator.\n\nReading at the "
+              "time: {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min.").format(
+                when=when, pressure_bar=event.pressure_bar, flow_lpm=event.flow_lpm),
+        )
+    if event.status == Segment.Status.WATER_RUNNING:
+        return (
+            _("Water has been running on your line"),
+            _("Water has been flowing without stopping on your line since before "
+              "{when}. If you left a tap or hose on, please turn it off. If "
+              "everything is closed and water is still running, you may have a leak "
+              "- tell the water system facilitator.\n\nReading at the time: "
+              "{pressure_bar:.2f} bar, {flow_lpm:.2f} L/min.").format(
+                when=when, pressure_bar=event.pressure_bar, flow_lpm=event.flow_lpm),
+        )
+    if event.status == Segment.Status.LOW_SUPPLY:
+        return (
+            _("Your water is weaker than usual"),
+            _("Low pressure was detected on your line on {when}. Water may be slow "
+              "at your tap. This usually means the source is low rather than "
+              "anything wrong at your house.\n\nReading at the time: "
+              "{pressure_bar:.2f} bar.").format(when=when, pressure_bar=event.pressure_bar),
+        )
+    if event.status == Segment.Status.NORMAL:
+        # Only announce a recovery if the household was told about the
+        # problem in the first place. A device booting from OFFLINE into
+        # NORMAL is not an all-clear anybody was waiting for.
+        if event.previous_status not in {
+            Segment.Status.POSSIBLE_LEAK,
+            Segment.Status.WATER_RUNNING,
+            Segment.Status.LOW_SUPPLY,
+        }:
+            return None
+        return (
+            _("Your water is back to normal"),
+            _("The alert on your line was cleared on {when}. Readings are normal "
+              "again.").format(when=when),
+        )
+    return None
 
 
 def _notify_households(segment, event):
@@ -125,61 +188,29 @@ def _notify_households(segment, event):
     One hose per house means one recipient, but the lookup stays a queryset:
     a line can legitimately have no household yet - a board on the bench
     during installation - and that must post no notice rather than fail.
-    """
-    # Written to the person who lives there, not about them.
-    #
-    # Lines are named after their household now, so "Possible leak on HH-001
-    # - Maria Santos" told Maria her own name twice and located the problem
-    # at the only address she already knew. To her it is simply her line.
-    when = timezone.localtime(event.detected_at).strftime("%b %d, %Y at %I:%M %p")
 
-    if event.status == Segment.Status.POSSIBLE_LEAK:
-        title = "Possible leak on your water line"
-        body = (
-            f"A possible leak was detected on your line on {when}. "
-            f"Please check that all your faucets are fully closed. If they are "
-            f"and water is still running, tell the water system facilitator.\n\n"
-            f"Reading at the time: {event.pressure_bar:.2f} bar, "
-            f"{event.flow_lpm:.2f} L/min."
-        )
-    elif event.status == Segment.Status.WATER_RUNNING:
-        title = "Water has been running on your line"
-        body = (
-            f"Water has been flowing without stopping on your line since before {when}. "
-            f"If you left a tap or hose on, please turn it off. If everything is closed "
-            f"and water is still running, you may have a leak - tell the water system "
-            f"facilitator.\n\n"
-            f"Reading at the time: {event.pressure_bar:.2f} bar, {event.flow_lpm:.2f} L/min."
-        )
-    elif event.status == Segment.Status.LOW_SUPPLY:
-        title = "Your water is weaker than usual"
-        body = (
-            f"Low pressure was detected on your line on {when}. "
-            f"Water may be slow at your tap. This usually means the source is "
-            f"low rather than anything wrong at your house.\n\n"
-            f"Reading at the time: {event.pressure_bar:.2f} bar."
-        )
-    elif event.status == Segment.Status.NORMAL:
-        # Only announce a recovery if the household was told about the
-        # problem in the first place. A device booting from OFFLINE into
-        # NORMAL is not an all-clear anybody was waiting for.
-        if event.previous_status not in {
-            Segment.Status.POSSIBLE_LEAK,
-            Segment.Status.WATER_RUNNING,
-            Segment.Status.LOW_SUPPLY,
-        }:
-            return
-        title = "Your water is back to normal"
-        body = f"The alert on your line was cleared on {when}. Readings are normal again."
-    else:
+    Everything written to a household is built in THAT household's language
+    (translation.override): a board reports in no language, and a text at
+    two in the morning has to be readable by whoever picks up the phone.
+    """
+    when = timezone.localtime(event.detected_at).strftime("%b %d, %Y at %I:%M %p")
+    if _household_notice(event, when) is None:
         return
 
-    households = Household.objects.filter(
+    households = list(Household.objects.filter(
         segment=segment, account_status=Household.AccountStatus.ACTIVE
-    )
-    created = Notification.objects.bulk_create(
-        [
-            Notification(
+    ))
+
+    # The alert statuses that go out by text and email, not just in-app: a
+    # leak, and water that has been running non-stop. Low supply and the
+    # all-clear stay in-app and push only.
+    alert_statuses = {Segment.Status.POSSIBLE_LEAK, Segment.Status.WATER_RUNNING}
+    texting = settings.SMS_AUTO_ON_LEAK and event.status in alert_statuses
+
+    for household in households:
+        with translation.override(household.language or settings.LANGUAGE_CODE):
+            title, body = _household_notice(event, when)
+            notice = Notification.objects.create(
                 kind=Notification.Kind.AUTOMATIC,
                 title=title,
                 body=body,
@@ -187,60 +218,52 @@ def _notify_households(segment, event):
                 segment=segment,
                 event=event,
             )
-            for household in households
-        ]
-    )
 
-    # Push it to any handset that asked for notifications.
-    #
-    # Sent for every status that raised a notice, including the all-clear -
-    # unlike a text, a push costs nothing, so there is no reason to ration it
-    # to the worst news. It is an addition to the SMS below and never a
-    # substitute: push reaches only phones that installed the portal and
-    # granted permission, and says nothing when one is switched off.
-    if settings.PUSH_AUTO_ON_LEAK:
-        for household in households:
-            try:
-                push.send_to_household(household, title, _push_body(event, body))
-            except Exception:  # noqa: BLE001
-                # A leak alert must not fail because a push service is having
-                # a bad afternoon. send_to_household already swallows the
-                # ordinary failures; this is the belt to that braces.
-                logger.exception("Push failed for %s", household.household_id)
+            # Push it to any handset that asked for notifications.
+            #
+            # Sent for every status that raised a notice, including the
+            # all-clear - unlike a text, a push costs nothing, so there is no
+            # reason to ration it to the worst news. It is an addition to the
+            # SMS below and never a substitute: push reaches only phones that
+            # installed the portal and granted permission, and says nothing
+            # when one is switched off.
+            if settings.PUSH_AUTO_ON_LEAK:
+                try:
+                    push.send_to_household(household, title, _push_body(event, body))
+                except Exception:  # noqa: BLE001
+                    # A leak alert must not fail because a push service is
+                    # having a bad afternoon. send_to_household already
+                    # swallows the ordinary failures; this is the belt to
+                    # that braces.
+                    logger.exception("Push failed for %s", household.household_id)
 
-    # The alert statuses that go out by text and email, not just in-app: a
-    # leak, and water that has been running non-stop. Low supply and the
-    # all-clear stay in-app and push only.
-    alert_statuses = {Segment.Status.POSSIBLE_LEAK, Segment.Status.WATER_RUNNING}
-
-    # Email the same notice to anyone with an address on file. In addition to
-    # the text, not instead - email reaches a desktop and leaves a record.
-    if settings.EMAIL_AUTO_ON_LEAK and event.status in alert_statuses:
-        for household in households:
-            if household.email:
+            # Email the same notice to anyone with an address on file. In
+            # addition to the text, not instead - email reaches a desktop and
+            # leaves a record.
+            if settings.EMAIL_AUTO_ON_LEAK and event.status in alert_statuses and household.email:
                 try:
                     mail.send_email(household.email, title, body)
                 except Exception:  # noqa: BLE001
                     logger.exception("Alert email failed for %s", household.household_id)
 
-    # Text them as well, unless that has been switched off.
-    #
-    # An in-app notice is only seen by somebody who opens the app, and a leak
-    # at two in the morning cannot wait for that. The message is written
-    # shorter than the in-app one on purpose: a text is read on a lock screen
-    # and the useful half is the instruction, not the reading.
-    if not (settings.SMS_AUTO_ON_LEAK and event.status in alert_statuses):
-        return
+            # Text them as well, unless that has been switched off.
+            #
+            # An in-app notice is only seen by somebody who opens the app, and
+            # a leak at two in the morning cannot wait for that. The message is
+            # written shorter than the in-app one on purpose: a text is read on
+            # a lock screen and the useful half is the instruction, not the
+            # reading.
+            if texting:
+                SmsMessage.queue(
+                    household,
+                    _alert_sms_text(household, event),
+                    kind=SmsMessage.Kind.AUTOMATIC,
+                    notification=notice,
+                    event=event,
+                )
 
-    notices = {n.recipient_id: n for n in created}
-    for household in households:
-        SmsMessage.queue(
-            household,
-            _alert_sms_text(household, event),
-            kind=SmsMessage.Kind.AUTOMATIC,
-            notification=notices.get(household.id),
-            event=event,
-        )
+    if not texting:
+        return
 
     # Only a confirmed leak is escalated to the facilitator. A water-running
     # warning is the owner's to act on first - they may simply have left a tap
@@ -328,10 +351,9 @@ def _notify_facilitators(segment, event):
         severity = f", {event.get_device_severity_display().lower()}"
 
     text = (
-        f"LEAK: {who}{owner}{severity}. "
-        f"{event.pressure_bar:.2f} bar, {event.flow_lpm:.2f} L/min. "
-        f"Detected by {event.get_trigger_display().lower()}. "
-        f"The owner has been asked to check their faucets."
+        _("LEAK: {who}{owner}{severity}. {pressure_bar:.2f} bar, {flow_lpm:.2f} "
+          "L/min. Detected by {get_trigger_display}. The owner has been asked to "
+          "check their faucets.").format(who=who, owner=owner, severity=severity, pressure_bar=event.pressure_bar, flow_lpm=event.flow_lpm, get_trigger_display=event.get_trigger_display().lower())
     )
 
     for facilitator in facilitators:
@@ -349,8 +371,9 @@ def _alert_sms_text(household, event):
     if event.status == Segment.Status.WATER_RUNNING:
         when = timezone.localtime(event.detected_at).strftime("%b %d %I:%M%p").replace(" 0", " ")
         return (
-            f"WATER RUNNING {household.household_id}: water has run non-stop since {when}. "
-            f"Turn off any tap or hose. If all are closed and it still runs, tell the facilitator."
+            _("WATER RUNNING {household_id}: water has run non-stop since {when}. "
+              "Turn off any tap or hose. If all are closed and it still runs, tell "
+              "the facilitator.").format(household_id=household.household_id, when=when)
         )
     return _leak_sms_text(household, event)
 
@@ -374,9 +397,9 @@ def _leak_sms_text(household, event):
     # wording is kept tight rather than trusting it to come out short.
     # test_leak_sms_fits_one_message guards this.
     return (
-        f"LEAK ALERT {household.household_id}: possible leak {when}{severity}. "
-        f"Please check all your faucets are closed. If they are and water "
-        f"still runs, tell the facilitator."
+        _("LEAK ALERT {household_id}: possible leak {when}{severity}. Please "
+          "check all your faucets are closed. If they are and water still runs, "
+          "tell the facilitator.").format(household_id=household.household_id, when=when, severity=severity)
     )
 
 
@@ -534,6 +557,16 @@ def ingest(request):
             except (TypeError, ValueError):
                 errors.append(f"module {module}: non-numeric reading")
                 continue
+            # JSON lets "NaN" and "Infinity" through float(); SQLite stores a
+            # NaN as NULL and the row then fails its NOT NULL constraint with
+            # a 500. A sensor cannot read either, so they are refused like
+            # any other non-number, as is anything far outside what a hose
+            # can carry (a disconnected ADC pin reads as garbage, not as a
+            # million bar).
+            if not all(math.isfinite(v) for v in (pressure_bar, flow_lpm, k_value)) \
+                    or abs(pressure_bar) > 100 or abs(flow_lpm) > 10000:
+                errors.append(f"module {module}: reading out of range")
+                continue
 
             raw_status = str(entry.get("status", "NORMAL")).upper().strip()
             mapped_status = DEVICE_STATUSES.get(raw_status)
@@ -552,6 +585,9 @@ def ingest(request):
             valve_state = _choice_or_default(
                 entry.get("valve_state"), ValveState, ValveState.NOT_FITTED
             )
+            valve_reason = _choice_or_default(
+                entry.get("valve_reason"), ValveReason, ValveReason.NONE
+            )
 
             LatestReading.objects.update_or_create(
                 segment=segment,
@@ -563,6 +599,7 @@ def ingest(request):
                     "severity": severity,
                     "trigger": trigger,
                     "valve_state": valve_state,
+                    "valve_reason": valve_reason,
                     "calibrating": bool(entry.get("calibrating")),
                     "simulated": bool(entry.get("simulated")),
                     "updated_at": now,
@@ -590,7 +627,7 @@ def ingest(request):
                 segment.valve_command = Segment.ValveCommand.NONE
                 segment.save(update_fields=["valve_command"])
 
-            rollup, _ = ReadingRollup.objects.get_or_create(segment=segment, minute=minute)
+            rollup, _created = ReadingRollup.objects.get_or_create(segment=segment, minute=minute)
             rollup.fold(pressure_bar, flow_lpm, mapped_status == Segment.Status.POSSIBLE_LEAK)
             rollup.save()
 
@@ -653,12 +690,12 @@ def _device_config(segments):
         "valve_test_grace_minutes": s.valve_test_grace_minutes,
         "valve_test_drop_bar": round(s.valve_test_drop_bar, 3),
         "auto_close_on_flow_leak": s.auto_close_on_flow_leak,
+        "upload_interval_seconds": s.upload_interval_seconds,
     }
     return {
         str(index): {
             "low_pressure_bar": round(segment.low_pressure_bar, 3),
-            "run_valve_test": segment.valve_test_requested,
-            "valve_command": segment.valve_command,
+            **_command_payload(segment),
             **detection,
         }
         for index, segment in segments.items()
@@ -666,12 +703,69 @@ def _device_config(segments):
     }
 
 
+def _command_payload(segment):
+    """
+    What the board must act on now, and how soon to ask again.
+
+    command_poll_seconds is the fast cadence while somebody is at a valve
+    screen for this line, and 0 when nobody is - the board then waits for its
+    next upload, which carries the same keys.
+    """
+    return {
+        "run_valve_test": segment.valve_test_requested,
+        "valve_command": segment.valve_command,
+        "command_poll_seconds": settings.COMMAND_POLL_SECONDS if segment.valve_watched else 0,
+    }
+
+
+@require_GET
+def commands(request):
+    """
+    The pending valve command for each of a board's lines - nothing else.
+
+    Deliberately the cheapest request the server answers: one lookup, no
+    writes, no reading accepted, so a board can afford to ask every two
+    seconds while a person stands at a valve button, and the hosted server
+    can afford to be asked. Who is at a button is what the dashboards' live
+    poll records (Segment.valve_watch_until); when nobody is, the reply says
+    so (command_poll_seconds 0) and the board stops asking until its next
+    upload says otherwise.
+    """
+    device = _authenticate_device(request)
+    if device is None:
+        return JsonResponse({"ok": False, "error": "invalid or missing device key"}, status=401)
+    config = {
+        str(segment.module_index): _command_payload(segment)
+        for segment in Segment.objects.filter(device=device, is_active=True)
+    }
+    return JsonResponse({"ok": True, "config": config, "server_time": timezone.now().isoformat()})
+
+
+def _note_valve_watch(segments):
+    """
+    Somebody active at a valve screen is looking at these lines.
+
+    Written at most once every ~20 s per line however often the page polls,
+    and only ever forwards, so a 2-second poll does not become a 2-second
+    write.
+    """
+    now = timezone.now()
+    until = now + timezone.timedelta(seconds=settings.VALVE_WATCH_SECONDS)
+    refresh_below = until - timezone.timedelta(seconds=20)
+    stale = [
+        s.id for s in segments
+        if s.valve_watch_until is None or s.valve_watch_until < refresh_below
+    ]
+    if stale:
+        Segment.objects.filter(id__in=stale).update(valve_watch_until=until)
+
+
 def _segment_payload(segment):
     latest = getattr(segment, "latest", None)
     household = getattr(segment, "household", None)
     stale = latest is None or (
         timezone.now() - latest.updated_at
-    ).total_seconds() > settings.DEVICE_OFFLINE_AFTER_SECONDS
+    ).total_seconds() > offline_after_seconds()
 
     # A stale feed is reported as offline without overwriting the stored
     # status, so the dashboard never shows a stale "NORMAL" as if it were live.
@@ -703,6 +797,12 @@ def _segment_payload(segment):
         "trigger_label": latest.get_trigger_display() if latest else "",
         "valve_state": latest.valve_state if latest else ValveState.NOT_FITTED,
         "valve_label": latest.get_valve_state_display() if latest else "Not fitted",
+        "valve_reason": latest.valve_reason if latest else ValveReason.NONE,
+        # The sentence every screen shows under the state, and the lock the
+        # household's and facilitator's buttons must respect.
+        "valve_detail": describe_valve(segment, latest),
+        "valve_locked": segment.valve_locked,
+        "valve_closed_by": segment.valve_closed_by,
         "valve_command": segment.valve_command,
         "calibrating": latest.calibrating if latest else False,
         "simulated": latest.simulated if latest else False,
@@ -755,7 +855,13 @@ def live(request):
             return JsonResponse({"ok": True, "segments": [], "open_events": [], "unread": 0})
         segments = segments.filter(id=household.segment_id)
 
+    segments = list(segments)
     payload = [_segment_payload(segment) for segment in segments]
+
+    # The page says whether a person is active at its valve buttons; that is
+    # what makes the board start asking for commands every two seconds.
+    if request.headers.get("X-Valve-Watch") == "1" and segments:
+        _note_valve_watch(segments)
 
     open_events = []
     if request.user.is_admin or request.user.is_facilitator:
@@ -833,7 +939,10 @@ def history(request):
 
     segment_id = request.GET.get("segment")
     if segment_id:
-        rollups = rollups.filter(segment_id=segment_id)
+        try:
+            rollups = rollups.filter(segment_id=int(segment_id))
+        except (TypeError, ValueError):
+            return JsonResponse({"ok": False, "error": "segment must be a number"}, status=400)
 
     if request.user.is_admin:
         pass                                            # every barangay's rollups
@@ -951,7 +1060,7 @@ def push_unsubscribe(request):
 
     # Scoped to this household on purpose: without it, knowing somebody else's
     # endpoint would be enough to switch their notifications off.
-    deleted, _ = PushSubscription.objects.filter(
+    deleted, _by_model = PushSubscription.objects.filter(
         household=household, endpoint=endpoint
     ).delete()
     return JsonResponse({"ok": True, "removed": deleted})
@@ -976,17 +1085,17 @@ def push_test(request):
 
     sent, removed = push.send_to_household(
         household,
-        "Notifications are working",
-        "This is a test. Alerts about your water will look like this.",
+        _("Notifications are working"),
+        _("This is a test. Alerts about your water will look like this."),
     )
     if not sent:
         return JsonResponse(
             {
                 "ok": False,
                 "error": (
-                    "This phone is not registered for notifications. Turn them "
-                    "off and on again." if removed else
-                    "No phone is registered for notifications yet."
+                    _("This phone is not registered for notifications. Turn them "
+                      "off and on again.") if removed else
+                    _("No phone is registered for notifications yet.")
                 ),
             },
             status=409,

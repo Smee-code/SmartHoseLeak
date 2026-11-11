@@ -8,6 +8,7 @@ facilitator page by typing its URL.
 
 from functools import wraps
 
+from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login as auth_login
@@ -21,6 +22,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
+from django.utils import translation
+from django.utils.translation import gettext as _
 
 from .forms import (
     AccountContactForm,
@@ -34,6 +37,7 @@ from .forms import (
     HouseholdActivationForm,
     HouseholdForm,
     HouseholdImportForm,
+    clean_mobile_number,
     owner_credentials,
     DetectionSettingsForm,
     MaintenanceForm,
@@ -77,7 +81,7 @@ def facilitator_required(view):
     @login_required
     def wrapper(request, *args, **kwargs):
         if not request.user.is_facilitator:
-            return HttpResponseForbidden("This page is limited to the water system facilitator.")
+            return HttpResponseForbidden(_("This page is limited to the water system facilitator."))
         return view(request, *args, **kwargs)
 
     return wrapper
@@ -88,7 +92,7 @@ def admin_required(view):
     @login_required
     def wrapper(request, *args, **kwargs):
         if not request.user.is_admin:
-            return HttpResponseForbidden("This page is limited to the system administrator.")
+            return HttpResponseForbidden(_("This page is limited to the system administrator."))
         return view(request, *args, **kwargs)
 
     return wrapper
@@ -178,8 +182,8 @@ def owner_required(view):
         household = getattr(request.user, "household", None)
         if household is None:
             return HttpResponseForbidden(
-                "This account is not linked to a registered household. "
-                "Ask the water system facilitator to link it."
+                _("This account is not linked to a registered household. "
+                "Ask the water system facilitator to link it.")
             )
         return view(request, household, *args, **kwargs)
 
@@ -303,8 +307,8 @@ class LandingLoginView(LoginView):
             response = super().form_valid(form)
             messages.warning(
                 self.request,
-                "Signed in without a code: this account has no contact number or email "
-                "on file. Ask the administrator to add one.",
+                _("Signed in without a code: this account has no contact number or email "
+                "on file. Ask the administrator to add one."),
             )
             return response
 
@@ -313,7 +317,7 @@ class LandingLoginView(LoginView):
         self.request.session["otp_remember"] = bool(self.request.POST.get("remember_device"))
         if settings.DEBUG:
             # A demo must not depend on SMS credit or a mailbox. Never in production.
-            messages.info(self.request, f"DEBUG only: your sign-in code is {code.code}.")
+            messages.info(self.request, _("DEBUG only: your sign-in code is {code}.").format(code=code.code))
         return redirect("login_code")
 
     def form_invalid(self, form, problem=None):
@@ -416,6 +420,12 @@ def dashboard(request):
         "filter_q": (request.GET.get("q") or "").strip(),
         "filter_problems": request.GET.get("problems") == "1",
         "recent_events": _scoped_events(request.user).select_related("segment")[:8],
+        # Who shut off or restored whose water lately. A press from the
+        # household's phone would otherwise be invisible here until someone
+        # noticed the valve column, and this is the barangay's water.
+        "valve_actions": Notification.objects.filter(
+            kind=Notification.Kind.VALVE, segment__in=segments
+        ).select_related("segment", "sent_by")[:5],
         "devices": Device.objects.filter(segments__in=segments).distinct(),
         "ingest_url": f"{request.scheme}://{host}{reverse('api_ingest')}",
         "ingest_url_is_loopback": loopback,
@@ -599,7 +609,7 @@ def household_form(request, pk):
         record = form.save()
         # The road route to the house, refreshed in case the coordinates moved.
         routing.update_household_route(record)
-        messages.success(request, "Household record saved.")
+        messages.success(request, _("Household record saved."))
         return redirect("household_list")
 
     # A failed submission came from the dialog on the list page, so send the
@@ -630,7 +640,7 @@ def household_activate(request, pk):
         _scoped_households(request.user).select_related("segment", "segment__device", "user"), pk=pk
     )
     if household.user_id is not None:
-        messages.info(request, f"{household.household_id} already has an Owner Portal login.")
+        messages.info(request, _("{household_id} already has an Owner Portal login.").format(household_id=household.household_id))
         return redirect("household_list")
     device = household.segment.device if household.segment_id else None
     if device is None:
@@ -638,8 +648,8 @@ def household_activate(request, pk):
         # moment - so there has to be a board for the code to belong to.
         messages.error(
             request,
-            f"{household.household_id} has no monitoring board yet. Register one for it first "
-            f"(the Register board button on its row), then activate.",
+            _("{household_id} has no monitoring board yet. Register one for it first "
+              "(the Register board button on its row), then activate.").format(household_id=household.household_id),
         )
         return redirect(f"{reverse('household_list')}?q={household.household_id}")
 
@@ -648,7 +658,7 @@ def household_activate(request, pk):
         return household_list(request, activation_form=form, activate_household=household)
 
     username, password = owner_credentials(household.owner_name)
-    first, _, rest = household.owner_name.strip().partition(" ")
+    first, _sep, rest = household.owner_name.strip().partition(" ")
     with transaction.atomic():
         owner = User.objects.create_user(
             username=username,
@@ -718,7 +728,7 @@ def household_register_board(request, pk):
         )
         household.save(update_fields=["segment"])
     if household.segment.device is not None:
-        messages.info(request, f"{household.household_id} already has board {household.segment.device.device_id}.")
+        messages.info(request, _("{household_id} already has board {device_id}.").format(household_id=household.household_id, device_id=household.segment.device.device_id))
     else:
         device = Device.objects.create(label=f"{household.household_id} {household.owner_name}"[:120])
         household.segment.device = device
@@ -726,8 +736,8 @@ def household_register_board(request, pk):
         AuditLog.record(request.user, "board.register", f"Registered board {device.device_id} for {household.household_id}", target=device.device_id)
         messages.success(
             request,
-            f"Board {device.device_id} registered for {household.household_id}. "
-            f"Its setup code is sent to the owner when you activate the household.",
+            _("Board {device_id} registered for {household_id}. Its setup code is "
+              "sent to the owner when you activate the household.").format(device_id=device.device_id, household_id=household.household_id),
         )
     if household.user_id is None:
         return redirect(f"{reverse('household_list')}?activate={household.pk}")
@@ -791,7 +801,7 @@ def household_delete(request, pk):
     removed = [f"{complaints} complaint(s)", f"{notifications} notice(s)"]
     if username:
         removed.append(f"the login '{username}'")
-    messages.success(request, f"Deleted {label}, along with {', '.join(removed)}.")
+    messages.success(request, _("Deleted {label}, along with {removed}.").format(label=label, removed=', '.join(removed)))
     return redirect("household_list")
 
 
@@ -801,7 +811,7 @@ def household_reset_password(request, pk):
     """Issue a new temporary password when an owner is locked out."""
     household = get_object_or_404(_scoped_households(request.user), pk=pk)
     if household.user is None:
-        messages.error(request, "This household has no Owner Portal account yet.")
+        messages.error(request, _("This household has no Owner Portal account yet."))
         return redirect("household_detail", pk=pk)
 
     import secrets
@@ -812,8 +822,8 @@ def household_reset_password(request, pk):
     household.user.save()
     messages.success(
         request,
-        f"New temporary password for {household.user.username}: {password} - "
-        f"give this to the owner; it is not shown again.",
+        _("New temporary password for {username}: {password} - give this to the "
+          "owner; it is not shown again.").format(username=household.user.username, password=password),
     )
     return redirect("household_detail", pk=pk)
 
@@ -851,7 +861,7 @@ def segment_list(request, create_form=None, edit_form=None, edit_segment=None):
             latitude__isnull=False, longitude__isnull=False
         ):
             routing.update_household_route(household)
-        messages.success(request, "Water source location saved.")
+        messages.success(request, _("Water source location saved."))
         return redirect("segment_list")
 
     return render(
@@ -903,8 +913,9 @@ def device_create(request):
     ticket = device.issue_claim_code()
     messages.success(
         request,
-        f"Board {device.device_id} registered. Claim code: {ticket.code} - enter it on the "
-        f"board's setup page along with the WiFi. It works once and stays on this page.",
+        _("Board {device_id} registered. Claim code: {code} - enter it on the "
+          "board's setup page along with the WiFi. It works once and stays on "
+          "this page.").format(device_id=device.device_id, code=ticket.code),
     )
     return redirect("segment_list")
 
@@ -926,8 +937,8 @@ def device_regenerate_key(request, pk):
     where = f" {line.name} will not report" if line else " That board will not report"
     messages.warning(
         request,
-        f"New key issued for {device.device_id}.{where} until you enter it on the "
-        f"board's setup page. New key: {device.api_key}",
+        _("New key issued for {device_id}.{where} until you enter it on the "
+          "board's setup page. New key: {api_key}").format(device_id=device.device_id, where=where, api_key=device.api_key),
     )
     return redirect("segment_list")
 
@@ -947,8 +958,8 @@ def device_issue_claim_code(request, pk):
     ticket = device.issue_claim_code()
     messages.success(
         request,
-        f"New claim code for {device.device_id}: {ticket.code}. "
-        f"It works once, and expires in {ClaimCode.VALID_DAYS} days.",
+        _("New claim code for {device_id}: {code}. It works once, and expires in "
+          "{valid_days} days.").format(device_id=device.device_id, code=ticket.code, valid_days=ClaimCode.VALID_DAYS),
     )
     return redirect("segment_list")
 
@@ -968,14 +979,14 @@ def device_delete(request, pk):
     if line is not None:
         messages.error(
             request,
-            f"{device.device_id} is fitted to {line.name}. Detach it there first, "
-            "so that household does not silently lose its board.",
+            _("{device_id} is fitted to {name}. Detach it there first, so that "
+              "household does not silently lose its board.").format(device_id=device.device_id, name=line.name),
         )
         return redirect("segment_list")
 
     device_id = device.device_id
     device.delete()
-    messages.success(request, f"Board {device_id} removed.")
+    messages.success(request, _("Board {device_id} removed.").format(device_id=device_id))
     return redirect("segment_list")
 
 
@@ -997,9 +1008,8 @@ def segment_create(request):
         segment.save()
         messages.success(
             request,
-            f"{segment.name} added as module M{segment.module_index}. "
-            f"It will read OFFLINE until the ESP32 reports a module "
-            f"{segment.module_index}.",
+            _("{name} added as module M{module_index}. It will read OFFLINE until "
+              "the ESP32 reports a module {module_index2}.").format(name=segment.name, module_index=segment.module_index, module_index2=segment.module_index),
         )
         return redirect("segment_list")
 
@@ -1018,7 +1028,7 @@ def segment_edit(request, pk):
     form.fields["device"].queryset = _scoped_devices(request.user)
     if request.method == "POST" and form.is_valid():
         form.save()
-        messages.success(request, f"{segment.name} updated.")
+        messages.success(request, _("{name} updated.").format(name=segment.name))
         return redirect("segment_list")
 
     # A failed save came from the dialog on the list page, so re-render that
@@ -1054,7 +1064,7 @@ def segment_delete(request, pk):
     detail = f"{rollups} minute(s) of history and {events} event(s) were removed"
     if household is not None:
         detail += f"; {household.household_id} now has no hose line"
-    messages.success(request, f"Deleted {label}. {detail}.")
+    messages.success(request, _("Deleted {label}. {detail}.").format(label=label, detail=detail))
     return redirect("segment_list")
 
 
@@ -1077,7 +1087,7 @@ def segment_valve_test(request, pk):
 
     if not segment.has_device:
         messages.error(
-            request, f"{segment.name} has no device fitted, so there is no valve to test."
+            request, _("{name} has no device fitted, so there is no valve to test.").format(name=segment.name)
         )
         return redirect(request.POST.get("next") or "dashboard")
 
@@ -1085,51 +1095,144 @@ def segment_valve_test(request, pk):
     segment.save(update_fields=["valve_test_requested"])
     messages.success(
         request,
-        f"Valve test requested for {segment.name}. The device will close the line "
-        "briefly, then reopen it on its own.",
+        _("Valve test requested for {name}. The device will close the line "
+          "briefly, then reopen it on its own.").format(name=segment.name),
     )
     return redirect(request.POST.get("next") or "dashboard")
 
 
-@admin_required
+@login_required
 @require_POST
 def segment_valve_command(request, pk):
     """
-    Open or close a line's motorised ball valve by hand, from the admin console.
+    Open or close a line's motorised ball valve by hand.
+
+    Three people can press this: the administrator from the console, the
+    facilitator from their dashboard (their own barangay's lines only), and
+    the household from the portal (their own line only). Anyone else is
+    told the line does not exist rather than that it is forbidden.
 
     Nothing is pushed: the board dials out, so the command is parked on the
     line and handed over on the reply to its next upload. A close latches -
     the board holds the line shut until an open is sent - so sealing a line
     does not quietly reopen at the nightly test. The command clears itself
     once the board reports the valve reached the commanded position.
+
+    A close by the ADMINISTRATOR is also a lock: the facilitator's and the
+    household's Open buttons are refused until the administrator opens the
+    line, so a deliberate shut-off cannot be undone from the kitchen. A close
+    by the facilitator or the household is not a lock; either can reopen it.
+
+    Every press is written to the audit log, and a notice goes to the
+    household's feed and the facilitator's dashboard, so nobody finds out
+    their water is off by turning a tap.
     """
-    segment = get_object_or_404(Segment, pk=pk)
+    user = request.user
+    if user.is_admin:
+        segment = get_object_or_404(Segment, pk=pk)
+        role = Segment.ValveClosedBy.ADMIN
+        fallback = "admin_pressure"
+    elif user.is_facilitator:
+        segment = get_object_or_404(_scoped_segments(user), pk=pk)
+        role = Segment.ValveClosedBy.FACILITATOR
+        fallback = "dashboard"
+    else:
+        household = getattr(user, "household", None)
+        if household is None or household.segment_id != pk:
+            raise Http404("No such line.")
+        segment = household.segment
+        role = Segment.ValveClosedBy.HOUSEHOLD
+        fallback = "owner_home"
+
     action = request.POST.get("command", "")
+    next_url = request.POST.get("next") or fallback
+    mine = role == Segment.ValveClosedBy.HOUSEHOLD
+    line = _("your line") if mine else segment.name
 
     if not segment.has_device:
         messages.error(
-            request, f"{segment.name} has no device fitted, so there is no valve to control."
+            request, _("{name} has no device fitted, so there is no valve to control.").format(name=segment.name)
         )
-        return redirect(request.POST.get("next") or "admin_pressure")
+        return redirect(next_url)
 
     if action == Segment.ValveCommand.CLOSE:
         segment.valve_command = Segment.ValveCommand.CLOSE
-        segment.save(update_fields=["valve_command"])
-        messages.success(
-            request,
-            f"Closing the valve on {segment.name}. The line stays shut until you open it again.",
-        )
+        segment.valve_closed_by = role
+        segment.save(update_fields=["valve_command", "valve_closed_by"])
+        _record_valve_action(segment, user, role, closed=True)
+        if mine:
+            messages.success(
+                request,
+                _("Closing your valve. Your water is off until you open it again."),
+            )
+        else:
+            messages.success(
+                request,
+                _("Closing the valve on {line}. The household has been told, and the "
+                  "line stays shut until someone opens it again.").format(line=line),
+            )
     elif action == Segment.ValveCommand.OPEN:
+        if segment.valve_locked and role != Segment.ValveClosedBy.ADMIN:
+            messages.error(
+                request,
+                _("The administrator closed this line. Only the administrator can open it again."),
+            )
+            return redirect(next_url)
         segment.valve_command = Segment.ValveCommand.OPEN
-        segment.save(update_fields=["valve_command"])
+        segment.valve_closed_by = Segment.ValveClosedBy.NOBODY
+        segment.save(update_fields=["valve_command", "valve_closed_by"])
+        _record_valve_action(segment, user, role, closed=False)
         messages.success(
             request,
-            f"Opening the valve on {segment.name}. Water will be restored within seconds.",
+            _("Opening the valve on {line}. Water will be restored within seconds.").format(line=line),
         )
     else:
-        messages.error(request, "Unknown valve command.")
+        messages.error(request, _("Unknown valve command."))
 
-    return redirect(request.POST.get("next") or "admin_pressure")
+    return redirect(next_url)
+
+
+def _record_valve_action(segment, user, role, closed):
+    """
+    Leave a trail for a valve press: the audit log, and a notice.
+
+    The notice is addressed to the household (it is their water) and carries
+    the line, so the facilitator's dashboard can list the same notices for
+    its barangay. The wording differs by who pressed: the owner who closed
+    their own valve does not need telling that "the household" did it.
+    """
+    verb = "closed" if closed else "opened"
+    actor = user.get_full_name() or user.username
+    AuditLog.record(
+        user,
+        f"valve.{'close' if closed else 'open'}",
+        f"{actor} ({role}) {verb} the valve on {segment.name}",
+        target=segment.name,
+    )
+
+    # The notice is the household's, so it is written in their language.
+    household = getattr(segment, "household", None)
+    language = household.language if household is not None else settings.LANGUAGE_CODE
+    with translation.override(language or settings.LANGUAGE_CODE):
+        who = str(Segment.ValveClosedBy(role).label)
+        if role == Segment.ValveClosedBy.HOUSEHOLD:
+            body = (
+                _("You closed your water valve. Your water is off until you open it again.")
+                if closed else _("You opened your water valve. Water is back.")
+            )
+        elif closed:
+            body = _("Your water valve was closed by {who}. Your water is off until "
+                     "it is opened again.").format(who=who)
+        else:
+            body = _("Your water valve was opened by {who}. Water is back.").format(who=who)
+        Notification.objects.create(
+            kind=Notification.Kind.VALVE,
+            title=_("Valve closed") if closed else _("Valve opened"),
+            body=body,
+            sent_by=user,
+            recipient=household,
+            segment=segment,
+        )
 
 
 @admin_required
@@ -1149,7 +1252,7 @@ def send_test_alert(request):
         Household.objects.select_related("segment"), pk=request.POST.get("household")
     )
     if household.segment is None:
-        messages.error(request, f"{household.household_id} has no hose line to alert on.")
+        messages.error(request, _("{household_id} has no hose line to alert on.").format(household_id=household.household_id))
         return redirect("admin_pressure")
 
     condition = request.POST.get("condition", "")
@@ -1160,7 +1263,7 @@ def send_test_alert(request):
     elif condition == "pressure_leak":
         status, trigger = Segment.Status.POSSIBLE_LEAK, Trigger.DECAY
     else:
-        messages.error(request, "Choose which condition to test.")
+        messages.error(request, _("Choose which condition to test."))
         return redirect("admin_pressure")
 
     api.send_test_alert(household.segment, status, trigger=trigger)
@@ -1171,8 +1274,8 @@ def send_test_alert(request):
     )
     messages.success(
         request,
-        f"Test alert sent to {household.household_id} ({household.owner_name}). "
-        "Check the household's notifications, email and texts.",
+        _("Test alert sent to {household_id} ({owner_name}). Check the "
+          "household's notifications, email and texts.").format(household_id=household.household_id, owner_name=household.owner_name),
     )
     return redirect("admin_pressure")
 
@@ -1194,11 +1297,11 @@ def segment_maintenance(request, pk):
     if segment.status == Segment.Status.MAINTENANCE:
         segment.status = Segment.Status.NORMAL
         segment.maintenance_note = ""
-        messages.success(request, f"{segment.name} returned to live monitoring.")
+        messages.success(request, _("{name} returned to live monitoring.").format(name=segment.name))
     else:
         segment.status = Segment.Status.MAINTENANCE
         segment.maintenance_note = note
-        messages.success(request, f"{segment.name} marked as under maintenance.")
+        messages.success(request, _("{name} marked as under maintenance.").format(name=segment.name))
 
     segment.status_changed_at = timezone.now()
     segment.save(update_fields=["status", "maintenance_note", "status_changed_at"])
@@ -1231,7 +1334,7 @@ def event_acknowledge(request, pk):
     if note:
         event.resolution_note = note
     event.save(update_fields=["acknowledged_at", "acknowledged_by", "resolution_note"])
-    messages.success(request, f"Alert on {event.segment.name} acknowledged.")
+    messages.success(request, _("Alert on {name} acknowledged.").format(name=event.segment.name))
     return redirect(request.POST.get("next") or "event_list")
 
 
@@ -1317,7 +1420,7 @@ def complaint_reply(request, pk):
     form = ComplaintMessageForm(request.POST)
 
     if not form.is_valid():
-        messages.error(request, "Write something before sending.")
+        messages.error(request, _("Write something before sending."))
         return redirect("complaint_thread", pk=pk)
 
     with transaction.atomic():
@@ -1330,9 +1433,11 @@ def complaint_reply(request, pk):
 
         # Mirror into the owner's inbox so a reply is visible from the bell
         # as well as inside the thread.
+        with translation.override(complaint.household.language or settings.LANGUAGE_CODE):
+            reply_title = _("Reply to your complaint {reference}").format(reference=complaint.reference)
         Notification.objects.create(
             kind=Notification.Kind.TARGETED,
-            title=f"Reply to your complaint {complaint.reference}",
+            title=reply_title,
             body=message.body,
             sent_by=request.user,
             recipient=complaint.household,
@@ -1340,7 +1445,7 @@ def complaint_reply(request, pk):
             complaint=complaint,
         )
 
-    messages.success(request, "Reply sent. The owner has been notified.")
+    messages.success(request, _("Reply sent. The owner has been notified."))
     return redirect("complaint_thread", pk=pk)
 
 
@@ -1352,7 +1457,7 @@ def complaint_status(request, pk):
     form = ComplaintStatusForm(request.POST, instance=complaint)
     if form.is_valid():
         form.save()
-        messages.success(request, f"Marked as {complaint.get_status_display()}.")
+        messages.success(request, _("Marked as {get_status_display}.").format(get_status_display=complaint.get_status_display()))
     return redirect("complaint_thread", pk=pk)
 
 
@@ -1372,7 +1477,7 @@ def notification_center(request):
     if request.method == "POST" and form.is_valid():
         recipients, kind = form.recipients()
         if not recipients:
-            messages.error(request, "No active households match that audience.")
+            messages.error(request, _("No active households match that audience."))
         else:
             title = form.cleaned_data["title"]
             body = form.cleaned_data["body"]
@@ -1426,12 +1531,12 @@ def notification_center(request):
 
             done = []
             if want_app:
-                done.append(f"shown in the app to {len(recipients)} household(s)")
+                done.append(_("shown in the app to {n} household(s)").format(n=len(recipients)))
             if want_sms:
-                done.append(f"{queued} text message(s) queued")
+                done.append(_("{n} text message(s) queued").format(n=queued))
             if want_email:
-                done.append(f"{emailed} email(s) sent")
-            messages.success(request, "Notice " + " and ".join(done) + ".")
+                done.append(_("{n} email(s) sent").format(n=emailed))
+            messages.success(request, _("Notice {done}.").format(done=_(" and ").join(done)))
 
             if no_number:
                 # Said plainly rather than counted, because the fix is to go
@@ -1439,8 +1544,8 @@ def notification_center(request):
                 # whose are missing.
                 messages.warning(
                     request,
-                    "No contact number on file, so no text was sent to: "
-                    + ", ".join(no_number) + ".",
+                    _("No contact number on file, so no text was sent to: {names}.").format(
+                        names=", ".join(no_number)),
                 )
             return redirect("notification_center")
 
@@ -1543,7 +1648,7 @@ def sms_retry(request, pk):
     message.provider_status = ""
     message.save(update_fields=["status", "attempts", "error",
                                 "provider_message_id", "provider_status"])
-    messages.success(request, f"Queued again for {message.recipient_label}.")
+    messages.success(request, _("Queued again for {recipient_label}.").format(recipient_label=message.recipient_label))
     return redirect("notification_center")
 
 
@@ -1793,7 +1898,7 @@ def owner_complaints(request, household, pk=None):
                 message.from_owner = True
                 message.read_by_owner = True
                 message.save()
-                messages.success(request, "Message sent to the facilitator.")
+                messages.success(request, _("Message sent to the facilitator."))
                 return redirect("owner_complaint_thread", pk=complaint.pk)
         else:
             form = ComplaintForm(request.POST)
@@ -1812,7 +1917,7 @@ def owner_complaints(request, household, pk=None):
                     )
                 messages.success(
                     request,
-                    f"Complaint {new.reference} submitted. The facilitator has been notified.",
+                    _("Complaint {reference} submitted. The facilitator has been notified.").format(reference=new.reference),
                 )
                 return redirect("owner_complaint_thread", pk=new.pk)
 
@@ -2041,7 +2146,7 @@ def barangay_form(request, pk=None):
         saved = form.save()
         messages.success(
             request,
-            f"Barangay {'updated' if barangay else 'added'}: {saved.name}.",
+            (_("Barangay updated: {name}.") if barangay else _("Barangay added: {name}.")).format(name=saved.name),
         )
         return redirect("barangay_list")
     return render(request, "admin/barangay_form.html", {"form": form, "barangay": barangay})
@@ -2054,8 +2159,8 @@ def barangay_toggle(request, pk):
     barangay = get_object_or_404(Barangay, pk=pk)
     barangay.is_active = not barangay.is_active
     barangay.save(update_fields=["is_active"])
-    state = "active" if barangay.is_active else "inactive"
-    messages.success(request, f"{barangay.name} is now {state}.")
+    state = _("active") if barangay.is_active else _("inactive")
+    messages.success(request, _("{name} is now {state}.").format(name=barangay.name, state=state))
     return redirect("barangay_list")
 
 
@@ -2109,30 +2214,27 @@ def facilitator_create(request):
         if user.email:
             site = request.build_absolute_uri("/").rstrip("/")
             body = (
-                f"Hello {user.get_full_name()},\n\n"
-                f"An account has been created for you on the Smart Hose Leak "
-                f"Detection System ({user.barangay.name}).\n\n"
-                f"Username: {uname}\n"
-                f"Temporary password: {pw}\n\n"
-                f"Sign in at: {site}/login/\n\n"
-                f"Please change your password after your first sign-in.\n\n"
-                f"— Smart Hose Leak System"
+                _("Hello {get_full_name},\n\nAn account has been created for you on the "
+                  "Smart Hose Leak Detection System ({name}).\n\nUsername: "
+                  "{uname}\nTemporary password: {pw}\n\nSign in at: {site}/login/\n\nPlease "
+                  "change your password after your first sign-in.\n\n— Smart Hose Leak "
+                  "System").format(get_full_name=user.get_full_name(), name=user.barangay.name, uname=uname, pw=pw, site=site)
             )
-            emailed = mail.send_email(user.email, "Your facilitator account", body)
+            emailed = mail.send_email(user.email, _("Your facilitator account"), body)
         if emailed:
             messages.success(
                 request,
-                f"Facilitator account created for {user.get_full_name()} "
-                f"({user.barangay.name}). Credentials sent to {user.email}.",
+                _("Facilitator account created for {get_full_name} ({name}). Credentials "
+                  "sent to {email}.").format(get_full_name=user.get_full_name(), name=user.barangay.name, email=user.email),
             )
         else:
             messages.success(
                 request,
-                f"Facilitator account created for {user.get_full_name()} "
-                f"({user.barangay.name}) — username: {uname} "
-                f"/ temporary password: {pw}. "
-                + ("Email could not be sent — write this down now." if user.email else
-                   "No email address on file — write this down now."),
+                _("Facilitator account created for {name} ({barangay}) — username: "
+                  "{uname} / temporary password: {pw}. ").format(
+                    name=user.get_full_name(), barangay=user.barangay.name, uname=uname, pw=pw)
+                + (_("Email could not be sent — write this down now.") if user.email else
+                   _("No email address on file — write this down now.")),
             )
         return redirect("facilitator_list")
 
@@ -2204,16 +2306,16 @@ def account_suspend(request, pk):
     """
     user = get_object_or_404(User, pk=pk)
     if not _manageable(user, request.user):
-        return HttpResponseForbidden("That account cannot be suspended from here.")
+        return HttpResponseForbidden(_("That account cannot be suspended from here."))
 
     user.is_active = not user.is_active
     user.save(update_fields=["is_active"])
     if user.is_active:
         AuditLog.record(request.user, "account.restore", f"Restored the login '{user.username}'", target=user.username)
-        messages.success(request, f"Restored the login '{user.username}'.")
+        messages.success(request, _("Restored the login '{username}'.").format(username=user.username))
     else:
         AuditLog.record(request.user, "account.suspend", f"Suspended the login '{user.username}'", target=user.username)
-        messages.success(request, f"Suspended the login '{user.username}'. They can no longer sign in.")
+        messages.success(request, _("Suspended the login '{username}'. They can no longer sign in.").format(username=user.username))
     return redirect("account_list")
 
 
@@ -2231,12 +2333,12 @@ def account_delete(request, pk):
     """
     user = get_object_or_404(User, pk=pk)
     if not _manageable(user, request.user):
-        return HttpResponseForbidden("That account cannot be deleted from here.")
+        return HttpResponseForbidden(_("That account cannot be deleted from here."))
 
     username = user.username
     user.delete()
     AuditLog.record(request.user, "account.delete", f"Deleted the login '{username}'", target=username)
-    messages.success(request, f"Deleted the login '{username}'.")
+    messages.success(request, _("Deleted the login '{username}'.").format(username=username))
     return redirect("account_list")
 
 
@@ -2269,15 +2371,17 @@ def admin_household_create(request):
         if device is not None:
             messages.success(
                 request,
-                f"Household {record.household_id} registered with board {device.device_id}. It is pending "
-                f"activation: the facilitator confirms its location and creates the owner's login, and "
-                f"the board's setup code is sent to the owner then.",
+                _("Household {household_id} registered with board {device_id}. It is "
+                  "pending activation: the facilitator confirms its location and creates "
+                  "the owner's login, and the board's setup code is sent to the owner "
+                  "then.").format(household_id=record.household_id, device_id=device.device_id),
             )
         else:
             messages.success(
                 request,
-                f"Household {record.household_id} registered, with no board yet. It is pending activation: "
-                f"the facilitator confirms its location and creates the owner's login.",
+                _("Household {household_id} registered, with no board yet. It is pending "
+                  "activation: the facilitator confirms its location and creates the "
+                  "owner's login.").format(household_id=record.household_id),
             )
         return redirect("admin_household_list")
 
@@ -2305,25 +2409,27 @@ WORK_ORDER_SELECT = ("barangay", "household", "segment", "assigned_to", "reporte
 
 def _notify_work_order(work_order, actor):
     """Text the household owner and the assigned facilitator that work is set."""
-    when = work_order.scheduled_for.strftime("%b %d") if work_order.scheduled_for else "soon"
-    kind = work_order.get_kind_display().lower()
-    brgy = work_order.barangay.name if work_order.barangay else "Barangay"
-
     household = work_order.target_household
     if household is not None:
-        SmsMessage.queue(
-            household,
-            f"{brgy} water system: a {kind} is scheduled for your household on {when}. "
-            f"{work_order.title}",
-            kind=SmsMessage.Kind.MANUAL, sent_by=actor,
-        )
+        with translation.override(household.language or settings.LANGUAGE_CODE):
+            when = work_order.scheduled_for.strftime("%b %d") if work_order.scheduled_for else _("soon")
+            kind = work_order.get_kind_display().lower()
+            brgy = work_order.barangay.name if work_order.barangay else _("Barangay")
+            SmsMessage.queue(
+                household,
+                _("{brgy} water system: a {kind} is scheduled for your household on "
+                  "{when}. {title}").format(brgy=brgy, kind=kind, when=when, title=work_order.title),
+                kind=SmsMessage.Kind.MANUAL, sent_by=actor,
+            )
+
+    when = work_order.scheduled_for.strftime("%b %d") if work_order.scheduled_for else _("soon")
 
     faci = work_order.assigned_to
     if faci is not None and faci.contact_number:
         SmsMessage.queue_to_number(
             faci.contact_number,
-            f"Assignment ({work_order.get_kind_display()}): {work_order.title}. "
-            f"Scheduled {when}. Where: {work_order.where_label}.",
+            _("Assignment ({get_kind_display}): {title}. Scheduled {when}. Where: "
+              "{where_label}.").format(get_kind_display=work_order.get_kind_display(), title=work_order.title, when=when, where_label=work_order.where_label),
             name=faci.get_full_name() or faci.username,
             kind=SmsMessage.Kind.MANUAL, sent_by=actor,
         )
@@ -2382,9 +2488,9 @@ def work_order_create(request):
         order.save()
         if order.status == WorkOrder.Status.SCHEDULED:
             _notify_work_order(order, request.user)
-            messages.success(request, f"Work order created and assigned to {order.assigned_to.get_full_name()}.")
+            messages.success(request, _("Work order created and assigned to {get_full_name}.").format(get_full_name=order.assigned_to.get_full_name()))
         else:
-            messages.success(request, "Work order created. Assign a facilitator to schedule it.")
+            messages.success(request, _("Work order created. Assign a facilitator to schedule it."))
         return redirect("work_order_detail", pk=order.pk)
     # A failed submission came from the dialog on the list, so send the
     # bound form back there; the standalone page is the no-JavaScript fallback.
@@ -2399,7 +2505,7 @@ def work_order_edit(request, pk):
     form = WorkOrderForm(request.POST or None, instance=order, auto_id="edit_%s")
     if request.method == "POST" and form.is_valid():
         form.save()
-        messages.success(request, "Work order updated.")
+        messages.success(request, _("Work order updated."))
         return redirect("work_order_detail", pk=order.pk)
     if request.method == "POST":
         return work_order_detail(request, pk, edit_form=form)
@@ -2445,7 +2551,7 @@ def work_order_approve(request, pk):
         if assignee_id else None
     )
     if assignee is None:
-        messages.error(request, "Choose a facilitator to assign this to before approving.")
+        messages.error(request, _("Choose a facilitator to assign this to before approving."))
         return redirect("work_order_detail", pk=pk)
 
     order.assigned_to = assignee
@@ -2464,8 +2570,8 @@ def work_order_approve(request, pk):
     )
     messages.success(
         request,
-        f"Scheduled and assigned to {assignee.get_full_name() or assignee.username}. "
-        f"The household and the facilitator have been texted.",
+        _("Scheduled and assigned to {username}. The household and the "
+          "facilitator have been texted.").format(username=assignee.get_full_name() or assignee.username),
     )
     return redirect("work_order_detail", pk=pk)
 
@@ -2480,7 +2586,7 @@ def work_order_reject(request, pk):
     order.reviewed_at = timezone.now()
     order.save()
     AuditLog.record(request.user, "work.reject", f"Rejected '{order.title}'", target=order.where_label)
-    messages.success(request, "Marked as rejected.")
+    messages.success(request, _("Marked as rejected."))
     return redirect("work_order_detail", pk=pk)
 
 
@@ -2493,7 +2599,7 @@ def work_order_status(request, pk):
     allowed = {WorkOrder.Status.SCHEDULED, WorkOrder.Status.IN_PROGRESS,
                WorkOrder.Status.DONE, WorkOrder.Status.CANCELLED}
     if new_status not in {str(s) for s in allowed}:
-        return HttpResponseForbidden("Not a status this order can be moved to.")
+        return HttpResponseForbidden(_("Not a status this order can be moved to."))
 
     order.status = new_status
     note = (request.POST.get("resolution_note") or "").strip()
@@ -2501,7 +2607,7 @@ def work_order_status(request, pk):
         order.resolution_note = note
     order.completed_at = timezone.now() if new_status == WorkOrder.Status.DONE else None
     order.save()
-    messages.success(request, f"Work order marked {order.get_status_display().lower()}.")
+    messages.success(request, _("Work order marked {get_status_display}.").format(get_status_display=order.get_status_display().lower()))
     return redirect("work_order_detail", pk=pk)
 
 
@@ -2548,13 +2654,13 @@ def my_assignments(request):
             buckets["later"].append(order)
 
     sections = [
-        ("Overdue", buckets["overdue"], "These were due before today."),
-        ("Today", buckets["today"], ""),
-        ("Tomorrow", buckets["tomorrow"], ""),
-        ("Later this week", buckets["week"], ""),
-        ("Later", buckets["later"], ""),
-        ("Not yet scheduled", buckets["unscheduled"],
-         "Assigned to you, but the administrator has not set a day yet."),
+        (_("Overdue"), buckets["overdue"], _("These were due before today.")),
+        (_("Today"), buckets["today"], ""),
+        (_("Tomorrow"), buckets["tomorrow"], ""),
+        (_("Later this week"), buckets["week"], ""),
+        (_("Later"), buckets["later"], ""),
+        (_("Not yet scheduled"), buckets["unscheduled"],
+         _("Assigned to you, but the administrator has not set a day yet.")),
     ]
     done_orders.sort(key=lambda o: o.completed_at or o.updated_at, reverse=True)
     return render(
@@ -2575,11 +2681,11 @@ def assignment_update(request, pk):
     """The assigned facilitator moves their own job to in progress or done."""
     order = get_object_or_404(WorkOrder, pk=pk)
     if order.assigned_to_id != request.user.id:
-        return HttpResponseForbidden("This assignment is not yours.")
+        return HttpResponseForbidden(_("This assignment is not yours."))
 
     new_status = (request.POST.get("status") or "").strip()
     if new_status not in {str(WorkOrder.Status.IN_PROGRESS), str(WorkOrder.Status.DONE)}:
-        return HttpResponseForbidden("Not a status you can set.")
+        return HttpResponseForbidden(_("Not a status you can set."))
 
     order.status = new_status
     note = (request.POST.get("resolution_note") or "").strip()
@@ -2587,7 +2693,7 @@ def assignment_update(request, pk):
         order.resolution_note = note
     order.completed_at = timezone.now() if new_status == WorkOrder.Status.DONE else None
     order.save()
-    messages.success(request, f"Marked {order.get_status_display().lower()}.")
+    messages.success(request, _("Marked {get_status_display}.").format(get_status_display=order.get_status_display().lower()))
     return redirect("my_assignments")
 
 
@@ -2625,7 +2731,7 @@ def announcement_create(request):
     if request.method == "POST" and form.is_valid():
         recipients = form.recipients()
         if not recipients:
-            messages.error(request, "No active households match that audience.")
+            messages.error(request, _("No active households match that audience."))
         else:
             title = form.cleaned_data["title"]
             body = form.cleaned_data["body"]
@@ -2679,12 +2785,12 @@ def announcement_create(request):
 
             done = []
             if want_app:
-                done.append(f"shown in the app to {len(recipients)} household(s)")
+                done.append(_("shown in the app to {n} household(s)").format(n=len(recipients)))
             if want_sms:
-                done.append(f"{sms_count} text message(s) queued")
+                done.append(_("{n} text message(s) queued").format(n=sms_count))
             if form.cleaned_data.get("by_email"):
-                done.append(f"{email_count} email(s) sent")
-            messages.success(request, "Announcement " + " and ".join(done) + ".")
+                done.append(_("{n} email(s) sent").format(n=email_count))
+            messages.success(request, _("Announcement {done}.").format(done=_(" and ").join(done)))
             return redirect("announcement_list")
 
     # A failed submission (or an audience with nobody in it) came from the
@@ -2706,7 +2812,7 @@ def announcement_create(request):
 def _bars(pairs):
     """Turn (label, value) pairs into rows with a width percentage for a bar."""
     pairs = list(pairs)
-    top = max((value for _, value in pairs), default=0)
+    top = max((value for _label, value in pairs), default=0)
     return [
         {"label": label, "value": value, "pct": round(value / top * 100) if top else 0}
         for label, value in pairs
@@ -2917,12 +3023,12 @@ def household_import(request):
     try:
         text = upload.read().decode("utf-8-sig")
     except (UnicodeDecodeError, AttributeError):
-        messages.error(request, "That file is not readable as UTF-8 text. Export it as CSV and try again.")
+        messages.error(request, _("That file is not readable as UTF-8 text. Export it as CSV and try again."))
         return redirect("data_tools")
 
     reader = csv.DictReader(io.StringIO(text))
     if not reader.fieldnames or "owner_name" not in [h.strip() for h in reader.fieldnames]:
-        messages.error(request, "The CSV needs a header row with at least an 'owner_name' column.")
+        messages.error(request, _("The CSV needs a header row with at least an 'owner_name' column."))
         return redirect("data_tools")
 
     created = 0
@@ -2939,16 +3045,22 @@ def household_import(request):
             match = Barangay.objects.filter(name__iexact=named).first()
             if match:
                 barangay = match
+        number = clean.get("contact_number", "")
+        try:
+            number = clean_mobile_number(number)
+        except ValidationError:
+            skipped.append(f"row {line_no}: contact_number '{number}' is not a mobile number")
+            continue
         Household.objects.create(
             owner_name=owner,
             address=clean.get("address", ""),
-            contact_number=clean.get("contact_number", ""),
+            contact_number=number,
             barangay=barangay,
         )
         created += 1
 
     AuditLog.record(request.user, "data.import", f"Imported {created} household(s) from CSV")
-    messages.success(request, f"Imported {created} household(s).")
+    messages.success(request, _("Imported {created} household(s).").format(created=created))
     if skipped:
         messages.warning(request, f"Skipped {len(skipped)}: " + "; ".join(skipped[:10])
                          + (" ..." if len(skipped) > 10 else ""))
@@ -3002,7 +3114,7 @@ def restore_upload(request):
         with transaction.atomic():
             call_command("loaddata", tmp.name)
     except Exception as exc:  # a bad file must not 500; report what happened
-        messages.error(request, f"Restore failed - nothing was changed: {exc}")
+        messages.error(request, _("Restore failed - nothing was changed: {exc}").format(exc=exc))
         return redirect("data_tools")
     finally:
         tmp.close()
@@ -3012,7 +3124,7 @@ def restore_upload(request):
             pass
 
     AuditLog.record(request.user, "data.restore", "Restored the database from a backup")
-    messages.success(request, "Database restored from the backup.")
+    messages.success(request, _("Database restored from the backup."))
     return redirect("data_tools")
 
 
@@ -3065,7 +3177,7 @@ def detection_settings(request):
     AuditLog.record(request.user, "system.detection", "Updated leak detection settings")
     messages.success(
         request,
-        "Detection settings saved. Boards pick up the new values on their next reading.",
+        _("Detection settings saved. Boards pick up the new values on their next reading."),
     )
     return redirect("system_status")
 
@@ -3084,8 +3196,8 @@ def maintenance_toggle(request):
     AuditLog.record(request.user, "system.maintenance", f"Turned maintenance mode {state}")
     messages.success(
         request,
-        f"Maintenance mode is {state}."
-        + (" Households and facilitators now see the maintenance notice." if setting.maintenance_mode else ""),
+        _("Maintenance mode is on. Households and facilitators now see the maintenance notice.")
+        if setting.maintenance_mode else _("Maintenance mode is off."),
     )
     return redirect("system_status")
 
@@ -3113,10 +3225,11 @@ def _text_credentials(request, household, username, password):
     if not (household.contact_number or "").strip():
         return False
     site = request.build_absolute_uri("/").rstrip("/")
-    body = (
-        f"Smart Hose Leak portal login - username: {username}, temporary password: {password}. "
-        f"Sign in at {site} and change it."
-    )
+    with translation.override(household.language or settings.LANGUAGE_CODE):
+        body = (
+            _("Smart Hose Leak portal login - username: {username}, temporary "
+              "password: {password}. Sign in at {site} and change it.").format(username=username, password=password, site=site)
+        )
     parts = SmsMessage.queue(household, body, kind=SmsMessage.Kind.MANUAL, sent_by=request.user)
     return bool(parts)
 
@@ -3127,13 +3240,14 @@ def _email_credentials(request, household, username, password):
     if not address:
         return False
     site = request.build_absolute_uri("/").rstrip("/")
-    return mail.send_email(
-        address,
-        "Your Smart Hose Leak portal login",
-        f"Your household ({household.household_id}) is now active on the Smart Hose Leak system.\n\n"
-        f"Username: {username}\nTemporary password: {password}\n\n"
-        f"Sign in at {site} and you will be asked to choose a new password.",
-    )
+    with translation.override(household.language or settings.LANGUAGE_CODE):
+        return mail.send_email(
+            address,
+            _("Your Smart Hose Leak portal login"),
+            _("Your household ({household_id}) is now active on the Smart Hose Leak "
+              "system.\n\nUsername: {username}\nTemporary password: {password}\n\nSign in "
+              "at {site} and you will be asked to choose a new password.").format(household_id=household.household_id, username=username, password=password, site=site),
+        )
 
 
 @facilitator_required
@@ -3151,11 +3265,11 @@ def household_send_credentials(request, pk):
         _scoped_households(request.user).select_related("user"), pk=pk
     )
     if household.user is None:
-        messages.error(request, "This household has no Owner Portal account yet.")
+        messages.error(request, _("This household has no Owner Portal account yet."))
         return redirect("household_detail", pk=pk)
     if not (household.contact_number or "").strip():
         messages.error(
-            request, "No contact number on file for this household, so there is nowhere to text it."
+            request, _("No contact number on file for this household, so there is nowhere to text it.")
         )
         return redirect("household_detail", pk=pk)
 
@@ -3166,8 +3280,8 @@ def household_send_credentials(request, pk):
     _text_credentials(request, household, household.user.username, password)
     messages.success(
         request,
-        f"Login details texted to {household.contact_number}: username {household.user.username}, "
-        f"temporary password {password}. It is not shown again.",
+        _("Login details texted to {contact_number}: username {username}, "
+          "temporary password {password}. It is not shown again.").format(contact_number=household.contact_number, username=household.user.username, password=password),
     )
     return redirect("household_detail", pk=pk)
 
@@ -3184,16 +3298,18 @@ def household_refresh_route(request, pk):
     """
     household = get_object_or_404(_scoped_households(request.user), pk=pk)
     if not household.has_location:
-        messages.error(request, "This household has no coordinates yet, so there is nothing to route to.")
+        messages.error(request, _("This household has no coordinates yet, so there is nothing to route to."))
         return redirect("household_detail", pk=pk)
 
     if routing.update_household_route(household):
         messages.success(
             request,
-            f"Route fetched: {household.visit_route_label} by road. It is drawn on the dashboard map.",
+            _("Route fetched: {visit_route_label} by road. It is drawn on the "
+              "dashboard map.").format(visit_route_label=household.visit_route_label),
         )
     else:
-        messages.error(request, f"No route fetched: {household.visit_route_error or 'nothing to route between'}.")
+        messages.error(request, _("No route fetched: {reason}.").format(
+            reason=household.visit_route_error or _("nothing to route between")))
     return redirect("household_detail", pk=pk)
 
 
@@ -3225,7 +3341,7 @@ def _pending_user(request):
 def login_code(request):
     user = _pending_user(request)
     if user is None:
-        messages.error(request, "Sign in with your password first.")
+        messages.error(request, _("Sign in with your password first."))
         return redirect("login")
 
     error = ""
@@ -3269,7 +3385,7 @@ def login_code_resend(request):
     if user is None:
         return redirect("login")
     if not otp.can_resend(user):
-        messages.warning(request, "A code was sent less than a minute ago. Give it a moment to arrive.")
+        messages.warning(request, _("A code was sent less than a minute ago. Give it a moment to arrive."))
         return redirect("login_code")
 
     preferred = request.POST.get("otp_channel") or LoginCode.Channel.SMS
@@ -3279,12 +3395,12 @@ def login_code_resend(request):
         messages.error(request, str(exc))
         return redirect("login_code")
     if code is None:
-        messages.error(request, "This account has no contact number or email to send a code to.")
+        messages.error(request, _("This account has no contact number or email to send a code to."))
         return redirect("login")
     sent_by = "text" if code.channel == LoginCode.Channel.SMS else "email"
-    messages.success(request, f"A new code was sent by {sent_by} to {code.masked_destination()}.")
+    messages.success(request, _("A new code was sent by {sent_by} to {masked_destination}.").format(sent_by=sent_by, masked_destination=code.masked_destination()))
     if settings.DEBUG:
-        messages.info(request, f"DEBUG only: your sign-in code is {code.code}.")
+        messages.info(request, _("DEBUG only: your sign-in code is {code}.").format(code=code.code))
     return redirect("login_code")
 
 
@@ -3300,7 +3416,7 @@ def account_edit(request, pk):
     """
     user = get_object_or_404(User, pk=pk)
     if user.pk != request.user.pk and not _manageable(user, request.user):
-        return HttpResponseForbidden("That account cannot be edited from here.")
+        return HttpResponseForbidden(_("That account cannot be edited from here."))
 
     form = AccountContactForm(request.POST or None, instance=user, auto_id="edit_%s")
     if request.method == "POST" and form.is_valid():
@@ -3309,7 +3425,7 @@ def account_edit(request, pk):
             request.user, "account.edit",
             f"Updated contact details for '{user.username}'", target=user.username,
         )
-        messages.success(request, f"Saved contact details for {user.username}.")
+        messages.success(request, _("Saved contact details for {username}.").format(username=user.username))
         return redirect("account_list")
     if request.method == "POST":
         return account_list(request, edit_form=form, edit_user=user)
@@ -3371,7 +3487,7 @@ def admin_household_edit(request, pk):
             request.user, "household.edit",
             f"Updated household {record.household_id}", target=record.household_id,
         )
-        messages.success(request, f"{record.household_id} updated.")
+        messages.success(request, _("{household_id} updated.").format(household_id=record.household_id))
         return redirect("admin_household_list")
     if request.method == "POST":
         return admin_household_list(request, edit_form=form, edit_household=household)
@@ -3404,7 +3520,7 @@ def admin_household_delete(request, pk):
             household.user.save(update_fields=["is_archived", "is_active"])
 
     AuditLog.record(request.user, "household.archive", f"Archived {label}", target=label)
-    messages.success(request, f"Archived {label}. You can restore it from the archive page.")
+    messages.success(request, _("Archived {label}. You can restore it from the archive page.").format(label=label))
     return redirect("admin_household_list")
 
 
@@ -3419,7 +3535,7 @@ def facilitator_edit(request, pk):
             request.user, "facilitator.edit",
             f"Updated facilitator {user.facilitator_id} ({user.username})", target=user.username,
         )
-        messages.success(request, f"{user.facilitator_id} updated.")
+        messages.success(request, _("{facilitator_id} updated.").format(facilitator_id=user.facilitator_id))
         return redirect("facilitator_list")
     if request.method == "POST":
         return facilitator_list(request, edit_form=form, edit_user=user)
@@ -3436,13 +3552,13 @@ def facilitator_delete(request, pk):
     """
     user = get_object_or_404(User, pk=pk, role=User.Role.FACILITATOR)
     if not _manageable(user, request.user):
-        return HttpResponseForbidden("That account cannot be archived from here.")
+        return HttpResponseForbidden(_("That account cannot be archived from here."))
     label = f"{user.facilitator_id} ({user.get_full_name() or user.username})"
     user.is_archived = True
     user.is_active = False
     user.save(update_fields=["is_archived", "is_active"])
     AuditLog.record(request.user, "facilitator.archive", f"Archived facilitator {label}", target=user.username)
-    messages.success(request, f"Archived {label}. You can restore it from the archive page.")
+    messages.success(request, _("Archived {label}. You can restore it from the archive page.").format(label=label))
     return redirect("facilitator_list")
 
 
@@ -3480,7 +3596,7 @@ def archive_restore_household(request, pk):
             household.user.is_active = True
             household.user.save(update_fields=["is_archived", "is_active"])
     AuditLog.record(request.user, "household.restore", f"Restored {label}", target=label)
-    messages.success(request, f"Restored {label}.")
+    messages.success(request, _("Restored {label}.").format(label=label))
     return redirect("archive_list")
 
 
@@ -3494,7 +3610,7 @@ def archive_restore_facilitator(request, pk):
     user.is_active = True
     user.save(update_fields=["is_archived", "is_active"])
     AuditLog.record(request.user, "facilitator.restore", f"Restored facilitator {label}", target=user.username)
-    messages.success(request, f"Restored {label}.")
+    messages.success(request, _("Restored {label}.").format(label=label))
     return redirect("archive_list")
 
 
@@ -3527,15 +3643,15 @@ def owner_device_reissue(request, household):
     device = _owner_device(household)
     state = setup.device_setup(household)
     if device is None or not state["can_reissue"]:
-        messages.error(request, "A new setup code is not available for your board right now.")
+        messages.error(request, _("A new setup code is not available for your board right now."))
         return redirect("owner_settings")
     ticket = device.issue_claim_code()
     sent = setup.send_setup_code(request, household, ticket, sent_by=request.user)
     AuditLog.record(request.user, "board.code_reissued", f"Owner requested a new setup code for {device.device_id}", target=device.device_id)
     messages.success(
         request,
-        f"Your new setup code is {ticket.code}."
-        + (f" It was also sent by {' and '.join(sent)}." if sent else ""),
+        _("Your new setup code is {code}.").format(code=ticket.code)
+        + (_(" It was also sent by {channels}.").format(channels=_(" and ").join(sent)) if sent else ""),
     )
     return redirect("owner_settings")
 
@@ -3547,11 +3663,11 @@ def owner_device_resend(request, household):
     device = _owner_device(household)
     ticket = getattr(device, "claim_code", None) if device is not None else None
     if ticket is None or not ticket.is_usable:
-        messages.error(request, "There is no current setup code to send. Get a new one instead.")
+        messages.error(request, _("There is no current setup code to send. Get a new one instead."))
         return redirect("owner_settings")
     sent = setup.send_setup_code(request, household, ticket, sent_by=request.user)
     if sent:
-        messages.success(request, f"Setup code {ticket.code} sent by {' and '.join(sent)}.")
+        messages.success(request, _("Setup code {code} sent by {sent}.").format(code=ticket.code, sent=' and '.join(sent)))
     else:
-        messages.warning(request, "There is no number or email on your record to send it to. The code is shown below.")
+        messages.warning(request, _("There is no number or email on your record to send it to. The code is shown below."))
     return redirect("owner_settings")

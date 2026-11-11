@@ -468,7 +468,12 @@ input[type=checkbox] { width: auto; margin-right: .4rem; }
 }
 .valve-readout { font-size: .8rem; color: var(--text-muted); }
 .valve-readout strong { color: var(--text); text-transform: capitalize; }
+.valve-readout .small { display: block; text-transform: none; font-weight: 400; }
 .valve-actions { display: flex; gap: .4rem; }
+
+/* The facilitator's Open/Close pair, inline in a table row's button group. */
+.valve-cell { display: inline-flex; align-items: center; gap: .4rem; }
+.valve-cell form { margin: 0; }
 
 /* Pulse only while an alert is live; respects reduced-motion. */
 @keyframes shl-pulse {
@@ -1871,6 +1876,39 @@ a.sent-row:hover { background: var(--surface-2); }
 .water-reading dd {
   margin: .1rem 0 0; font-size: 1.05rem; font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---- The owner's valve ---------------------------------------------------
+   Sits inside the coloured water-state block, below the readings, so it is
+   read with them: the state in one word, the reason in one sentence, and
+   the single button that applies. The button is white on the tinted field
+   so it reads as an action, not as more status.
+   ------------------------------------------------------------------------ */
+
+.owner-valve {
+  margin-top: 1.1rem; padding-top: .9rem;
+  border-top: 1px solid rgba(255, 255, 255, .28);
+}
+.owner-valve-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: .8rem;
+}
+.owner-valve-label { font-size: .9rem; color: rgba(255, 255, 255, .85); }
+.owner-valve-state { font-size: 1.15rem; text-transform: capitalize; }
+.owner-valve-detail {
+  margin: .3rem 0 0; font-size: .95rem; line-height: 1.4;
+  color: rgba(255, 255, 255, .92);
+}
+.owner-valve-actions { margin-top: .8rem; }
+.owner-valve-actions form { margin: 0; }
+.owner-valve-btn {
+  display: block; width: 100%; min-height: 48px;
+  background: #fff; color: var(--text); border-color: transparent;
+  font-size: 1rem; font-weight: 600;
+}
+.owner-valve-btn:hover { background: rgba(255, 255, 255, .92); }
+.owner-valve-btn-close { color: var(--danger, #b42318); }
+.owner-valve-locked {
+  margin: 0; font-size: .9rem; color: rgba(255, 255, 255, .92);
 }
 
 /* ---- The one thing an owner can do --------------------------------------

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}My complaints - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "My complaints" %} - {{ SITE_NAME }}{% endblock %}
 {% block body_class %}is-owner{% endblock %}
 
 {% comment %}
@@ -12,19 +13,19 @@
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>My complaints</h1>
-      <p class="sub">Report a problem with your water, and read the reply here.</p>
+      <h1>{% trans "My complaints" %}</h1>
+      <p class="sub">{% trans "Report a problem with your water, and read the reply here." %}</p>
     </div>
     <div class="btn-row">
       {% comment %}Falls back to the plain page if JavaScript is unavailable.{% endcomment %}
       <a class="btn btn-primary" href="{% url 'owner_complaints' %}?new=1"
-         data-modal-open="complaint-modal">Report a problem</a>
+         data-modal-open="complaint-modal">{% trans "Report a problem" %}</a>
     </div>
   </div>
 
   <div class="thread-shell {% if complaint %}thread-open{% endif %}">
 
-    <aside class="thread-list" aria-label="My complaints">
+    <aside class="thread-list" aria-label="{% trans 'My complaints' %}">
       {% for t in threads %}
         <a class="thread-item {% if complaint and t.pk == complaint.pk %}is-active{% endif %}"
            href="{% url 'owner_complaint_thread' t.pk %}">
@@ -44,7 +45,7 @@
           </span>
         </a>
       {% empty %}
-        <p class="empty">You have not filed any complaints.</p>
+        <p class="empty">{% trans "You have not filed any complaints." %}</p>
       {% endfor %}
     </aside>
 
@@ -53,23 +54,24 @@
         <div class="thread-empty">
           <svg class="ico" aria-hidden="true" style="width:30px;height:30px"><use href="#i-chat"></use></svg>
           {% if threads %}
-            <p>Select a complaint to read it, or start a new one.</p>
+            <p>{% trans "Select a complaint to read it, or start a new one." %}</p>
           {% else %}
-            <p>You have not reported anything yet.</p>
+            <p>{% trans "You have not reported anything yet." %}</p>
           {% endif %}
           <a class="btn btn-primary btn-sm" href="{% url 'owner_complaints' %}?new=1"
-             data-modal-open="complaint-modal">Report a problem</a>
+             data-modal-open="complaint-modal">{% trans "Report a problem" %}</a>
         </div>
       {% else %}
         <header class="thread-head">
-          <a class="thread-back" href="{% url 'owner_complaints' %}" aria-label="Back to my complaints">
+          <a class="thread-back" href="{% url 'owner_complaints' %}" aria-label="{% trans 'Back to my complaints' %}">
             <span aria-hidden="true">&larr;</span>
           </a>
           <div class="thread-head-main">
             <h2>{{ complaint.subject }}</h2>
             <p class="sub">
-              {{ complaint.reference }} &middot; {{ complaint.get_category_display }} &middot;
-              filed {{ complaint.created_at|date:"M j, Y" }}
+              {% blocktrans trimmed with ref=complaint.reference category=complaint.get_category_display filed=complaint.created_at|date:"M j, Y" %}
+              {{ ref }} &middot; {{ category }} &middot; filed {{ filed }}
+              {% endblocktrans %}
             </p>
           </div>
           <span class="pill pill-{{ complaint.status }}">{{ complaint.get_status_display }}</span>
@@ -85,7 +87,7 @@
               <div class="bubble">
                 <p>{{ m.body|linebreaksbr }}</p>
                 <time>
-                  {% if not m.from_owner %}Facilitator &middot; {% endif %}
+                  {% if not m.from_owner %}{% trans "Facilitator" %} &middot; {% endif %}
                   {{ m.created_at|date:"M j, g:i A" }}
                 </time>
               </div>
@@ -96,7 +98,7 @@
         <form method="post" class="thread-compose">
           {% csrf_token %}
           {{ message_form.body }}
-          <button type="submit" class="btn btn-primary">Send</button>
+          <button type="submit" class="btn btn-primary">{% trans "Send" %}</button>
         </form>
       {% endif %}
     </section>
@@ -114,10 +116,10 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="complaint-modal-title">Report a problem</h2>
-          <p class="sub">The facilitator is notified as soon as you send it.</p>
+          <h2 id="complaint-modal-title">{% trans "Report a problem" %}</h2>
+          <p class="sub">{% trans "The facilitator is notified as soon as you send it." %}</p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -132,8 +134,8 @@
       </div>
 
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Submit complaint</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary">{% trans "Submit complaint" %}</button>
       </div>
     </form>
   </div>

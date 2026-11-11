@@ -6,6 +6,7 @@ from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
+from django.utils.translation import gettext_lazy as _
 
 from .models import (
     Announcement,
@@ -37,15 +38,37 @@ def check_within_municipality(form, lat, lng):
     if not (south - margin <= lat <= north + margin):
         form.add_error(
             "latitude",
-            f"That is outside {settings.MUNICIPALITY_NAME}. "
-            f"Expected roughly {south:.2f} to {north:.2f}.",
+            _("That is outside {municipality_name}. Expected roughly {south:.2f} to "
+              "{north:.2f}.").format(municipality_name=settings.MUNICIPALITY_NAME, south=south, north=north),
         )
     if not (west - margin <= lng <= east + margin):
         form.add_error(
             "longitude",
-            f"That is outside {settings.MUNICIPALITY_NAME}. "
-            f"Expected roughly {west:.2f} to {east:.2f}.",
+            _("That is outside {municipality_name}. Expected roughly {west:.2f} to "
+              "{east:.2f}.").format(municipality_name=settings.MUNICIPALITY_NAME, west=west, east=east),
         )
+
+
+def clean_mobile_number(value):
+    """
+    A Philippine mobile number as people write it, or blank.
+
+    09171234567, +639171234567 and 639171234567 are all the same number and
+    all accepted; anything that does not come to a Philippine mobile number
+    is refused here, at the form, because a wrong number is otherwise found
+    out only when the 2 am leak alert goes nowhere. The text is kept as
+    typed; the gateway normalises it when sending.
+    """
+    from .sms import normalise_number
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    digits = normalise_number(raw)
+    if not (len(digits) == 12 and digits.startswith("639")):
+        raise forms.ValidationError(
+            _("Enter a Philippine mobile number, like 09171234567 or +639171234567.")
+        )
+    return raw
 
 
 class WaterSourceForm(forms.ModelForm):
@@ -57,7 +80,7 @@ class WaterSourceForm(forms.ModelForm):
         widgets = {
             "latitude": forms.NumberInput(attrs={"step": "any", "placeholder": "9.6620"}),
             "longitude": forms.NumberInput(attrs={"step": "any", "placeholder": "125.5290"}),
-            "notes": forms.TextInput(attrs={"placeholder": "e.g. beside the barangay hall"}),
+            "notes": forms.TextInput(attrs={"placeholder": _("e.g. beside the barangay hall")}),
         }
 
     def clean(self):
@@ -65,7 +88,7 @@ class WaterSourceForm(forms.ModelForm):
         lat, lng = cleaned.get("latitude"), cleaned.get("longitude")
         if (lat is None) != (lng is None):
             missing = "longitude" if lng is None else "latitude"
-            self.add_error(missing, "Enter both latitude and longitude, or leave both blank.")
+            self.add_error(missing, _("Enter both latitude and longitude, or leave both blank."))
             return cleaned
         check_within_municipality(self, lat, lng)
         return cleaned
@@ -94,11 +117,11 @@ class HouseholdActivationForm(forms.Form):
     """
 
     latitude = forms.FloatField(
-        label="Latitude",
+        label=_("Latitude"),
         widget=forms.NumberInput(attrs={"step": "any", "placeholder": "9.7167"}),
     )
     longitude = forms.FloatField(
-        label="Longitude",
+        label=_("Longitude"),
         widget=forms.NumberInput(attrs={"step": "any", "placeholder": "125.5333"}),
     )
 
@@ -125,31 +148,39 @@ class HouseholdForm(forms.ModelForm):
     DEVICE_NEW = "new"
     DEVICE_EXISTING = "existing"
 
+    def clean_language(self):
+        return self.cleaned_data.get("language") or (
+            self.instance.language if self.instance.pk else Household._meta.get_field("language").default
+        )
+
+    def clean_contact_number(self):
+        return clean_mobile_number(self.cleaned_data.get("contact_number"))
+
     create_account = forms.BooleanField(
         required=False,
         initial=True,
-        label="Create an Owner Portal login for this household",
-        help_text="A username and temporary password are generated and shown once after saving.",
+        label=_("Create an Owner Portal login for this household"),
+        help_text=_("A username and temporary password are generated and shown once after saving."),
     )
 
     device_choice = forms.ChoiceField(
         required=False,
         initial=DEVICE_NONE,
-        label="Device",
+        label=_("Device"),
         widget=forms.RadioSelect,
         choices=[
-            (DEVICE_NONE, "No device yet"),
-            (DEVICE_NEW, "Register a new board"),
-            (DEVICE_EXISTING, "Use a board already registered"),
+            (DEVICE_NONE, _("No device yet")),
+            (DEVICE_NEW, _("Register a new board")),
+            (DEVICE_EXISTING, _("Use a board already registered")),
         ],
     )
     device_label = forms.CharField(
-        required=False, max_length=120, label="Board label",
-        help_text="Optional. Something you can recognise it by.",
+        required=False, max_length=120, label=_("Board label"),
+        help_text=_("Optional. Something you can recognise it by."),
     )
     existing_device = forms.ModelChoiceField(
-        required=False, queryset=Device.objects.none(), label="Which board",
-        empty_label="Choose a board",
+        required=False, queryset=Device.objects.none(), label=_("Which board"),
+        empty_label=_("Choose a board"),
     )
 
     class Meta:
@@ -160,7 +191,7 @@ class HouseholdForm(forms.ModelForm):
             "owner_name",
             "address",
             "contact_number",
-            "email",
+            "email", "language",
             "account_status",
             "latitude",
             "longitude",
@@ -179,6 +210,10 @@ class HouseholdForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # The household's language is a choice, not a hurdle: a form posted
+        # without it keeps what the record has (Filipino for a new one).
+        self.fields["language"].required = False
 
         # Only boards not already on someone else's hose. A board serves one
         # line, and offering a taken one would fail on a database constraint
@@ -206,12 +241,12 @@ class HouseholdForm(forms.ModelForm):
         # half that was filled in would look like the value was not saved.
         if (lat is None) != (lng is None):
             missing = "longitude" if lng is None else "latitude"
-            self.add_error(missing, "Enter both latitude and longitude, or leave both blank.")
+            self.add_error(missing, _("Enter both latitude and longitude, or leave both blank."))
             return cleaned
         check_within_municipality(self, lat, lng)
 
         if cleaned.get("device_choice") == self.DEVICE_EXISTING and not cleaned.get("existing_device"):
-            self.add_error("existing_device", "Choose the board, or pick a different option.")
+            self.add_error("existing_device", _("Choose the board, or pick a different option."))
 
         return cleaned
 
@@ -257,12 +292,12 @@ class BarangayForm(forms.ModelForm):
         model = Barangay
         fields = ["name", "municipality", "province", "is_active"]
         widgets = {
-            "name": forms.TextInput(attrs={"placeholder": "e.g. Lower Dakong Patag"}),
+            "name": forms.TextInput(attrs={"placeholder": _("e.g. Lower Dakong Patag")}),
             "municipality": forms.TextInput(),
             "province": forms.TextInput(),
         }
         help_texts = {
-            "is_active": (
+            "is_active": _(
                 "Inactive barangays keep their households and history but stop "
                 "appearing when registering new ones or assigning facilitators."
             ),
@@ -285,10 +320,10 @@ class FacilitatorForm(forms.ModelForm):
             "contact_number": forms.TextInput(attrs={"placeholder": "+639171234567"}),
             "email": forms.EmailInput(attrs={"placeholder": "name@example.com"}),
         }
-        labels = {"first_name": "First name", "last_name": "Last name"}
+        labels = {"first_name": _("First name"), "last_name": _("Last name")}
         help_texts = {
-            "contact_number": "Where leak alerts and sign-in codes are texted.",
-            "email": "Optional. Sign-in codes and notices by email instead of text.",
+            "contact_number": _("Where leak alerts and sign-in codes are texted."),
+            "email": _("Optional. Sign-in codes and notices by email instead of text."),
         }
 
     def __init__(self, *args, **kwargs):
@@ -329,6 +364,9 @@ class FacilitatorForm(forms.ModelForm):
             user.save()
         return user
 
+    def clean_contact_number(self):
+        return clean_mobile_number(self.cleaned_data.get("contact_number"))
+
 
 class AccountContactForm(forms.ModelForm):
     """
@@ -348,11 +386,14 @@ class AccountContactForm(forms.ModelForm):
             "contact_number": forms.TextInput(attrs={"placeholder": "+639171234567"}),
             "email": forms.EmailInput(attrs={"placeholder": "name@example.com"}),
         }
-        labels = {"first_name": "First name", "last_name": "Last name"}
+        labels = {"first_name": _("First name"), "last_name": _("Last name")}
         help_texts = {
-            "contact_number": "Sign-in codes and alerts are texted here.",
-            "email": "Sign-in codes and notices can be emailed here instead.",
+            "contact_number": _("Sign-in codes and alerts are texted here."),
+            "email": _("Sign-in codes and notices can be emailed here instead."),
         }
+
+    def clean_contact_number(self):
+        return clean_mobile_number(self.cleaned_data.get("contact_number"))
 
 
 class AdminHouseholdForm(HouseholdForm):
@@ -375,9 +416,9 @@ class AdminHouseholdForm(HouseholdForm):
             self.fields["device_choice"].initial = self.DEVICE_NEW
         # One barangay served, so the address is the part that differs house
         # to house; province, municipality and barangay are shown read-only.
-        self.fields["address"].label = "Purok or street"
-        self.fields["address"].widget.attrs["placeholder"] = "e.g. Purok 2, or the street and house no."
-        self.fields["address"].help_text = "The barangay, municipality and province are added automatically."
+        self.fields["address"].label = _("Purok or street")
+        self.fields["address"].widget.attrs["placeholder"] = _("e.g. Purok 2, or the street and house no.")
+        self.fields["address"].help_text = _("The barangay, municipality and province are added automatically.")
 
     def save(self, commit=True):
         household = super().save(commit=False)
@@ -401,7 +442,7 @@ class AnnouncementForm(forms.ModelForm):
         queryset=Household.objects.none(),
         widget=forms.CheckboxSelectMultiple,
         required=False,
-        label="Households",
+        label=_("Households"),
     )
 
     class Meta:
@@ -409,10 +450,10 @@ class AnnouncementForm(forms.ModelForm):
         fields = ["audience", "households", "title", "body", "in_app", "by_sms", "by_email"]
         widgets = {
             "audience": forms.RadioSelect,
-            "title": forms.TextInput(attrs={"placeholder": "e.g. Scheduled maintenance this weekend"}),
+            "title": forms.TextInput(attrs={"placeholder": _("e.g. Scheduled maintenance this weekend")}),
             "body": forms.Textarea(attrs={"rows": 3, "data-sms-counter": "true"}),
         }
-        labels = {"by_email": "Also send by email"}
+        labels = {"by_email": _("Also send by email")}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -432,10 +473,10 @@ class AnnouncementForm(forms.ModelForm):
 
         if not (cleaned.get("in_app") or cleaned.get("by_sms") or cleaned.get("by_email")):
             raise forms.ValidationError(
-                "Choose at least one way to send this - in the app, by SMS, by email, or any mix."
+                _("Choose at least one way to send this - in the app, by SMS, by email, or any mix.")
             )
         if audience == Announcement.Audience.SELECTED and not cleaned.get("households"):
-            self.add_error("households", "Pick at least one household, or choose a wider audience.")
+            self.add_error("households", _("Pick at least one household, or choose a wider audience."))
         return cleaned
 
     def recipients(self):
@@ -451,13 +492,13 @@ class HouseholdImportForm(forms.Form):
     """Bulk household intake from a CSV the LGU already keeps on a spreadsheet."""
 
     csv_file = forms.FileField(
-        label="CSV file",
-        help_text="Columns: owner_name, address, contact_number, and optionally barangay.",
+        label=_("CSV file"),
+        help_text=_("Columns: owner_name, address, contact_number, and optionally barangay."),
     )
     default_barangay = forms.ModelChoiceField(
         queryset=Barangay.objects.none(),
-        label="Barangay for rows that do not name one",
-        empty_label="Choose a barangay",
+        label=_("Barangay for rows that do not name one"),
+        empty_label=_("Choose a barangay"),
     )
 
     def __init__(self, *args, **kwargs):
@@ -468,16 +509,16 @@ class HouseholdImportForm(forms.Form):
 class RestoreForm(forms.Form):
     """Restore the database from a backup file. Guarded by a typed word."""
 
-    backup_file = forms.FileField(label="Backup file (.json)")
+    backup_file = forms.FileField(label=_("Backup file (.json)"))
     confirm = forms.CharField(
-        label="Type RESTORE to confirm",
-        help_text="Restoring overwrites current records that share an id with the backup.",
+        label=_("Type RESTORE to confirm"),
+        help_text=_("Restoring overwrites current records that share an id with the backup."),
     )
 
     def clean_confirm(self):
         value = (self.cleaned_data.get("confirm") or "").strip()
         if value != "RESTORE":
-            raise forms.ValidationError("Type RESTORE exactly to confirm.")
+            raise forms.ValidationError(_("Type RESTORE exactly to confirm."))
         return value
 
 
@@ -496,12 +537,12 @@ class WorkOrderForm(forms.ModelForm):
         widgets = {
             "details": forms.Textarea(attrs={"rows": 3}),
             "scheduled_for": forms.DateInput(attrs={"type": "date"}),
-            "title": forms.TextInput(attrs={"placeholder": "e.g. Application visit - check the tap and the hose run"}),
+            "title": forms.TextInput(attrs={"placeholder": _("e.g. Application visit - check the tap and the hose run")}),
         }
-        labels = {"scheduled_for": "Visit date", "assigned_to": "Facilitator"}
+        labels = {"scheduled_for": _("Visit date"), "assigned_to": _("Facilitator")}
         help_texts = {
-            "assigned_to": "Who will make the visit. Choosing one schedules it and texts them and the household.",
-            "household": "The household to visit. It need not have a portal account yet - the text goes to the number on its record.",
+            "assigned_to": _("Who will make the visit. Choosing one schedules it and texts them and the household."),
+            "household": _("The household to visit. It need not have a portal account yet - the text goes to the number on its record."),
         }
 
     def __init__(self, *args, **kwargs):
@@ -524,11 +565,11 @@ class ComplaintForm(forms.ModelForm):
     class Meta:
         model = Complaint
         fields = ["category", "subject", "body"]
-        labels = {"body": "Describe the problem"}
+        labels = {"body": _("Describe the problem")}
         widgets = {
-            "subject": forms.TextInput(attrs={"placeholder": "Short summary of the problem"}),
+            "subject": forms.TextInput(attrs={"placeholder": _("Short summary of the problem")}),
             "body": forms.Textarea(
-                attrs={"rows": 5, "placeholder": "When did it start? What exactly are you seeing?"}
+                attrs={"rows": 5, "placeholder": _("When did it start? What exactly are you seeing?")}
             ),
         }
 
@@ -542,14 +583,14 @@ class ComplaintMessageForm(forms.ModelForm):
         labels = {"body": ""}
         widgets = {
             "body": forms.Textarea(
-                attrs={"rows": 2, "placeholder": "Write a message...", "class": "thread-input"}
+                attrs={"rows": 2, "placeholder": _("Write a message..."), "class": "thread-input"}
             )
         }
 
     def clean_body(self):
         body = (self.cleaned_data.get("body") or "").strip()
         if not body:
-            raise forms.ValidationError("Write something before sending.")
+            raise forms.ValidationError(_("Write something before sending."))
         return body
 
 
@@ -574,7 +615,7 @@ class ComplaintResponseForm(forms.ModelForm):
         fields = ["status", "response"]
         widgets = {
             "response": forms.Textarea(
-                attrs={"rows": 4, "placeholder": "Write your reply to the household owner..."}
+                attrs={"rows": 4, "placeholder": _("Write your reply to the household owner...")}
             )
         }
 
@@ -620,33 +661,33 @@ class NotificationForm(forms.Form):
         queryset=Household.objects.none(),
         widget=forms.CheckboxSelectMultiple,
         required=False,
-        label="Send to",
+        label=_("Send to"),
     )
     to_all = forms.BooleanField(
-        required=False, initial=False, label="All active households",
+        required=False, initial=False, label=_("All active households"),
     )
 
     title = forms.CharField(
         max_length=150,
-        widget=forms.TextInput(attrs={"placeholder": "e.g. Scheduled repair this afternoon"}),
+        widget=forms.TextInput(attrs={"placeholder": _("e.g. Scheduled repair this afternoon")}),
     )
     body = forms.CharField(
         widget=forms.Textarea(attrs={
             "rows": 3,
-            "placeholder": "Include the expected restoration time if you know it.",
+            "placeholder": _("Include the expected restoration time if you know it."),
             "data-sms-counter": "true",
         })
     )
 
     in_app = forms.BooleanField(
-        required=False, initial=True, label="Show in the app",
+        required=False, initial=True, label=_("Show in the app"),
     )
     by_sms = forms.BooleanField(
-        required=False, initial=False, label="Also send as SMS",
+        required=False, initial=False, label=_("Also send as SMS"),
     )
     by_email = forms.BooleanField(
-        required=False, initial=False, label="Also send by email",
-        help_text="To households with an email on their record or their login.",
+        required=False, initial=False, label=_("Also send by email"),
+        help_text=_("To households with an email on their record or their login."),
     )
 
     def __init__(self, *args, barangay=None, **kwargs):
@@ -666,11 +707,11 @@ class NotificationForm(forms.Form):
             # deliver nothing at all, which is the worst possible outcome for
             # a message about the water being off.
             raise forms.ValidationError(
-                "Choose at least one way to send this - in the app, by SMS, by email, or any mix."
+                _("Choose at least one way to send this - in the app, by SMS, by email, or any mix.")
             )
 
         if not cleaned.get("to_all") and not cleaned.get("households"):
-            self.add_error("households", "Pick at least one household, or tick 'All active households'.")
+            self.add_error("households", _("Pick at least one household, or tick 'All active households'."))
 
         return cleaned
 
@@ -708,21 +749,40 @@ class SegmentForm(forms.ModelForm):
             "is_active",
         ]
         help_texts = {
-            "device": (
+            "device": _(
                 "The board fitted to this line. Leave blank until one is installed - "
                 "the dashboard then shows the line as awaiting hardware rather than "
                 "as a fault."
             ),
-            "low_pressure_bar": (
+            "low_pressure_bar": _(
                 "Below this, the line reports Low Water Supply. The device picks the "
                 "new value up within seconds - no re-flashing."
             ),
-            "start_lat": "Optional. Fill all four coordinates to draw this line on the map view.",
+            "start_lat": _("Optional. Fill all four coordinates to draw this line on the map view."),
         }
         widgets = {
             "color": forms.RadioSelect(attrs={"class": "swatch-input"}),
             "low_pressure_bar": forms.NumberInput(attrs={"step": "0.05", "min": "0", "max": "12"}),
         }
+
+    def clean_device(self):
+        """
+        One board, one line. A board already fitted to another line is refused
+        here with the line's name, instead of surfacing as a database error
+        after Save.
+        """
+        device = self.cleaned_data.get("device")
+        if device is None:
+            return device
+        taken = Segment.objects.filter(
+            device=device, module_index=self.instance.module_index or 1,
+        ).exclude(pk=self.instance.pk).first()
+        if taken is not None:
+            raise forms.ValidationError(
+                _("That board is already fitted to {line}. Take it off that line first, "
+                  "or choose a spare board.").format(line=taken.name)
+            )
+        return device
 
     def clean_low_pressure_bar(self):
         """
@@ -737,14 +797,14 @@ class SegmentForm(forms.ModelForm):
         value = self.cleaned_data["low_pressure_bar"]
         if value <= 0:
             raise forms.ValidationError(
-                "A threshold of 0 can never be crossed, so this line would never "
-                "report low supply. Use at least 0.05 bar."
+                _("A threshold of 0 can never be crossed, so this line would never "
+                "report low supply. Use at least 0.05 bar.")
             )
         if value > 4:
             raise forms.ValidationError(
-                "That is higher than a gravity-fed line normally reaches, so it would "
+                _("That is higher than a gravity-fed line normally reaches, so it would "
                 "report low supply permanently. Rural systems usually sit between "
-                "0.3 and 2 bar."
+                "0.3 and 2 bar.")
             )
         return value
 
@@ -788,7 +848,7 @@ class MaintenanceForm(forms.Form):
     note = forms.CharField(
         max_length=200,
         required=False,
-        widget=forms.TextInput(attrs={"placeholder": "e.g. Replacing coupling at the 22 m marker"}),
+        widget=forms.TextInput(attrs={"placeholder": _("e.g. Replacing coupling at the 22 m marker")}),
     )
 
 
@@ -810,6 +870,7 @@ class DetectionSettingsForm(forms.ModelForm):
             "valve_test_grace_minutes",
             "valve_test_drop_bar",
             "auto_close_on_flow_leak",
+            "upload_interval_seconds",
         ]
         HOUR_CHOICES = [
             (h, f"{h % 12 or 12}:00 {'AM' if h < 12 else 'PM'}")
@@ -820,6 +881,17 @@ class DetectionSettingsForm(forms.ModelForm):
             "valve_test_drop_bar": forms.NumberInput(attrs={"step": "0.01"}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A budget, not a threshold: leaving it blank keeps the value in use.
+        self.fields["upload_interval_seconds"].required = False
+
+    def clean_upload_interval_seconds(self):
+        value = self.cleaned_data.get("upload_interval_seconds")
+        if value is None:
+            return self.instance.upload_interval_seconds
+        return value
+
     def clean(self):
         cleaned = super().clean()
         warn = cleaned.get("flow_warn_minutes")
@@ -828,6 +900,6 @@ class DetectionSettingsForm(forms.ModelForm):
         if warn is not None and leak is not None and warn >= leak:
             self.add_error(
                 "flow_leak_minutes",
-                "The leak time must be longer than the water-running warning time.",
+                _("The leak time must be longer than the water-running warning time."),
             )
         return cleaned

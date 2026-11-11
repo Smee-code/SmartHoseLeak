@@ -7,6 +7,8 @@ powered up. Useful for development and for rehearsing the defence.
 
     python tools/simulator.py --key <device api key>
     python tools/simulator.py --key <key> --leak 2      # force a leak on M2
+    python tools/simulator.py --key <key> --device-id esp32-demo --modules 1 --valve open
+                                                       # one household, valve fitted
 
 Press Ctrl+C to stop.
 """
@@ -121,13 +123,26 @@ def main():
     parser.add_argument("--leak", type=int, choices=[1, 2, 3], help="Hold this module in a leak condition.")
     parser.add_argument("--low", type=int, choices=[1, 2, 3], help="Hold this module in low supply.")
     parser.add_argument(
+        "--modules", type=int, choices=[1, 2, 3], default=3,
+        help="How many modules to report. The per-household board has one.",
+    )
+    parser.add_argument(
+        "--valve", choices=["open", "closed"],
+        help="Report a motorised valve in this state. Without it the line reads 'not fitted'.",
+    )
+    parser.add_argument(
+        "--valve-reason", choices=["", "flow", "test", "decay", "manual"], default="",
+        help="Why the valve is closed, as the firmware would say.",
+    )
+    parser.add_argument(
         "--random-events",
         action="store_true",
         help="Occasionally drift a random module into a leak and back, for a hands-off demo.",
     )
     args = parser.parse_args()
 
-    modules = {i: Module(i) for i in (1, 2, 3)}
+    indexes = list(range(1, args.modules + 1))
+    modules = {i: Module(i) for i in indexes}
     if args.leak:
         modules[args.leak].mode = "leak"
     if args.low:
@@ -140,14 +155,19 @@ def main():
             tick += 1
 
             if args.random_events and tick % 60 == 0:
-                target = modules[random.choice([1, 2, 3])]
+                target = modules[random.choice(indexes)]
                 target.mode = "leak" if target.mode == "normal" else "normal"
                 print(f"  [sim] module {target.index} -> {target.mode}")
 
-            payload = {
-                "device_id": args.device_id,
-                "readings": [modules[i].step(tick) for i in (1, 2, 3)],
-            }
+            readings = [modules[i].step(tick) for i in indexes]
+            if args.valve:
+                for reading in readings:
+                    reading["valve_state"] = args.valve
+                    reading["valve_reason"] = args.valve_reason
+                    # A closed valve passes no water.
+                    if args.valve == "closed":
+                        reading["flow_lpm"] = 0.0
+            payload = {"device_id": args.device_id, "readings": readings}
             try:
                 result = post(args.url, args.key, payload)
                 states = " | ".join(
@@ -162,6 +182,10 @@ def main():
                 print(f"[{tick:5d}] HTTP {exc.code}: {exc.read().decode('utf-8', 'replace')[:200]}")
             except urllib.error.URLError as exc:
                 print(f"[{tick:5d}] cannot reach server: {exc.reason}")
+            except OSError as exc:
+                # A connection the server dropped mid-request - it restarts
+                # itself whenever a source file changes. Not a reason to stop.
+                print(f"[{tick:5d}] connection dropped: {exc}")
 
             time.sleep(args.interval)
     except KeyboardInterrupt:

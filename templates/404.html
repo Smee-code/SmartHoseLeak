@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Page not found - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Page not found" %} - {{ SITE_NAME }}{% endblock %}
 
 {% comment %}
   A dead end, so the page is quiet. It is not a feature and it should not
@@ -21,11 +22,13 @@
 {% block content %}
 <div class="wrap">
   <section class="deadend">
-    <h1>That page doesn&rsquo;t exist</h1>
+    <h1>{% trans "That page doesn&rsquo;t exist" %}</h1>
 
     <p class="deadend-lede">
+      {% blocktrans trimmed %}
       The address you opened isn&rsquo;t part of this system. It may have been
       mistyped, or it may be an old link that no longer works.
+      {% endblocktrans %}
     </p>
 
     {% comment %}
@@ -37,26 +40,28 @@
       <p class="deadend-path"><code>{{ request_path }}</code></p>
     {% endif %}
 
-    <nav class="deadend-ways" aria-label="Where to go instead">
+    <nav class="deadend-ways" aria-label="{% trans 'Where to go instead' %}">
       {% if user.is_authenticated %}
         {% if user.is_facilitator %}
-          <a href="{% url 'dashboard' %}">Dashboard</a>
-          <a href="{% url 'household_list' %}">Households</a>
-          <a href="{% url 'complaint_list' %}">Complaints</a>
+          <a href="{% url 'dashboard' %}">{% trans "Dashboard" %}</a>
+          <a href="{% url 'household_list' %}">{% trans "Households" %}</a>
+          <a href="{% url 'complaint_list' %}">{% trans "Complaints" %}</a>
         {% else %}
-          <a href="{% url 'owner_home' %}">My water</a>
-          <a href="{% url 'owner_pressure' %}">My pressure</a>
-          <a href="{% url 'owner_complaints' %}">My complaints</a>
+          <a href="{% url 'owner_home' %}">{% trans "My water" %}</a>
+          <a href="{% url 'owner_pressure' %}">{% trans "My pressure" %}</a>
+          <a href="{% url 'owner_complaints' %}">{% trans "My complaints" %}</a>
         {% endif %}
       {% else %}
-        <a href="{% url 'home' %}">Front page</a>
-        <a href="{% url 'login' %}">Sign in</a>
+        <a href="{% url 'home' %}">{% trans "Front page" %}</a>
+        <a href="{% url 'login' %}">{% trans "Sign in" %}</a>
       {% endif %}
     </nav>
 
     <p class="deadend-code">
+      {% blocktrans trimmed %}
       Error 404. If you got here from a link inside the system, tell the water
       system facilitator which page the link was on.
+      {% endblocktrans %}
     </p>
   </section>
 </div>

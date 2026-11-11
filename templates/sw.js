@@ -1,4 +1,4 @@
-/* Service worker for the app - every role installs the same one.
+{% load i18n %}/* Service worker for the app - every role installs the same one.
 
    Deliberately conservative: the app shell (CSS, JS, icons, offline page) is
    cached so the portal opens on a weak signal, but every navigation and every
@@ -93,7 +93,7 @@ self.addEventListener('push', (event) => {
 
   const title = data.title || 'Smart Hose Leak';
   const options = {
-    body: data.body || 'There is news about your water supply.',
+    body: data.body || '{% trans "There is news about your water supply." as t %}{{ t|escapejs }}',
     icon: '/static/img/icon-192.png',
     badge: '/static/img/icon-192.png',
     /* Phones sleep. A board that flaps between leak and normal would

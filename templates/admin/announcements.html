@@ -1,23 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Announcements - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Announcements" %} - {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>Announcements</h1>
-      <p class="sub">Messages sent to households across one barangay or all of them.</p>
+      <h1>{% trans "Announcements" %}</h1>
+      <p class="sub">{% trans "Messages sent to households across one barangay or all of them." %}</p>
     </div>
     <div class="btn-row">
       {# Opens the dialog below; without JavaScript it is a plain link to the full page. #}
-      <a class="btn btn-primary btn-sm" href="{% url 'announcement_create' %}" data-modal-open="announcement-modal">New announcement</a>
+      <a class="btn btn-primary btn-sm" href="{% url 'announcement_create' %}" data-modal-open="announcement-modal">{% trans "New announcement" %}</a>
     </div>
   </div>
 
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Sent</th><th>Title</th><th>Audience</th><th>Channels</th><th>Reach</th><th>By</th></tr>
+        <tr><th>{% trans "Sent" %}</th><th>{% trans "Title" %}</th><th>{% trans "Audience" %}</th><th>{% trans "Channels" %}</th><th>{% trans "Reach" %}</th><th>{% trans "By" %}</th></tr>
       </thead>
       <tbody>
         {% for a in page %}
@@ -26,15 +27,15 @@
             <td>{{ a.title }}</td>
             <td class="small">{{ a.audience_label }}</td>
             <td class="small">
-              {% if a.in_app %}<span class="pill pill-muted">app</span>{% endif %}
+              {% if a.in_app %}<span class="pill pill-muted">{% trans "app" %}</span>{% endif %}
               {% if a.by_sms %}<span class="pill pill-muted">SMS</span>{% endif %}
-              {% if a.by_email %}<span class="pill pill-muted">email</span>{% endif %}
+              {% if a.by_email %}<span class="pill pill-muted">{% trans "email" %}</span>{% endif %}
             </td>
-            <td class="small">{{ a.recipients_count }} household{{ a.recipients_count|pluralize }}{% if a.by_sms %}, {{ a.sms_count }} text{{ a.sms_count|pluralize }}{% endif %}{% if a.by_email %}, {{ a.email_count }} email{{ a.email_count|pluralize }}{% endif %}</td>
+            <td class="small">{% blocktrans trimmed count n=a.recipients_count %}{{ n }} household{% plural %}{{ n }} households{% endblocktrans %}{% if a.by_sms %}, {% blocktrans trimmed count n=a.sms_count %}{{ n }} text{% plural %}{{ n }} texts{% endblocktrans %}{% endif %}{% if a.by_email %}, {% blocktrans trimmed count n=a.email_count %}{{ n }} email{% plural %}{{ n }} emails{% endblocktrans %}{% endif %}</td>
             <td class="small">{% if a.sent_by %}{{ a.sent_by.get_full_name|default:a.sent_by.username }}{% else %}&mdash;{% endif %}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="empty">No announcements yet. <a href="{% url 'announcement_create' %}" data-modal-open="announcement-modal">Send the first one</a>.</td></tr>
+          <tr><td colspan="6" class="empty">{% trans "No announcements yet." %} <a href="{% url 'announcement_create' %}" data-modal-open="announcement-modal">{% trans "Send the first one" %}</a>.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -42,9 +43,9 @@
 
   {% if page.has_other_pages %}
     <div class="pager">
-      {% if page.has_previous %}<a class="btn btn-sm" href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
-      <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-      {% if page.has_next %}<a class="btn btn-sm" href="?page={{ page.next_page_number }}">Next</a>{% endif %}
+      {% if page.has_previous %}<a class="btn btn-sm" href="?page={{ page.previous_page_number }}">{% trans "Previous" %}</a>{% endif %}
+      <span class="muted">{% blocktrans trimmed with n=page.number total=page.paginator.num_pages %}Page {{ n }} of {{ total }}{% endblocktrans %}</span>
+      {% if page.has_next %}<a class="btn btn-sm" href="?page={{ page.next_page_number }}">{% trans "Next" %}</a>{% endif %}
     </div>
   {% endif %}
 </div>
@@ -62,10 +63,10 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="announcement-modal-title">New announcement</h2>
-          <p class="sub">Reaches households in the app, by SMS, by email, or any mix. The same words go out on each.</p>
+          <h2 id="announcement-modal-title">{% trans "New announcement" %}</h2>
+          <p class="sub">{% trans "Reaches households in the app, by SMS, by email, or any mix. The same words go out on each." %}</p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -85,7 +86,7 @@
         </div>
 
         <details class="set-steps" {% if create_form.households.errors %}open{% endif %}>
-          <summary>Choose specific households (only used for the "Selected households" audience)</summary>
+          <summary>{% trans 'Choose specific households (only used for the "Selected households" audience)' %}</summary>
           <div class="field" style="margin-top:.5rem">
             {{ create_form.households }}
             {{ create_form.households.errors }}
@@ -96,15 +97,15 @@
         {% include "_form_field.html" with field=create_form.body %}
 
         <fieldset class="channel-box">
-          <legend class="small">How to send it</legend>
+          <legend class="small">{% trans "How to send it" %}</legend>
           {% include "_form_field.html" with field=create_form.in_app %}
           {% include "_form_field.html" with field=create_form.by_sms %}
           {% include "_form_field.html" with field=create_form.by_email %}
         </fieldset>
       </div>
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Send announcement</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary">{% trans "Send announcement" %}</button>
       </div>
     </form>
   </div>

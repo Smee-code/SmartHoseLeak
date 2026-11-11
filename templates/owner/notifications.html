@@ -1,15 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Notices - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Notices" %} - {{ SITE_NAME }}{% endblock %}
 {% block body_class %}is-owner{% endblock %}
 
 {% block content %}
 <div class="wrap-narrow">
   <div class="page-head">
     <div>
-      <h1>Notices</h1>
+      <h1>{% trans "Notices" %}</h1>
       <p class="sub">
-        Alerts and announcements for {{ household.household_id }}.
-        {% if new_count %}<strong>{{ new_count }} new.</strong>{% endif %}
+        {% blocktrans trimmed with hid=household.household_id %}Alerts and announcements for {{ hid }}.{% endblocktrans %}
+        {% if new_count %}<strong>{% blocktrans trimmed %}{{ new_count }} new.{% endblocktrans %}</strong>{% endif %}
       </p>
     </div>
   </div>
@@ -58,10 +59,10 @@
               text says nothing a link does not already say.
             {% endcomment %}
             <p class="feed-meta">
-              {% if n.was_unread %}<span class="tag tag-new">New</span>{% endif %}
+              {% if n.was_unread %}<span class="tag tag-new">{% trans "New" %}</span>{% endif %}
               {% if n.complaint %}
                 <a class="feed-link" href="{% url 'owner_complaint_thread' n.complaint.pk %}">
-                  Open conversation
+                  {% trans "Open conversation" %}
                 </a>
               {% endif %}
             </p>
@@ -72,9 +73,9 @@
   {% empty %}
     <div class="card empty-state">
       <svg class="ico" aria-hidden="true" style="width:30px;height:30px"><use href="#i-bell"></use></svg>
-      <p>You have no notices yet.</p>
+      <p>{% trans "You have no notices yet." %}</p>
       <p class="small muted">
-        Alerts about your supply line, and replies from the facilitator, appear here.
+        {% trans "Alerts about your supply line, and replies from the facilitator, appear here." %}
       </p>
     </div>
   {% endfor %}
@@ -82,11 +83,11 @@
   {% if page.has_other_pages %}
     <div class="pager">
       {% if page.has_previous %}
-        <a class="btn btn-sm" href="?page={{ page.previous_page_number }}">Previous</a>
+        <a class="btn btn-sm" href="?page={{ page.previous_page_number }}">{% trans "Previous" %}</a>
       {% endif %}
-      <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      <span class="muted">{% blocktrans trimmed with num=page.number total=page.paginator.num_pages %}Page {{ num }} of {{ total }}{% endblocktrans %}</span>
       {% if page.has_next %}
-        <a class="btn btn-sm" href="?page={{ page.next_page_number }}">Next</a>
+        <a class="btn btn-sm" href="?page={{ page.next_page_number }}">{% trans "Next" %}</a>
       {% endif %}
     </div>
   {% endif %}

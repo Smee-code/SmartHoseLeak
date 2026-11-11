@@ -129,7 +129,8 @@ class Command(StaticfilesRunserverCommand):
                 "  turn off \"Always use secure connections\"."
             )
             write("")
-            write("  ESP32 Server address (paste into the device's /wifi page):")
+            write("  ESP32 Server address (boards on this WiFi find it by themselves;")
+            write("  otherwise paste it into the Server box on the board's page):")
             write(self.style.SUCCESS(f"      http://{ip}:{port}/api/ingest/"))
         else:
             write(

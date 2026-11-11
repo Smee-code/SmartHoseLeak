@@ -150,6 +150,9 @@ MIDDLEWARE = [
     # logger sees the signed-in user. Both are defined in core/middleware.py.
     "core.middleware.MaintenanceModeMiddleware",
     "core.middleware.ErrorLogMiddleware",
+    # After auth: a signed-in owner who has not pressed EN/FIL gets their
+    # household's language instead of the browser's. See core/language.py.
+    "core.language.HouseholdLanguageMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -232,6 +235,8 @@ LANGUAGES = [
     ("fil", "Filipino"),
 ]
 LOCALE_PATHS = [BASE_DIR / "locale"]
+# The toggle's cookie. A year, so a phone that chose Filipino stays in it.
+LANGUAGE_COOKIE_AGE = 365 * 24 * 3600
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
@@ -422,14 +427,19 @@ else:
 MUNICIPALITY_BOUNDS = (9.61325, 125.43605, 9.69744, 125.54105)  # S, W, N, E
 MUNICIPALITY_BOUNDS_MARGIN_DEG = 0.05  # about 5.5 km
 
-# A segment whose last reading is older than this is shown as offline.
+# When a line reads Offline is NOT a setting here any more. The boards' upload
+# interval is set on the admin console's System page (SystemSetting
+# .upload_interval_seconds, 15 s by default), and a line is Offline after three
+# missed uploads plus five seconds (core.models.offline_after_seconds), so the
+# two can never disagree.
 #
-# The firmware posts every UPLOAD_INTERVAL_MS (2 s), so 10 s is five missed
-# uploads - enough margin to ride out a dropped packet or a WiFi hiccup without
-# flapping, while still noticing a genuinely dead board in about ten seconds
-# rather than a minute. Raise it if the link is poor enough to cause false
-# offline reports; it is the single value that decides detection speed.
-DEVICE_OFFLINE_AFTER_SECONDS = int(env("DEVICE_OFFLINE_AFTER_SECONDS", "10"))
+# A manual valve command does not wait for an upload. While a person is active
+# at a screen with the valve buttons, the dashboards' live poll says so and
+# the board asks /api/commands/ every COMMAND_POLL_SECONDS instead; the watch
+# lapses VALVE_WATCH_SECONDS after the last such poll, so an idle or hidden
+# tab does not keep a board polling all day.
+COMMAND_POLL_SECONDS = int(env("COMMAND_POLL_SECONDS", "2"))
+VALVE_WATCH_SECONDS = int(env("VALVE_WATCH_SECONDS", "45"))
 
 # ------------------------------------------------------- owner board setup
 #
@@ -447,7 +457,8 @@ OWNER_DEVICE_CONNECTING_SECONDS = int(env("OWNER_DEVICE_CONNECTING_SECONDS", "18
 # Minute rollups older than this are pruned by `manage.py prune_rollups`.
 ROLLUP_RETENTION_DAYS = int(env("ROLLUP_RETENTION_DAYS", "90"))
 
-# How often the dashboards poll /api/live/ (milliseconds). Matched to the
-# firmware's upload interval: polling faster than the device posts only costs
-# requests without showing anything new.
-LIVE_POLL_INTERVAL_MS = int(env("LIVE_POLL_INTERVAL_MS", "2000"))
+# How often the dashboards poll /api/live/ (milliseconds) when nobody is
+# active at a valve screen. While somebody is (mouse or touch within the last
+# two minutes on a page with valve buttons) the page polls every 2 s instead,
+# so a valve press is seen to take effect as fast as the board acts on it.
+LIVE_POLL_INTERVAL_MS = int(env("LIVE_POLL_INTERVAL_MS", "5000"))

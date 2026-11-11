@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Settings - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Settings" %} - {{ SITE_NAME }}{% endblock %}
 {% block body_class %}is-owner{% endblock %}
 
 {% comment %}
@@ -18,7 +19,7 @@
 {% block content %}
 <div class="wrap-narrow owner-page">
 
-  <h1 class="owner-h1">Settings</h1>
+  <h1 class="owner-h1">{% trans "Settings" %}</h1>
 
   {% comment %}
     My device. The owner connects the board themselves: the setup code came
@@ -27,9 +28,9 @@
     yard. Every state carries what to do about it.
   {% endcomment %}
   <section class="owner-section" id="device-section" data-device-poll="{% url 'owner_device_status' %}">
-    <h2>My device</h2>
+    <h2>{% trans "My device" %}</h2>
     <p class="set-lede">
-      The small board on your water line. It sends readings to the system once it is on your WiFi.
+      {% trans "The small board on your water line. It sends readings to the system once it is on your WiFi." %}
     </p>
 
     <div class="device-card" data-device="card" data-device-state="{{ device.key }}">
@@ -50,7 +51,7 @@
     <div style="margin-top:.75rem">
       <button type="button" class="owner-action" data-device="open" data-modal-open="device-modal"
               {% if device.key == 'connected' or device.key == 'no_board' or device.key == 'awaiting_activation' %}hidden{% endif %}>
-        {% if device.key == 'lost' %}What to check{% elif device.key == 'claimed_silent' %}Set up again{% elif device.key == 'connecting' %}Setup steps{% else %}Set up my board{% endif %}
+        {% if device.key == 'lost' %}{% trans "What to check" %}{% elif device.key == 'claimed_silent' %}{% trans "Set up again" %}{% elif device.key == 'connecting' %}{% trans "Setup steps" %}{% else %}{% trans "Set up my board" %}{% endif %}
       </button>
     </div>
   </section>
@@ -60,13 +61,13 @@
       <div class="modal-inner">
         <div class="modal-head">
           <div>
-            <h2 id="device-modal-title">Set up your board</h2>
+            <h2 id="device-modal-title">{% trans "Set up your board" %}</h2>
             <p class="sub">
               <span class="pill pill-sm pill-{{ device.tone }}" data-device="mlabel" role="status" aria-live="polite">{{ device.label }}</span>
               {% if device.device_id %}<span class="mono small muted">{{ device.device_id }}</span>{% endif %}
             </p>
           </div>
-          <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+          <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
             <span aria-hidden="true">&times;</span>
           </button>
         </div>
@@ -75,30 +76,30 @@
           <p class="set-note" data-device="mnote" style="margin-top:0">{{ device.note }}</p>
 
           <div data-device="code-box" {% if not device.code %}hidden{% endif %}>
-            <p class="set-lede" style="margin-bottom:.25rem">Your setup code</p>
+            <p class="set-lede" style="margin-bottom:.25rem">{% trans "Your setup code" %}</p>
             <p class="setup-code mono" data-device="code">{{ device.code }}</p>
-            <p class="set-note">Works once. Expires <span data-device="expires">{{ device.code_expires }}</span>.</p>
+            <p class="set-note">{% trans "Works once." %} {% trans "Expires" %} <span data-device="expires">{{ device.code_expires }}</span>.</p>
           </div>
 
           <div data-device="steps" {% if not device.show_steps and not device.can_reissue and device.key != 'connecting' %}hidden{% endif %}>
-            <p class="set-lede" style="margin-bottom:.25rem">How to connect the board</p>
+            <p class="set-lede" style="margin-bottom:.25rem">{% trans "How to connect the board" %}</p>
             <ol class="device-steps">
-              <li>Plug in the board and wait about a minute.</li>
-              <li>On your phone, join the WiFi network <strong>{{ setup_ssid }}</strong> (password: <strong>{{ setup_password }}</strong>).</li>
-              <li>A setup page opens by itself. If it does not, open <strong>http://192.168.4.1/</strong> in your browser.</li>
-              <li>Choose your home WiFi, type its password, and enter your setup code. Leave the server address as it is.</li>
-              <li>Press <strong>Save</strong>. The board restarts and joins your WiFi; the setup network disappears.</li>
+              <li>{% trans "Plug in the board and wait about a minute." %}</li>
+              <li>{% blocktrans trimmed %}On your phone, join the WiFi network <strong>{{ setup_ssid }}</strong> (password: <strong>{{ setup_password }}</strong>).{% endblocktrans %}</li>
+              <li>{% blocktrans trimmed %}A setup page opens by itself. If it does not, open <strong>http://192.168.4.1/</strong> in your browser.{% endblocktrans %}</li>
+              <li>{% trans "Choose your home WiFi, type its password, and enter your setup code. Leave the server address as it is." %}</li>
+              <li>{% blocktrans trimmed %}Press <strong>Save</strong>. The board restarts and joins your WiFi; the setup network disappears.{% endblocktrans %}</li>
             </ol>
-            <p class="set-note">Keep this open. Within a minute or two the status above should say Connected.</p>
+            <p class="set-note">{% trans "Keep this open. Within a minute or two the status above should say Connected." %}</p>
           </div>
 
           <div data-device="trouble" {% if device.key != 'lost' and device.key != 'claimed_silent' %}hidden{% endif %}>
-            <p class="set-lede" style="margin-bottom:.25rem">What to check</p>
+            <p class="set-lede" style="margin-bottom:.25rem">{% trans "What to check" %}</p>
             <ol class="device-steps">
-              <li>Is the board plugged in and its light on? After a power cut it reconnects by itself within a minute.</li>
-              <li>Is your home WiFi working, with internet? Try opening any website on your phone.</li>
-              <li>Did the WiFi name or password change? The board needs to be told: unplug it, wait two minutes, plug it in - the <strong>{{ setup_ssid }}</strong> network reappears and you can enter the new WiFi, without a code.</li>
-              <li>Still nothing after that? Contact the water system facilitator.</li>
+              <li>{% trans "Is the board plugged in and its light on? After a power cut it reconnects by itself within a minute." %}</li>
+              <li>{% trans "Is your home WiFi working, with internet? Try opening any website on your phone." %}</li>
+              <li>{% blocktrans trimmed %}Did the WiFi name or password change? The board needs to be told: unplug it, wait two minutes, plug it in - the <strong>{{ setup_ssid }}</strong> network reappears and you can enter the new WiFi, without a code.{% endblocktrans %}</li>
+              <li>{% trans "Still nothing after that? Contact the water system facilitator." %}</li>
             </ol>
           </div>
         </div>
@@ -107,14 +108,14 @@
           <div class="set-row" style="margin:0">
             <form method="post" action="{% url 'owner_device_resend' %}" data-device="resend" {% if not device.can_resend %}hidden{% endif %}>
               {% csrf_token %}
-              <button type="submit" class="btn">Send the code to me again</button>
+              <button type="submit" class="btn">{% trans "Send the code to me again" %}</button>
             </form>
             <form method="post" action="{% url 'owner_device_reissue' %}" data-device="reissue" {% if not device.can_reissue %}hidden{% endif %}>
               {% csrf_token %}
-              <button type="submit" class="btn btn-primary">Get a new setup code</button>
+              <button type="submit" class="btn btn-primary">{% trans "Get a new setup code" %}</button>
             </form>
           </div>
-          <button type="button" class="btn" data-modal-close>Close</button>
+          <button type="button" class="btn" data-modal-close>{% trans "Close" %}</button>
         </div>
       </div>
     </div>
@@ -131,46 +132,50 @@
     the instructions rather than an empty card.
   {% endcomment %}
   <section class="owner-section" id="install-section">
-    <h2>Install the app</h2>
+    <h2>{% trans "Install the app" %}</h2>
     <p class="set-lede">
+      {% blocktrans trimmed %}
       Put this portal on your home screen. It opens full screen like a normal
       app, works when the signal is weak, and can alert you about your water.
       Nothing is downloaded from Play Store or App Store.
+      {% endblocktrans %}
     </p>
 
     {# Shown when the page is not on a secure address - see the note below. #}
     <p class="set-warn" data-install="insecure" hidden>
+      {% blocktrans trimmed %}
       This page is open on an address that phones will not install from.
       Installing needs an <strong>https://</strong> address. Ask the water
       system facilitator for the right link.
+      {% endblocktrans %}
     </p>
 
     <p class="set-done" data-install="installed" hidden>
-      This portal is already installed on this phone. You are using it now.
+      {% trans "This portal is already installed on this phone. You are using it now." %}
     </p>
 
     <div data-install="prompt" hidden>
-      <button type="button" class="owner-action" id="install-now">Install on this phone</button>
+      <button type="button" class="owner-action" id="install-now">{% trans "Install on this phone" %}</button>
     </div>
 
     <details class="set-steps" data-install="ios" hidden>
-      <summary>How to install on an iPhone or iPad</summary>
+      <summary>{% trans "How to install on an iPhone or iPad" %}</summary>
       <ol>
-        <li>Open this page in <strong>Safari</strong>. Chrome on an iPhone cannot install it.</li>
-        <li>Tap the <strong>Share</strong> button at the bottom of the screen &mdash; the square with an arrow pointing up.</li>
-        <li>Scroll down the list and tap <strong>Add to Home Screen</strong>.</li>
-        <li>Tap <strong>Add</strong> at the top right.</li>
+        <li>{% blocktrans trimmed %}Open this page in <strong>Safari</strong>. Chrome on an iPhone cannot install it.{% endblocktrans %}</li>
+        <li>{% blocktrans trimmed %}Tap the <strong>Share</strong> button at the bottom of the screen &mdash; the square with an arrow pointing up.{% endblocktrans %}</li>
+        <li>{% blocktrans trimmed %}Scroll down the list and tap <strong>Add to Home Screen</strong>.{% endblocktrans %}</li>
+        <li>{% blocktrans trimmed %}Tap <strong>Add</strong> at the top right.{% endblocktrans %}</li>
       </ol>
-      <p class="set-note">The icon appears on your home screen with your other apps.</p>
+      <p class="set-note">{% trans "The icon appears on your home screen with your other apps." %}</p>
     </details>
 
     <details class="set-steps" data-install="android" hidden>
-      <summary>How to install on an Android phone</summary>
+      <summary>{% trans "How to install on an Android phone" %}</summary>
       <ol>
-        <li>Open this page in <strong>Chrome</strong>.</li>
-        <li>Tap the <strong>three dots</strong> at the top right.</li>
-        <li>Tap <strong>Install app</strong>, or <strong>Add to Home screen</strong>.</li>
-        <li>Tap <strong>Install</strong>.</li>
+        <li>{% blocktrans trimmed %}Open this page in <strong>Chrome</strong>.{% endblocktrans %}</li>
+        <li>{% blocktrans trimmed %}Tap the <strong>three dots</strong> at the top right.{% endblocktrans %}</li>
+        <li>{% blocktrans trimmed %}Tap <strong>Install app</strong>, or <strong>Add to Home screen</strong>.{% endblocktrans %}</li>
+        <li>{% blocktrans trimmed %}Tap <strong>Install</strong>.{% endblocktrans %}</li>
       </ol>
     </details>
   </section>
@@ -185,38 +190,46 @@
     refused permission or never been asked.
   {% endcomment %}
   <section class="owner-section">
-    <h2>Alerts on this phone</h2>
+    <h2>{% trans "Alerts on this phone" %}</h2>
     <p class="set-lede">
+      {% blocktrans trimmed %}
       Get a notification the moment something is wrong with your water, even
       when the app is closed. You will still get a text message either way.
+      {% endblocktrans %}
     </p>
 
     {% if not push_ready %}
       <p class="set-warn">
+        {% blocktrans trimmed %}
         Notifications are not set up on the system yet, so this cannot be
         switched on. Nothing is wrong with your phone.
+        {% endblocktrans %}
       </p>
-      <p class="set-note">For the facilitator: {{ push_note }}</p>
+      <p class="set-note">{% trans "For the facilitator:" %} {{ push_note }}</p>
     {% else %}
       <p class="set-warn" data-push="unsupported" hidden>
+        {% blocktrans trimmed %}
         This phone&rsquo;s browser cannot show notifications. On an iPhone, install
         the app to your home screen first, then come back here.
+        {% endblocktrans %}
       </p>
 
       <p class="set-warn" data-push="denied" hidden>
+        {% blocktrans trimmed %}
         Notifications are blocked for this site in your phone&rsquo;s settings. You
         will need to allow them there before this can be switched on.
+        {% endblocktrans %}
       </p>
 
       <div data-push="off" hidden>
-        <button type="button" class="owner-action" id="push-on">Turn on alerts</button>
+        <button type="button" class="owner-action" id="push-on">{% trans "Turn on alerts" %}</button>
       </div>
 
       <div data-push="on" hidden>
-        <p class="set-done">Alerts are on for this phone.</p>
+        <p class="set-done">{% trans "Alerts are on for this phone." %}</p>
         <div class="set-row">
-          <button type="button" class="btn" id="push-test">Send a test</button>
-          <button type="button" class="btn btn-quiet-danger" id="push-off">Turn off</button>
+          <button type="button" class="btn" id="push-test">{% trans "Send a test" %}</button>
+          <button type="button" class="btn btn-quiet-danger" id="push-off">{% trans "Turn off" %}</button>
         </div>
       </div>
 
@@ -234,10 +247,12 @@
   {% endcomment %}
   {% if subscriptions|length > 1 %}
     <section class="owner-section">
-      <h2>Phones getting alerts</h2>
+      <h2>{% trans "Phones getting alerts" %}</h2>
       <p class="set-lede">
-        {{ subscriptions|length }} phones in your household are set up for
+        {% blocktrans trimmed with count=subscriptions|length %}
+        {{ count }} phones in your household are set up for
         alerts. Turning them off above only affects the phone you are using.
+        {% endblocktrans %}
       </p>
     </section>
   {% endif %}

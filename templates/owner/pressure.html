@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}My water pressure - {{ SITE_NAME }}{% endblock %}
+{% load static i18n %}
+{% block title %}{% trans "My water pressure" %} - {{ SITE_NAME }}{% endblock %}
 {% block body_class %}is-owner{% endblock %}
 
 {% block content %}
 <div class="wrap-narrow owner-page">
-  <p class="owner-greeting">My water pressure</p>
+  <p class="owner-greeting">{% trans "My water pressure" %}</p>
 
   {% if segment %}
     {% comment %}
@@ -15,38 +15,38 @@
     {% endcomment %}
     <section class="water-state" data-segment-id="{{ segment.id }}"
              data-status="{{ segment.status }}" aria-live="polite">
-      <p class="water-state-head" data-field="state">Checking&hellip;</p>
-      <p class="water-state-sub" data-field="statenote">Getting the latest reading from your line.</p>
+      <p class="water-state-head" data-field="state">{% trans "Checking&hellip;" %}</p>
+      <p class="water-state-sub" data-field="statenote">{% trans "Getting the latest reading from your line." %}</p>
 
       <dl class="water-reading">
         <div>
-          <dt>Pressure</dt>
+          <dt>{% trans "Pressure" %}</dt>
           <dd><span data-field="pressure_bar">--</span> bar</dd>
         </div>
         <div>
-          <dt>Water flowing</dt>
+          <dt>{% trans "Water flowing" %}</dt>
           <dd><span data-field="flow_lpm">--</span> L/min</dd>
         </div>
         <div>
-          <dt>Checked</dt>
-          <dd data-field="updated">not yet</dd>
+          <dt>{% trans "Checked" %}</dt>
+          <dd data-field="updated">{% trans "not yet" %}</dd>
         </div>
       </dl>
     </section>
 
     <section class="owner-section">
       <div class="card-head">
-        <h2>History</h2>
+        <h2>{% trans "History" %}</h2>
         <div class="btn-row">
-          <select id="chart-metric" aria-label="Metric">
-            <option value="pressure_bar">Pressure (bar)</option>
-            <option value="pressure_psi">Pressure (psi)</option>
-            <option value="flow_lpm">Flow (L/min)</option>
+          <select id="chart-metric" aria-label="{% trans 'Metric' %}">
+            <option value="pressure_bar">{% trans "Pressure (bar)" %}</option>
+            <option value="pressure_psi">{% trans "Pressure (psi)" %}</option>
+            <option value="flow_lpm">{% trans "Flow (L/min)" %}</option>
           </select>
-          <select id="chart-range" aria-label="Time range">
-            <option value="6" selected>Last 6 hours</option>
-            <option value="24">Last 24 hours</option>
-            <option value="168">Last 7 days</option>
+          <select id="chart-range" aria-label="{% trans 'Time range' %}">
+            <option value="6" selected>{% trans "Last 6 hours" %}</option>
+            <option value="24">{% trans "Last 24 hours" %}</option>
+            <option value="168">{% trans "Last 7 days" %}</option>
           </select>
         </div>
       </div>
@@ -61,26 +61,32 @@
       page an owner cannot interpret on their own.
     {% endcomment %}
     <section class="owner-section">
-      <h2>What these numbers mean</h2>
+      <h2>{% trans "What these numbers mean" %}</h2>
       <dl class="owner-define">
-        <dt>Pressure</dt>
+        <dt>{% trans "Pressure" %}</dt>
         <dd>
+          {% blocktrans trimmed %}
           How hard the water is pushing. Higher means a stronger flow at your
           tap. It falls when the source is low, and when there is a leak
           between the source and your house.
+          {% endblocktrans %}
         </dd>
-        <dt>Water flowing</dt>
+        <dt>{% trans "Water flowing" %}</dt>
         <dd>
+          {% blocktrans trimmed %}
           How much water is moving through your line right now. It should be
           zero when nobody at home is using any &mdash; water moving when every
           tap is closed is what the system watches for.
+          {% endblocktrans %}
         </dd>
       </dl>
     </section>
   {% else %}
     <p class="owner-empty">
+      {% blocktrans trimmed %}
       Your household has no hose line set up yet, so there are no readings to
       show. Ask the water system facilitator to add one.
+      {% endblocktrans %}
     </p>
   {% endif %}
 </div>

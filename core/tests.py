@@ -1700,6 +1700,7 @@ class FacilitatorFeatureTests(TestCase):
         self.quiet = Segment.objects.create(module_index=1, name="Quiet line", barangay=self.a)
         self.owner = User.objects.create_user(username="owner", password="pw", role=User.Role.OWNER)
         self.hh = Household.objects.create(
+            language="en",
             household_id="HH-A01", owner_name="Maria A", address="Purok 1",
             contact_number="+639171234501", barangay=self.a, segment=self.seg, user=self.owner,
         )
@@ -1713,7 +1714,7 @@ class FacilitatorFeatureTests(TestCase):
     def test_activating_a_household_creates_and_texts_the_login(self):
         from django.core import mail as django_mail
         household = Household.objects.create(
-            household_id="HH-090", owner_name="Pedro New", address="Purok 3",
+            household_id="HH-090", owner_name="Pedro New", address="Purok 3", language="en",
             contact_number="+639170000009", email="pedro@example.com", barangay=self.a,
         )
         self.assertTrue(household.is_pending)
@@ -2341,6 +2342,7 @@ class DashboardGrowthTests(TestCase):
         self.ok_line = Segment.objects.create(module_index=1, name="Quiet line", barangay=self.brgy, status=Segment.Status.NORMAL)
         self.leak_line = Segment.objects.create(module_index=1, name="Leaky line", barangay=self.brgy, status=Segment.Status.POSSIBLE_LEAK)
         self.hh_ok = Household.objects.create(
+            language="en",
             household_id="HH-001", owner_name="Alma Quiet", address="P1",
             contact_number="+639171234501", barangay=self.brgy, segment=self.ok_line, user=self.owner,
         )
@@ -2644,6 +2646,7 @@ class OwnerBoardSetupTests(TestCase):
         self.faci = User.objects.create_user(username="faci", password="pw", role=User.Role.FACILITATOR,
                                              barangay=self.brgy, contact_number="+639170000001")
         self.hh = Household.objects.create(
+            language="en",
             household_id="HH-050", owner_name="Rosa Dizon", address="Purok 5",
             contact_number="+639170000050", email="rosa@example.com", barangay=self.brgy,
         )
@@ -2799,6 +2802,7 @@ class WaterRunningAlertTests(TestCase):
             barangay=self.brgy, status=Segment.Status.NORMAL,
         )
         self.hh = Household.objects.create(
+            language="en",
             household_id="HH-070", owner_name="Nora Cruz", address="Purok 7",
             contact_number="+639170000070", email="nora@example.com",
             barangay=self.brgy, account_status=Household.AccountStatus.ACTIVE,
@@ -2860,7 +2864,10 @@ class WaterRunningAlertTests(TestCase):
 
 
 class ManualValveCommandTests(TestCase):
-    """Admin opens and closes a line's valve by hand; the board picks it up."""
+    """
+    The admin, the facilitator and the household open and close a line's
+    valve by hand; the board picks it up; an admin close is a lock.
+    """
 
     def setUp(self):
         self.brgy = Barangay.objects.create(name="Lower Dakong Patag")
@@ -2876,20 +2883,38 @@ class ManualValveCommandTests(TestCase):
             username="faci", password="pw", role=User.Role.FACILITATOR,
             barangay=self.brgy,
         )
+        self.owner_user = User.objects.create_user(
+            username="own80", password="pw", role=User.Role.OWNER,
+        )
+        self.household = Household.objects.create(
+            language="en",
+            household_id="HH-080", owner_name="Lita Ramos", address="Purok 2",
+            contact_number="09171234580", user=self.owner_user,
+            segment=self.segment, barangay=self.brgy,
+        )
 
-    def _ingest(self, valve_state):
+    def _ingest(self, valve_state, valve_reason=None):
+        reading = {
+            "module": 1, "pressure_bar": 0.8, "flow_lpm": 0.0,
+            "status": "NORMAL", "valve_state": valve_state,
+        }
+        if valve_reason is not None:
+            reading["valve_reason"] = valve_reason
         return self.client.post(
             reverse("api_ingest"),
-            data=json.dumps({
-                "device_id": self.device.device_id,
-                "readings": [{
-                    "module": 1, "pressure_bar": 0.8, "flow_lpm": 0.0,
-                    "status": "NORMAL", "valve_state": valve_state,
-                }],
-            }),
+            data=json.dumps({"device_id": self.device.device_id, "readings": [reading]}),
             content_type="application/json",
             HTTP_X_DEVICE_KEY=self.device.api_key,
         )
+
+    def _command(self, command):
+        return self.client.post(
+            reverse("segment_valve_command", args=[self.segment.pk]),
+            data={"command": command},
+        )
+
+    def _live_segment(self):
+        return self.client.get(reverse("api_live")).json()["segments"][0]
 
     def test_admin_close_parks_the_command_and_rides_out_on_config(self):
         self.client.login(username="admin", password="pw")
@@ -2919,15 +2944,142 @@ class ManualValveCommandTests(TestCase):
         self.segment.refresh_from_db()
         self.assertEqual(self.segment.valve_command, Segment.ValveCommand.NONE)
 
-    def test_a_facilitator_cannot_command_the_valve(self):
+    def test_the_facilitator_can_close_a_line_in_their_barangay(self):
         self.client.login(username="faci", password="pw")
-        resp = self.client.post(
-            reverse("segment_valve_command", args=[self.segment.pk]),
-            data={"command": "close"},
+        resp = self._command("close")
+        self.assertEqual(resp.status_code, 302)
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.CLOSE)
+        self.assertEqual(self.segment.valve_closed_by, Segment.ValveClosedBy.FACILITATOR)
+        self.assertFalse(self.segment.valve_locked)
+
+    def test_a_facilitator_from_another_barangay_is_told_the_line_does_not_exist(self):
+        other = Barangay.objects.create(name="Upper Dakong Patag")
+        User.objects.create_user(
+            username="faci2", password="pw", role=User.Role.FACILITATOR, barangay=other,
         )
-        self.assertIn(resp.status_code, (302, 403))
+        self.client.login(username="faci2", password="pw")
+        resp = self._command("close")
+        self.assertEqual(resp.status_code, 404)
         self.segment.refresh_from_db()
         self.assertEqual(self.segment.valve_command, Segment.ValveCommand.NONE)
+
+    def test_the_household_can_close_and_reopen_its_own_valve(self):
+        self.client.login(username="own80", password="pw")
+        self.assertEqual(self._command("close").status_code, 302)
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.CLOSE)
+        self.assertEqual(self.segment.valve_closed_by, Segment.ValveClosedBy.HOUSEHOLD)
+
+        self.assertEqual(self._command("open").status_code, 302)
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.OPEN)
+        self.assertEqual(self.segment.valve_closed_by, Segment.ValveClosedBy.NOBODY)
+
+    def test_a_household_cannot_touch_another_line(self):
+        stray = User.objects.create_user(username="stray", password="pw", role=User.Role.OWNER)
+        other_line = Segment.objects.create(module_index=2, name="HH-081 line", barangay=self.brgy)
+        Household.objects.create(
+            household_id="HH-081", owner_name="X", address="Y", contact_number="09170000081",
+            user=stray, segment=other_line, barangay=self.brgy,
+        )
+        self.client.login(username="stray", password="pw")
+        self.assertEqual(self._command("close").status_code, 404)
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.NONE)
+
+    def test_an_admin_close_locks_the_line_against_everyone_else(self):
+        self.client.login(username="admin", password="pw")
+        self._command("close")
+        self._ingest("closed", "manual")        # the board reports it shut
+        self.segment.refresh_from_db()
+        self.assertTrue(self.segment.valve_locked)
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.NONE)
+
+        for username in ("own80", "faci"):
+            self.client.login(username=username, password="pw")
+            self._command("open")
+            self.segment.refresh_from_db()
+            self.assertEqual(self.segment.valve_command, Segment.ValveCommand.NONE, username)
+            self.assertTrue(self.segment.valve_locked, username)
+
+        # The live feed tells their screens so, and in words.
+        live = self._live_segment()
+        self.assertTrue(live["valve_locked"])
+        self.assertIn("Only the administrator can open it again", live["valve_detail"])
+
+        self.client.login(username="admin", password="pw")
+        self._command("open")
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.OPEN)
+        self.assertFalse(self.segment.valve_locked)
+
+    def test_a_facilitator_close_is_not_a_lock(self):
+        self.client.login(username="faci", password="pw")
+        self._command("close")
+        self._ingest("closed", "manual")
+        self.client.login(username="own80", password="pw")
+        self._command("open")
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.valve_command, Segment.ValveCommand.OPEN)
+
+    def test_every_press_is_audited_and_the_household_is_told(self):
+        self.client.login(username="faci", password="pw")
+        self._command("close")
+        entry = AuditLog.objects.get(action="valve.close")
+        self.assertEqual(entry.actor, self.faci)
+        self.assertIn("HH-080 line", entry.summary)
+
+        notice = Notification.objects.get(kind=Notification.Kind.VALVE)
+        self.assertEqual(notice.recipient, self.household)
+        self.assertEqual(notice.segment, self.segment)
+        self.assertIn("closed by the facilitator", notice.body)
+
+        # The facilitator's dashboard lists it.
+        resp = self.client.get(reverse("dashboard"))
+        self.assertContains(resp, "Valve actions")
+        self.assertContains(resp, "valve closed")
+
+    def test_the_household_sees_its_own_press_in_the_first_person(self):
+        self.client.login(username="own80", password="pw")
+        self._command("close")
+        notice = Notification.objects.get(kind=Notification.Kind.VALVE)
+        self.assertTrue(notice.body.startswith("You closed your water valve."))
+
+    def test_the_board_says_why_the_valve_is_closed_and_the_screens_repeat_it(self):
+        self.client.login(username="own80", password="pw")
+        self._ingest("closed", "test")
+        self.assertIn("nightly leak test", self._live_segment()["valve_detail"])
+
+        self._ingest("closed", "flow")
+        self.assertIn("ran non-stop", self._live_segment()["valve_detail"])
+
+        # The night test found a leak and is holding the line shut.
+        self._ingest("closed", "decay")
+        live = self._live_segment()
+        self.assertIn("found a leak", live["valve_detail"])
+        self.assertFalse(live["valve_locked"])      # the household may reopen it
+
+        self._ingest("open", "")
+        live = self._live_segment()
+        self.assertEqual(live["valve_detail"], "Water can flow.")
+        self.assertEqual(live["valve_label"], "Open")
+
+    def test_an_unknown_reason_from_newer_firmware_is_not_fatal(self):
+        resp = self._ingest("closed", "solar-flare")
+        self.assertEqual(resp.status_code, 200)
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.latest.valve_reason, "")
+
+    def test_the_portal_and_dashboard_carry_the_valve_controls(self):
+        self.client.login(username="own80", password="pw")
+        resp = self.client.get(reverse("owner_home"))
+        self.assertContains(resp, 'data-valve-role="household"')
+        self.assertContains(resp, "Close my valve")
+
+        self.client.login(username="faci", password="pw")
+        resp = self.client.get(reverse("dashboard"))
+        self.assertContains(resp, 'data-valve-role="facilitator"')
 
 
 class TestAlertTests(TestCase):
@@ -2943,6 +3095,7 @@ class TestAlertTests(TestCase):
             barangay=self.brgy, status=Segment.Status.NORMAL,
         )
         self.hh = Household.objects.create(
+            language="en",
             household_id="HH-090", owner_name="Rosa Lim", address="Purok 9",
             contact_number="+639170000090", email="rosa@example.com",
             barangay=self.brgy, account_status=Household.AccountStatus.ACTIVE,

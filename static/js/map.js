@@ -1,3 +1,15 @@
+/* Translation helpers. base.html loads Django's JavaScript catalog before
+   this file, which defines gettext(), ngettext() and interpolate() in the
+   active language. If that request ever fails, the page must still work -
+   in English - so the three are defined here as pass-throughs. */
+if (typeof window.gettext !== 'function') {
+  window.gettext = function (s) { return s; };
+  window.ngettext = function (s, p, n) { return n === 1 ? s : p; };
+  window.interpolate = function (fmt, obj, named) {
+    if (named) return fmt.replace(/%\(\w+\)s/g, function (m, k) { return String(obj[k]); });
+    return fmt.replace(/%s/g, function () { return String(obj.shift()); });
+  };
+}
 /* =========================================================================
    Leak map.
 
@@ -77,11 +89,11 @@
   }
 
   var STATUS_LABEL = {
-    NORMAL: 'Normal',
-    LOW_SUPPLY: 'Low Water Supply',
-    POSSIBLE_LEAK: 'Possible Leak',
-    MAINTENANCE: 'Offline',
-    OFFLINE: 'Offline'
+    NORMAL: gettext('Normal'),
+    LOW_SUPPLY: gettext('Low Water Supply'),
+    POSSIBLE_LEAK: gettext('Possible Leak'),
+    MAINTENANCE: gettext('Offline'),
+    OFFLINE: gettext('Offline')
   };
 
   function hasCoordinates() {
@@ -125,7 +137,7 @@
     parts.push(
       '<svg class="schematic" viewBox="0 0 ' + width + ' ' + height + '" ' +
       'preserveAspectRatio="xMidYMid meet" role="img" ' +
-      'aria-label="Each household’s hose line from the main source, with its current status">'
+      'aria-label="' + gettext('Each household’s hose line from the main source, with its current status') + '">'
     );
 
     segments.forEach(function (segment, index) {
@@ -314,7 +326,7 @@
         })
         .bindPopup(
           '<strong>' + escapeHtml(source.name) + '</strong><br>' +
-          'Every household&rsquo;s hose starts here' +
+          gettext('Every household&rsquo;s hose starts here') +
           (source.notes ? '<br>' + escapeHtml(source.notes) : '')
         );
       bounds.push(source.coords);
@@ -364,7 +376,7 @@
           .addTo(leafletMap)
           .bindTooltip(
             escapeHtml(house.household_id) + ' &mdash; ' + escapeHtml(house.owner_name) +
-            (house.has_device === false ? '<br>no device fitted' : ''),
+            (house.has_device === false ? '<br>' + gettext('no device fitted') : ''),
             { sticky: true }
           );
 
@@ -392,7 +404,7 @@
       })
         .addTo(routeGroup)
         .bindTooltip(
-          'Road to ' + escapeHtml(house.household_id) + ' &mdash; ' + routeSummary(house),
+          interpolate(gettext('Road to %(id)s'), {id: escapeHtml(house.household_id)}, true) + ' &mdash; ' + routeSummary(house),
           { sticky: true }
         );
       routeCount += 1;
@@ -422,14 +434,14 @@
         escapeHtml(house.owner_name) + '<br>' +
         escapeHtml(house.address) +
         (house.segment
-          ? '<br>Line: M' + escapeHtml(house.module) + ' &mdash; ' + escapeHtml(house.segment) +
-            '<br>Status: ' + escapeHtml(STATUS_LABEL[house.status] || house.status)
+          ? '<br>' + gettext('Line:') + ' M' + escapeHtml(house.module) + ' &mdash; ' + escapeHtml(house.segment) +
+            '<br>' + gettext('Status:') + ' ' + escapeHtml(STATUS_LABEL[house.status] || house.status)
           : '') +
         // Getting there: the stored road route in one line, and the one-tap
         // directions link that takes over for the last stretch.
-        (house.route && house.route.length > 1 ? '<br>Road: ' + routeSummary(house) : '') +
+        (house.route && house.route.length > 1 ? '<br>' + gettext('Road:') + ' ' + routeSummary(house) : '') +
         (house.navigate_url
-          ? '<br><a href="' + escapeHtml(house.navigate_url) + '" target="_blank" rel="noopener">Navigate (Google Maps)</a>'
+          ? '<br><a href="' + escapeHtml(house.navigate_url) + '" target="_blank" rel="noopener">' + gettext('Navigate (Google Maps)') + '</a>'
           : '')
       );
       bounds.push(house.coords);
@@ -464,7 +476,7 @@
         : Math.round(house.route_distance_m) + ' m');
     }
     if (house.route_duration_s) {
-      parts.push('about ' + Math.max(1, Math.round(house.route_duration_s / 60)) + ' min');
+      parts.push(interpolate(gettext('about %(n)s min'), {n: Math.max(1, Math.round(house.route_duration_s / 60))}, true));
     }
     return (parts.length ? parts.join(', ') + ' ' : '') + 'by road';
   }
@@ -488,10 +500,10 @@
       '<strong>' + title + '</strong><br>' +
       (STATUS_LABEL[segment.status] || segment.status) + '<br>' +
       (segment.has_device
-        ? (segment.device_online ? 'Device reporting' : 'Device not reporting')
-        : 'No device fitted') + '<br>' +
+        ? (segment.device_online ? gettext('Device reporting') : gettext('Device not reporting'))
+        : gettext('No device fitted')) + '<br>' +
       (segment.pressure_bar === null || segment.pressure_bar === undefined
-        ? 'No readings'
+        ? gettext('No readings')
         : segment.pressure_bar + ' bar (' + segment.pressure_psi + ' psi), ' +
           segment.flow_lpm + ' L/min');
     layers.line.bindPopup(html);
@@ -506,7 +518,7 @@
     if (schematicNode) schematicNode.hidden = false;
     drawSchematic();
     setNote(reason);
-    if (toggleBtn) toggleBtn.textContent = 'Try interactive map';
+    if (toggleBtn) toggleBtn.textContent = gettext('Try interactive map');
   }
 
   function showLeaflet() {
@@ -515,8 +527,8 @@
     if (mapNode) mapNode.hidden = false;
     if (!leafletMap) buildLeaflet();
     else setTimeout(function () { leafletMap.invalidateSize(); }, 60);
-    setNote('Interactive map. Tap a line for its current readings.');
-    if (toggleBtn) toggleBtn.textContent = 'Switch to offline schematic';
+    setNote(gettext('Interactive map. Tap a line for its current readings.'));
+    if (toggleBtn) toggleBtn.textContent = gettext('Switch to offline schematic');
   }
 
   // Leaflet measures its container once and caches the result. Nothing tells
@@ -542,19 +554,19 @@
 
   function decide() {
     if (!hasCoordinates()) {
-      showSchematic('Showing the offline schematic. Add map coordinates to a supply line to enable the interactive map.');
+      showSchematic(gettext('Showing the offline schematic. Add map coordinates to a supply line to enable the interactive map.'));
       return;
     }
     window.SHL.checkConnection().then(function (quality) {
       if (quality !== 'strong') {
         showSchematic(quality === 'offline'
-          ? 'No internet connection detected - showing the offline schematic view.'
-          : 'Weak connection detected - showing the offline schematic view so the page stays responsive.');
+          ? gettext('No internet connection detected - showing the offline schematic view.')
+          : gettext('Weak connection detected - showing the offline schematic view so the page stays responsive.'));
         return;
       }
       loadLeaflet().then(function (ok) {
         if (ok) showLeaflet();
-        else showSchematic('Map tiles could not be loaded - showing the offline schematic view.');
+        else showSchematic(gettext('Map tiles could not be loaded - showing the offline schematic view.'));
       });
     });
   }
@@ -573,16 +585,16 @@
       userForced = true;
       if (mode === 'schematic') {
         if (!hasCoordinates()) {
-          setNote('No coordinates are set on any supply line yet, so the interactive map has nothing to draw.');
+          setNote(gettext('No coordinates are set on any supply line yet, so the interactive map has nothing to draw.'));
           return;
         }
-        setNote('Loading map tiles...');
+        setNote(gettext('Loading map tiles...'));
         loadLeaflet().then(function (ok) {
           if (ok) showLeaflet();
-          else showSchematic('Map tiles could not be loaded - showing the offline schematic view.');
+          else showSchematic(gettext('Map tiles could not be loaded - showing the offline schematic view.'));
         });
       } else {
-        showSchematic('Offline schematic view (selected manually).');
+        showSchematic(gettext('Offline schematic view (selected manually).'));
       }
     });
   }

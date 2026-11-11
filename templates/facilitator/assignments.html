@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Schedule - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Schedule" %} - {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
 <div class="wrap">
@@ -10,8 +11,8 @@
         page is for: who I am visiting, and when. Grouped by day, because
         that is the order a facilitator actually asks the question in.
       {% endcomment %}
-      <h1>Schedule</h1>
-      <p class="sub">Who you will visit and when. {{ open_count }} open job{{ open_count|pluralize }}.</p>
+      <h1>{% trans "Schedule" %}</h1>
+      <p class="sub">{% trans "Who you will visit and when." %} {% blocktrans trimmed count n=open_count %}{{ n }} open job.{% plural %}{{ n }} open jobs.{% endblocktrans %}</p>
     </div>
   </div>
 
@@ -30,12 +31,12 @@
               </p>
             </div>
           </div>
-          <p class="small"><strong>Where:</strong> {{ order.where_label }}</p>
+          <p class="small"><strong>{% trans "Where:" %}</strong> {{ order.where_label }}</p>
           {% with house=order.target_household %}
             {% if house and house.navigate_url %}
               <p class="small" style="margin:.2rem 0 .6rem">
-                <a class="btn btn-sm" href="{{ house.navigate_url }}" target="_blank" rel="noopener">Navigate (Google Maps)</a>
-                {% if house.visit_route_label %}<span class="muted">{{ house.visit_route_label }} by road</span>{% endif %}
+                <a class="btn btn-sm" href="{{ house.navigate_url }}" target="_blank" rel="noopener">{% trans "Navigate (Google Maps)" %}</a>
+                {% if house.visit_route_label %}<span class="muted">{% blocktrans trimmed with route=house.visit_route_label %}{{ route }} by road{% endblocktrans %}</span>{% endif %}
               </p>
             {% endif %}
           {% endwith %}
@@ -44,14 +45,14 @@
           <form method="post" action="{% url 'assignment_update' order.pk %}">
             {% csrf_token %}
             <div class="field">
-              <label for="note-{{ order.pk }}">Note (optional)</label>
-              <textarea id="note-{{ order.pk }}" name="resolution_note" rows="2" placeholder="What you found or did">{{ order.resolution_note }}</textarea>
+              <label for="note-{{ order.pk }}">{% trans "Note (optional)" %}</label>
+              <textarea id="note-{{ order.pk }}" name="resolution_note" rows="2" placeholder="{% trans 'What you found or did' %}">{{ order.resolution_note }}</textarea>
             </div>
             <div class="btn-row">
               {% if order.status == 'scheduled' %}
-                <button type="submit" name="status" value="in_progress" class="btn">Start</button>
+                <button type="submit" name="status" value="in_progress" class="btn">{% trans "Start" %}</button>
               {% endif %}
-              <button type="submit" name="status" value="done" class="btn btn-primary">Mark done</button>
+              <button type="submit" name="status" value="done" class="btn btn-primary">{% trans "Mark done" %}</button>
             </div>
           </form>
         </div>
@@ -60,14 +61,14 @@
   {% endfor %}
 
   {% if not open_count %}
-    <div class="card"><p class="empty" style="margin:0">Nothing scheduled for you right now. New jobs from the administrator appear here.</p></div>
+    <div class="card"><p class="empty" style="margin:0">{% trans "Nothing scheduled for you right now. New jobs from the administrator appear here." %}</p></div>
   {% endif %}
 
   {% if done_orders %}
-    <h2 style="margin-top:1.5rem">Recently finished</h2>
+    <h2 style="margin-top:1.5rem">{% trans "Recently finished" %}</h2>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Title</th><th>Kind</th><th>Where</th><th>Status</th></tr></thead>
+        <thead><tr><th>{% trans "Title" %}</th><th>{% trans "Kind" %}</th><th>{% trans "Where" %}</th><th>{% trans "Status" %}</th></tr></thead>
         <tbody>
           {% for order in done_orders %}
             <tr>

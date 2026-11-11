@@ -50,6 +50,7 @@ PROVIDER_STATUS = {
     "queued": None,
     "sent": "delivered",      # reached the handset
     "delivered": "delivered",
+    "completed": "delivered",   # the word iprogSMS actually uses
     "failed": "undelivered",
     "failed_delivery": "undelivered",
     "expired": "undelivered",

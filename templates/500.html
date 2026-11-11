@@ -1,9 +1,9 @@
-<!doctype html>
-<html lang="en">
+{% load i18n %}<!doctype html>
+{% get_current_language as LANG %}<html lang="{{ LANG }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Something went wrong - Smart Hose Leak Detection System</title>
+<title>{% trans "Something went wrong" %} - Smart Hose Leak Detection System</title>
 
 {% comment %}
   A Django comment, not an HTML one, so none of this is served. An error page
@@ -72,27 +72,33 @@
 </head>
 <body>
 <main>
-  <h1>Something went wrong on our side</h1>
+  <h1>{% trans "Something went wrong on our side" %}</h1>
 
   <p class="lede">
+    {% blocktrans trimmed %}
     This page hit an error and could not be loaded. Nothing you did caused it,
     and nothing you typed was wrong.
+    {% endblocktrans %}
   </p>
 
   <div class="still">
-    <strong>Your water is still being watched.</strong>
+    <strong>{% trans "Your water is still being watched." %}</strong>
+    {% blocktrans trimmed %}
     Each household&rsquo;s line is monitored by the board fitted at the house,
     not by this website. It keeps reading the pressure and the flow, and keeps
     deciding for itself whether there is a leak, whether or not this page is
     working.
+    {% endblocktrans %}
   </div>
 
-  <p>Try again in a moment, or <a href="/">go back to the front page</a>.</p>
+  <p>{% blocktrans trimmed %}Try again in a moment, or <a href="/">go back to the front page</a>.{% endblocktrans %}</p>
 
   <p class="code">
+    {% blocktrans trimmed %}
     Error 500. If it keeps happening, tell the water system facilitator what
     you were doing when it appeared &mdash; that is the part the logs cannot
     record.
+    {% endblocktrans %}
   </p>
 </main>
 </body>

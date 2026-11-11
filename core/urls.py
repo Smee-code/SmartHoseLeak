@@ -169,6 +169,7 @@ urlpatterns = [
 
     # JSON API
     path("api/ingest/", api.ingest, name="api_ingest"),
+    path("api/commands/", api.commands, name="api_commands"),
     path("api/claim/", api.claim, name="api_claim"),
     path("api/live/", api.live, name="api_live"),
     path("api/history/", api.history, name="api_history"),

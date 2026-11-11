@@ -1,0 +1,422 @@
+# Filipino translations of the browser-side text (app.js, map.js).
+msgid ""
+msgstr ""
+"Project-Id-Version: Smart Hose Leak\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-11 08:48+0800\n"
+"PO-Revision-Date: 2026-11-11 09:30+0800\n"
+"Last-Translator: \n"
+"Language-Team: Filipino\n"
+"Language: fil\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: .\static\js\app.js:34
+msgid "no data yet"
+msgstr "wala pang data"
+
+#: .\static\js\app.js:36
+msgid "just now"
+msgstr "kanina lang"
+
+#: .\static\js\app.js:37
+msgid "%(n)ss ago"
+msgstr "%(n)ss na nakalipas"
+
+#: .\static\js\app.js:38
+msgid "%(n)s min ago"
+msgstr "%(n)s min na nakalipas"
+
+#: .\static\js\app.js:39
+msgid "%(n)s hr ago"
+msgstr "%(n)s oras na nakalipas"
+
+#: .\static\js\app.js:40
+msgid "%(n)s d ago"
+msgstr "%(n)s araw na nakalipas"
+
+#: .\static\js\app.js:255
+msgid "online"
+msgstr "online"
+
+#: .\static\js\app.js:256
+msgid "weak signal"
+msgstr "mahina ang signal"
+
+#: .\static\js\app.js:257
+msgid "offline"
+msgstr "offline"
+
+#: .\static\js\app.js:263
+msgid "Internet connection is good. The interactive map is available."
+msgstr "Maganda ang internet connection. Available ang interactive map."
+
+#: .\static\js\app.js:264
+msgid "Weak connection detected. The offline schematic view is being used instead of the map."
+msgstr "Mahina ang connection. Ginagamit muna ang offline schematic view imbes na ang map."
+
+#: .\static\js\app.js:265
+msgid "No internet connection. Showing the offline schematic view."
+msgstr "Walang internet connection. Ipinapakita ang offline schematic view."
+
+#: .\static\js\app.js:602
+msgid "Copied"
+msgstr "Na-copy"
+
+#: .\static\js\app.js:602
+msgid "Press Ctrl+C"
+msgstr "Pindutin ang Ctrl+C"
+
+#: .\static\js\app.js:650
+msgid "%(line)s will stop reporting until you enter the new key on the board."
+msgstr "Hihinto sa pagre-report ang %(line)s hangga't hindi mo nailalagay ang bagong key sa board."
+
+#: .\static\js\app.js:651
+msgid "This board is not fitted to a line yet, so nothing stops reporting."
+msgstr "Hindi pa nakakabit sa linya ang board na ito, kaya walang hihinto sa pagre-report."
+
+#: .\static\js\app.js:676
+msgid "%(n)s minute of pressure history"
+msgid_plural "%(n)s minutes of pressure history"
+msgstr[0] "%(n)s minuto ng pressure history"
+msgstr[1] "%(n)s minuto ng pressure history"
+
+#: .\static\js\app.js:677
+msgid "%(n)s leak event"
+msgid_plural "%(n)s leak events"
+msgstr[0] "%(n)s tagas na naitala"
+msgstr[1] "%(n)s tagas na naitala"
+
+#: .\static\js\app.js:692
+msgid "%(n)s household is served by this line. It is kept, but becomes Unassigned and stops receiving alerts until you move it to another line."
+msgid_plural "%(n)s households are served by this line. They are kept, but become Unassigned and stop receiving alerts until you move them to another line."
+msgstr[0] "%(n)s sambahayan ang nakakabit sa linyang ito. Mananatili ito, pero magiging Unassigned at hindi na makakatanggap ng alerto hangga't hindi mo inililipat sa ibang linya."
+msgstr[1] "%(n)s sambahayan ang nakakabit sa linyang ito. Mananatili ang mga ito, pero magiging Unassigned at hindi na makakatanggap ng alerto hangga't hindi mo inililipat sa ibang linya."
+
+#: .\static\js\app.js:695
+msgid "No households are assigned to this line."
+msgstr "Walang sambahayan na nakakabit sa linyang ito."
+
+#: .\static\js\app.js:776
+msgid "Showing %(shown)s of %(total)s"
+msgstr "Ipinapakita ang %(shown)s sa %(total)s"
+
+#: .\static\js\app.js:985
+msgid "Device is online"
+msgstr "Online ang device"
+
+#: .\static\js\app.js:986
+msgid "Readings are arriving from the ESP32 again."
+msgstr "Dumarating na ulit ang readings mula sa ESP32."
+
+#: .\static\js\app.js:991
+msgid "Device went offline"
+msgstr "Nag-offline ang device"
+
+#: .\static\js\app.js:992
+msgid "No readings received recently. Check the board’s power and Wi-Fi."
+msgstr "Walang readings na natanggap kamakailan. Tingnan ang power at Wi-Fi ng board."
+
+#: .\static\js\app.js:1038
+msgid "%(n)s characters"
+msgstr "%(n)s character"
+
+#: .\static\js\app.js:1039
+msgid " - sends as %(n)s text messages"
+msgstr " - ipapadala bilang %(n)s text message"
+
+#: .\static\js\app.js:1039
+msgid " - one text message"
+msgstr " - isang text message"
+
+#: .\static\js\app.js:1121
+msgid "Sending to every active household."
+msgstr "Ipapadala sa lahat ng aktibong sambahayan."
+
+#: .\static\js\app.js:1123
+msgid "%(n)s household selected."
+msgid_plural "%(n)s households selected."
+msgstr[0] "%(n)s sambahayan ang napili."
+msgstr[1] "%(n)s sambahayan ang napili."
+
+#: .\static\js\app.js:1124
+msgid "Nobody selected yet."
+msgstr "Wala pang napili."
+
+#: .\static\js\app.js:1149
+msgid "No household matches that."
+msgstr "Walang sambahayan na tumutugma diyan."
+
+#: .\static\js\app.js:1150
+msgid "Everyone is already selected."
+msgstr "Napili na ang lahat."
+
+#: .\static\js\app.js:1257
+msgid "Your water is normal"
+msgstr "Normal ang tubig mo"
+
+#: .\static\js\app.js:1258
+msgid "Nothing wrong with your line right now."
+msgstr "Walang problema sa linya mo ngayon."
+
+#: .\static\js\app.js:1261
+msgid "Your water is weak"
+msgstr "Mahina ang tubig mo"
+
+#: .\static\js\app.js:1262
+msgid "Pressure is lower than usual on your line. It may be slow at the tap."
+msgstr "Mas mababa sa karaniwan ang pressure sa linya mo. Baka mahina ang tubig sa gripo."
+
+#: .\static\js\app.js:1265
+msgid "Possible leak on your line"
+msgstr "Posibleng tagas sa linya mo"
+
+#: .\static\js\app.js:1266
+msgid "Please check that all your faucets are fully closed. If they are and water is still running, tell the water system facilitator."
+msgstr "Pakitingnan kung sarado nang lahat ang mga gripo mo. Kung sarado na pero tuloy-tuloy pa ring umaagos ang tubig, sabihan ang facilitator ng water system."
+
+#: .\static\js\app.js:1269
+msgid "Under repair"
+msgstr "Inaayos pa"
+
+#: .\static\js\app.js:1270
+msgid "The facilitator is working on your line. Supply may stop for a while."
+msgstr "Inaayos ng facilitator ang linya mo. Baka mawalan muna ng tubig saglit."
+
+#: .\static\js\app.js:1273
+msgid "Not being checked"
+msgstr "Hindi nababantayan"
+
+#: .\static\js\app.js:1274
+msgid "No readings are coming from your line. Your water may still be fine - the device has stopped reporting."
+msgstr "Walang readings na dumarating mula sa linya mo. Baka okay pa rin ang tubig mo - tumigil lang sa pagre-report ang device."
+
+#: .\static\js\app.js:1318
+msgid "live"
+msgstr "live"
+
+#: .\static\js\app.js:1318
+msgid "not reporting"
+msgstr "hindi nagre-report"
+
+#: .\static\js\app.js:1363
+msgid "moving"
+msgstr "gumagalaw"
+
+#: .\static\js\app.js:1364
+msgid "closing…"
+msgstr "isinasara…"
+
+#: .\static\js\app.js:1365
+msgid "opening…"
+msgstr "binubuksan…"
+
+#: .\static\js\app.js:1366
+msgid "closed"
+msgstr "sarado"
+
+#: .\static\js\app.js:1366
+msgid "open"
+msgstr "bukas"
+
+#: .\static\js\app.js:1408
+msgid "Suspected leak."
+msgstr "May posibleng tagas."
+
+#: .\static\js\app.js:1410
+msgid "Alerts paused for this line."
+msgstr "Naka-pause ang alerto para sa linyang ito."
+
+#: .\static\js\app.js:1417
+msgid "No readings received. Check the board’s power and Wi-Fi."
+msgstr "Walang readings na natanggap. Tingnan ang power at Wi-Fi ng board."
+
+#: .\static\js\app.js:1418
+msgid "No board fitted to this line yet."
+msgstr "Wala pang board na nakakabit sa linyang ito."
+
+#: .\static\js\app.js:1424
+msgid "Pressure is under this line’s %(bar)s bar threshold."
+msgstr "Mas mababa ang pressure sa %(bar)s bar threshold ng linyang ito."
+
+#: .\static\js\app.js:1425
+msgid "Pressure below the normal operating threshold."
+msgstr "Mas mababa ang pressure sa normal na operating threshold."
+
+#: .\static\js\app.js:1427
+msgid "Simulated input."
+msgstr "Simulated na input."
+
+#: .\static\js\app.js:1493
+msgid "Show password"
+msgstr "Ipakita ang password"
+
+#: .\static\js\app.js:1493
+msgid "Hide password"
+msgstr "Itago ang password"
+
+#: .\static\js\app.js:1526
+msgid "Signing in…"
+msgstr "Nagsa-sign in…"
+
+#: .\static\js\app.js:1698
+msgid "Asking for permission…"
+msgstr "Humihingi ng permission…"
+
+#: .\static\js\app.js:1723
+msgid "Alerts are on for this phone."
+msgstr "Naka-on ang alerto sa phone na ito."
+
+#: .\static\js\app.js:1727
+msgid "This browser will not set up notifications. If you are using a private or incognito window, open the portal normally and try again."
+msgstr "Hindi kayang mag-set up ng notifications ang browser na ito. Kung naka-private o incognito window ka, buksan ang portal nang normal at subukan ulit."
+
+#: .\static\js\app.js:1728
+msgid "Could not turn alerts on. Check your connection and try again."
+msgstr "Hindi ma-on ang alerto. Tingnan ang connection mo at subukan ulit."
+
+#: .\static\js\app.js:1745
+msgid "Alerts are off for this phone."
+msgstr "Naka-off ang alerto sa phone na ito."
+
+#: .\static\js\app.js:1746
+msgid "Could not turn alerts off. Try again."
+msgstr "Hindi ma-off ang alerto. Subukan ulit."
+
+#: .\static\js\app.js:1754
+msgid "Sending…"
+msgstr "Ipinapadala…"
+
+#: .\static\js\app.js:1757
+msgid "Sent. It should appear in a moment."
+msgstr "Naipadala. Lalabas na ito sa ilang sandali."
+
+#: .\static\js\app.js:1758 .\static\js\app.js:1760
+msgid "Could not send a test."
+msgstr "Hindi makapagpadala ng test."
+
+#: .\static\js\app.js:1786
+msgid "What to check"
+msgstr "Ano ang titingnan"
+
+#: .\static\js\app.js:1786
+msgid "Set up again"
+msgstr "I-set up ulit"
+
+#: .\static\js\app.js:1786
+msgid "Setup steps"
+msgstr "Mga hakbang sa setup"
+
+#: .\static\js\app.js:1819
+msgid "Set up my board"
+msgstr "I-set up ang board ko"
+
+#: .\static\js\map.js:92
+msgid "Normal"
+msgstr "Normal"
+
+#: .\static\js\map.js:93
+msgid "Low Water Supply"
+msgstr "Mahina ang Supply ng Tubig"
+
+#: .\static\js\map.js:94
+msgid "Possible Leak"
+msgstr "Posibleng Tagas"
+
+#: .\static\js\map.js:95 .\static\js\map.js:96
+msgid "Offline"
+msgstr "Offline"
+
+#: .\static\js\map.js:140
+msgid "Each household’s hose line from the main source, with its current status"
+msgstr "Linya ng bawat sambahayan mula sa pangunahing source, kasama ang kasalukuyang status nito"
+
+#: .\static\js\map.js:329
+msgid "Every household&rsquo;s hose starts here"
+msgstr "Dito nagsisimula ang linya ng bawat sambahayan"
+
+#: .\static\js\map.js:379
+msgid "no device fitted"
+msgstr "walang nakakabit na device"
+
+#: .\static\js\map.js:407
+msgid "Road to %(id)s"
+msgstr "Daan papunta sa %(id)s"
+
+#: .\static\js\map.js:437
+msgid "Line:"
+msgstr "Linya:"
+
+#: .\static\js\map.js:438
+msgid "Status:"
+msgstr "Status:"
+
+#: .\static\js\map.js:442
+msgid "Road:"
+msgstr "Daan:"
+
+#: .\static\js\map.js:444
+msgid "Navigate (Google Maps)"
+msgstr "Mag-navigate (Google Maps)"
+
+#: .\static\js\map.js:479
+msgid "about %(n)s min"
+msgstr "mga %(n)s min"
+
+#: .\static\js\map.js:503
+msgid "Device reporting"
+msgstr "Nagre-report ang device"
+
+#: .\static\js\map.js:503
+msgid "Device not reporting"
+msgstr "Hindi nagre-report ang device"
+
+#: .\static\js\map.js:504
+msgid "No device fitted"
+msgstr "Walang nakakabit na device"
+
+#: .\static\js\map.js:506
+msgid "No readings"
+msgstr "Walang readings"
+
+#: .\static\js\map.js:521
+msgid "Try interactive map"
+msgstr "Subukan ang interactive map"
+
+#: .\static\js\map.js:530
+msgid "Interactive map. Tap a line for its current readings."
+msgstr "Interactive map. I-tap ang linya para makita ang kasalukuyang readings nito."
+
+#: .\static\js\map.js:531
+msgid "Switch to offline schematic"
+msgstr "Lumipat sa offline schematic"
+
+#: .\static\js\map.js:557
+msgid "Showing the offline schematic. Add map coordinates to a supply line to enable the interactive map."
+msgstr "Ipinapakita ang offline schematic. Maglagay ng map coordinates sa isang supply line para gumana ang interactive map."
+
+#: .\static\js\map.js:563
+msgid "No internet connection detected - showing the offline schematic view."
+msgstr "Walang internet connection - ipinapakita ang offline schematic view."
+
+#: .\static\js\map.js:564
+msgid "Weak connection detected - showing the offline schematic view so the page stays responsive."
+msgstr "Mahina ang connection - ipinapakita ang offline schematic view para hindi bumagal ang page."
+
+#: .\static\js\map.js:569 .\static\js\map.js:594
+msgid "Map tiles could not be loaded - showing the offline schematic view."
+msgstr "Hindi ma-load ang map tiles - ipinapakita ang offline schematic view."
+
+#: .\static\js\map.js:588
+msgid "No coordinates are set on any supply line yet, so the interactive map has nothing to draw."
+msgstr "Wala pang coordinates na nakalagay sa kahit anong supply line, kaya wala pang maipapakita ang interactive map."
+
+#: .\static\js\map.js:591
+msgid "Loading map tiles..."
+msgstr "Nilo-load ang map tiles..."
+
+#: .\static\js\map.js:597
+msgid "Offline schematic view (selected manually)."
+msgstr "Offline schematic view (manu-manong pinili)."

@@ -220,6 +220,10 @@ SYSTEM STATUS  (console sidebar -> System -> System status)
   - Recent errors: the last server errors, newest first, so a 500 leaves a
     trace you can see here instead of only in the terminal. The full traceback
     stays in the server log.
+  - Leak detection: the figures every board decides against (section 9e)
+    and, at the bottom, "Board upload interval (seconds)" - how often a board
+    posts a routine reading (15 by default). See section 9g before changing
+    it; it is a budget for the hosted server, not a detection setting.
 
 
 ============================================================================
@@ -272,6 +276,15 @@ NOTICES BY EMAIL
   Notices & SMS has a third tick, "Also send by email", for households with
   an email on their record (or on their login). Needs the mailbox in
   section 3g; without it the email is printed to the server terminal.
+
+THE VALVE, FROM THE DASHBOARD
+  The Valve column now says why a valve is closed (nightly test, water left
+  running, or who closed it), and each row with a fitted valve has "Open
+  valve" / "Close valve" alongside "Test valve". A line the administrator
+  closed shows "Locked by admin" instead of Open. Every press is audited and
+  the household is told in their Notices feed. The "Valve actions" card
+  lists the barangay's last five presses, including the households' own.
+  Details in section 9e, THE VALVE.
 
 
 ============================================================================
@@ -408,80 +421,138 @@ THE APP ON EVERY PHONE
 
 
 ============================================================================
+3h. ENGLISH / FILIPINO
+============================================================================
+EVERY SCREEN IS IN BOTH LANGUAGES: the landing page, sign-in, the owner
+portal, the facilitator dashboard and the admin console, the live text the
+page writes by itself (status words, toasts, the valve readout, the map),
+the messages after an action, form labels and errors, and the texts and
+notices the system sends.
+
+THE EN / FIL TOGGLE (top of every page) sets a cookie on that browser for
+a year. Facilitators, the admin and visitors get whatever the toggle says;
+before they touch it, the browser's own language.
+
+A HOUSEHOLD HAS A LANGUAGE OF ITS OWN, on its record (Households -> Edit,
+"Language"; Filipino by default). It does two things:
+  - The portal OPENS in it for that owner, until they press the toggle.
+    Pressing the toggle also writes the choice back to the household.
+  - Every text and notice to that household is written in it - the 2 am
+    leak alert, the water-running warning, the valve notice, the visit
+    text, the login and setup-code texts, the sign-in code - whatever
+    language the facilitator or admin who caused it was working in.
+  The demo owner (CREDENTIALS.txt) opens in Filipino: press EN to compare.
+
+STYLE: conversational Filipino, with the words people actually use kept
+in English (pressure, valve, bar, board, WiFi, password, facilitator,
+dashboard...). Glossary the translations follow: leak = tagas, line =
+linya, household = sambahayan, owner = may-ari, notice = abiso, alert =
+alerto, complaint = reklamo, visit = pagbisita, work order = trabaho,
+open/closed valve = bukas/sarado.
+
+WHEN YOU CHANGE OR ADD ENGLISH TEXT
+  Templates wrap text in {% trans "..." %} / {% blocktrans %}; Python
+  uses gettext ("_"); app.js and map.js use gettext(). Then:
+      python manage.py makemessages -l fil --ignore=.venv --ignore=staticfiles --ignore=GUIDE.txt
+      python manage.py makemessages -d djangojs -l fil --ignore=.venv --ignore=staticfiles
+  Open locale\fil\LC_MESSAGES\django.po (and djangojs.po for the browser
+  text), fill in the new msgstr lines (an empty msgstr shows the English),
+  remove any "#, fuzzy" line once you have checked that guess, then:
+      python manage.py compilemessages
+  (needs gettext on the PATH; C:\MinGW\bin has it on this laptop). Restart
+  the server; the .mo files are read at start-up.
+  Catalog size at the time of writing: 1,189 strings + 100 browser strings.
+
+
+====================================================================================================================================================
 4. CONNECTING THE ESP32 TO A NEW WIFI NETWORK
 ============================================================================
 The WiFi name and password are NOT in the code. They live in the board's
 own memory, so this needs a phone, not a laptop.
 
 IF THE OLD NETWORK IS GONE (you moved location):
-  1. Just power the board on and wait about 2-3 minutes.
-     It tries the saved network, fails 5 times, and then raises its own
-     hotspot automatically.
+  1. Power the board on and wait about a minute. It tries the saved network
+     and, after about six misses, raises its own hotspot - while still
+     trying the old network in the background.
   2. On your phone, join the WiFi network:  LeakDetect-Setup
      Password:  leakdetect123
-  3. A setup page should pop up by itself. If not, open a browser and go to
-     http://192.168.4.1/
-  4. Pick the new network from the list, type its password, press Save.
+  3. Open a browser and go to  http://192.168.4.1/
+  4. Type the new network's name and password. Leave the SERVER box blank
+     when the server is a laptop on that same network (section 5), and
+     leave the SETUP CODE blank so the board keeps its identity and the
+     household's history continues. Press Save & connect.
   5. The board reboots and joins. THE HOTSPOT DISAPPEARING MEANS IT WORKED.
 
-IF THE BOARD IS STILL REACHABLE AND YOU WANT TO SWITCH NETWORKS:
-  Open http://<device-ip>/wifi , log in with admin / leakadmin, choose the
-  new network, Save. Or press "Forget saved network" to force setup mode.
+IF THE NETWORK DROPS WHILE THE BOARD IS RUNNING:
+  Nothing to do. It retries every 10 seconds and rejoins by itself; after
+  about a minute without the network it raises the hotspot too, in case
+  the network is really gone, and closes it again the moment it rejoins.
+  The sensors and the valve keep working the whole time (section 9e).
 
-IF THE NETWORK LIST IS EMPTY:
-  Press "Rescan networks". If it is still empty, use the "Or type the
-  network name" box - typing the name always works and skips the scan.
+IF THE BOARD IS ON THE NETWORK AND YOU WANT TO CHANGE SOMETHING:
+  Open  http://<board-ip>/  (the address is on the Serial Monitor at boot,
+  "[WIFI] got 192.168.x.x", or in your router's device list). The same page
+  as the hotspot: WiFi, server, setup code, plus the live readings and the
+  last upload result.
+
+THE BOARD ONLY RUNS THE OLD MULTI-MODULE SKETCH'S FEATURES IF YOU FLASHED
+THAT ONE. The per-household sketch (section 10) has no /wifi page, no
+network list, no admin login and no "Forget network" button: one page at /,
+type the network name.
 
 
 ============================================================================
 5. TELLING THE ESP32 WHERE THE SERVER IS
 ============================================================================
-IN MOST CASES YOU NO LONGER HAVE TO. The board asks the network where the
+IN MOST CASES YOU DO NOT HAVE TO. The board asks the network where the
 server is and remembers the answer.
 
-  - At boot, if it has never been told an address, it asks.
-  - While running, if three uploads in a row fail to reach anything, it asks
-    again - about six seconds - and adopts the new address if one replies.
-    It will not ask more than once every 30 seconds.
-  - Whatever it finds is saved, so it comes back up already pointed at the
-    right place.
+  - When it joins a network and has no address, or a laptop-style http://
+    address, it asks before posting anything.
+  - While running, if three uploads in a row get no reply at all, it asks
+    again (at most once every 30 seconds) and adopts the new address.
+  - What it finds is saved, so after a power cut it comes back pointed at
+    the right place.
+  - A public https:// address (PythonAnywhere) is never replaced: that one
+    was typed on purpose and works from any network.
 
 This is why the startup banner says "Devices can find this server by
 themselves". It only works when the server is started with 0.0.0.0:8000;
 bound to localhost there is nothing for a device to find.
 
 Watch for this in the Serial Monitor:
-    [DISCOVER] Server found at http://192.168.1.21:8000/api/ingest/
+    [DISCOVER] Server found at http://192.168.1.21:8000 (was "http://172.20.10.2:8000")
     [DISCOVER] No server answered on this network.
+and on the board's page, the "Server search:" line.
 
-Set it by hand when the board is on a different network from the laptop, or
+THIS WAS THE BUG WHEN A BOARD WAS MOVED. Until 11 Nov 2026 the per-household
+sketch simply remembered the laptop's address. Moved to a new network it
+joined fine, then posted every two seconds to the OLD laptop address, got no
+reply, and the dashboard showed nothing - and because the hotspot only
+opened when the WiFi itself failed, there was no way to correct the address
+without the Serial Monitor. Now the board asks the network, and a laptop
+address can also be typed at http://<board-ip>/ at any time.
+
+SET IT BY HAND when the board is on a different network from the laptop, or
 when you want it pointed somewhere specific:
-
-
-This is separate from WiFi, and it is the #1 reason the dashboard stays
-Offline after moving to a new place.
-
-Your laptop's address CHANGES when it joins a different network. The board
-must be told the new one. This does NOT need a reflash any more.
-
   1. Start the server (section 2) and read the "ESP32 Server address" line.
      Or open the Django dashboard - if no readings have arrived it shows a
      "Device setup" panel with the exact line to copy.
-  2. On your phone or laptop, open   http://<device-ip>/wifi
-     Log in with  admin / leakadmin
-  3. Put the address in the "Server address" box, e.g.
-         http://172.20.10.2:8000/api/ingest/
-  4. Leave the WiFi fields BLANK and press Save.
-     It saves without rebooting and the next upload uses it.
+  2. Open the board's page: http://192.168.4.1/ on the hotspot, or
+     http://<board-ip>/ when it is on the network.
+  3. Put the address in the "Server" box, e.g.  http://172.20.10.2:8000
+     (with or without /api/ingest/ - the board trims it).
+  4. Leave the other boxes blank and press Save & connect. The board reboots
+     and uses it.
 
 Notes:
-  - It must start with http:// and end with /api/ingest/
   - Never use 127.0.0.1 or localhost. On the ESP32 those mean the ESP32
-    itself. The page will refuse them.
+    itself.
   - The board remembers this address after a power cut.
+  - Blank the box and save to go back to asking the network.
 
 
-============================================================================
+====
 6. FINDING YOUR LAPTOP'S IP ADDRESS
 ============================================================================
 Easiest: it is printed when you start the server (section 2).
@@ -745,7 +816,7 @@ NOTES
 9c. SENDING SMS  (Notices & SMS tab)
 ============================================================================
 WHAT SENDS IT
-  Semaphore (iprogsms.com), a Philippine SMS gateway, over the internet.
+  iprogSMS (iprogsms.com), a Philippine SMS gateway, over the internet.
   There is NO GSM module on the server any more.
 
   The earlier plan was a SIM800L plugged into this laptop. It was dropped
@@ -1034,24 +1105,140 @@ with the C / A / F commands. The board now judges by PATTERNS over time:
 
 THE VALVE
   It is opened on boot, before anything else, so a power cut can never leave
-  a house with the water shut off. It is closed only during a test, for about
-  4-6 minutes, and only when the line has been idle.
+  a house with the water shut off - EXCEPT a line somebody closed by hand,
+  which is re-closed on boot so a shut-off survives a power cut.
 
-  Manual controls are on the board's own page: "Run valve test now" and
-  "Open valve". Both need the config password.
+  IT CLOSES FOR FOUR REASONS, and every screen says which:
+    "Closed for the nightly leak test"      - the grace period, then reopens
+                                              by itself IF no leak was found
+    "Closed because the nightly test found
+     a leak"                                - STAYS SHUT until somebody opens
+                                              it; the line reads POSSIBLE_LEAK
+                                              until then
+    "Closed automatically because water
+     ran non-stop for too long"             - reopens after 10 min (firmware)
+    "Closed by the household / the
+     facilitator / the administrator"       - stays shut until opened
+  The board sends the reason with every reading (valve_reason). A board on
+  older firmware sends none, and the screens simply say "Closed".
 
-  Serial: V = test now, O = open, N = pretend it is night (for testing).
+  THE NIGHT TEST, STEP BY STEP (firmware water_leak_single_wifi):
+    1. At the set hour (Console -> System -> Detection settings; 2 am by
+       default), with nobody holding the valve, the board closes it.
+    2. It waits 8 seconds for the pressure to settle and takes a baseline.
+    3. It waits the grace period (60 min by default) and reads again.
+    4. Drop bigger than the threshold (0.15 bar by default) = LEAK. The
+       valve is held shut, saved so a power cut keeps it shut, and the
+       board reports POSSIBLE_LEAK: the household and the facilitator get
+       the text, and every screen says why the valve is closed.
+       No leak: the valve reopens and the night goes on.
+    5. After the repair, anyone with the button opens it (portal,
+       dashboard, console, the board's own page, or serial OPEN). That
+       clears the leak and the line goes back to NORMAL.
+  "Test valve" on the dashboard runs steps 1-5 NOW instead of at the hour,
+  as does typing TEST in the serial monitor. A requested run does not use
+  up that night's scheduled one.
+
+  WHO SEES IT, WHO CAN PRESS IT
+    Household  Portal home, under the readings: "Water valve: open/closed",
+               the sentence above, and ONE button - "Close my valve" when it
+               is open, "Open my valve" when it is shut. Closing asks first.
+    Facilitator  Dashboard, Valve column shows state + reason; the row's
+               buttons gain "Open valve" / "Close valve" (own barangay only).
+               A "Valve actions" card lists who pressed what lately.
+    Admin      Console -> Pressure, as before.
+  Nothing shows until the board reports a valve is fitted (VALVE_FITTED).
+
+  THE ADMIN'S CLOSE IS A LOCK. A line the ADMINISTRATOR closed shows
+  "Only the administrator can open it again" to the household and the
+  facilitator, and their Open button is gone; the server refuses the press
+  too. A close by the facilitator or the household is NOT a lock - either
+  of them can reopen it. This is deliberate: a shut-off for a burst, an
+  unpaid bill or a repair must not be undone from the kitchen.
+
+  EVERY PRESS LEAVES A TRAIL. Console -> System -> Audit log records who
+  (and in which role) opened or closed which line. The household's Notices
+  feed gets "Your water valve was closed by the facilitator" (or "You closed
+  your water valve"), and the facilitator's dashboard lists the same. No
+  SMS is sent for a valve press.
+
+  The board's own page still has "Run valve test now" and "Open valve" /
+  "Close valve" (config password). A close made there reads on screen as
+  "Closed by hand at the board", because the server does not know who.
+
+  Serial (water_leak_single_wifi):  TEST = run the night test now,
+                                    OPEN = open the valve, CLOSE = close it.
+  (V / O / N are the OLD three-module sketch's commands.)
+
+
+============================================================================
+9g. HOW OFTEN A BOARD TALKS TO THE SERVER  (and why a valve press is fast)
+============================================================================
+A board reads its sensors and runs the detections every 2 seconds, online or
+not. How often it TALKS to the server is a separate matter, because on the
+hosted server every request costs CPU time from a daily allowance
+(section 16), and a board posting every 2 s is 43,000 requests a day.
+
+ROUTINE READINGS go up every "Board upload interval" seconds (Console ->
+System -> Leak detection; 15 by default, 2 to 300). The board picks the
+value up on its next reply, so no re-flash. This paces two things only:
+  - how often the pressure and flow figures on the dashboards refresh;
+  - how fast a dead board is noticed: a line reads Offline after missing
+    three uploads in a row, plus 5 s (15 s -> 50 s; 30 s -> 95 s). This is
+    derived, not set anywhere; the old DEVICE_OFFLINE_AFTER_SECONDS setting
+    is gone.
+
+CHANGES DO NOT WAIT. A new status (water running, possible leak, back to
+normal), a valve that moved or a new valve reason is uploaded within about
+a second of happening, whatever the interval says.
+
+MANUAL VALVE BUTTONS DO NOT WAIT EITHER. The board cannot be reached from the
+server (it dials out), so a press is parked on the server for the board to
+fetch. To keep that under three seconds without the board asking all day:
+  - A page with valve buttons (owner portal, facilitator dashboard, admin
+    Pressure) tells the server "a person is active here" on every live poll
+    while the mouse, keyboard or screen was touched in the last 2 minutes.
+    It also polls every 2 s instead of 5 while so, to show the result.
+  - The server remembers that for 45 s per line and tells the board on its
+    next reply (command_poll_seconds: 2).
+  - The board then asks GET /api/commands/ every 2 s - the cheapest request
+    the server answers, one lookup and no writes - acts on an open/close at
+    once, and uploads the new valve state within a second, which is the
+    acknowledgement that clears the command.
+  - When nobody has been active for 2 minutes (or the tab is hidden), the
+    poll stops marking, the watch lapses, the next reply says 0, and the
+    board goes back to uploads only.
+  Serial Monitor:  [POLL] somebody is at a valve screen - asking for
+  commands every 2 s   /   [POLL] nobody at a valve screen - back to uploads
+  only.  The board's own page shows the same on its status line.
+
+THE ONE CASE THAT IS SLOWER: you open a valve page and press within the
+first seconds, before the board has uploaded once and learned you are
+there. The press then rides on the next upload, up to one interval away.
+Wait for the tile to refresh once and every press after that is fast.
+
+BUDGET, ROUGHLY, PER BOARD PER DAY: 15 s uploads = 5,800 requests; 30 s =
+2,900; the old 2 s = 43,200. A valve screen actively watched for an hour
+adds 1,800 cheap polls. The hosted plan's allowance is a few thousand CPU
+seconds a day; at 15 s about ten boards fit with room for the dashboards.
 
 
 ============================================================================
 10. FLASHING THE FIRMWARE
 ============================================================================
 Sketch to open in the Arduino IDE:
-    C:\Users\elisa roluna\Downloads\water_leak_detection_3modules_gsm_wifi\
-        water_leak_detection_3modules_gsm_wifi.ino
+    D:\USB Drive\SmartHoseLeak\firmware\water_leak_single_wifi\
+        water_leak_single_wifi.ino
 
-  (The same file is kept in the repo under firmware\ . Keep the two in sync
-   or they will drift apart.)
+  This is the per-household sketch: one pressure + one flow sensor, the
+  motorised valve, the continuous-flow and night-test detections, and the
+  valve reason reporting. It is the one the server's valve screens expect.
+  (The older three-module sketch is still in firmware\ for reference, and
+  a copy may be in Downloads\. Do not flash that one for a household.)
+
+  It compiles cleanly against the ESP32 core 3.3.x (checked 11 Nov 2026,
+  82% of program storage). From a terminal, without opening the IDE:
+    "%LOCALAPPDATA%\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" compile --fqbn esp32:esp32:esp32 firmware\water_leak_single_wifi
 
 Board:  ESP32 Dev Module          Baud: 115200
 
@@ -1682,7 +1869,7 @@ WHEN A HOUSEHOLD SAYS THEY GET NOTHING
                       entered on the board via a claim code (section 9d).
                       Both are on Dashboard -> Lines -> Devices.
 
-  SMS                 Semaphore gateway (iprogsms.com) over the internet.
+  SMS                 iprogSMS gateway (iprogsms.com) over the internet.
                       Needs IPROGSMS_API_TOKEN in .env - section 9c.
                       No GSM module on the server.
 
@@ -1860,7 +2047,7 @@ THE ONE THING THAT DOES NOT SCALE YET
       # then hit "Reload" in the Web tab
 
   WHAT DOES NOT WORK ON THE FREE TIER
-    SMS and push notifications both reach OUT to the internet (Semaphore's
+    SMS and push notifications both reach OUT to the internet (the iprogSMS
     gateway; the browsers' push services). The free tier only allows outbound
     traffic to a fixed allowlist of sites, and those are not on it - so both
     silently fail there. They need a PAID tier, which has open outbound.
@@ -1873,21 +2060,137 @@ THE ONE THING THAT DOES NOT SCALE YET
     interval your plan allows). The free tier's once-a-day task is far too
     slow for a leak alert.
 
-    The ESP32 cannot be found over the internet: it discovers the server by
-    UDP broadcast on the LAN and would have to be pointed by hand at
-    https://<you>.pythonanywhere.com/api/ingest/ instead. For a defence it is
-    simpler to demonstrate the hosted site with the data already in it, and
-    show the live board separately against a laptop server over a tunnel
-    (section 12e).
+    The ESP32 cannot be found over the internet, so discovery (section 5)
+    does not apply: type https://<you>.pythonanywhere.com in the Server box
+    on the board's page (section 4). The board keeps an https:// address for
+    good and reaches it from any WiFi.
 
     In short: the free tier is enough to put the whole interface online for a
     panel to click through. Live SMS, live push and a live board over the
     internet are a paid tier plus the worker task above.
 
+  ON THE PAID TIER (the account was upgraded 11 Nov 2026)
+    - Outbound internet is open: iprogSMS and the push services are
+      reachable. Add the Always-on task  python manage.py send_sms --watch
+      or texts sit in the queue.
+    - CPU allowance. Every request costs CPU seconds from a daily allowance
+      (a few thousand on the paid plans); past it the site is throttled
+      until midnight UTC, which looks exactly like the system dying in the
+      middle of a demonstration. This is why the boards upload every 15 s
+      and not every 2 s, and why the dashboards poll every 5 s unless a
+      person is at a valve screen - section 9g has the arithmetic. Keep an
+      eye on the CPU bar on the PythonAnywhere dashboard the first day.
+    - setup_demo_owner refuses to run with DEBUG=False, on purpose. The
+      hosted site gets a real household instead; an account with no phone
+      and no email still signs in on the password alone.
+    - Order of work after a git pull: migrate (0040-0043 this week),
+      collectstatic, Reload. The .mo translation files are in the repo, so
+      compilemessages is not needed there.
+
 
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+11 Nov 2026  Pre-deployment walk-through, and what it found. New test module
+             core/tests_walk.py signs in as each role, follows every link,
+             and presses Save on every form three times (empty, junk with a
+             script tag and a bad phone number, plausible values), then
+             walks every page again in Filipino; plus a board sending
+             nonsense. Run it alone with
+                 python manage.py test core.tests_walk
+             Fixed as a result: a contact number was never validated (now
+             a Philippine mobile number or blank, on the household,
+             facilitator and account forms and the CSV import); a board
+             posting NaN/Infinity or an absurd value crashed ingest with a
+             500 (now "reading out of range"); /api/history/?segment=x
+             crashed (now 400); fitting a board already on another line
+             crashed Save with a database error (now a form message naming
+             the line); a stray __str__ on ComplaintMessage crashed Django's
+             admin; three form help texts were untranslated.
+
+11 Nov 2026  Boards upload every 15 s instead of 2 s, and a valve press still
+             lands in under three seconds. The interval is a global setting
+             (Console -> System -> Leak detection, "Board upload interval")
+             carried to the boards on the reply; a line reads Offline after
+             three missed uploads plus 5 s, derived from it (the
+             DEVICE_OFFLINE_AFTER_SECONDS setting is gone). Status, valve
+             and valve-reason changes are uploaded at once. New
+             GET /api/commands/: while a person is active at a valve screen
+             (the live poll says so, Segment.valve_watch_until) the board
+             asks it every 2 s for a pending open/close; otherwise it only
+             uploads. Dashboards poll every 5 s, 2 s while watching. Done
+             for the PythonAnywhere CPU allowance. Sections 3d, 9g, 16.
+
+11 Nov 2026  A moved board finds the server again. The per-household sketch
+             remembered the laptop's address, so after a move it joined the
+             new WiFi and posted into the void (section 5). It now asks the
+             network (UDP discovery, same as the old sketch and the server's
+             core/discovery.py): at join when it holds no address or an
+             http:// one, and after three unanswered uploads. Also: the
+             hotspot comes up about a minute after the network is lost
+             while running (not only at boot) and closes by itself on
+             rejoin; leak detection and the valve keep running in hotspot
+             mode (they used to pause); a blank setup code keeps the board's
+             identity, a new one re-claims it; the board's page shows the
+             server, the last upload and the last server search. Section 4
+             and 5 rewritten for this sketch (no /wifi page, no admin login).
+
+11 Nov 2026  Filipino everywhere. Until now only the landing page and the
+             sign-in dialog were translated (86 strings); everything behind
+             the login stayed English whichever way the toggle was set.
+             Now every template, every message after an action, form
+             labels and errors, the browser-side text (app.js, map.js via
+             Django's JavaScript catalog) and the texts and notices the
+             system sends are translatable, and all 1,289 strings are
+             translated in conversational Filipino. Households have a
+             language on their record (Filipino by default): the portal
+             opens in it, the toggle writes back to it, and every text or
+             notice to that household is written in it regardless of who
+             caused it. New: core/language.py (middleware + toggle view),
+             core/tests_language.py. See section 3h.
+
+9 Nov 2026   The night test now HOLDS the valve shut when it finds a leak,
+             instead of reopening it and letting the leak run until morning.
+             The board reports the new reason ("decay"), every screen says
+             "Closed because the nightly test found a leak", the line stays
+             POSSIBLE_LEAK, and whoever fixes it opens the valve from their
+             button. The dashboard's "Test valve" button now actually
+             starts the test on this sketch (it was wired on the server but
+             the firmware ignored it), and TEST on the serial monitor does
+             the same. A reboot restores a held valve. Firmware verified to
+             compile with arduino-cli; section 10 now points at the right
+             sketch. Also: a new test file, core/tests_endpoints.py, opens
+             EVERY route as a visitor, an owner, a facilitator and the
+             admin (none may error, and each must be turned away from the
+             others' areas), then walks each role through its real
+             transactions with real form data. 5 checks, all green, on
+             top of the 206 unit tests. Texts the gateway marks
+             "completed" are now shown as delivered instead of sitting
+             at "awaiting delivery" forever.
+
+9 Nov 2026   Added setup_demo_owner: one furnished household (HH-DEMO,
+             login demo / demo12345) with a board, a valve, a day of
+             pressure history, past alerts, notices, a complaint thread and
+             a scheduled visit, for showing the owner portal with every
+             feature populated. It has no phone and no email on purpose, so
+             no sign-in code is asked for. DEBUG only. The simulator gained
+             --modules, --valve and --valve-reason so it can stand in for
+             the per-household board. See CREDENTIALS.txt, DEMO OWNER.
+
+9 Nov 2026   The motorised valve is now visible to, and controllable by,
+             the household and the facilitator, not only the administrator.
+             The household's portal shows "Water valve: open/closed", why,
+             and one button; the facilitator's dashboard shows state and
+             reason per row with Open/Close buttons and a "Valve actions"
+             card. The board now reports WHY the valve is closed
+             (valve_reason: test / flow / manual), so a closed valve at 2 am
+             reads as the leak test, not a fault. An administrator's close
+             is a lock nobody else can undo; a facilitator's or household's
+             close is not. Every press goes to the audit log and to the
+             household's Notices feed. No SMS. See section 9e, THE VALVE.
+             Firmware: reflash water_leak_single_wifi for the reason to show;
+             older firmware keeps working and the screens just say "Closed".
+
 5 Oct 2026   Made the project deployable. With DEBUG=False the server now
              sets the secure-cookie and proxy-HTTPS settings a host like
              PythonAnywhere needs, derives its CSRF origin from ALLOWED_HOSTS,

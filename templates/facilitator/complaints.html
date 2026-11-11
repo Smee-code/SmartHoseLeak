@@ -1,18 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Complaints - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Complaints" %} - {{ SITE_NAME }}{% endblock %}
 {% block body_class %}has-thread{% endblock %}
 {% block content %}
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>Complaints</h1>
-      <p class="sub">Conversations with household owners. Newest activity first.</p>
+      <h1>{% trans "Complaints" %}</h1>
+      <p class="sub">{% trans "Conversations with household owners. Newest activity first." %}</p>
     </div>
   </div>
 
   <div class="filters" style="margin-bottom:.9rem">
     <a class="chip {% if not status %}chip-on{% endif %}" href="{% url 'complaint_list' %}">
-      All
+      {% trans "All" %}
     </a>
     {% for key, label, count in status_filters %}
       <a class="chip {% if status == key %}chip-on{% endif %}"
@@ -28,15 +29,15 @@
   {% endcomment %}
   <div class="thread-shell {% if complaint %}thread-open{% endif %}">
 
-    <aside class="thread-list" aria-label="Conversations">
+    <aside class="thread-list" aria-label="{% trans 'Conversations' %}">
       {% comment %}
         Filters the list already on screen, so it narrows within whatever
         status chip is selected rather than fighting it.
       {% endcomment %}
       <div class="thread-search">
-        <label class="sr-only" for="thread-search">Search conversations</label>
+        <label class="sr-only" for="thread-search">{% trans "Search conversations" %}</label>
         <input type="search" id="thread-search" autocomplete="off"
-               placeholder="Search by subject, owner or household"
+               placeholder="{% trans 'Search by subject, owner or household' %}"
                data-thread-search>
       </div>
 
@@ -60,7 +61,7 @@
              person never expects.
            {% endcomment %}
            data-search="{{ t.subject|lower }} {{ t.household.owner_name|lower }} {{ t.household.household_id|lower }} {{ t.reference|lower }}"
-           {% if t.unread %}aria-label="{{ t.household.owner_name }}, {{ t.unread }} unread message{{ t.unread|pluralize }}"{% endif %}>
+           {% if t.unread %}aria-label="{% blocktrans trimmed count n=t.unread with owner=t.household.owner_name %}{{ owner }}, {{ n }} unread message{% plural %}{{ owner }}, {{ n }} unread messages{% endblocktrans %}"{% endif %}>
           <span class="thread-avatar" aria-hidden="true">{{ t.household.owner_name|first|upper }}</span>
           <span class="thread-item-body">
             {% comment %}
@@ -87,20 +88,20 @@
           </span>
         </a>
       {% empty %}
-        <p class="empty">No complaints yet.</p>
+        <p class="empty">{% trans "No complaints yet." %}</p>
       {% endfor %}
-      <p class="empty" data-search-empty hidden>No conversation matches that.</p>
+      <p class="empty" data-search-empty hidden>{% trans "No conversation matches that." %}</p>
     </aside>
 
     <section class="thread-pane">
       {% if not complaint %}
         <div class="thread-empty">
           <svg class="ico" aria-hidden="true" style="width:30px;height:30px"><use href="#i-chat"></use></svg>
-          <p>Select a conversation to read it.</p>
+          <p>{% trans "Select a conversation to read it." %}</p>
         </div>
       {% else %}
         <header class="thread-head">
-          <a class="thread-back" href="{% url 'complaint_list' %}" aria-label="Back to the inbox">
+          <a class="thread-back" href="{% url 'complaint_list' %}" aria-label="{% trans 'Back to the inbox' %}">
             <span aria-hidden="true">&larr;</span>
           </a>
           {% comment %}
@@ -112,14 +113,14 @@
           <div class="thread-head-main">
             <h2>{{ complaint.subject }}</h2>
             <p class="sub">
-              {{ complaint.get_category_display }} from {{ complaint.household.owner_name }}
+              {% blocktrans trimmed with category=complaint.get_category_display owner=complaint.household.owner_name %}{{ category }} from {{ owner }}{% endblocktrans %}
               <span class="thread-ref">{{ complaint.reference }}</span>
             </p>
           </div>
           <form method="post" action="{% url 'complaint_status' complaint.pk %}" class="thread-status">
             {% csrf_token %}
             {{ status_form.status }}
-            <button type="submit" class="btn btn-sm">Update</button>
+            <button type="submit" class="btn btn-sm">{% trans "Update" %}</button>
           </form>
         </header>
 
@@ -166,9 +167,9 @@
         <form method="post" action="{% url 'complaint_reply' complaint.pk %}" class="thread-compose">
           {% csrf_token %}
           {{ message_form.body }}
-          <button type="submit" class="btn btn-primary">Send</button>
+          <button type="submit" class="btn btn-primary">{% trans "Send" %}</button>
         </form>
-        <p class="small muted thread-note">Sending also puts the message in the owner's notices.</p>
+        <p class="small muted thread-note">{% trans "Sending also puts the message in the owner's notices." %}</p>
       {% endif %}
     </section>
   </div>

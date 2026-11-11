@@ -1,22 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Archive - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Archive" %} - {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>Archive</h1>
-      <p class="sub">Archived households and facilitators. Restore them to bring them back to the active lists.</p>
+      <h1>{% trans "Archive" %}</h1>
+      <p class="sub">{% trans "Archived households and facilitators. Restore them to bring them back to the active lists." %}</p>
     </div>
   </div>
 
   <div class="card">
-    <div class="card-head"><h2>Households</h2></div>
+    <div class="card-head"><h2>{% trans "Households" %}</h2></div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>ID</th><th>Owner</th><th>Address</th><th>Contact</th><th>Archived</th><th></th>
+            <th>{% trans "ID" %}</th><th>{% trans "Owner" %}</th><th>{% trans "Address" %}</th><th>{% trans "Contact" %}</th><th>{% trans "Archived" %}</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -30,12 +31,12 @@
               <td>
                 <form method="post" action="{% url 'archive_restore_household' household.pk %}">
                   {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-primary">Restore</button>
+                  <button type="submit" class="btn btn-sm btn-primary">{% trans "Restore" %}</button>
                 </form>
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="6" class="empty">No archived households.</td></tr>
+            <tr><td colspan="6" class="empty">{% trans "No archived households." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -43,12 +44,12 @@
   </div>
 
   <div class="card" style="margin-top:1.5rem">
-    <div class="card-head"><h2>Facilitators</h2></div>
+    <div class="card-head"><h2>{% trans "Facilitators" %}</h2></div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>ID</th><th>Name</th><th>Username</th><th>Barangay</th><th></th>
+            <th>{% trans "ID" %}</th><th>{% trans "Name" %}</th><th>{% trans "Username" %}</th><th>{% trans "Barangay" %}</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -61,12 +62,12 @@
               <td>
                 <form method="post" action="{% url 'archive_restore_facilitator' user.pk %}">
                   {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-primary">Restore</button>
+                  <button type="submit" class="btn btn-sm btn-primary">{% trans "Restore" %}</button>
                 </form>
               </td>
             </tr>
           {% empty %}
-            <tr><td colspan="5" class="empty">No archived facilitators.</td></tr>
+            <tr><td colspan="5" class="empty">{% trans "No archived facilitators." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>

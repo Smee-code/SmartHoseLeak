@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Edit {{ segment.name }} - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% blocktrans trimmed with name=segment.name %}Edit {{ name }}{% endblocktrans %} - {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="wrap-narrow">
   <div class="page-head">
@@ -7,10 +8,12 @@
       <h1>{{ segment.name }}</h1>
       <p class="sub">
         {% if segment.household %}
-          The hose running from the main source to {{ segment.household.household_id }}
-          ({{ segment.household.owner_name }}).
+          {% blocktrans trimmed with id=segment.household.household_id owner=segment.household.owner_name %}
+          The hose running from the main source to {{ id }}
+          ({{ owner }}).
+          {% endblocktrans %}
         {% else %}
-          A hose line with no household assigned yet.
+          {% trans "A hose line with no household assigned yet." %}
         {% endif %}
       </p>
     </div>
@@ -24,19 +27,21 @@
       {% endif %}
       {% for field in form %}{% include "_form_field.html" %}{% endfor %}
       <div class="btn-row" style="margin-top:1rem">
-        <button type="submit" class="btn btn-primary">Save supply line</button>
-        <a class="btn" href="{% url 'segment_list' %}">Cancel</a>
+        <button type="submit" class="btn btn-primary">{% trans "Save supply line" %}</button>
+        <a class="btn" href="{% url 'segment_list' %}">{% trans "Cancel" %}</a>
       </div>
     </form>
   </div>
 
   <div class="card" style="margin-top:1rem">
-    <h3>About the map coordinates</h3>
+    <h3>{% trans "About the map coordinates" %}</h3>
     <p class="small muted">
+      {% blocktrans trimmed %}
       Filling in all four latitude and longitude values lets the dashboard draw this line on an
       interactive map. The map is used only when a strong internet connection is detected; on a
       weak or absent connection the dashboard falls back to the offline schematic, which uses the
       distance markers instead and needs no network at all.
+      {% endblocktrans %}
     </p>
   </div>
 </div>

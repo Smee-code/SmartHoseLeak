@@ -7,18 +7,17 @@ happens overnight still appears in the event history. Run it from Task
 Scheduler or cron every minute if you want that audit trail.
 """
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from core.models import LeakEvent, Segment
+from core.models import LeakEvent, Segment, offline_after_seconds
 
 
 class Command(BaseCommand):
     help = "Mark segments offline when their last reading is stale."
 
     def handle(self, *args, **options):
-        cutoff = timezone.now() - timezone.timedelta(seconds=settings.DEVICE_OFFLINE_AFTER_SECONDS)
+        cutoff = timezone.now() - timezone.timedelta(seconds=offline_after_seconds())
         stale = Segment.objects.filter(is_active=True, latest__updated_at__lt=cutoff).exclude(
             status__in=[Segment.Status.OFFLINE, Segment.Status.MAINTENANCE]
         )

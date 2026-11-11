@@ -1,14 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Offline - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Offline" %} - {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="wrap-narrow">
   <div class="card center" style="padding:2.5rem 1.5rem">
-    <h1>You are offline</h1>
+    <h1>{% trans "You are offline" %}</h1>
     <p class="muted">
+      {% blocktrans trimmed %}
       This page needs a connection to load. Live readings, notices and complaints will be
       available again as soon as your phone reconnects.
+      {% endblocktrans %}
     </p>
-    <button type="button" class="btn btn-primary" onclick="location.reload()">Try again</button>
+    <button type="button" class="btn btn-primary" onclick="location.reload()">{% trans "Try again" %}</button>
   </div>
 </div>
 {% endblock %}

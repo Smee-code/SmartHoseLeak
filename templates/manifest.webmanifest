@@ -1,7 +1,7 @@
-{
+{% load i18n %}{
   "name": "Smart Hose Leak Detection System",
   "short_name": "Smart Hose Leak",
-  "description": "Automated leak detection and water supply monitoring for the community water system.",
+  "description": "{% trans 'Automated leak detection and water supply monitoring for the community water system.' as d %}{{ d|escapejs }}",
   "start_url": "/post-login/",
   "scope": "/",
   "display": "standalone",

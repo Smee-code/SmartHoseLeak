@@ -1,12 +1,13 @@
 {% extends "base.html" %}
-{% block title %}{% if order %}Edit visit{% else %}Schedule a visit{% endif %} - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% if order %}{% trans "Edit visit" %}{% else %}{% trans "Schedule a visit" %}{% endif %} - {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
 <div class="wrap-narrow">
   <div class="page-head">
     <div>
-      <h1>{% if order %}Edit visit{% else %}Schedule a household visit{% endif %}</h1>
-      <p class="sub">Choosing a facilitator schedules the visit and texts both them and the household - the household needs no account yet.</p>
+      <h1>{% if order %}{% trans "Edit visit" %}{% else %}{% trans "Schedule a household visit" %}{% endif %}</h1>
+      <p class="sub">{% trans "Choosing a facilitator schedules the visit and texts both them and the household - the household needs no account yet." %}</p>
     </div>
   </div>
 
@@ -24,8 +25,8 @@
         {% include "_form_field.html" with field=form.scheduled_for %}
       </div>
       <div class="btn-row" style="margin-top:1rem">
-        <button type="submit" class="btn btn-primary">{% if order %}Save changes{% else %}Schedule visit{% endif %}</button>
-        <a class="btn" href="{% if order %}{% url 'work_order_detail' order.pk %}{% else %}{% url 'work_order_list' %}{% endif %}">Cancel</a>
+        <button type="submit" class="btn btn-primary">{% if order %}{% trans "Save changes" %}{% else %}{% trans "Schedule visit" %}{% endif %}</button>
+        <a class="btn" href="{% if order %}{% url 'work_order_detail' order.pk %}{% else %}{% url 'work_order_list' %}{% endif %}">{% trans "Cancel" %}</a>
       </div>
     </form>
   </div>

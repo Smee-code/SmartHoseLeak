@@ -37,6 +37,7 @@ import json
 import logging
 
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 logger = logging.getLogger(__name__)
 
@@ -68,24 +69,24 @@ def describe_push():
     the logs.
     """
     if not settings.PUSH_ENABLED:
-        return False, "Notifications are switched off in settings (PUSH_ENABLED)."
+        return False, _("Notifications are switched off in settings (PUSH_ENABLED).")
 
     if not (settings.VAPID_PUBLIC_KEY and settings.VAPID_PRIVATE_KEY):
         return False, (
-            "No notification keys set yet. Run "
+            _("No notification keys set yet. Run "
             "\"python manage.py make_push_keys\" and put the two values it "
-            "prints into your .env file."
+            "prints into your .env file.")
         )
 
     try:
         import pywebpush  # noqa: F401
     except ImportError:
         return False, (
-            "The pywebpush package is not installed. Run "
-            "\"pip install -r requirements.txt\"."
+            _("The pywebpush package is not installed. Run "
+            "\"pip install -r requirements.txt\".")
         )
 
-    return True, "Notifications are switched on."
+    return True, _("Notifications are switched on.")
 
 
 def _claims():

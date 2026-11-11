@@ -1,23 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Facilitators - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Facilitators" %} - {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>Facilitators <span class="count-chip">{{ facilitators|length }}</span></h1>
-      <p class="sub">The people who run the water system. Each is numbered automatically when added.</p>
+      <h1>{% trans "Facilitators" %} <span class="count-chip">{{ facilitators|length }}</span></h1>
+      <p class="sub">{% trans "The people who run the water system. Each is numbered automatically when added." %}</p>
     </div>
     <div class="btn-row">
       {# Opens the dialog below; without JavaScript it is a plain link to the full page. #}
-      <a class="btn btn-primary btn-sm" href="{% url 'facilitator_create' %}" data-modal-open="facilitator-modal">Add facilitator</a>
+      <a class="btn btn-primary btn-sm" href="{% url 'facilitator_create' %}" data-modal-open="facilitator-modal">{% trans "Add facilitator" %}</a>
     </div>
   </div>
 
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Facilitator ID</th><th>Login</th><th>Name</th><th>Contact</th><th>Email</th><th>Status</th><th></th></tr>
+        <tr><th>{% trans "Facilitator ID" %}</th><th>{% trans "Login" %}</th><th>{% trans "Name" %}</th><th>{% trans "Contact" %}</th><th>{% trans "Email" %}</th><th>{% trans "Status" %}</th><th></th></tr>
       </thead>
       <tbody>
         {% for facilitator in facilitators %}
@@ -28,8 +29,8 @@
             <td class="nowrap small">{{ facilitator.contact_number|default:"&mdash;" }}</td>
             <td class="small">{{ facilitator.email|default:"&mdash;" }}</td>
             <td>
-              {% if facilitator.is_active %}<span class="pill pill-ok">active</span>
-              {% else %}<span class="pill pill-muted">suspended</span>{% endif %}
+              {% if facilitator.is_active %}<span class="pill pill-ok">{% trans "active" %}</span>
+              {% else %}<span class="pill pill-muted">{% trans "suspended" %}</span>{% endif %}
             </td>
             {% comment %}
               One shared edit dialog and one shared delete dialog are filled
@@ -46,7 +47,7 @@
                    data-first="{{ facilitator.first_name }}"
                    data-last="{{ facilitator.last_name }}"
                    data-contact="{{ facilitator.contact_number }}"
-                   data-email="{{ facilitator.email }}">Edit</a>
+                   data-email="{{ facilitator.email }}">{% trans "Edit" %}</a>
                 {% if facilitator.manageable %}
                   <button type="button" class="btn btn-sm btn-quiet-danger"
                           data-delete-facilitator
@@ -54,14 +55,14 @@
                           data-fid="{{ facilitator.facilitator_id }}"
                           data-login="{{ facilitator.username }}"
                           data-name="{{ facilitator.get_full_name|default:facilitator.username }}"
-                          data-visits="{{ facilitator.open_visits }}">Delete</button>
+                          data-visits="{{ facilitator.open_visits }}">{% trans "Delete" %}</button>
                 {% endif %}
               </div>
             </td>
           </tr>
         {% empty %}
           <tr><td colspan="7" class="empty">
-            No facilitators yet. <a href="{% url 'facilitator_create' %}" data-modal-open="facilitator-modal">Add the first one</a>.
+            {% trans "No facilitators yet." %} <a href="{% url 'facilitator_create' %}" data-modal-open="facilitator-modal">{% trans "Add the first one" %}</a>.
           </td></tr>
         {% endfor %}
       </tbody>
@@ -82,10 +83,10 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="facilitator-modal-title">Add a facilitator</h2>
-          <p class="sub">A username and a one-time password are generated and shown once after saving.</p>
+          <h2 id="facilitator-modal-title">{% trans "Add a facilitator" %}</h2>
+          <p class="sub">{% trans "A username and a one-time password are generated and shown once after saving." %}</p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -96,9 +97,9 @@
         {% endif %}
 
         <div class="field">
-          <label>Facilitator ID</label>
+          <label>{% trans "Facilitator ID" %}</label>
           <p class="assigned-id mono">{{ next_facilitator_id }}</p>
-          <span class="helptext">Assigned automatically when you save.</span>
+          <span class="helptext">{% trans "Assigned automatically when you save." %}</span>
         </div>
 
         <div class="field-pair">
@@ -108,13 +109,13 @@
         {% include "_form_field.html" with field=create_form.contact_number %}
         {% include "_form_field.html" with field=create_form.email %}
         <p class="helptext">
-          The account is created with a temporary password and is prompted to change it on first sign-in.
+          {% trans "The account is created with a temporary password and is prompted to change it on first sign-in." %}
         </p>
       </div>
 
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Create facilitator</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary">{% trans "Create facilitator" %}</button>
       </div>
     </form>
   </div>
@@ -133,10 +134,10 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="facilitator-edit-title">Edit facilitator</h2>
-          <p class="sub" data-edit-subtitle>{% if edit_user %}{{ edit_user.facilitator_id }} &middot; login {{ edit_user.username }}{% endif %}</p>
+          <h2 id="facilitator-edit-title">{% trans "Edit facilitator" %}</h2>
+          <p class="sub" data-edit-subtitle>{% if edit_user %}{{ edit_user.facilitator_id }} &middot; {% trans "login" %} {{ edit_user.username }}{% endif %}</p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -151,12 +152,12 @@
         </div>
         {% include "_form_field.html" with field=edit_form.contact_number %}
         {% include "_form_field.html" with field=edit_form.email %}
-        <p class="helptext">The facilitator ID, login and password are not changed here. To reset a password, use Accounts.</p>
+        <p class="helptext">{% trans "The facilitator ID, login and password are not changed here. To reset a password, use Accounts." %}</p>
       </div>
 
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Save changes</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary">{% trans "Save changes" %}</button>
       </div>
     </form>
   </div>
@@ -173,19 +174,19 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="facilitator-delete-title">Archive facilitator?</h2>
+          <h2 id="facilitator-delete-title">{% trans "Archive facilitator?" %}</h2>
           <p class="sub" data-delete-subtitle></p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
       <div class="modal-body">
-        <p>Archiving <strong data-delete-name></strong> disables their login and hides them from the active list. You can restore them anytime from the archive page.</p>
+        <p>{% blocktrans trimmed %}Archiving <strong data-delete-name></strong> disables their login and hides them from the active list. You can restore them anytime from the archive page.{% endblocktrans %}</p>
       </div>
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-danger">Archive facilitator</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-danger">{% trans "Archive facilitator" %}</button>
       </div>
     </form>
   </div>

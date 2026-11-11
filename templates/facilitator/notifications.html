@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Notices &amp; SMS - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Notices &amp; SMS" %} - {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="wrap">
   <div class="page-head">
@@ -9,9 +10,9 @@
         notice" named one of the three things on the page, so the tab you
         clicked and the page you landed on disagreed about where you were.
       {% endcomment %}
-      <h1>Notices &amp; SMS</h1>
+      <h1>{% trans "Notices &amp; SMS" %}</h1>
       <p class="sub">
-        Write it once and choose how it reaches people &mdash; in the app, as a text, or both.
+        {% trans "Write it once and choose how it reaches people &mdash; in the app, as a text, or both." %}
       </p>
     </div>
   </div>
@@ -35,21 +36,21 @@
     <p class="gateway-state">
       {{ gateway_note }}
       {% if not gateway_ready %}
-        Anything you send by text is held and goes out once this is sorted out.
+        {% trans "Anything you send by text is held and goes out once this is sorted out." %}
       {% endif %}
     </p>
     {% if sms_queued or sms_awaiting or sms_failed %}
       <p class="gateway-queue">
-        {% if sms_queued %}<span>{{ sms_queued }} waiting to go</span>{% endif %}
-        {% if sms_awaiting %}<span>{{ sms_awaiting }} awaiting confirmation</span>{% endif %}
-        {% if sms_failed %}<span class="is-bad">{{ sms_failed }} not delivered</span>{% endif %}
+        {% if sms_queued %}<span>{% blocktrans trimmed with n=sms_queued %}{{ n }} waiting to go{% endblocktrans %}</span>{% endif %}
+        {% if sms_awaiting %}<span>{% blocktrans trimmed with n=sms_awaiting %}{{ n }} awaiting confirmation{% endblocktrans %}</span>{% endif %}
+        {% if sms_failed %}<span class="is-bad">{% blocktrans trimmed with n=sms_failed %}{{ n }} not delivered{% endblocktrans %}</span>{% endif %}
       </p>
     {% endif %}
   </div>
 
   <div class="split">
     <div class="card">
-      <div class="card-head"><h2>New notice</h2></div>
+      <div class="card-head"><h2>{% trans "New notice" %}</h2></div>
       <form method="post" novalidate>
         {% csrf_token %}
         {% if form.non_field_errors %}
@@ -88,7 +89,7 @@
           <div class="token-field" data-token-field hidden>
             <div class="token-chips" data-token-chips></div>
             <input type="text" class="token-input" data-token-input
-                   placeholder="Type a name or household ID&hellip;"
+                   placeholder="{% trans 'Type a name or household ID&hellip;' %}"
                    autocomplete="off" role="combobox" aria-expanded="false"
                    aria-controls="recipient-options" aria-labelledby="send-to-label">
             <ul class="token-menu" id="recipient-options" role="listbox"
@@ -102,7 +103,7 @@
                 <span>{{ choice.choice_label }}</span>
               </label>
             {% empty %}
-              <p class="empty small">No active households yet.</p>
+              <p class="empty small">{% trans "No active households yet." %}</p>
             {% endfor %}
           </div>
 
@@ -134,7 +135,7 @@
           a submit belongs and where the eye arrives last.
         {% endcomment %}
         <fieldset class="channel-box">
-          <legend class="small">How to send it</legend>
+          <legend class="small">{% trans "How to send it" %}</legend>
           <div class="channel-row">
             <span class="check-row">
               {{ form.in_app }}
@@ -156,13 +157,15 @@
             </span>
           </div>
           <p class="channel-note">
+            {% blocktrans trimmed %}
             In the app it appears under Notices in their portal. By SMS it is texted to
             each household&rsquo;s contact number.
+            {% endblocktrans %}
           </p>
         </fieldset>
 
         <div class="compose-send">
-          <button type="submit" class="btn btn-primary">Send notice</button>
+          <button type="submit" class="btn btn-primary">{% trans "Send notice" %}</button>
         </div>
       </form>
 
@@ -171,16 +174,24 @@
         two paragraphs under every compose form.
       {% endcomment %}
       <p class="small muted" style="margin-top:.8rem">
-        Leak alerts go out
-        {% if auto_sms_on %}automatically, by SMS and in the app{% else %}in the app only
-        (automatic SMS is off){% endif %} &mdash; no need to send those by hand. Before a
-        repair that interrupts supply, mark that line as under maintenance first, so the
-        sensors do not raise a leak alert during the work.
+        {% if auto_sms_on %}
+          {% blocktrans trimmed %}
+          Leak alerts go out automatically, by SMS and in the app &mdash; no need to send those by hand. Before a
+          repair that interrupts supply, mark that line as under maintenance first, so the
+          sensors do not raise a leak alert during the work.
+          {% endblocktrans %}
+        {% else %}
+          {% blocktrans trimmed %}
+          Leak alerts go out in the app only (automatic SMS is off) &mdash; no need to send those by hand. Before a
+          repair that interrupts supply, mark that line as under maintenance first, so the
+          sensors do not raise a leak alert during the work.
+          {% endblocktrans %}
+        {% endif %}
       </p>
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>Recently sent</h2></div>
+      <div class="card-head"><h2>{% trans "Recently sent" %}</h2></div>
       {% comment %}
         Rows, not cards. Every reply in a complaint thread also becomes a
         notice for the owner, so this list was almost entirely one-line
@@ -209,9 +220,9 @@
                 <span class="sent-main">
                   <span class="sent-text">{{ n.body|truncatechars:70 }}</span>
                   <span class="sent-meta">
-                    {% if n.recipient %}{{ n.recipient.household_id }}{% else %}The owner{% endif %}
-                    about <span class="sent-ref">{{ row.complaint.reference }}</span>
-                    {% if row.also %}<span class="sent-also">+{{ row.also }} more</span>{% endif %}
+                    {% if n.recipient %}{{ n.recipient.household_id }}{% else %}{% trans "The owner" %}{% endif %}
+                    {% trans "about" %} <span class="sent-ref">{{ row.complaint.reference }}</span>
+                    {% if row.also %}<span class="sent-also">{% blocktrans trimmed with n=row.also %}+{{ n }} more{% endblocktrans %}</span>{% endif %}
                   </span>
                 </span>
                 <time class="sent-time">{{ n.created_at|date:"M j" }}</time>
@@ -222,8 +233,8 @@
                 <span class="sent-main">
                   <span class="sent-text"><strong>{{ n.title }}</strong> {{ n.body|truncatechars:60 }}</span>
                   <span class="sent-meta">
-                    Sent to {% if n.recipient %}{{ n.recipient.household_id }}{% else %}all households{% endif %}
-                    {% if n.read_at %}<span class="sent-read">read</span>{% else %}<span class="sent-unread">not read yet</span>{% endif %}
+                    {% if n.recipient %}{% blocktrans trimmed with id=n.recipient.household_id %}Sent to {{ id }}{% endblocktrans %}{% else %}{% trans "Sent to all households" %}{% endif %}
+                    {% if n.read_at %}<span class="sent-read">{% trans "read" %}</span>{% else %}<span class="sent-unread">{% trans "not read yet" %}</span>{% endif %}
                   </span>
                 </span>
                 <time class="sent-time">{{ n.created_at|date:"M j" }}</time>
@@ -231,7 +242,7 @@
             {% endif %}
           {% endwith %}
         {% empty %}
-          <p class="empty">No notices sent yet.</p>
+          <p class="empty">{% trans "No notices sent yet." %}</p>
         {% endfor %}
       </div>
     </div>
@@ -250,8 +261,8 @@
       into two lines to make room for it on a phone.
     {% endcomment %}
     <div class="card-head card-head-stack">
-      <h2>Text messages</h2>
-      <span class="small muted">Every text and what became of it. Newest first.</span>
+      <h2>{% trans "Text messages" %}</h2>
+      <span class="small muted">{% trans "Every text and what became of it. Newest first." %}</span>
     </div>
     {% comment %}
       With nothing sent yet this rendered a full six-column header above a
@@ -261,15 +272,15 @@
     {% endcomment %}
     {% if not sms_messages %}
       <p class="empty">
-        No text messages yet.<br>
-        <span class="small">Tick &ldquo;Also send as SMS&rdquo; above, or wait for a leak alert.</span>
+        {% trans "No text messages yet." %}<br>
+        <span class="small">{% trans "Tick &ldquo;Also send as SMS&rdquo; above, or wait for a leak alert." %}</span>
       </p>
     {% else %}
     <div class="table-wrap">
       <table class="table">
         <thead>
           <tr>
-            <th>When</th><th>To</th><th>Message</th><th>Type</th><th>Status</th><th class="right"></th>
+            <th>{% trans "When" %}</th><th>{% trans "To" %}</th><th>{% trans "Message" %}</th><th>{% trans "Type" %}</th><th>{% trans "Status" %}</th><th class="right"></th>
           </tr>
         </thead>
         <tbody>
@@ -294,23 +305,23 @@
               {% endcomment %}
               <td>
                 {% if message.status == 'delivered' %}
-                  <span class="pill pill-ok">Delivered</span>
+                  <span class="pill pill-ok">{% trans "Delivered" %}</span>
                   <div class="small muted">{{ message.delivered_at|date:"g:i A" }}</div>
                 {% elif message.status == 'sent' %}
-                  <span class="pill pill-info">Sent to network</span>
+                  <span class="pill pill-info">{% trans "Sent to network" %}</span>
                   <div class="small muted">
-                    {{ message.sent_at|date:"g:i A" }} &middot; awaiting confirmation
+                    {{ message.sent_at|date:"g:i A" }} &middot; {% trans "awaiting confirmation" %}
                   </div>
                 {% elif message.status == 'undelivered' %}
-                  <span class="pill pill-warn">Not delivered</span>
-                  <div class="small muted">{{ message.error|default:"the network could not deliver it" }}</div>
+                  <span class="pill pill-warn">{% trans "Not delivered" %}</span>
+                  <div class="small muted">{% trans "the network could not deliver it" as fallback %}{{ message.error|default:fallback }}</div>
                 {% elif message.status == 'failed' %}
-                  <span class="pill pill-danger">Failed</span>
-                  <div class="small muted">{{ message.error|default:"no reason recorded" }}</div>
+                  <span class="pill pill-danger">{% trans "Failed" %}</span>
+                  <div class="small muted">{% trans "no reason recorded" as fallback %}{{ message.error|default:fallback }}</div>
                 {% else %}
-                  <span class="pill pill-none">Queued</span>
+                  <span class="pill pill-none">{% trans "Queued" %}</span>
                   {% if message.attempts %}
-                    <div class="small muted">{{ message.attempts }} attempt(s)</div>
+                    <div class="small muted">{% blocktrans trimmed with n=message.attempts %}{{ n }} attempt(s){% endblocktrans %}</div>
                   {% endif %}
                 {% endif %}
               </td>
@@ -318,7 +329,7 @@
                 {% if message.status == 'failed' or message.status == 'undelivered' %}
                   <form method="post" action="{% url 'sms_retry' message.pk %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-sm">Try again</button>
+                    <button type="submit" class="btn btn-sm">{% trans "Try again" %}</button>
                   </form>
                 {% endif %}
               </td>

@@ -15,6 +15,7 @@ import logging
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.utils.translation import gettext as _
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +25,15 @@ def describe_email():
     if settings.EMAIL_BACKEND.endswith("console.EmailBackend"):
         if settings.EMAIL_HOST_USER and not settings.EMAIL_HOST_PASSWORD:
             return False, (
-                f"Email is not set up yet: {settings.EMAIL_HOST_USER} is the sending address, "
-                "but EMAIL_HOST_PASSWORD (its Gmail app password) is blank in .env. "
-                "Until then messages are printed to the server terminal instead."
+                _("Email is not set up yet: {email_host_user} is the sending address, "
+                  "but EMAIL_HOST_PASSWORD (its Gmail app password) is blank in .env. "
+                  "Until then messages are printed to the server terminal instead.").format(email_host_user=settings.EMAIL_HOST_USER)
             )
         return False, (
-            "Email is not set up: messages are printed to the server terminal instead. "
-            "Add EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (a Gmail app password) to .env."
+            _("Email is not set up: messages are printed to the server terminal instead. "
+            "Add EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (a Gmail app password) to .env.")
         )
-    return True, f"Emails are sent from {settings.DEFAULT_FROM_EMAIL}."
+    return True, _("Emails are sent from {default_from_email}.").format(default_from_email=settings.DEFAULT_FROM_EMAIL)
 
 
 def send_email(to, subject, body):

@@ -1,37 +1,38 @@
 {% extends "base.html" %}
-{% block title %}Accounts - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Accounts" %} - {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
 <div class="wrap">
   <div class="page-head">
     <div>
-      <h1>Accounts</h1>
-      <p class="sub">Every login in the system. Suspend blocks sign-in; it can be undone.</p>
+      <h1>{% trans "Accounts" %}</h1>
+      <p class="sub">{% trans "Every login in the system. Suspend blocks sign-in; it can be undone." %}</p>
     </div>
   </div>
 
   <form method="get" class="filters filters-inline">
     <div class="field">
-      <label for="q">Search</label>
-      <input type="search" id="q" name="q" value="{{ query }}" placeholder="Login, name or contact">
+      <label for="q">{% trans "Search" %}</label>
+      <input type="search" id="q" name="q" value="{{ query }}" placeholder="{% trans 'Login, name or contact' %}">
     </div>
     <div class="field">
-      <label for="role">Role</label>
+      <label for="role">{% trans "Role" %}</label>
       <select id="role" name="role">
-        <option value="">All roles</option>
+        <option value="">{% trans "All roles" %}</option>
         {% for value, label in roles %}
           <option value="{{ value }}" {% if value == role %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </div>
-    <button type="submit" class="btn">Filter</button>
-    {% if query or role %}<a class="btn" href="{% url 'account_list' %}">Clear</a>{% endif %}
+    <button type="submit" class="btn">{% trans "Filter" %}</button>
+    {% if query or role %}<a class="btn" href="{% url 'account_list' %}">{% trans "Clear" %}</a>{% endif %}
   </form>
 
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Login</th><th>Name</th><th>Role</th><th>Status</th><th></th></tr>
+        <tr><th>{% trans "Login" %}</th><th>{% trans "Name" %}</th><th>{% trans "Role" %}</th><th>{% trans "Status" %}</th><th></th></tr>
       </thead>
       <tbody>
         {% for row in page %}
@@ -43,8 +44,8 @@
             </td>
             <td>{{ row.user.get_role_display }}</td>
             <td>
-              {% if row.user.is_active %}<span class="pill pill-ok">active</span>
-              {% else %}<span class="pill pill-muted">suspended</span>{% endif %}
+              {% if row.user.is_active %}<span class="pill pill-ok">{% trans "active" %}</span>
+              {% else %}<span class="pill pill-muted">{% trans "suspended" %}</span>{% endif %}
             </td>
             <td class="right">
               {% if row.editable %}
@@ -57,18 +58,18 @@
                      data-first="{{ row.user.first_name }}"
                      data-last="{{ row.user.last_name }}"
                      data-contact="{{ row.user.contact_number }}"
-                     data-email="{{ row.user.email }}">Edit</a>
+                     data-email="{{ row.user.email }}">{% trans "Edit" %}</a>
                   {% if row.manageable %}
                   <form method="post" action="{% url 'account_suspend' row.user.pk %}" style="display:inline">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm">
-                      {% if row.user.is_active %}Suspend{% else %}Restore{% endif %}
+                      {% if row.user.is_active %}{% trans "Suspend" %}{% else %}{% trans "Restore" %}{% endif %}
                     </button>
                   </form>
                   <form method="post" action="{% url 'account_delete' row.user.pk %}" style="display:inline"
-                        onsubmit="return confirm('Delete the login {{ row.user.username|escapejs }}? This cannot be undone.');">
+                        onsubmit="return confirm(interpolate(gettext('Delete the login %(login)s? This cannot be undone.'), {login: '{{ row.user.username|escapejs }}'}, true));">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-quiet-danger">Delete</button>
+                    <button type="submit" class="btn btn-sm btn-quiet-danger">{% trans "Delete" %}</button>
                   </form>
                   {% endif %}
                 </div>
@@ -78,7 +79,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="5" class="empty">No accounts match this filter.</td></tr>
+          <tr><td colspan="5" class="empty">{% trans "No accounts match this filter." %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -87,11 +88,11 @@
   {% if page.has_other_pages %}
     <div class="pager">
       {% if page.has_previous %}
-        <a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;q={{ query }}&amp;role={{ role }}">Previous</a>
+        <a class="btn btn-sm" href="?page={{ page.previous_page_number }}&amp;q={{ query }}&amp;role={{ role }}">{% trans "Previous" %}</a>
       {% endif %}
-      <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      <span class="muted">{% blocktrans trimmed with n=page.number total=page.paginator.num_pages %}Page {{ n }} of {{ total }}{% endblocktrans %}</span>
       {% if page.has_next %}
-        <a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;q={{ query }}&amp;role={{ role }}">Next</a>
+        <a class="btn btn-sm" href="?page={{ page.next_page_number }}&amp;q={{ query }}&amp;role={{ role }}">{% trans "Next" %}</a>
       {% endif %}
     </div>
   {% endif %}
@@ -111,10 +112,10 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="account-edit-title">Edit contact details</h2>
+          <h2 id="account-edit-title">{% trans "Edit contact details" %}</h2>
           <p class="sub" data-edit-subtitle>{% if edit_user %}{{ edit_user.username }} &middot; {{ edit_user.get_role_display }}{% endif %}</p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -128,11 +129,11 @@
         </div>
         {% include "_form_field.html" with field=edit_form.contact_number %}
         {% include "_form_field.html" with field=edit_form.email %}
-        <p class="helptext">Where sign-in codes, alerts and notices for this login go. A household record keeps its own number and email, on the facilitator side.</p>
+        <p class="helptext">{% trans "Where sign-in codes, alerts and notices for this login go. A household record keeps its own number and email, on the facilitator side." %}</p>
       </div>
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Save contact details</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary">{% trans "Save contact details" %}</button>
       </div>
     </form>
   </div>

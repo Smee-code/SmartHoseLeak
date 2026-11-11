@@ -1,9 +1,9 @@
-<!doctype html>
-<html lang="en">
+{% load i18n %}<!doctype html>
+{% get_current_language as LANG %}<html lang="{{ LANG }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Maintenance - Smart Hose Leak Detection System</title>
+<title>{% trans "Maintenance" %} - Smart Hose Leak Detection System</title>
 
 {% comment %}
   Standalone, like the error pages, and for the same reasons: it must not
@@ -44,17 +44,19 @@
 </head>
 <body>
 <main>
-  <h1>Briefly down for maintenance</h1>
+  <h1>{% trans "Briefly down for maintenance" %}</h1>
   <p class="lede">{{ message }}</p>
 
   <div class="still">
-    <strong>Your water is still being watched.</strong>
+    <strong>{% trans "Your water is still being watched." %}</strong>
+    {% blocktrans trimmed %}
     Each household&rsquo;s line is monitored by the board fitted at the house,
     not by this website. It keeps reading the pressure and the flow while this
     page is down.
+    {% endblocktrans %}
   </div>
 
-  <p class="code">Error 503. Please try again shortly.</p>
+  <p class="code">{% trans "Error 503. Please try again shortly." %}</p>
 </main>
 </body>
 </html>

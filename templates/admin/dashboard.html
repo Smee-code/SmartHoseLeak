@@ -1,20 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Administration - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Administration" %} - {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
 <div class="wrap">
 
   <div class="page-head">
     <div>
-      <h1>Administration</h1>
-      <p class="sub">{{ barangay.location_label }} &mdash; the whole system, and the people who run it.</p>
+      <h1>{% trans "Administration" %}</h1>
+      <p class="sub">{{ barangay.location_label }} &mdash; {% trans "the whole system, and the people who run it." %}</p>
     </div>
     <div class="btn-row">
-      <a class="btn btn-sm" href="{% url 'admin_pressure' %}">Pressure &amp; flow</a>
-      <a class="btn btn-sm" href="{% url 'analytics' %}">Analytics</a>
-      <a class="btn btn-sm" href="{% url 'announcement_list' %}?open=announcement">Announcement</a>
-      <a class="btn btn-sm" href="{% url 'facilitator_list' %}?open=facilitator">Add facilitator</a>
-      <a class="btn btn-primary btn-sm" href="{% url 'admin_household_list' %}?open=household">Register household</a>
+      <a class="btn btn-sm" href="{% url 'admin_pressure' %}">{% trans "Pressure &amp; flow" %}</a>
+      <a class="btn btn-sm" href="{% url 'analytics' %}">{% trans "Analytics" %}</a>
+      <a class="btn btn-sm" href="{% url 'announcement_list' %}?open=announcement">{% trans "Announcement" %}</a>
+      <a class="btn btn-sm" href="{% url 'facilitator_list' %}?open=facilitator">{% trans "Add facilitator" %}</a>
+      <a class="btn btn-primary btn-sm" href="{% url 'admin_household_list' %}?open=household">{% trans "Register household" %}</a>
     </div>
   </div>
 
@@ -24,42 +25,42 @@
     fake one. The leak tile is the one that may turn red: it is the only
     figure here that means somebody's water is going somewhere else.
   {% endcomment %}
-  <section class="stats" aria-label="System totals">
+  <section class="stats" aria-label="{% trans 'System totals' %}">
     <div class="stat{% if stats.open_leaks %} is-alert{% endif %}">
       <div class="stat-value">{{ stats.open_leaks }}</div>
-      <div class="stat-label">Open leak alerts</div>
-      <div class="stat-delta">{% if stats.open_leaks %}facilitator texted{% else %}none open{% endif %}</div>
+      <div class="stat-label">{% trans "Open leak alerts" %}</div>
+      <div class="stat-delta">{% if stats.open_leaks %}{% trans "facilitator texted" %}{% else %}{% trans "none open" %}{% endif %}</div>
     </div>
     <div class="stat">
       <div class="stat-value">{{ stats.upcoming_visits }}</div>
-      <div class="stat-label">Visits scheduled</div>
+      <div class="stat-label">{% trans "Visits scheduled" %}</div>
       <div class="stat-delta{% if stats.visits_done_week %} is-up{% endif %}">
-        {% if stats.visits_done_week %}<svg class="ico" aria-hidden="true"><use href="#i-trend-up"></use></svg>{{ stats.visits_done_week }} done this week{% else %}none done this week{% endif %}
+        {% if stats.visits_done_week %}<svg class="ico" aria-hidden="true"><use href="#i-trend-up"></use></svg>{% blocktrans trimmed with n=stats.visits_done_week %}{{ n }} done this week{% endblocktrans %}{% else %}{% trans "none done this week" %}{% endif %}
       </div>
     </div>
     <div class="stat">
       <div class="stat-value">{{ stats.households }}</div>
-      <div class="stat-label">Households</div>
+      <div class="stat-label">{% trans "Households" %}</div>
       <div class="stat-delta{% if stats.households_week %} is-up{% endif %}">
-        {% if stats.households_week %}<svg class="ico" aria-hidden="true"><use href="#i-trend-up"></use></svg>+{{ stats.households_week }} this week{% else %}no change this week{% endif %}
+        {% if stats.households_week %}<svg class="ico" aria-hidden="true"><use href="#i-trend-up"></use></svg>{% blocktrans trimmed with n=stats.households_week %}+{{ n }} this week{% endblocktrans %}{% else %}{% trans "no change this week" %}{% endif %}
       </div>
     </div>
     <div class="stat">
       <div class="stat-value">{{ stats.lines }}</div>
-      <div class="stat-label">Active hose lines</div>
-      <div class="stat-delta">{{ stats.devices }} board{{ stats.devices|pluralize }} registered</div>
+      <div class="stat-label">{% trans "Active hose lines" %}</div>
+      <div class="stat-delta">{% blocktrans trimmed count n=stats.devices %}{{ n }} board registered{% plural %}{{ n }} boards registered{% endblocktrans %}</div>
     </div>
     <div class="stat">
       <div class="stat-value">{{ stats.owners }}</div>
-      <div class="stat-label">Owner logins</div>
+      <div class="stat-label">{% trans "Owner logins" %}</div>
       <div class="stat-delta{% if stats.owners_week %} is-up{% endif %}">
-        {% if stats.owners_week %}<svg class="ico" aria-hidden="true"><use href="#i-trend-up"></use></svg>+{{ stats.owners_week }} this week{% else %}no change this week{% endif %}
+        {% if stats.owners_week %}<svg class="ico" aria-hidden="true"><use href="#i-trend-up"></use></svg>{% blocktrans trimmed with n=stats.owners_week %}+{{ n }} this week{% endblocktrans %}{% else %}{% trans "no change this week" %}{% endif %}
       </div>
     </div>
     <div class="stat">
       <div class="stat-value">{{ stats.facilitators }}</div>
-      <div class="stat-label">Facilitators</div>
-      <div class="stat-delta">{{ stats.suspended }} login{{ stats.suspended|pluralize }} suspended</div>
+      <div class="stat-label">{% trans "Facilitators" %}</div>
+      <div class="stat-delta">{% blocktrans trimmed count n=stats.suspended %}{{ n }} login suspended{% plural %}{{ n }} logins suspended{% endblocktrans %}</div>
     </div>
   </section>
 
@@ -68,7 +69,7 @@
     system grows this strip stays this short; the tables below do not.
   {% endcomment %}
   {% if attention %}
-    <ul class="attention" aria-label="Needs attention">
+    <ul class="attention" aria-label="{% trans 'Needs attention' %}">
       {% for item in attention %}
         <li data-level="{{ item.level }}">
           <span class="attention-count">{{ item.count }}</span>
@@ -81,15 +82,15 @@
 
   <section style="margin-top:1.5rem">
     <div class="page-head">
-      <div><h2 style="margin:0">Upcoming visits <span class="count-chip">{{ stats.upcoming_visits }}</span></h2></div>
+      <div><h2 style="margin:0">{% trans "Upcoming visits" %} <span class="count-chip">{{ stats.upcoming_visits }}</span></h2></div>
       <div class="btn-row">
-        <a class="btn btn-sm" href="{% url 'work_order_list' %}">All visits</a>
-        <a class="btn btn-primary btn-sm" href="{% url 'work_order_list' %}?open=visit">Schedule a visit</a>
+        <a class="btn btn-sm" href="{% url 'work_order_list' %}">{% trans "All visits" %}</a>
+        <a class="btn btn-primary btn-sm" href="{% url 'work_order_list' %}?open=visit">{% trans "Schedule a visit" %}</a>
       </div>
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>When</th><th>Household</th><th>Visit</th><th>Facilitator</th><th>Status</th></tr></thead>
+        <thead><tr><th>{% trans "When" %}</th><th>{% trans "Household" %}</th><th>{% trans "Visit" %}</th><th>{% trans "Facilitator" %}</th><th>{% trans "Status" %}</th></tr></thead>
         <tbody>
           {% for order in upcoming %}
             <tr>
@@ -99,42 +100,42 @@
               </td>
               <td>{{ order.where_label }}</td>
               <td><a href="{% url 'work_order_detail' order.pk %}">{{ order.title }}</a></td>
-              <td class="small">{% if order.assigned_to %}{{ order.assigned_to.get_full_name|default:order.assigned_to.username }}{% else %}<span class="muted">Unassigned</span>{% endif %}</td>
+              <td class="small">{% if order.assigned_to %}{{ order.assigned_to.get_full_name|default:order.assigned_to.username }}{% else %}<span class="muted">{% trans "Unassigned" %}</span>{% endif %}</td>
               <td>{% include "_wo_status.html" %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="5" class="empty">No visits scheduled. <a href="{% url 'work_order_list' %}?open=visit">Schedule one</a> &mdash; the household and the facilitator are texted.</td></tr>
+            <tr><td colspan="5" class="empty">{% trans "No visits scheduled." %} <a href="{% url 'work_order_list' %}?open=visit">{% trans "Schedule one" %}</a> &mdash; {% trans "the household and the facilitator are texted." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
     {% if stats.upcoming_visits > 5 %}
-      <p class="small muted" style="margin:.5rem 0 0">Showing the next 5 of {{ stats.upcoming_visits }}. <a href="{% url 'work_order_list' %}">All visits</a>.</p>
+      <p class="small muted" style="margin:.5rem 0 0">{% blocktrans trimmed with total=stats.upcoming_visits %}Showing the next 5 of {{ total }}.{% endblocktrans %} <a href="{% url 'work_order_list' %}">{% trans "All visits" %}</a>.</p>
     {% endif %}
   </section>
 
   <div class="split" style="margin-top:1.5rem">
     <section>
       <div class="page-head">
-        <div><h2 style="margin:0">Newest accounts <span class="count-chip">{{ accounts_total }}</span></h2></div>
-        <div class="btn-row"><a class="btn btn-sm" href="{% url 'account_list' %}">All accounts</a></div>
+        <div><h2 style="margin:0">{% trans "Newest accounts" %} <span class="count-chip">{{ accounts_total }}</span></h2></div>
+        <div class="btn-row"><a class="btn btn-sm" href="{% url 'account_list' %}">{% trans "All accounts" %}</a></div>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Login</th><th>Name</th><th>Role</th><th>Joined</th></tr></thead>
+          <thead><tr><th>{% trans "Login" %}</th><th>{% trans "Name" %}</th><th>{% trans "Role" %}</th><th>{% trans "Joined" %}</th></tr></thead>
           <tbody>
             {% for account in recent_accounts %}
               <tr>
                 <td class="mono small">
                   {{ account.username }}
-                  {% if not account.is_active %}<span class="pill pill-muted">suspended</span>{% endif %}
+                  {% if not account.is_active %}<span class="pill pill-muted">{% trans "suspended" %}</span>{% endif %}
                 </td>
                 <td>{{ account.get_full_name|default:"&mdash;" }}</td>
                 <td class="small">{{ account.get_role_display }}</td>
-                <td class="small nowrap muted">{{ account.date_joined|timesince|truncatewords:2 }} ago</td>
+                <td class="small nowrap muted">{% blocktrans trimmed with since=account.date_joined|timesince|truncatewords:2 %}{{ since }} ago{% endblocktrans %}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="4" class="empty">No accounts yet. <a href="{% url 'facilitator_create' %}">Add a facilitator</a> or <a href="{% url 'admin_household_create' %}">register a household</a>.</td></tr>
+              <tr><td colspan="4" class="empty">{% trans "No accounts yet." %} <a href="{% url 'facilitator_create' %}">{% trans "Add a facilitator" %}</a> {% trans "or" %} <a href="{% url 'admin_household_create' %}">{% trans "register a household" %}</a>.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -147,8 +148,8 @@
     {% endcomment %}
     <section>
       <div class="page-head">
-        <div><h2 style="margin:0">Recent activity <span class="count-chip">{{ audit_total }}</span></h2></div>
-        <div class="btn-row"><a class="btn btn-sm" href="{% url 'audit_log' %}">Audit log</a></div>
+        <div><h2 style="margin:0">{% trans "Recent activity" %} <span class="count-chip">{{ audit_total }}</span></h2></div>
+        <div class="btn-row"><a class="btn btn-sm" href="{% url 'audit_log' %}">{% trans "Audit log" %}</a></div>
       </div>
       <div class="card">
         <div class="sent-feed audit-feed">
@@ -157,12 +158,12 @@
               <span class="sent-icon" aria-hidden="true"><svg class="ico"><use href="#i-id"></use></svg></span>
               <span class="sent-main">
                 <span class="sent-text">{{ entry.summary }}</span>
-                <span class="sent-meta">{{ entry.actor_name|default:"system" }} &middot; {{ entry.action }}</span>
+                <span class="sent-meta">{% if entry.actor_name %}{{ entry.actor_name }}{% else %}{% trans "system" %}{% endif %} &middot; {{ entry.action }}</span>
               </span>
               <time class="sent-time" datetime="{{ entry.created_at|date:'c' }}">{{ entry.created_at|date:"M j, H:i" }}</time>
             </div>
           {% empty %}
-            <p class="empty" style="margin:0">Nothing recorded yet. Actions taken in the console appear here.</p>
+            <p class="empty" style="margin:0">{% trans "Nothing recorded yet. Actions taken in the console appear here." %}</p>
           {% endfor %}
         </div>
       </div>

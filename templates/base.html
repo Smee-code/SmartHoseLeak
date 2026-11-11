@@ -1,10 +1,10 @@
 {% load static i18n %}<!doctype html>
-<html lang="en" data-theme="light">
+{% get_current_language as LANG %}<html lang="{{ LANG }}" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
-  <meta name="description" content="Automated leak detection and water supply monitoring for {{ SITE_LOCALE }}.">
+  <meta name="description" content="{% blocktrans trimmed with locale=SITE_LOCALE %}Automated leak detection and water supply monitoring for {{ locale }}.{% endblocktrans %}">
   <meta name="theme-color" content="#0b6ea8">
   <link rel="icon" href="{% static 'img/icon.svg' %}" type="image/svg+xml">
   {% comment %}
@@ -49,7 +49,7 @@
 </head>
 <body class="{% block body_class %}{% endblock %}" data-portal="{% if is_admin %}admin{% elif is_facilitator %}facilitator{% elif user.is_authenticated %}owner{% else %}public{% endif %}">
 
-<a class="skip-link" href="#main">Skip to main content</a>
+<a class="skip-link" href="#main">{% trans "Skip to main content" %}</a>
 
 {# Icon sprite. Stroke-based so both themes inherit currentColor. #}
 <svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
@@ -78,7 +78,7 @@
 <div class="appshell{% if not user.is_authenticated %} appshell-plain{% endif %}">
 
   {% if user.is_authenticated %}
-    <aside class="sidenav" id="sidenav" aria-label="Main navigation">
+    <aside class="sidenav" id="sidenav" aria-label="{% trans 'Main navigation' %}">
       <div class="sidenav-head">
         {% comment %}
           Signed in, the logo means "back to my dashboard", not "sign out to
@@ -91,105 +91,105 @@
             <small>Detection System</small>
           </span>
         </a>
-        <button type="button" class="icon-btn sidenav-close" id="sidenav-close" aria-label="Close navigation">
+        <button type="button" class="icon-btn sidenav-close" id="sidenav-close" aria-label="{% trans 'Close navigation' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
 
-      <nav class="sidenav-nav" aria-label="Sections">
+      <nav class="sidenav-nav" aria-label="{% trans 'Sections' %}">
         {% if is_admin %}
-          <p class="sidenav-group">Administration</p>
+          <p class="sidenav-group">{% trans "Administration" %}</p>
           <a href="{% url 'console_dashboard' %}" {% if request.resolver_match.url_name == 'console_dashboard' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg><span>Overview</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg><span>{% trans "Overview" %}</span>
           </a>
           <a href="{% url 'admin_pressure' %}" {% if request.resolver_match.url_name == 'admin_pressure' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>Pressure &amp; flow</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>{% trans "Pressure &amp; flow" %}</span>
           </a>
           <a href="{% url 'analytics' %}" {% if request.resolver_match.url_name == 'analytics' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-chart"></use></svg><span>Analytics</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-chart"></use></svg><span>{% trans "Analytics" %}</span>
           </a>
           <a href="{% url 'facilitator_list' %}" {% if 'facilitator' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-users"></use></svg><span>Facilitators</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-users"></use></svg><span>{% trans "Facilitators" %}</span>
           </a>
           <a href="{% url 'admin_household_list' %}" {% if 'admin_household' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-home"></use></svg><span>Households</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-home"></use></svg><span>{% trans "Households" %}</span>
           </a>
           <a href="{% url 'account_list' %}" {% if 'account' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-id"></use></svg><span>Accounts</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-id"></use></svg><span>{% trans "Accounts" %}</span>
           </a>
 
-          <p class="sidenav-group">Visits</p>
+          <p class="sidenav-group">{% trans "Visits" %}</p>
           <a href="{% url 'work_order_list' %}" {% if request.resolver_match.url_name == 'work_order_list' or request.resolver_match.url_name == 'work_order_detail' or request.resolver_match.url_name == 'work_order_create' or request.resolver_match.url_name == 'work_order_edit' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>Visit schedule</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>{% trans "Visit schedule" %}</span>
           </a>
 
-          <p class="sidenav-group">Communications</p>
+          <p class="sidenav-group">{% trans "Communications" %}</p>
           <a href="{% url 'announcement_list' %}" {% if 'announcement' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>Announcements</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>{% trans "Announcements" %}</span>
           </a>
 
-          <p class="sidenav-group">System</p>
+          <p class="sidenav-group">{% trans "System" %}</p>
           <a href="{% url 'data_tools' %}" {% if 'data' in request.resolver_match.url_name or request.resolver_match.url_name == 'export_console' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>Data &amp; backups</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>{% trans "Data &amp; backups" %}</span>
           </a>
           <a href="{% url 'audit_log' %}" {% if request.resolver_match.url_name == 'audit_log' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-id"></use></svg><span>Audit log</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-id"></use></svg><span>{% trans "Audit log" %}</span>
           </a>
           <a href="{% url 'system_status' %}" {% if 'system' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-cog"></use></svg><span>System status</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-cog"></use></svg><span>{% trans "System status" %}</span>
           </a>
           <a href="{% url 'archive_list' %}" {% if request.resolver_match.url_name == 'archive_list' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>Archive</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>{% trans "Archive" %}</span>
           </a>
         {% elif is_facilitator %}
-          <p class="sidenav-group">Monitoring</p>
+          <p class="sidenav-group">{% trans "Monitoring" %}</p>
           <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg><span>Dashboard</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-grid"></use></svg><span>{% trans "Dashboard" %}</span>
           </a>
           <a href="{% url 'pressure_monitor' %}" {% if request.resolver_match.url_name == 'pressure_monitor' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>Pressure</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>{% trans "Pressure" %}</span>
           </a>
           <a href="{% url 'event_list' %}" {% if 'event' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-alert"></use></svg><span>Alerts</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-alert"></use></svg><span>{% trans "Alerts" %}</span>
           </a>
           <a href="{% url 'my_assignments' %}" {% if 'assignment' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>Schedule</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>{% trans "Schedule" %}</span>
             {% if my_assignment_count %}<span class="badge">{{ my_assignment_count }}</span>{% endif %}
           </a>
 
-          <p class="sidenav-group">Management</p>
+          <p class="sidenav-group">{% trans "Management" %}</p>
           <a href="{% url 'household_list' %}" {% if 'household' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-home"></use></svg><span>Households</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-home"></use></svg><span>{% trans "Households" %}</span>
           </a>
           <a href="{% url 'segment_list' %}" {% if 'segment' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>Lines</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-route"></use></svg><span>{% trans "Lines" %}</span>
           </a>
           <a href="{% url 'complaint_list' %}" {% if 'complaint' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-chat"></use></svg><span>Complaints</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-chat"></use></svg><span>{% trans "Complaints" %}</span>
             {% if pending_complaint_count %}<span class="badge">{{ pending_complaint_count }}</span>{% endif %}
           </a>
           <a href="{% url 'notification_center' %}" {% if request.resolver_match.url_name == 'notification_center' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>Notices &amp; SMS</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>{% trans "Notices &amp; SMS" %}</span>
           </a>
           <a href="{% url 'reports' %}" {% if request.resolver_match.url_name == 'reports' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-chart"></use></svg><span>Reports</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-chart"></use></svg><span>{% trans "Reports" %}</span>
           </a>
         {% else %}
           <a href="{% url 'owner_home' %}" {% if request.resolver_match.url_name == 'owner_home' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-home"></use></svg><span>Home</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-home"></use></svg><span>{% trans "Home" %}</span>
           </a>
           <a href="{% url 'owner_pressure' %}" {% if request.resolver_match.url_name == 'owner_pressure' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>My Pressure</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>{% trans "My Pressure" %}</span>
           </a>
           <a href="{% url 'owner_notifications' %}" {% if request.resolver_match.url_name == 'owner_notifications' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>Notices &amp; SMS</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>{% trans "Notices &amp; SMS" %}</span>
             {% if unread_count %}<span class="badge">{{ unread_count }}</span>{% endif %}
           </a>
           <a href="{% url 'owner_complaints' %}" {% if request.resolver_match.url_name == 'owner_complaints' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-chat"></use></svg><span>Complaints</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-chat"></use></svg><span>{% trans "Complaints" %}</span>
           </a>
           <a href="{% url 'owner_settings' %}" {% if request.resolver_match.url_name == 'owner_settings' %}aria-current="page"{% endif %}>
-            <svg class="ico" aria-hidden="true"><use href="#i-cog"></use></svg><span>Settings</span>
+            <svg class="ico" aria-hidden="true"><use href="#i-cog"></use></svg><span>{% trans "Settings" %}</span>
           </a>
         {% endif %}
       </nav>
@@ -214,7 +214,7 @@
       <div class="topbar-inner">
         {% if user.is_authenticated %}
           <button type="button" class="icon-btn navtoggle" id="nav-toggle"
-                  aria-label="Open navigation" aria-expanded="false" aria-controls="sidenav">
+                  aria-label="{% trans 'Open navigation' %}" aria-expanded="false" aria-controls="sidenav">
             <span aria-hidden="true">&#9776;</span>
           </button>
         {% endif %}
@@ -229,14 +229,14 @@
 
         <div class="topbar-actions">
           {% get_current_language as CUR_LANG %}
-          <form action="{% url 'set_language' %}" method="post" class="lang-toggle" aria-label="Language">
+          <form action="{% url 'set_language' %}" method="post" class="lang-toggle" aria-label="{% trans 'Language' %}">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
             <button type="submit" name="language" value="en" class="lang-opt{% if CUR_LANG == 'en' %} is-active{% endif %}"{% if CUR_LANG == 'en' %} aria-current="true"{% endif %}>EN</button>
             <button type="submit" name="language" value="fil" class="lang-opt{% if CUR_LANG == 'fil' %} is-active{% endif %}"{% if CUR_LANG == 'fil' %} aria-current="true"{% endif %}>FIL</button>
           </form>
-          <span id="conn-pill" class="pill pill-muted" title="Connection quality">&#8226; checking</span>
-          <button type="button" id="theme-toggle" class="icon-btn" aria-label="Switch between light and dark mode">
+          <span id="conn-pill" class="pill pill-muted" title="{% trans 'Connection quality' %}">&#8226; {% trans "checking" %}</span>
+          <button type="button" id="theme-toggle" class="icon-btn" aria-label="{% trans 'Switch between light and dark mode' %}">
             <span aria-hidden="true" data-theme-icon>&#9789;</span>
           </button>
           {% if user.is_authenticated %}
@@ -270,7 +270,7 @@
         {% for message in messages %}
           <div class="message message-{{ message.tags|default:'info' }}">
             <span>{{ message }}</span>
-            <button type="button" class="message-close" aria-label="Dismiss">&times;</button>
+            <button type="button" class="message-close" aria-label="{% trans 'Dismiss' %}">&times;</button>
           </div>
         {% endfor %}
       </div>
@@ -284,8 +284,8 @@
     {% if user.is_authenticated and user.must_change_password and request.resolver_match.url_name != 'password_change' %}
       <div class="messages" data-keep-inline>
         <div class="message message-warning">
-          <span>You are still using a temporary password.
-            <a href="{% url 'password_change' %}">Change it now</a>.</span>
+          <span>{% trans "You are still using a temporary password." %}
+            <a href="{% url 'password_change' %}">{% trans "Change it now" %}</a>.</span>
         </div>
       </div>
     {% endif %}
@@ -329,6 +329,7 @@
 </div>
 
 <script>window.SHL = {pollMs: {{ LIVE_POLL_INTERVAL_MS }}};</script>
+<script src="{% url 'javascript-catalog' %}?v={{ ASSET_VERSION }}"></script>
 <script src="{% static 'js/app.js' %}?v={{ ASSET_VERSION }}"></script>
 {% block scripts %}{% endblock %}
 </body>

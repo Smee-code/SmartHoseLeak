@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Supply lines - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "Supply lines" %} - {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="wrap">
   <div class="page-head">
@@ -10,11 +11,11 @@
         three modules sharing an ESP32. A heading that describes something
         the system does not do is worse than no heading.
       {% endcomment %}
-      <h1>Hose lines</h1>
-      <p class="sub">One hose per household, from the main source to their tap.</p>
+      <h1>{% trans "Hose lines" %}</h1>
+      <p class="sub">{% trans "One hose per household, from the main source to their tap." %}</p>
     </div>
     <div class="btn-row">
-      <a class="btn btn-primary btn-sm" href="#" data-modal-open="line-modal">Add hose line</a>
+      <a class="btn btn-primary btn-sm" href="#" data-modal-open="line-modal">{% trans "Add hose line" %}</a>
     </div>
   </div>
 
@@ -29,21 +30,23 @@
   {% if source %}
   <details class="source-block" {% if not source.has_location %}open{% endif %}>
     <summary>
-      <span class="source-title">Main source{% if barangay %} &middot; {{ barangay.name }}{% endif %}</span>
+      <span class="source-title">{% trans "Main source" %}{% if barangay %} &middot; {{ barangay.name }}{% endif %}</span>
       <span class="source-where">
         {% if source.has_location %}{{ source.latitude|floatformat:5 }}, {{ source.longitude|floatformat:5 }}
-        {% else %}Location not set{% endif %}
+        {% else %}{% trans "Location not set" %}{% endif %}
       </span>
       {% if source.has_location %}
-        <span class="pill pill-ok">On the map</span>
+        <span class="pill pill-ok">{% trans "On the map" %}</span>
       {% else %}
-        <span class="pill pill-muted">Location not set</span>
+        <span class="pill pill-muted">{% trans "Location not set" %}</span>
       {% endif %}
     </summary>
 
     <p class="muted small">
+      {% blocktrans trimmed %}
       Every household&rsquo;s hose is drawn from this point on the leak map.
       There are no distance markers any more &mdash; a leak names a household.
+      {% endblocktrans %}
     </p>
 
     <form method="post">
@@ -60,13 +63,13 @@
       </div>
       {% include "_form_field.html" with field=source_form.notes %}
       <div class="btn-row">
-        <button type="submit" class="btn btn-primary btn-sm">Save water source</button>
+        <button type="submit" class="btn btn-primary btn-sm">{% trans "Save water source" %}</button>
       </div>
     </form>
   </details>
   {% else %}
     <p class="muted small">
-      No barangay is assigned to your account yet, so there is no water source to place. Ask the administrator.
+      {% trans "No barangay is assigned to your account yet, so there is no water source to place. Ask the administrator." %}
     </p>
   {% endif %}
 
@@ -74,8 +77,8 @@
     <table>
       <thead>
         <tr>
-          <th>Colour</th><th>Household</th><th>Line name</th><th>Device</th>
-          <th class="num">Low below</th><th>Status</th><th>Map coords</th><th></th>
+          <th>{% trans "Colour" %}</th><th>{% trans "Household" %}</th><th>{% trans "Line name" %}</th><th>{% trans "Device" %}</th>
+          <th class="num">{% trans "Low below" %}</th><th>{% trans "Status" %}</th><th>{% trans "Map coords" %}</th><th></th>
         </tr>
       </thead>
       <tbody>
@@ -95,7 +98,7 @@
                 <strong>{{ segment.household.household_id }}</strong>
                 <div class="small muted">{{ segment.household.owner_name }}</div>
               {% else %}
-                <span class="muted">Unassigned</span>
+                <span class="muted">{% trans "Unassigned" %}</span>
               {% endif %}
             </td>
             {% comment %}
@@ -109,7 +112,7 @@
               {% if segment.device %}
                 {{ segment.device.device_id }}
               {% else %}
-                <span class="pill pill-none">No device</span>
+                <span class="pill pill-none">{% trans "No device" %}</span>
               {% endif %}
             </td>
             <td class="num">
@@ -119,9 +122,9 @@
             <td><span class="pill pill-{{ segment.status }}">{{ segment.get_status_display }}</span></td>
             <td class="small">
               {% if segment.start_lat and segment.end_lat %}
-                <span class="pill pill-ok">set</span>
+                <span class="pill pill-ok">{% trans "set" %}</span>
               {% else %}
-                <span class="muted">not set</span>
+                <span class="muted">{% trans "not set" %}</span>
               {% endif %}
             </td>
             <td class="right">
@@ -144,12 +147,12 @@
                    data-endlat="{{ segment.end_lat|default_if_none:'' }}"
                    data-endlng="{{ segment.end_lng|default_if_none:'' }}"
                    data-note="{{ segment.maintenance_note }}"
-                   data-active="{{ segment.is_active|yesno:'1,0' }}">Edit</a>
+                   data-active="{{ segment.is_active|yesno:'1,0' }}">{% trans "Edit" %}</a>
                 <form method="post" action="{% url 'segment_maintenance' segment.pk %}">
                   {% csrf_token %}
                   <input type="hidden" name="next" value="{% url 'segment_list' %}">
                   <button type="submit" class="btn btn-sm">
-                    {% if segment.status == 'MAINTENANCE' %}End maintenance{% else %}Maintenance{% endif %}
+                    {% if segment.status == 'MAINTENANCE' %}{% trans "End maintenance" %}{% else %}{% trans "Maintenance" %}{% endif %}
                   </button>
                 </form>
                 {% comment %}
@@ -164,12 +167,12 @@
                         data-name="{{ segment.name }}"
                         data-rollups="{{ segment.rollup_count }}"
                         data-events="{{ segment.event_count }}"
-                        data-household="{% if segment.household %}{{ segment.household.household_id }}{% endif %}">Delete</button>
+                        data-household="{% if segment.household %}{{ segment.household.household_id }}{% endif %}">{% trans "Delete" %}</button>
               </div>
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="9" class="empty">No supply lines configured.</td></tr>
+          <tr><td colspan="9" class="empty">{% trans "No supply lines configured." %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -189,19 +192,19 @@
   {% endcomment %}
   <div class="card" style="margin-top:1.6rem">
     <div class="card-head">
-      <h2>Devices</h2>
+      <h2>{% trans "Devices" %}</h2>
       <form method="post" action="{% url 'device_create' %}" class="inline-form">
         {% csrf_token %}
-        <input type="text" name="label" placeholder="Label (optional)" maxlength="120">
-        <button type="submit" class="btn btn-sm">Register a board</button>
+        <input type="text" name="label" placeholder="{% trans 'Label (optional)' %}" maxlength="120">
+        <button type="submit" class="btn btn-sm">{% trans "Register a board" %}</button>
       </form>
     </div>
     <div class="table-wrap">
       <table class="table devices-table">
         <thead>
           <tr>
-            <th>Device ID</th><th>Fitted to</th><th>Claim code</th><th>API key</th>
-            <th>Status</th><th>Last seen</th><th class="right"></th>
+            <th>{% trans "Device ID" %}</th><th>{% trans "Fitted to" %}</th><th>{% trans "Claim code" %}</th><th>{% trans "API key" %}</th>
+            <th>{% trans "Status" %}</th><th>{% trans "Last seen" %}</th><th class="right"></th>
           </tr>
         </thead>
         <tbody>
@@ -210,7 +213,7 @@
               <td>
                 <span class="mono">{{ device.device_id }}</span>
                 <button type="button" class="btn btn-sm btn-copy"
-                        data-copy="{{ device.device_id }}">Copy</button>
+                        data-copy="{{ device.device_id }}">{% trans "Copy" %}</button>
                 {% if device.label %}<span class="device-label">{{ device.label }}</span>{% endif %}
               </td>
               <td class="small">
@@ -221,7 +224,7 @@
                       <div class="muted">{{ line.household.owner_name }}</div>
                     {% else %}{{ line.name }}{% endif %}
                   {% else %}
-                    <span class="pill pill-none">Spare</span>
+                    <span class="pill pill-none">{% trans "Spare" %}</span>
                   {% endif %}
                 {% endwith %}
               </td>
@@ -236,18 +239,18 @@
                   {% if ticket and ticket.is_usable %}
                     <span class="mono"><strong>{{ ticket.code }}</strong></span>
                     <button type="button" class="btn btn-sm btn-copy"
-                            data-copy="{{ ticket.code }}">Copy</button>
-                    <div class="small muted">expires {{ ticket.expires_at|date:"M j" }}</div>
+                            data-copy="{{ ticket.code }}">{% trans "Copy" %}</button>
+                    <div class="small muted">{% blocktrans trimmed with when=ticket.expires_at|date:"M j" %}expires {{ when }}{% endblocktrans %}</div>
                   {% elif ticket %}
                     <span class="small muted">{{ ticket.state_label }}</span>
                     <form method="post" action="{% url 'device_issue_claim_code' device.pk %}">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-sm">New code</button>
+                      <button type="submit" class="btn btn-sm">{% trans "New code" %}</button>
                     </form>
                   {% else %}
                     <form method="post" action="{% url 'device_issue_claim_code' device.pk %}">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-sm">Issue code</button>
+                      <button type="submit" class="btn btn-sm">{% trans "Issue code" %}</button>
                     </form>
                   {% endif %}
                 {% endwith %}
@@ -255,15 +258,15 @@
               <td>
                 <span class="mono key-text">{{ device.api_key }}</span>
                 <button type="button" class="btn btn-sm btn-copy"
-                        data-copy="{{ device.api_key }}">Copy</button>
+                        data-copy="{{ device.api_key }}">{% trans "Copy" %}</button>
               </td>
               <td>
-                {% if device.is_online %}<span class="pill pill-ok">online</span>
-                {% else %}<span class="pill pill-OFFLINE">offline</span>{% endif %}
+                {% if device.is_online %}<span class="pill pill-ok">{% trans "online" %}</span>
+                {% else %}<span class="pill pill-OFFLINE">{% trans "offline" %}</span>{% endif %}
               </td>
               <td class="small">
                 {% if device.last_seen %}<span data-ago="{{ device.last_seen|date:'c' }}"></span>
-                {% else %}<span class="muted">never reported</span>{% endif %}
+                {% else %}<span class="muted">{% trans "never reported" %}</span>{% endif %}
                 {% if device.last_ip %}
                   <div><a class="small mono" href="http://{{ device.last_ip }}/"
                           target="_blank" rel="noopener">{{ device.last_ip }}</a></div>
@@ -275,11 +278,11 @@
                           data-newkey-device="{{ device.pk }}"
                           data-action="{% url 'device_regenerate_key' device.pk %}"
                           data-name="{{ device.device_id }}"
-                          data-line="{% with l=device.line %}{% if l %}{{ l.name }}{% endif %}{% endwith %}">New key</button>
+                          data-line="{% with l=device.line %}{% if l %}{{ l.name }}{% endif %}{% endwith %}">{% trans "New key" %}</button>
                   {% if not device.line %}
                     <form method="post" action="{% url 'device_delete' device.pk %}">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                      <button type="submit" class="btn btn-sm btn-danger">{% trans "Remove" %}</button>
                     </form>
                   {% endif %}
                 </div>
@@ -289,9 +292,9 @@
             <tr>
               <td colspan="7">
                 <p class="empty" style="grid-column:1/-1">
-                  No boards registered.<br>
-                  <span class="small">A board is normally registered while adding the
-                  household that owns it. Use &ldquo;Register a board&rdquo; above for a spare.</span>
+                  {% trans "No boards registered." %}<br>
+                  <span class="small">{% blocktrans trimmed %}A board is normally registered while adding the
+                  household that owns it. Use &ldquo;Register a board&rdquo; above for a spare.{% endblocktrans %}</span>
                 </p>
               </td>
             </tr>
@@ -300,9 +303,11 @@
       </table>
     </div>
     <p class="small muted" style="margin-top:.8rem">
+      {% blocktrans trimmed %}
       To set up a board: join its <span class="mono">LeakDetect-Setup</span> hotspot,
       enter the WiFi and the <strong>claim code</strong>. The board fetches its own ID and
       key from the server - you never type the key, and nothing needs re-flashing.
+      {% endblocktrans %}
     </p>
   </div>
 </div>
@@ -318,10 +323,10 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="line-modal-title">Add hose line</h2>
-          <p class="sub">One hose per household, created with the household.</p>
+          <h2 id="line-modal-title">{% trans "Add hose line" %}</h2>
+          <p class="sub">{% trans "One hose per household, created with the household." %}</p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -340,7 +345,7 @@
         {% include "_form_field.html" with field=create_form.name %}
 
         <div class="field">
-          <label>Map colour</label>
+          <label>{% trans "Map colour" %}</label>
           <div class="swatch-row">
             {% for choice in create_form.color %}
               <label class="swatch-option">
@@ -350,15 +355,15 @@
               </label>
             {% endfor %}
           </div>
-          <span class="helptext">Used for this line and its households on the leak map.</span>
+          <span class="helptext">{% trans "Used for this line and its households on the leak map." %}</span>
           {{ create_form.color.errors }}
         </div>
 
       </div>
 
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Add line</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary">{% trans "Add line" %}</button>
       </div>
     </form>
   </div>
@@ -373,12 +378,12 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="line-edit-title">Edit hose line</h2>
+          <h2 id="line-edit-title">{% trans "Edit hose line" %}</h2>
           <p class="sub" data-edit-subtitle>
             {% if edit_segment %}{{ edit_segment.name }}{% endif %}
           </p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -391,7 +396,7 @@
         {% include "_form_field.html" with field=edit_form.name %}
 
         <div class="field">
-          <label>Map colour</label>
+          <label>{% trans "Map colour" %}</label>
           <div class="swatch-row">
             {% for choice in edit_form.color %}
               <label class="swatch-option">
@@ -421,8 +426,8 @@
       </div>
 
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Save changes</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary">{% trans "Save changes" %}</button>
       </div>
     </form>
   </div>
@@ -439,27 +444,29 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="line-delete-title">Delete hose line?</h2>
+          <h2 id="line-delete-title">{% trans "Delete hose line?" %}</h2>
           <p class="sub" data-delete-subtitle></p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
 
       <div class="modal-body">
-        <p>This cannot be undone. Deleting <strong data-delete-name></strong> permanently removes:</p>
+        <p>{% blocktrans trimmed %}This cannot be undone. Deleting <strong data-delete-name></strong> permanently removes:{% endblocktrans %}</p>
         <ul class="delete-list" data-delete-list></ul>
         <p class="small" data-delete-households></p>
         <p class="small muted">
+          {% blocktrans trimmed %}
           If the sensor is only being repaired, use <strong>Maintenance</strong> instead &mdash;
           that silences its alerts and keeps every reading.
+          {% endblocktrans %}
         </p>
       </div>
 
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-danger">Delete line</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-danger">{% trans "Delete line" %}</button>
       </div>
     </form>
   </div>
@@ -478,24 +485,26 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="device-key-title">Issue a new API key?</h2>
+          <h2 id="device-key-title">{% trans "Issue a new API key?" %}</h2>
           <p class="sub" data-newkey-device-name></p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
       <div class="modal-body">
-        <p>The old key stops working immediately.</p>
+        <p>{% trans "The old key stops working immediately." %}</p>
         <p data-newkey-consequence class="small"></p>
         <p class="small muted">
+          {% blocktrans trimmed %}
           Only do this if the key has been shared by mistake, or the board is being
           replaced. To simply set up a board, copy the existing key instead.
+          {% endblocktrans %}
         </p>
       </div>
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-danger">Issue new key</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-danger">{% trans "Issue new key" %}</button>
       </div>
     </form>
   </div>

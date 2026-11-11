@@ -24,6 +24,8 @@ import logging
 from django.conf import settings
 from django.core import signing
 from django.utils import timezone
+from django.utils import translation
+from django.utils.translation import gettext as _, ngettext
 
 from . import mail
 from .models import LoginCode, SmsMessage
@@ -68,20 +70,31 @@ def send_code(user, preferred):
     code = LoginCode.issue(user, channel, sent_to=destination)
     minutes = settings.OTP_VALIDITY_MINUTES
 
+    # Written in the person's own language: a household's, when they have
+    # one; otherwise whatever the sign-in page is showing.
+    household = getattr(user, "household", None)
+    language = (household.language if household is not None else None) or translation.get_language()
+    with translation.override(language or settings.LANGUAGE_CODE):
+        _deliver_code(user, channel, destination, code, minutes)
+    logger.info("Sign-in code sent to %s by %s", user.username, channel)
+    return code
+
+
+def _deliver_code(user, channel, destination, code, minutes):
     if channel == LoginCode.Channel.SMS:
         SmsMessage.queue_to_number(
             destination,
-            f"Smart Hose Leak sign-in code: {code.code}. It expires in {minutes} minutes. "
-            f"If you did not try to sign in, ignore this.",
+            _("Smart Hose Leak sign-in code: {code}. It expires in {minutes} "
+              "minutes. If you did not try to sign in, ignore this.").format(code=code.code, minutes=minutes),
             name=user.get_full_name() or user.username,
             kind=SmsMessage.Kind.AUTOMATIC,
         )
     else:
         delivered = mail.send_email(
             destination,
-            "Your Smart Hose Leak sign-in code",
-            f"Your sign-in code is {code.code}. It expires in {minutes} minutes.\n\n"
-            f"If you did not try to sign in, you can ignore this email.",
+            _("Your Smart Hose Leak sign-in code"),
+            _("Your sign-in code is {code}. It expires in {minutes} minutes.\n\nIf you "
+              "did not try to sign in, you can ignore this email.").format(code=code.code, minutes=minutes),
         )
         if not delivered:
             # Telling someone "check your inbox" for a mail that never left
@@ -89,11 +102,9 @@ def send_code(user, preferred):
             code.delete()
             logger.warning("Sign-in code for %s could not be emailed", user.username)
             raise DeliveryError(
-                "The sign-in code could not be emailed right now. Try having it texted "
-                "instead, or ask the administrator to check the email setup."
+                _("The sign-in code could not be emailed right now. Try having it texted "
+                "instead, or ask the administrator to check the email setup.")
             )
-    logger.info("Sign-in code sent to %s by %s", user.username, channel)
-    return code
 
 
 def verify(user, raw):
@@ -106,18 +117,21 @@ def verify(user, raw):
     digits = "".join(ch for ch in (raw or "") if ch.isdigit())
     code = user.login_codes.filter(used_at__isnull=True).order_by("-created_at").first()
     if code is None:
-        return False, "No code is waiting. Request a new one."
+        return False, _("No code is waiting. Request a new one.")
     if code.is_expired:
-        return False, "That code has expired. Request a new one."
+        return False, _("That code has expired. Request a new one.")
     if code.attempts >= LoginCode.MAX_ATTEMPTS:
-        return False, "Too many wrong guesses. Request a new code."
+        return False, _("Too many wrong guesses. Request a new code.")
     if digits != code.code:
         code.attempts += 1
         code.save(update_fields=["attempts"])
         left = LoginCode.MAX_ATTEMPTS - code.attempts
         if left <= 0:
-            return False, "Too many wrong guesses. Request a new code."
-        return False, f"That code is not right. {left} tr{'y' if left == 1 else 'ies'} left."
+            return False, _("Too many wrong guesses. Request a new code.")
+        return False, ngettext(
+            "That code is not right. {left} try left.",
+            "That code is not right. {left} tries left.", left,
+        ).format(left=left)
     code.used_at = timezone.now()
     code.save(update_fields=["used_at"])
     return True, ""

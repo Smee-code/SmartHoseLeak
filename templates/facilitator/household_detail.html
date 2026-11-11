@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 {% block title %}{{ household.household_id }} - {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="wrap">
@@ -9,45 +10,45 @@
     </div>
     <div class="btn-row">
       {# Opens the dialog at the foot of the page; a plain link to the edit page without JavaScript. #}
-      <a class="btn btn-sm" href="{% url 'household_edit' household.pk %}" data-modal-open="household-edit-modal">Edit</a>
-      <a class="btn btn-sm" href="{% url 'household_list' %}">Back to list</a>
+      <a class="btn btn-sm" href="{% url 'household_edit' household.pk %}" data-modal-open="household-edit-modal">{% trans "Edit" %}</a>
+      <a class="btn btn-sm" href="{% url 'household_list' %}">{% trans "Back to list" %}</a>
     </div>
   </div>
 
   <div class="split">
     <div class="card">
-      <div class="card-head"><h2>Record</h2></div>
+      <div class="card-head"><h2>{% trans "Record" %}</h2></div>
       <dl class="definition">
-        <dt>Contact</dt><dd>{{ household.contact_number }}</dd>
-        <dt>Email</dt><dd>{% if household.email %}{{ household.email }}{% else %}<span class="muted">none</span>{% endif %}</dd>
-        <dt>Supply line</dt>
+        <dt>{% trans "Contact" %}</dt><dd>{{ household.contact_number }}</dd>
+        <dt>{% trans "Email" %}</dt><dd>{% if household.email %}{{ household.email }}{% else %}<span class="muted">{% trans "none" %}</span>{% endif %}</dd>
+        <dt>{% trans "Supply line" %}</dt>
         <dd>
           {% if household.segment %}
             {{ household.segment.name }}
             {% with setup=household.device_setup %}
               <span class="pill pill-sm pill-{{ setup.tone }}">{{ setup.label }}</span>
-              {% if setup.code %}<span class="muted small">setup code {{ setup.code }}</span>{% endif %}
+              {% if setup.code %}<span class="muted small">{% trans "setup code" %} {{ setup.code }}</span>{% endif %}
             {% endwith %}
-          {% else %}<span class="muted">Unassigned</span>{% endif %}
+          {% else %}<span class="muted">{% trans "Unassigned" %}</span>{% endif %}
         </dd>
-        <dt>Account</dt><dd>{{ household.get_account_status_display }}</dd>
-        <dt>Registered</dt><dd>{{ household.date_registered }}</dd>
-        <dt>Portal login</dt>
+        <dt>{% trans "Account" %}</dt><dd>{{ household.get_account_status_display }}</dd>
+        <dt>{% trans "Registered" %}</dt><dd>{{ household.date_registered }}</dd>
+        <dt>{% trans "Portal login" %}</dt>
         <dd>
           {% if household.user %}
             <span class="mono">{{ household.user.username }}</span>
             {% if household.user.must_change_password %}
-              <span class="pill pill-warn">temporary password</span>
+              <span class="pill pill-warn">{% trans "temporary password" %}</span>
             {% endif %}
-          {% else %}<span class="muted">No account issued</span>{% endif %}
+          {% else %}<span class="muted">{% trans "No account issued" %}</span>{% endif %}
         </dd>
-        {% if household.notes %}<dt>Notes</dt><dd>{{ household.notes }}</dd>{% endif %}
+        {% if household.notes %}<dt>{% trans "Notes" %}</dt><dd>{{ household.notes }}</dd>{% endif %}
       </dl>
 
       {% if household.user %}
         <form method="post" action="{% url 'household_reset_password' household.pk %}" style="margin-top:1rem">
           {% csrf_token %}
-          <button type="submit" class="btn btn-sm">Issue a new temporary password</button>
+          <button type="submit" class="btn btn-sm">{% trans "Issue a new temporary password" %}</button>
         </form>
         {% comment %}
           The household has no account to read a notice in yet, so a text is
@@ -57,10 +58,10 @@
         {% if household.contact_number %}
           <form method="post" action="{% url 'household_send_credentials' household.pk %}" style="margin-top:.5rem">
             {% csrf_token %}
-            <button type="submit" class="btn btn-sm btn-primary">Text login details to {{ household.contact_number }}</button>
+            <button type="submit" class="btn btn-sm btn-primary">{% blocktrans trimmed with number=household.contact_number %}Text login details to {{ number }}{% endblocktrans %}</button>
           </form>
           <p class="helptext" style="margin-top:.35rem">
-            Issues a new temporary password and texts it with the username.
+            {% trans "Issues a new temporary password and texts it with the username." %}
           </p>
         {% endif %}
       {% endif %}
@@ -72,29 +73,29 @@
         person to the door.
       {% endcomment %}
       <div style="margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--border)">
-        <h3 style="margin:0 0 .35rem;font-size:.95rem">Getting there</h3>
+        <h3 style="margin:0 0 .35rem;font-size:.95rem">{% trans "Getting there" %}</h3>
         {% if not household.has_location %}
           <p class="small muted" style="margin:0">
-            No coordinates on this record yet. Add latitude and longitude (Edit) to get a road route and directions.
+            {% trans "No coordinates on this record yet. Add latitude and longitude (Edit) to get a road route and directions." %}
           </p>
         {% else %}
           {% if household.visit_route %}
             <p class="small" style="margin:0 0 .5rem">
-              Road from the water source: <strong>{{ household.visit_route_label }}</strong>. Drawn on the dashboard map.
+              {% blocktrans trimmed with route=household.visit_route_label %}Road from the water source: <strong>{{ route }}</strong>. Drawn on the dashboard map.{% endblocktrans %}
             </p>
           {% elif household.visit_route_error %}
-            <p class="small muted" style="margin:0 0 .5rem">Route not available: {{ household.visit_route_error }}.</p>
+            <p class="small muted" style="margin:0 0 .5rem">{% blocktrans trimmed with error=household.visit_route_error %}Route not available: {{ error }}.{% endblocktrans %}</p>
           {% else %}
-            <p class="small muted" style="margin:0 0 .5rem">Road route not fetched yet.</p>
+            <p class="small muted" style="margin:0 0 .5rem">{% trans "Road route not fetched yet." %}</p>
           {% endif %}
           <div class="btn-row">
             {% if household.navigate_url %}
-              <a class="btn btn-sm btn-primary" href="{{ household.navigate_url }}" target="_blank" rel="noopener">Navigate (Google Maps)</a>
+              <a class="btn btn-sm btn-primary" href="{{ household.navigate_url }}" target="_blank" rel="noopener">{% trans "Navigate (Google Maps)" %}</a>
             {% endif %}
             {% if routing_ready %}
               <form method="post" action="{% url 'household_refresh_route' household.pk %}" style="display:inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-sm">{% if household.visit_route %}Refetch route{% else %}Fetch route{% endif %}</button>
+                <button type="submit" class="btn btn-sm">{% if household.visit_route %}{% trans "Refetch route" %}{% else %}{% trans "Fetch route" %}{% endif %}</button>
               </form>
             {% endif %}
           </div>
@@ -104,7 +105,7 @@
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>Current reading</h2></div>
+      <div class="card-head"><h2>{% trans "Current reading" %}</h2></div>
       {% with latest=household.segment.latest %}
         {% if latest %}
           <div class="big-readout">
@@ -113,10 +114,10 @@
             <p style="margin-top:.6rem">
               <span class="pill pill-{{ household.segment.status }}">{{ household.segment.get_status_display }}</span>
             </p>
-            <p class="small muted">Updated <span data-ago="{{ latest.updated_at|date:'c' }}"></span></p>
+            <p class="small muted">{% trans "Updated" %} <span data-ago="{{ latest.updated_at|date:'c' }}"></span></p>
           </div>
         {% else %}
-          <p class="empty">No readings for this supply line yet.</p>
+          <p class="empty">{% trans "No readings for this supply line yet." %}</p>
         {% endif %}
       {% endwith %}
     </div>
@@ -133,7 +134,7 @@
     {% endcomment %}
     <div class="card">
       <div class="card-head">
-        <h2>Complaints</h2>
+        <h2>{% trans "Complaints" %}</h2>
         <span class="small muted">{{ complaints|length }}</span>
       </div>
       <div class="sent-feed">
@@ -147,13 +148,13 @@
             <time class="sent-time">{{ complaint.created_at|date:"M j" }}</time>
           </a>
         {% empty %}
-          <p class="empty">No complaints filed by this household.</p>
+          <p class="empty">{% trans "No complaints filed by this household." %}</p>
         {% endfor %}
       </div>
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>Notices sent</h2></div>
+      <div class="card-head"><h2>{% trans "Notices sent" %}</h2></div>
       <div class="sent-feed">
         {% for row in notifications %}
           {% with n=row.notification %}
@@ -164,7 +165,7 @@
                   <span class="sent-text">{{ n.body|truncatechars:64 }}</span>
                   <span class="sent-meta">
                     {{ row.complaint.reference }}
-                    {% if row.also %}&middot; +{{ row.also }} more repl{{ row.also|pluralize:"y,ies" }}{% endif %}
+                    {% if row.also %}&middot; {% blocktrans trimmed count n=row.also %}+{{ n }} more reply{% plural %}+{{ n }} more replies{% endblocktrans %}{% endif %}
                   </span>
                 </span>
                 <time class="sent-time">{{ n.created_at|date:"M j" }}</time>
@@ -176,7 +177,7 @@
                   <span class="sent-text"><strong>{{ n.title }}</strong> &mdash; {{ n.body|truncatechars:54 }}</span>
                   <span class="sent-meta">
                     {{ n.get_kind_display }} &middot;
-                    {% if n.read_at %}read{% else %}unread{% endif %}
+                    {% if n.read_at %}{% trans "read" %}{% else %}{% trans "unread" %}{% endif %}
                   </span>
                 </span>
                 <time class="sent-time">{{ n.created_at|date:"M j" }}</time>
@@ -184,7 +185,7 @@
             {% endif %}
           {% endwith %}
         {% empty %}
-          <p class="empty">No notices sent to this household yet.</p>
+          <p class="empty">{% trans "No notices sent to this household yet." %}</p>
         {% endfor %}
       </div>
     </div>
@@ -201,10 +202,10 @@
       {% csrf_token %}
       <div class="modal-head">
         <div>
-          <h2 id="household-edit-title">Edit household</h2>
+          <h2 id="household-edit-title">{% trans "Edit household" %}</h2>
           <p class="sub">{{ household.household_id }}</p>
         </div>
-        <button type="button" class="icon-btn" data-modal-close aria-label="Close">
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
@@ -221,8 +222,8 @@
         {% include "_form_field.html" with field=edit_form.notes %}
       </div>
       <div class="modal-foot">
-        <button type="button" class="btn" data-modal-close>Cancel</button>
-        <button type="submit" class="btn btn-primary">Save changes</button>
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-primary">{% trans "Save changes" %}</button>
       </div>
     </form>
   </div>

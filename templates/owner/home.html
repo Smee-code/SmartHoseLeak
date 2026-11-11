@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}My water supply - {{ SITE_NAME }}{% endblock %}
+{% load i18n %}
+{% block title %}{% trans "My water supply" %} - {{ SITE_NAME }}{% endblock %}
 {% block body_class %}is-owner{% endblock %}
 
 {% comment %}
@@ -18,7 +19,7 @@
 {% block content %}
 <div class="wrap-narrow owner-page">
 
-  <p class="owner-greeting">Hello, {{ household.owner_name }}</p>
+  <p class="owner-greeting">{% blocktrans trimmed with name=household.owner_name %}Hello, {{ name }}{% endblocktrans %}</p>
 
   {% if segment %}
     {% comment %}
@@ -31,30 +32,71 @@
     {% endcomment %}
     <section class="water-state" data-segment-id="{{ segment.id }}"
              data-status="{{ segment.status }}" aria-live="polite">
-      <p class="water-state-head" data-field="state">Checking&hellip;</p>
-      <p class="water-state-sub" data-field="statenote">Getting the latest reading from your line.</p>
+      <p class="water-state-head" data-field="state">{% trans "Checking&hellip;" %}</p>
+      <p class="water-state-sub" data-field="statenote">{% trans "Getting the latest reading from your line." %}</p>
 
       <dl class="water-reading">
         <div>
-          <dt>Pressure</dt>
+          <dt>{% trans "Pressure" %}</dt>
           <dd><span data-field="pressure_bar">--</span> bar</dd>
         </div>
         <div>
-          <dt>Water flowing</dt>
+          <dt>{% trans "Water flowing" %}</dt>
           <dd><span data-field="flow_lpm">--</span> L/min</dd>
         </div>
         <div>
-          <dt>Checked</dt>
-          <dd data-field="updated">not yet</dd>
+          <dt>{% trans "Checked" %}</dt>
+          <dd data-field="updated">{% trans "not yet" %}</dd>
         </div>
       </dl>
+
+      {% comment %}
+        The motorised valve on this household's line: whether water can flow,
+        why it cannot when it cannot, and the one button that applies. Hidden
+        until the board reports a valve is fitted - a button that silently
+        does nothing teaches people to distrust the ones that work.
+
+        Inside the water-state block so the live poll finds it with the rest
+        of the line's fields. A close asks first: this shuts off their water.
+        A line the administrator sealed shows why the Open button is missing
+        rather than offering one that would be refused.
+      {% endcomment %}
+      {% if segment.has_device %}
+      <div class="owner-valve" data-valve-control data-valve-role="household" hidden>
+        <div class="owner-valve-row">
+          <span class="owner-valve-label">{% trans "Water valve" %}</span>
+          <strong class="owner-valve-state" data-field="valve_state_text">--</strong>
+        </div>
+        <p class="owner-valve-detail" data-field="valve_detail"></p>
+        <div class="owner-valve-actions">
+          <form method="post" action="{% url 'segment_valve_command' segment.pk %}" data-valve-open hidden>
+            {% csrf_token %}
+            <input type="hidden" name="command" value="open">
+            <input type="hidden" name="next" value="{% url 'owner_home' %}">
+            <button type="submit" class="btn owner-valve-btn">{% trans "Open my valve" %}</button>
+          </form>
+          <form method="post" action="{% url 'segment_valve_command' segment.pk %}" data-valve-close hidden
+                data-confirm="{% trans 'Close your water valve? This shuts off your water until you open it again.' %}">
+            {% csrf_token %}
+            <input type="hidden" name="command" value="close">
+            <input type="hidden" name="next" value="{% url 'owner_home' %}">
+            <button type="submit" class="btn owner-valve-btn owner-valve-btn-close">{% trans "Close my valve" %}</button>
+          </form>
+          <p class="owner-valve-locked" data-valve-locked hidden>
+            {% trans "The administrator closed your line. Only the administrator can open it again." %}
+          </p>
+        </div>
+      </div>
+      {% endif %}
     </section>
   {% else %}
     <section class="water-state" data-status="OFFLINE">
-      <p class="water-state-head">Not connected yet</p>
+      <p class="water-state-head">{% trans "Not connected yet" %}</p>
       <p class="water-state-sub">
+        {% blocktrans trimmed %}
         Your household has no hose line set up. Ask the water system facilitator
         to add one, and readings will appear here.
+        {% endblocktrans %}
       </p>
     </section>
   {% endif %}
@@ -65,9 +107,9 @@
     one; the card does not exist otherwise.
   {% endcomment %}
   {% if next_visit %}
-    <section class="owner-visit" aria-label="Next visit">
+    <section class="owner-visit" aria-label="{% trans 'Next visit' %}">
       <p class="owner-visit-head">
-        A facilitator is coming{% if next_visit.scheduled_for %} on {{ next_visit.scheduled_for|date:"l, M j" }}{% else %} soon{% endif %}
+        {% if next_visit.scheduled_for %}{% blocktrans trimmed with day=next_visit.scheduled_for|date:"l, M j" %}A facilitator is coming on {{ day }}{% endblocktrans %}{% else %}{% trans "A facilitator is coming soon" %}{% endif %}
       </p>
       <p class="owner-visit-sub">
         {{ next_visit.title }}{% if next_visit.assigned_to %} &middot; {{ next_visit.assigned_to.get_full_name|default:next_visit.assigned_to.username }}{% endif %}
@@ -79,10 +121,10 @@
     The past week in three numbers: has anything happened, without reading
     the feed. Only alerts turn red; the others are just counts.
   {% endcomment %}
-  <dl class="owner-week" aria-label="The past 7 days">
-    <div><dt>Alerts, past 7 days</dt><dd{% if week_alerts %} class="is-live"{% endif %}>{{ week_alerts }}</dd></div>
-    <div><dt>Notices, past 7 days</dt><dd>{{ week_notices }}</dd></div>
-    <div><dt>Open complaints</dt><dd>{{ open_complaints }}</dd></div>
+  <dl class="owner-week" aria-label="{% trans 'The past 7 days' %}">
+    <div><dt>{% trans "Alerts, past 7 days" %}</dt><dd{% if week_alerts %} class="is-live"{% endif %}>{{ week_alerts }}</dd></div>
+    <div><dt>{% trans "Notices, past 7 days" %}</dt><dd>{{ week_notices }}</dd></div>
+    <div><dt>{% trans "Open complaints" %}</dt><dd>{{ open_complaints }}</dd></div>
   </dl>
 
   {% comment %}
@@ -90,25 +132,25 @@
     says what happens rather than naming a form.
   {% endcomment %}
   <a class="owner-action" href="{% url 'owner_complaints' %}">
-    Report a problem with my water
+    {% trans "Report a problem with my water" %}
   </a>
 
   {% comment %}
     Two quiet links instead of two more cards. They are navigation, and the
     header menu already carries it - this is a shortcut, not a feature list.
   {% endcomment %}
-  <nav class="owner-links" aria-label="More">
+  <nav class="owner-links" aria-label="{% trans 'More' %}">
     <a href="{% url 'owner_pressure' %}">
-      See my pressure history
+      {% trans "See my pressure history" %}
     </a>
     <a href="{% url 'owner_complaints' %}">
-      My complaints{% if open_complaints %} <span class="owner-count">{{ open_complaints }} open</span>{% endif %}
+      {% trans "My complaints" %}{% if open_complaints %} <span class="owner-count">{% blocktrans trimmed count n=open_complaints %}{{ n }} open{% plural %}{{ n }} open{% endblocktrans %}</span>{% endif %}
     </a>
   </nav>
 
   <section class="owner-section">
     <h2>
-      Notices
+      {% trans "Notices" %}
       {% if unread %}<span class="badge">{{ unread }}</span>{% endif %}
     </h2>
 
@@ -120,14 +162,16 @@
         </article>
       {% empty %}
         <p class="owner-empty">
+          {% blocktrans trimmed %}
           Nothing yet. Alerts about your water and messages from the facilitator
           will show up here.
+          {% endblocktrans %}
         </p>
       {% endfor %}
     </div>
 
     {% if recent_notifications %}
-      <a class="owner-more" href="{% url 'owner_notifications' %}">All notices ({{ notice_total }}{% if unread %}, {{ unread }} unread{% endif %})</a>
+      <a class="owner-more" href="{% url 'owner_notifications' %}">{% if unread %}{% blocktrans trimmed with total=notice_total %}All notices ({{ total }}, {{ unread }} unread){% endblocktrans %}{% else %}{% blocktrans trimmed with total=notice_total %}All notices ({{ total }}){% endblocktrans %}{% endif %}</a>
     {% endif %}
   </section>
 </div>
