@@ -680,7 +680,8 @@ void uploadReadings() {
     // reads as the leak test and not as a fault.
     "\"valve_reason\":\"" + valveReason + "\""
     "}],"
-    "\"wifi_ssid\":\"" + jsonEscape(cfgSSID) + "\"" +
+    "\"wifi_ssid\":\"" + jsonEscape(cfgSSID) + "\"," +
+    "\"lan_ip\":\"" + WiFi.localIP().toString() + "\"" +
     (reportWifiId.length() ? ",\"wifi_change\":\"" + reportWifiId + "\",\"wifi_ok\":" + String(reportWifiOk ? "true" : "false") : String("")) +
     "}";
 

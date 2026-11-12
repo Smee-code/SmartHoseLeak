@@ -1888,6 +1888,10 @@ SHL.initOwnerDevice = function () {
     }
 
     var code2 = pick('code2'); if (code2) code2.textContent = state.code || '';
+    var boardLink = pick('board-link');
+    if (boardLink && state.board_url) boardLink.href = state.board_url;
+    var boardNote = pick('board-link-note');
+    if (boardNote) boardNote.textContent = state.board_url_note || '';
     var wifi = pick('wifi');
     if (wifi) {
       wifi.hidden = !state.can_change_wifi;

@@ -37,9 +37,27 @@ def _state(key, label, tone, note, **extra):
         "can_reissue": False, "can_resend": False, "show_steps": False, "connected": False,
         "wifi_ssid": "", "wifi_pending": "", "wifi_pending_ago": "", "wifi_result": "",
         "wifi_result_ago": "", "can_change_wifi": False,
+        "board_url": "http://192.168.4.1/",
+        "board_url_note": _("Opens while your phone is on the board's own WiFi, {ssid}.").format(
+            ssid=settings.BOARD_SETUP_SSID),
     }
     base.update(extra)
     return base
+
+
+def _board_link(device, connected):
+    """
+    Where the board's own page is right now. On its hotspot it is always
+    192.168.4.1; once it is on the home WiFi it is the address it reported,
+    reachable from a phone on that same WiFi.
+    """
+    if connected and device is not None and device.lan_ip:
+        return {
+            "board_url": f"http://{device.lan_ip}/",
+            "board_url_note": _("Opens while your phone is on the same WiFi as the board ({ssid}).").format(
+                ssid=device.wifi_ssid or "?"),
+        }
+    return {}
 
 
 def _wifi_fields(device, now):
@@ -82,7 +100,7 @@ def device_setup(household, now=None):
             return _state(
                 "connected", _("Connected"), "ok",
                 _("Your board is sending readings. Last heard {last_seen}.").format(last_seen=common['last_seen']),
-                connected=True, **common,
+                connected=True, **common, **_board_link(device, True),
             )
         return _state(
             "lost", _("Problem: connection lost"), "danger",

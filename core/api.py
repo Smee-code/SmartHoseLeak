@@ -649,6 +649,12 @@ def ingest(request):
         if reported_ssid != device.wifi_ssid:
             device.wifi_ssid = reported_ssid
             fields.append("wifi_ssid")
+        lan_ip = str(payload.get("lan_ip") or "").strip()
+        if lan_ip and not _looks_like_ipv4(lan_ip):
+            lan_ip = ""
+        if (lan_ip or None) != device.lan_ip:
+            device.lan_ip = lan_ip or None
+            fields.append("lan_ip")
         device.save(update_fields=fields)
         # The board answers a WiFi change by its id, once, whichever way it
         # went. Matching the id (not the name) means a change to the password
@@ -673,6 +679,11 @@ def ingest(request):
             "config": _device_config(segments, device),
         }
     )
+
+
+def _looks_like_ipv4(value):
+    parts = value.split(".")
+    return len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts)
 
 
 def _finish_wifi_change(device, ok, reported_ssid, segments):

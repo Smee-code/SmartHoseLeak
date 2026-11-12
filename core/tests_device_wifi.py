@@ -62,6 +62,23 @@ class GuidedSetupTests(_Portal):
         self.assertEqual(self.device.pending_wifi_ssid, "")                # refused: never connected
 
 
+class BoardLinkTests(_Portal):
+    def test_hotspot_address_until_the_board_is_online(self):
+        state = self.client.get(reverse("owner_device_status")).json()
+        self.assertEqual(state["board_url"], "http://192.168.4.1/")
+        page = self.client.get(reverse("owner_settings")).content.decode()
+        self.assertIn('href="http://192.168.4.1/"', page)
+
+    def test_the_boards_home_address_once_online(self):
+        self._ingest(wifi_ssid="HomeNet", lan_ip="192.168.1.57")
+        state = self.client.get(reverse("owner_device_status")).json()
+        self.assertEqual(state["board_url"], "http://192.168.1.57/")
+        self.assertIn("HomeNet", state["board_url_note"])
+        self._ingest(wifi_ssid="HomeNet", lan_ip="not-an-ip")
+        self.device.refresh_from_db()
+        self.assertIsNone(self.device.lan_ip)
+
+
 class WifiChangeTests(_Portal):
     def setUp(self):
         super().setUp()

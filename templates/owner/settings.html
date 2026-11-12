@@ -83,6 +83,9 @@
               {% if device.key == 'connected' or device.key == 'no_board' or device.key == 'awaiting_activation' %}hidden{% endif %}>
         {% if device.key == 'lost' %}{% trans "What to check" %}{% elif device.key == 'claimed_silent' %}{% trans "Set up again" %}{% elif device.key == 'connecting' %}{% trans "Setup steps" %}{% else %}{% trans "Set up my board" %}{% endif %}
       </button>
+      {# The board's own page: its hotspot address, or its home-WiFi address once it is online. #}
+      <a class="owner-action" style="margin-top:.5rem" data-device="board-link" href="{{ device.board_url }}" target="_blank" rel="noopener">{% trans "Open the board's page" %}</a>
+      <p class="set-note small" data-device="board-link-note">{{ device.board_url_note }}</p>
     </div>
   </section>
 

@@ -174,6 +174,11 @@ class Device(models.Model):
     )
     last_seen = models.DateTimeField(null=True, blank=True)
     last_ip = models.GenericIPAddressField(null=True, blank=True)
+    # The board's address on the household's own WiFi, as the board reports
+    # it (last_ip is the router's public address once the server is hosted,
+    # which is no use for reaching the board). The owner's "Open the board's
+    # page" button points here while the board is online.
+    lan_ip = models.GenericIPAddressField(null=True, blank=True)
     firmware_note = models.CharField(max_length=200, blank=True)
 
     # Changing the WiFi of a board that is already online, from the portal.
