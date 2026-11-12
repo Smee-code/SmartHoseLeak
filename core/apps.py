@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.conf import settings
 from django.db.backends.signals import connection_created
 
 
@@ -20,14 +21,20 @@ def tune_sqlite(sender, connection, **kwargs):
     if connection.vendor != "sqlite":
         return
 
+    mode = getattr(settings, "SQLITE_JOURNAL_MODE", "WAL")
+    if mode not in {"WAL", "DELETE", "TRUNCATE", "PERSIST"}:
+        mode = "WAL"
     with connection.cursor() as cursor:
-        # Readers carry on while a write is in progress, which removes nearly
-        # all of the contention rather than just making it rarer.
-        cursor.execute("PRAGMA journal_mode=WAL;")
-        # The matching durability setting under WAL: still crash-safe, without
-        # an fsync per transaction - which is what costs most on removable
-        # media.
-        cursor.execute("PRAGMA synchronous=NORMAL;")
+        # Under WAL readers carry on while a write is in progress, which
+        # removes nearly all of the contention rather than just making it
+        # rarer. On a network filesystem (PythonAnywhere) WAL is unsafe and
+        # the setting picks the plain rollback journal instead - see
+        # SQLITE_JOURNAL_MODE in config/settings.py.
+        cursor.execute(f"PRAGMA journal_mode={mode};")
+        # Durability to match: under WAL, NORMAL is still crash-safe without
+        # an fsync per transaction (the expensive part on removable media);
+        # a rollback journal needs FULL to be crash-safe.
+        cursor.execute("PRAGMA synchronous=%s;" % ("NORMAL" if mode == "WAL" else "FULL"))
         # Keep scratch files out of the system temp folder, which has been
         # full enough on this machine to fail a query outright.
         cursor.execute("PRAGMA temp_store=MEMORY;")

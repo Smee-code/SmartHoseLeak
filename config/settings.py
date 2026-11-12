@@ -206,6 +206,18 @@ else:
         }
     }
 
+# SQLite journal: WAL lets readers and the writer overlap, which is what a
+# laptop serving the ESP32 and several dashboards needs. But WAL keeps its
+# index in shared memory and SQLite says plainly it does not work on a
+# network filesystem - and PythonAnywhere's home directory is one. There, two
+# processes (the web app and the send_sms worker) writing under WAL corrupted
+# a table on 12 Nov 2026. So: rollback journal (DELETE) whenever the
+# PythonAnywhere environment is detected, WAL elsewhere; SQLITE_JOURNAL_MODE
+# in .env overrides either way (set it to DELETE on any shared/network disk).
+SQLITE_JOURNAL_MODE = env(
+    "SQLITE_JOURNAL_MODE", "DELETE" if "PYTHONANYWHERE_DOMAIN" in os.environ else "WAL"
+).strip().upper()
+
 AUTH_USER_MODEL = "core.User"
 
 # Sign in with a username or an email address. The backend subclasses

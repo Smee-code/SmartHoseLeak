@@ -1429,6 +1429,29 @@ The server log shows "database is locked" and a POST /api/ingest/ 500
     If it ever returns, the usual cause is the database file being on slow
     or failing storage - it lives on the USB drive. Copying the project to
     the internal drive would make it far less likely.
+    WAL is for the laptop only. On PythonAnywhere the app uses the plain
+    rollback journal (SQLITE_JOURNAL_MODE, section 16) because WAL on that
+    kind of disk corrupted the database - see "PRAGMA integrity_check" below.
+
+migrate fails with "IntegrityError: ... contains a value 'N' that does not
+have a corresponding value in core_segment.id" although the row exists
+    First try  python manage.py repair_links  (a genuinely dangling pointer,
+    section 3d). If it clears 0 and migrate still fails, the file itself is
+    damaged. Check:
+        python manage.py shell -c "from django.db import connection as c; print(c.cursor().execute('PRAGMA integrity_check').fetchall())"
+    Anything but [('ok',)] means corruption ("Rowid 0 out of order", "row N
+    missing from index", "NULL value in ..."). Recovery, in the console,
+    with the web app's Always-on task disabled first so nothing writes:
+        cp db.sqlite3 ~/db.sqlite3.corrupt-$(date +%F)
+        sqlite3 db.sqlite3 ".recover" | sqlite3 ~/db.recovered.sqlite3
+        sqlite3 ~/db.recovered.sqlite3 "PRAGMA integrity_check"      -> ok
+        mv db.sqlite3 ~/db.sqlite3.old; rm -f db.sqlite3-wal db.sqlite3-shm
+        mv ~/db.recovered.sqlite3 db.sqlite3
+        python manage.py repair_links && python manage.py migrate
+    then Reload on the Web tab and re-enable the task. Rows .recover could
+    not read land in a table called lost_and_found; damaged hose lines may
+    have to be re-created in the console (Hose lines) and re-linked to
+    their households. Happened 12 Nov 2026 - cause: WAL on PythonAnywhere.
 
 The map fills with yellow "Access blocked" tiles
     OpenStreetMap could not tell which app was asking and served a blocked
@@ -2091,11 +2114,18 @@ THE ONE THING THAT DOES NOT SCALE YET
 
     3. Create the .env file (it is gitignored, so it is not in the clone):
            nano .env
-       Put in at least these four lines:
+       Put in at least these five lines:
            DEBUG=False
            SECRET_KEY=<paste a fresh key - see below>
            ALLOWED_HOSTS=<you>.pythonanywhere.com
            CSRF_TRUSTED_ORIGINS=
+           SQLITE_JOURNAL_MODE=DELETE
+
+       SQLITE_JOURNAL_MODE=DELETE matters: the laptop uses SQLite's WAL mode,
+       which is unsafe on PythonAnywhere's networked disk and corrupted the
+       database once (section 12). The app also switches to DELETE by itself
+       when it sees PythonAnywhere's environment, so the line is a belt to
+       those braces.
 
        Generate the key in the same console:
            python -c "from django.core.management.utils import get_random_secret_key as g; print(g())"
@@ -2184,6 +2214,14 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+12 Nov 2026  The PythonAnywhere database was found corrupted ("Rowid 0 out
+             of order" on the hose-line table): SQLite's WAL mode, which the
+             app set on every connection, is unsafe on a network filesystem
+             with two writing processes (web app + send_sms worker). New
+             SQLITE_JOURNAL_MODE setting - DELETE automatically on
+             PythonAnywhere, WAL elsewhere, .env overrides. Recovery steps in
+             section 12; deploy step 3 in section 16 gained the .env line.
+
 12 Nov 2026  "Open the board's page" button on the owner's device card, in
              every state: the hotspot address until the board is online,
              then the address the board reports on the home WiFi (new
