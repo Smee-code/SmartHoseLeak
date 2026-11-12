@@ -215,6 +215,11 @@ IF A HOUSEHOLD'S PORTAL SHOWS "Something went wrong" AFTER A RESTORE
   record at once, in the console:
       python manage.py repair_links
   The Restore button runs the same repair after loading a backup.
+  The same broken pointer also stops "python manage.py migrate" with
+  "IntegrityError: ... core_household.segment_id contains a value 'N' that
+  does not have a corresponding value in core_segment.id" (SQLite checks
+  every foreign key when a migration rebuilds a table). Run repair_links
+  first, then migrate again. Seen on PythonAnywhere, 12 Nov 2026.
 
 HOUSEHOLDS: ARCHIVE, DELETE, AND THE DUPLICATE WARNING  (console -> Households)
   - Archive hides a household from the admin's list and disables the owner's
