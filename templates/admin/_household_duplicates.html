@@ -1,0 +1,30 @@
+{% load i18n %}
+{% comment %}
+  Shown inside the register form when the typed contact number or email is
+  already on a household. Each match links to the record; an archived one
+  offers to be restored instead (formaction posts this same form to the
+  restore view, which ignores the other fields). The checkbox lets the admin
+  go ahead when it really is a second household on the same number.
+{% endcomment %}
+{% if form.duplicates %}
+  <div class="message message-warning" style="display:block">
+    <p style="margin:0 0 .4rem"><strong>{% trans "Already registered with this contact number or email:" %}</strong></p>
+    <ul style="margin:0 0 .6rem 1.1rem;padding:0">
+      {% for d in form.duplicates %}
+        <li style="margin-bottom:.3rem">
+          {% if d.is_archived %}
+            {{ d.household_id }} &middot; {{ d.owner_name }}, {{ d.address }}
+            <span class="muted">({% trans "archived" %})</span>
+            <button type="submit" class="btn btn-sm" style="margin-left:.4rem"
+                    formaction="{% url 'archive_restore_household' d.pk %}" formmethod="post" formnovalidate>
+              {% trans "Restore it instead" %}
+            </button>
+          {% else %}
+            <a href="{% url 'admin_household_list' %}?q={{ d.household_id }}">{{ d.household_id }} &middot; {{ d.owner_name }}, {{ d.address }}</a>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    {% include "_form_field.html" with field=form.confirm_duplicate %}
+  </div>
+{% endif %}

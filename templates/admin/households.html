@@ -88,12 +88,18 @@
                    data-lat="{{ household.latitude|default_if_none:'' }}"
                    data-lng="{{ household.longitude|default_if_none:'' }}"
                    data-notes="{{ household.notes }}">{% trans "Edit" %}</a>
-                <button type="button" class="btn btn-sm btn-quiet-danger"
+                <button type="button" class="btn btn-sm"
                         data-delete-household
                         data-action="{% url 'admin_household_delete' household.pk %}"
                         data-hid="{{ household.household_id }}"
+                        data-owner="{{ household.owner_name }}">{% trans "Archive" %}</button>
+                <button type="button" class="btn btn-sm btn-quiet-danger"
+                        data-destroy-household
+                        data-action="{% url 'admin_household_destroy' household.pk %}"
+                        data-hid="{{ household.household_id }}"
                         data-owner="{{ household.owner_name }}"
                         data-login="{% if household.user %}{{ household.user.username }}{% endif %}"
+                        data-line="{% if household.segment_id %}1{% endif %}"
                         data-complaints="{{ household.complaint_count }}"
                         data-notices="{{ household.notification_count }}">{% trans "Delete" %}</button>
               </div>
@@ -142,6 +148,7 @@
         {% if create_form.non_field_errors %}
           <div class="message message-error"><span>{{ create_form.non_field_errors }}</span></div>
         {% endif %}
+        {% include "admin/_household_duplicates.html" with form=create_form %}
 
         <div class="field">
           <label>{% trans "Household ID" %}</label>
@@ -305,4 +312,5 @@
     </form>
   </div>
 </div>
+{% include "admin/_household_destroy_dialog.html" %}
 {% endblock %}

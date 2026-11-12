@@ -395,6 +395,53 @@ if (typeof window.gettext !== 'function') {
     });
   });
 
+  // Permanent delete: the row fills the dialog, and the household ID has to
+  // be typed back before the button wakes up.
+  $$('[data-destroy-household]').forEach(function (trigger) {
+    trigger.addEventListener('click', function () {
+      var modal = $('#household-destroy-modal');
+      var form = $('#household-destroy-form');
+      if (!modal || !form) return;
+      form.setAttribute('action', trigger.getAttribute('data-action'));
+      var hid = trigger.getAttribute('data-hid');
+      var owner = trigger.getAttribute('data-owner');
+      var subtitle = $('[data-destroy-subtitle]', modal);
+      if (subtitle) subtitle.textContent = hid + ' · ' + owner;
+      var name = $('[data-destroy-name]', modal);
+      if (name) name.textContent = hid + ' (' + owner + ')';
+      var hidSpan = $('[data-destroy-hid]', modal);
+      if (hidSpan) hidSpan.textContent = hid;
+      var list = $('[data-destroy-list]', modal);
+      if (list) {
+        var items = [];
+        var complaints = Number(trigger.getAttribute('data-complaints') || 0);
+        var notices = Number(trigger.getAttribute('data-notices') || 0);
+        items.push(complaints + ' ' + (complaints === 1 ? gettext('complaint') : gettext('complaints')));
+        items.push(notices + ' ' + (notices === 1 ? gettext('notice') : gettext('notices')));
+        if (trigger.getAttribute('data-line')) items.push(gettext('its hose line and every reading on it'));
+        var login = trigger.getAttribute('data-login');
+        if (login) items.push(gettext('the Owner Portal login “{login}”').replace('{login}', login));
+        list.innerHTML = '';
+        items.forEach(function (text) {
+          var li = document.createElement('li');
+          li.textContent = text;
+          list.appendChild(li);
+        });
+      }
+      var input = $('[data-destroy-confirm]', modal);
+      var submit = $('[data-destroy-submit]', modal);
+      if (input && submit) {
+        input.value = '';
+        submit.disabled = true;
+        input.oninput = function () {
+          submit.disabled = input.value.trim().toUpperCase() !== String(hid).toUpperCase();
+        };
+      }
+      openModal(modal);
+      if (input) input.focus();
+    });
+  });
+
   $$('[data-delete-household]').forEach(function (trigger) {
     trigger.addEventListener('click', function () {
       var modal = $('#household-delete-modal');

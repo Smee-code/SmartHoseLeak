@@ -29,10 +29,21 @@
               <td>{{ household.contact_number }}</td>
               <td class="small muted">{{ household.archived_at|date:"M j, Y H:i" }}</td>
               <td>
-                <form method="post" action="{% url 'archive_restore_household' household.pk %}">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-primary">{% trans "Restore" %}</button>
-                </form>
+                <div class="btn-row" style="flex-wrap:nowrap">
+                  <form method="post" action="{% url 'archive_restore_household' household.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-primary">{% trans "Restore" %}</button>
+                  </form>
+                  <button type="button" class="btn btn-sm btn-quiet-danger"
+                          data-destroy-household
+                          data-action="{% url 'admin_household_destroy' household.pk %}"
+                          data-hid="{{ household.household_id }}"
+                          data-owner="{{ household.owner_name }}"
+                          data-login="{% if household.user %}{{ household.user.username }}{% endif %}"
+                          data-line="{% if household.segment_id %}1{% endif %}"
+                          data-complaints="{{ household.complaints.count }}"
+                          data-notices="{{ household.notifications.count }}">{% trans "Delete" %}</button>
+                </div>
               </td>
             </tr>
           {% empty %}
@@ -42,6 +53,7 @@
       </table>
     </div>
   </div>
+  {% include "admin/_household_destroy_dialog.html" with destroy_from="archive" %}
 
   <div class="card" style="margin-top:1.5rem">
     <div class="card-head"><h2>{% trans "Facilitators" %}</h2></div>

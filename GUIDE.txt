@@ -207,6 +207,27 @@ DATA & BACKUPS  (console sidebar -> System -> Data & backups)
     the backup and adds any it is missing; it does NOT delete newer rows. You
     must type RESTORE to confirm. Built on Django's dumpdata/loaddata.
 
+HOUSEHOLDS: ARCHIVE, DELETE, AND THE DUPLICATE WARNING  (console -> Households)
+  - Archive hides a household from the admin's list and disables the owner's
+    login. Nothing is removed: its line, readings, events, complaints and
+    notices stay, and Console -> Archive -> Restore brings it all back. Note
+    that an archived household's line still shows on the facilitator's
+    screens and the map, and still alerts, until it is deleted or restored.
+  - Delete (the red button on the list and on the Archive page) is for
+    good. It removes the household, its login, its hose line with every
+    reading and event, its complaints, notices and work orders. The BOARD
+    is kept and becomes a spare for the next household. The household ID
+    has to be typed back in the dialog, and the server checks it again.
+    Use it for a duplicate registration or a test entry; for anything
+    else, archive.
+  - Registering a contact number or email that is already on a household
+    (archived or not) stops with a warning naming the match: a link to the
+    existing record, or "Restore it instead" when it is archived. Tick
+    "Register anyway" only when it really is a second household sharing a
+    phone. Before this, the same owner registered twice got a second
+    household, a second login (name2) and a second set of texts, which is
+    how an emailed password turns out to belong to the other account.
+
 AUDIT LOG  (console sidebar -> System -> Audit log)
   Who did what, and when: account suspensions and deletions, facilitator
   creation, work-order approvals and rejections, announcements, backups,
@@ -2091,6 +2112,15 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+12 Nov 2026  Delete, beside Archive. The admin's Households list and the
+             Archive page both have a permanent Delete (typed household ID
+             to confirm; removes the login, the line and its readings, the
+             complaints and notices; keeps the board as a spare). The
+             facilitator's Delete now removes the hose line too. Registering
+             a contact number or email already on a household stops with a
+             warning, a link to the match or "Restore it instead" for an
+             archived one, and a "Register anyway" tick. core/tests_households.py.
+
 11 Nov 2026  Pre-deployment walk-through, and what it found. New test module
              core/tests_walk.py signs in as each role, follows every link,
              and presses Save on every form three times (empty, junk with a

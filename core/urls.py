@@ -122,6 +122,7 @@ urlpatterns = [
     path("console/households/new/", views.admin_household_create, name="admin_household_create"),
     path("console/households/<int:pk>/edit/", views.admin_household_edit, name="admin_household_edit"),
     path("console/households/<int:pk>/delete/", views.admin_household_delete, name="admin_household_delete"),
+    path("console/households/<int:pk>/destroy/", views.admin_household_destroy, name="admin_household_destroy"),
     path("console/accounts/", views.account_list, name="account_list"),
     path("console/accounts/<int:pk>/edit/", views.account_edit, name="account_edit"),
     path("console/accounts/<int:pk>/suspend/", views.account_suspend, name="account_suspend"),

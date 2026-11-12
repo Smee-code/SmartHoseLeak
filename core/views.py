@@ -787,22 +787,41 @@ def household_delete(request, pk):
     crawler can trigger it.
     """
     household = get_object_or_404(_scoped_households(request.user).select_related("user"), pk=pk)
-
     label = f"{household.household_id} ({household.owner_name})"
+    removed = _destroy_household(household)
+    AuditLog.record(request.user, "household.delete", f"Deleted {label}", target=label)
+    messages.success(request, _("Deleted {label}, along with {removed}.").format(label=label, removed=", ".join(removed)))
+    return redirect("household_list")
+
+
+def _destroy_household(household):
+    """
+    Remove a household for good: its login, its hose line with every reading
+    and event on it, its complaints, notices and work orders. The board is
+    kept - hardware outlives the house it was fitted to - and becomes a
+    spare. Returns what went, in words, for the message.
+    """
     complaints = household.complaints.count()
     notifications = household.notifications.count()
     username = household.user.username if household.user else None
-
+    segment = household.segment
     with transaction.atomic():
         if household.user is not None:
             household.user.delete()
-        household.delete()
-
-    removed = [f"{complaints} complaint(s)", f"{notifications} notice(s)"]
+        if segment is not None:
+            segment.device = None
+            segment.save(update_fields=["device"])
+            segment.delete()                 # readings, rollups and events go with it
+        household.delete()                   # complaints, notices, push subscriptions
+    removed = [
+        _("{n} complaint(s)").format(n=complaints),
+        _("{n} notice(s)").format(n=notifications),
+    ]
+    if segment is not None:
+        removed.append(_("its hose line and readings"))
     if username:
-        removed.append(f"the login '{username}'")
-    messages.success(request, _("Deleted {label}, along with {removed}.").format(label=label, removed=', '.join(removed)))
-    return redirect("household_list")
+        removed.append(_("the login '{username}'").format(username=username))
+    return removed
 
 
 @facilitator_required
@@ -3522,6 +3541,38 @@ def admin_household_delete(request, pk):
     AuditLog.record(request.user, "household.archive", f"Archived {label}", target=label)
     messages.success(request, _("Archived {label}. You can restore it from the archive page.").format(label=label))
     return redirect("admin_household_list")
+
+
+@admin_required
+@require_POST
+def admin_household_destroy(request, pk):
+    """
+    Delete a household for good, from the list or from the archive.
+
+    Archive is the default and is reversible; this is for a record that
+    should not exist at all (a duplicate registration, a test entry). The
+    household ID must be typed back, so a mis-click on the wrong row cannot
+    get this far.
+    """
+    household = get_object_or_404(Household.objects.select_related("user", "segment"), pk=pk)
+    back = "archive_list" if request.POST.get("from") == "archive" else "admin_household_list"
+    label = f"{household.household_id} ({household.owner_name})"
+    typed = (request.POST.get("confirm") or "").strip().upper()
+    if typed != household.household_id.upper():
+        messages.error(
+            request,
+            _("Not deleted: type the household ID {household_id} exactly to confirm.").format(
+                household_id=household.household_id
+            ),
+        )
+        return redirect(back)
+    removed = _destroy_household(household)
+    AuditLog.record(request.user, "household.delete", f"Deleted {label} permanently", target=label)
+    messages.success(
+        request,
+        _("Deleted {label} permanently, along with {removed}.").format(label=label, removed=", ".join(removed)),
+    )
+    return redirect(back)
 
 
 @admin_required

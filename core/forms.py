@@ -156,6 +156,32 @@ class HouseholdForm(forms.ModelForm):
     def clean_contact_number(self):
         return clean_mobile_number(self.cleaned_data.get("contact_number"))
 
+    # Registering the same owner twice used to go through silently, giving
+    # the same person a second household, a second login (name2) and a second
+    # set of texts. Now a contact number or email already on a household -
+    # archived or not - stops the first attempt and shows the match; the
+    # checkbox lets a genuine second household on a shared phone through.
+    confirm_duplicate = forms.BooleanField(
+        required=False,
+        label=_("Register anyway - this is a different household"),
+    )
+    duplicates = ()
+
+    def find_duplicates(self):
+        from .sms import normalise_number
+        number = normalise_number(self.cleaned_data.get("contact_number") or "")
+        email = (self.cleaned_data.get("email") or "").strip().lower()
+        found = []
+        rows = Household.objects.exclude(pk=self.instance.pk).only(
+            "id", "household_id", "owner_name", "address", "contact_number", "email", "is_archived",
+        ).order_by("household_id")
+        for row in rows:
+            same_number = bool(number) and normalise_number(row.contact_number) == number
+            same_email = bool(email) and (row.email or "").strip().lower() == email
+            if same_number or same_email:
+                found.append(row)
+        return found
+
     create_account = forms.BooleanField(
         required=False,
         initial=True,
@@ -225,6 +251,7 @@ class HouseholdForm(forms.ModelForm):
         if self.instance.pk:
             # Editing never creates the login: that is what activation is for.
             del self.fields["create_account"]
+            del self.fields["confirm_duplicate"]      # only a new record can be a duplicate
 
         if self.instance.pk:
             # Editing is for the household's own details. Its board is
@@ -247,6 +274,15 @@ class HouseholdForm(forms.ModelForm):
 
         if cleaned.get("device_choice") == self.DEVICE_EXISTING and not cleaned.get("existing_device"):
             self.add_error("existing_device", _("Choose the board, or pick a different option."))
+
+        if not self.instance.pk and "confirm_duplicate" in self.fields:
+            self.duplicates = self.find_duplicates()
+            if self.duplicates and not cleaned.get("confirm_duplicate"):
+                self.add_error(
+                    None,
+                    _("A household with this contact number or email is already registered "
+                      "(listed below). Tick \"Register anyway\" if this really is a different household."),
+                )
 
         return cleaned
 

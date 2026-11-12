@@ -1,0 +1,37 @@
+{% load i18n %}
+{% comment %}
+  Permanent deletion, as opposed to archiving. One shared dialog filled from
+  the clicked row (app.js, data-destroy-household). The household's ID has to
+  be typed back before the button works, on the page and again on the server,
+  because nothing on this screen can undo it.
+{% endcomment %}
+<div class="modal-backdrop" id="household-destroy-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="household-destroy-title" style="max-width:480px">
+    <form method="post" id="household-destroy-form" action="" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="from" value="{{ destroy_from|default:'' }}">
+      <div class="modal-head">
+        <div>
+          <h2 id="household-destroy-title">{% trans "Delete household permanently?" %}</h2>
+          <p class="sub" data-destroy-subtitle></p>
+        </div>
+        <button type="button" class="icon-btn" data-modal-close aria-label="{% trans 'Close' %}">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>{% blocktrans trimmed %}This cannot be undone. Deleting <strong data-destroy-name></strong> also removes:{% endblocktrans %}</p>
+        <ul data-destroy-list style="margin:.4rem 0 .8rem 1.2rem"></ul>
+        <p class="small muted">{% trans "The board itself is kept and becomes a spare. To hide a household without losing anything, use Archive instead." %}</p>
+        <div class="field">
+          <label for="household-destroy-confirm">{% blocktrans trimmed %}Type the household ID (<span class="mono" data-destroy-hid></span>) to confirm{% endblocktrans %}</label>
+          <input type="text" id="household-destroy-confirm" name="confirm" autocomplete="off" data-destroy-confirm>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" data-modal-close>{% trans "Cancel" %}</button>
+        <button type="submit" class="btn btn-danger" data-destroy-submit disabled>{% trans "Delete permanently" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
