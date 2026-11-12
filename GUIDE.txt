@@ -210,10 +210,14 @@ DATA & BACKUPS  (console sidebar -> System -> Data & backups)
 IF A HOUSEHOLD'S PORTAL SHOWS "Something went wrong" AFTER A RESTORE
   The log says "Segment matching query does not exist": the household
   points at a hose line that is not in the database (a backup that held
-  the household but not its line, or a hand edit). The portal now clears
-  that pointer by itself and opens with "no line yet"; to clean every such
-  record at once, in the console:
+  the household but not its line, a hand edit, or a recovery from a damaged
+  file). The portal now clears that pointer by itself and opens with "no
+  line yet"; to clean every such record at once, in the console:
       python manage.py repair_links
+  It clears household -> line, line -> board, notice -> line and work order
+  -> line pointers whose target is gone, then asks SQLite for any broken
+  reference it still sees and lists those (table, row, points-at) - such a
+  row has a required pointer and must be deleted or re-targeted by hand.
   The Restore button runs the same repair after loading a backup.
   The same broken pointer also stops "python manage.py migrate" with
   "IntegrityError: ... core_household.segment_id contains a value 'N' that

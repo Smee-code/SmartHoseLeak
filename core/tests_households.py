@@ -131,12 +131,20 @@ class DanglingLineTests(TransactionTestCase):
     def test_repair_links_command(self):
         from io import StringIO
         from django.core.management import call_command
+        from core.models import Notification, WorkOrder
+        notice = Notification.objects.create(title="t", body="b", recipient=self.household, segment=self.segment)
+        order = WorkOrder.objects.create(title="visit", household=self.household, segment=self.segment)
         self._break_the_link()
         out = StringIO()
         call_command("repair_links", stdout=out)
-        self.assertIn("Cleared 1 household(s)", out.getvalue())
-        self.household.refresh_from_db()
+        text = out.getvalue()
+        self.assertIn("Cleared 1 household(s)", text)
+        self.assertIn("1 notice(s) and 1 work order(s)", text)
+        self.assertIn("No broken references remain", text)
+        self.household.refresh_from_db(); notice.refresh_from_db(); order.refresh_from_db()
         self.assertIsNone(self.household.segment_id)
+        self.assertIsNone(notice.segment_id)
+        self.assertIsNone(order.segment_id)
 
 
 class DuplicateRegistrationTests(_Console):
