@@ -1370,6 +1370,14 @@ GIT (repo: https://github.com/Smee-code/SmartHoseLeak - private)
     git commit -m "message"
     git push                      send it to GitHub
 
+  If git status / git add hangs for minutes (0% CPU, a .git/index.lock
+  file appears and never goes away), it is git's filesystem monitor on the
+  USB drive. Fix once per clone:
+    git fsmonitor--daemon stop
+    git config core.fsmonitor false
+    del .git\index.lock           (only after killing the stuck git.exe)
+  12 Nov 2026: this repo already has core.fsmonitor false.
+
 
 ============================================================================
 12. OTHER PROBLEMS AND FIXES
