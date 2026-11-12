@@ -6,10 +6,13 @@ decorators rather than by hiding links, so an owner cannot reach a
 facilitator page by typing its URL.
 """
 
+import logging
 from functools import wraps
 
 from django.core.exceptions import ValidationError
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login as auth_login
 from django.contrib.auth.decorators import login_required
@@ -185,6 +188,14 @@ def owner_required(view):
                 _("This account is not linked to a registered household. "
                 "Ask the water system facilitator to link it.")
             )
+        # A household whose line was lost under it (a restore from a backup
+        # without the line, a hand edit) would crash every portal page on
+        # "Segment matching query does not exist". Clear the pointer and let
+        # the page say "no line yet" instead; the facilitator can fit one.
+        if household.segment_id is not None and not Segment.objects.filter(pk=household.segment_id).exists():
+            logger.warning("Household %s pointed at missing line %s; cleared.", household.household_id, household.segment_id)
+            household.segment = None
+            household.save(update_fields=["segment"])
         return view(request, household, *args, **kwargs)
 
     return wrapper
@@ -3142,6 +3153,10 @@ def restore_upload(request):
         except OSError:
             pass
 
+    # A backup can hold a household and not its line; clear such pointers now
+    # rather than letting the owner's portal find them.
+    from .management.commands.repair_links import repair_links
+    repair_links()
     AuditLog.record(request.user, "data.restore", "Restored the database from a backup")
     messages.success(request, _("Database restored from the backup."))
     return redirect("data_tools")

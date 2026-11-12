@@ -207,6 +207,15 @@ DATA & BACKUPS  (console sidebar -> System -> Data & backups)
     the backup and adds any it is missing; it does NOT delete newer rows. You
     must type RESTORE to confirm. Built on Django's dumpdata/loaddata.
 
+IF A HOUSEHOLD'S PORTAL SHOWS "Something went wrong" AFTER A RESTORE
+  The log says "Segment matching query does not exist": the household
+  points at a hose line that is not in the database (a backup that held
+  the household but not its line, or a hand edit). The portal now clears
+  that pointer by itself and opens with "no line yet"; to clean every such
+  record at once, in the console:
+      python manage.py repair_links
+  The Restore button runs the same repair after loading a backup.
+
 HOUSEHOLDS: ARCHIVE, DELETE, AND THE DUPLICATE WARNING  (console -> Households)
   - Archive hides a household from the admin's list and disables the owner's
     login. Nothing is removed: its line, readings, events, complaints and
@@ -2112,6 +2121,11 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+12 Nov 2026  A household pointing at a missing hose line crashed its owner's
+             portal (seen on the hosted site after a restore). The portal
+             now clears the pointer and opens; new  manage.py repair_links
+             clears every such pointer, and Restore runs it.
+
 12 Nov 2026  Delete, beside Archive. The admin's Households list and the
              Archive page both have a permanent Delete (typed household ID
              to confirm; removes the login, the line and its readings, the

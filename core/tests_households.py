@@ -7,7 +7,7 @@ already on a household - archived or not - stops at a warning with a link
 (or a restore shortcut) until the admin says it really is a second house.
 """
 
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 
 from core.models import (
@@ -96,6 +96,47 @@ class PermanentDeleteTests(_Console):
         self.assertFalse(Household.objects.filter(pk=self.household.pk).exists())
         self.assertFalse(Segment.objects.filter(pk=self.segment.pk).exists())
         self.assertTrue(Device.objects.filter(pk=self.device.pk).exists())
+
+
+class DanglingLineTests(TransactionTestCase):
+    """
+    A household whose line row vanished must not crash the owner's portal.
+
+    A TransactionTestCase, because a dangling pointer cannot exist inside an
+    ordinary test's transaction: SQLite's deferred foreign-key check would
+    refuse it at the end. Here the line is removed with enforcement off, the
+    way loaddata (the Restore button) leaves such pointers behind.
+    """
+
+    def setUp(self):
+        _Console.setUp(self)      # the same fixture, outside a transaction
+
+    def _break_the_link(self):
+        from django.db import connection
+        with connection.constraint_checks_disabled():
+            with connection.cursor() as cur:
+                cur.execute("DELETE FROM core_latestreading WHERE segment_id = %s", [self.segment.pk])
+                cur.execute("DELETE FROM core_segment WHERE id = %s", [self.segment.pk])
+        self.household.refresh_from_db()
+        self.assertEqual(self.household.segment_id, self.segment.pk)   # dangling
+
+    def test_the_portal_heals_the_pointer_and_opens(self):
+        self._break_the_link()
+        self.client.force_login(self.owner)
+        r = self.client.get(reverse("owner_home"))
+        self.assertEqual(r.status_code, 200)
+        self.household.refresh_from_db()
+        self.assertIsNone(self.household.segment_id)
+
+    def test_repair_links_command(self):
+        from io import StringIO
+        from django.core.management import call_command
+        self._break_the_link()
+        out = StringIO()
+        call_command("repair_links", stdout=out)
+        self.assertIn("Cleared 1 household(s)", out.getvalue())
+        self.household.refresh_from_db()
+        self.assertIsNone(self.household.segment_id)
 
 
 class DuplicateRegistrationTests(_Console):
