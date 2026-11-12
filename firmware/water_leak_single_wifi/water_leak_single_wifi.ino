@@ -46,6 +46,20 @@
        same network - the board finds it by itself (see below). Type the
        address only for a server elsewhere (e.g. https://smarthoseleak.pythonanywhere.com).
 
+  SETTING UP FROM THE OWNER PORTAL
+    The portal's "Set up my board" gives the owner a link to this board's
+    page with the WiFi, server and setup code already in the query string
+    (http://192.168.4.1/?ssid=..&pass=..&server=..&code=..). The page shows
+    them filled in and the owner only presses Save & connect.
+
+  CHANGING WIFI WHILE ONLINE (from the portal)
+    The upload reply can carry wifi_ssid / wifi_password / wifi_change. The
+    board tries the new network for up to 25 s; if it joins, it saves it;
+    if not, it goes back to the old one. Either way the next upload reports
+    wifi_change (the id) and wifi_ok, once, and every upload reports the
+    network it is on (wifi_ssid). The id is remembered so the same request
+    is never tried twice.
+
   MOVING THE BOARD TO ANOTHER NETWORK
     The saved network is gone, so about a minute after power-up the board
     raises the hotspot again (while still trying the old network) and you
@@ -150,6 +164,9 @@ unsigned long lastWifiRetryMs = 0;
 uint8_t       uploadFailStreak = 0;            // transport failures in a row
 unsigned long lastDiscoveryMs  = 0;
 String        lastDiscoveryResult = "not needed yet";
+String        lastWifiChangeId;                 // the last change tried (persisted)
+String        reportWifiId;                    // report this id on the next upload...
+bool          reportWifiOk = false;            // ...with this outcome
 
 // Detection settings from the server (cached in NVS; defaults until a reply).
 int   dsFlowWarnMin   = 30;
@@ -220,7 +237,23 @@ void loadConfig() {
   // A valve an admin sealed by hand must stay sealed across a power cut, so
   // the "manual" ownership is remembered rather than lost on reboot.
   valveReason    = prefs.getString("valvern", "");
+  lastWifiChangeId = prefs.getString("wifiid", "");
   prefs.end();
+}
+
+void saveWifiChangeId(const String &id) {
+  prefs.begin("shl", false);
+  prefs.putString("wifiid", id);
+  prefs.end();
+}
+
+// A quote or a backslash in a WiFi name would break the JSON it rides in.
+String jsonEscape(String v) {
+  v.replace("\\", "\\\\"); v.replace("\"", "\\\""); return v;
+}
+// ...and in the setup page's value="..." attributes.
+String htmlEscape(String v) {
+  v.replace("&", "&amp;"); v.replace("\"", "&quot;"); v.replace("<", "&lt;"); v.replace("'", "&#39;"); return v;
 }
 
 void saveNetwork(const String &ssid, const String &pass,
@@ -423,6 +456,18 @@ void applyServerConfig(const String &resp) {
       testPhase == TEST_IDLE && valveReason == "") {
     if (!testRequested) Serial.println("[TEST] requested from the dashboard.");
     testRequested = true;
+  }
+
+  // A WiFi change asked for from the portal, identified by wifi_change so
+  // the same request is tried once even though it rides on every reply
+  // until the server sees the report.
+  String changeId;
+  if (extractJsonString(resp, "wifi_change", changeId) && changeId.length() &&
+      changeId != lastWifiChangeId) {
+    String nssid, npass;
+    extractJsonString(resp, "wifi_ssid", nssid);
+    extractJsonString(resp, "wifi_password", npass);
+    if (nssid.length()) changeWifi(changeId, nssid, npass);
   }
 
   String vcmd;
@@ -634,7 +679,10 @@ void uploadReadings() {
     // the facilitator's screens say it in words, so a closed valve at night
     // reads as the leak test and not as a fault.
     "\"valve_reason\":\"" + valveReason + "\""
-    "}]}";
+    "}],"
+    "\"wifi_ssid\":\"" + jsonEscape(cfgSSID) + "\"" +
+    (reportWifiId.length() ? ",\"wifi_change\":\"" + reportWifiId + "\",\"wifi_ok\":" + String(reportWifiOk ? "true" : "false") : String("")) +
+    "}";
 
   WiFiClientSecure tls; HTTPClient http;
   if (!beginRequest(http, tls, url)) { lastUploadResult = "bad server URL"; return; }
@@ -654,12 +702,45 @@ void uploadReadings() {
   else                 lastUploadResult = "no reply from " + cfgServer;
   if (code == 200) {
     sentStatus = reportStatus; sentValve = valveState; sentReason = valveReason;
+    reportWifiId = "";                            // the outcome has been delivered
     applyServerConfig(resp);                     // adopt any retuned settings
   }
   Serial.printf("[UPLOAD] %s  %s  P=%.3f bar  F=%.3f L/min\n",
                 lastUploadResult.c_str(), reportStatus.c_str(),
                 lastPressureBar, lastFlowLpm);
   if (code < 0) maybeRediscover();
+}
+
+// ======================================================= WiFi change
+// Try a network the portal asked for. Blocking for up to 25 s each way; the
+// line is not being watched meanwhile, which is acceptable once in a while
+// for something a person just pressed. Falls back to the old network when
+// the new one fails, so a typo cannot strand the board.
+bool joinFor(const String &ssid, const String &pass, unsigned long ms) {
+  WiFi.disconnect();
+  delay(200);
+  WiFi.begin(ssid.c_str(), pass.c_str());
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < ms) { delay(250); web.handleClient(); }
+  return WiFi.status() == WL_CONNECTED;
+}
+
+void changeWifi(const String &id, const String &ssid, const String &pass) {
+  Serial.printf("[WIFI] portal asks to move to \"%s\" (change %s)\n", ssid.c_str(), id.c_str());
+  String oldSsid = cfgSSID, oldPass = cfgPass;
+  bool ok = joinFor(ssid, pass, 25000UL);
+  if (ok) {
+    cfgSSID = ssid; cfgPass = pass;
+    saveNetwork(cfgSSID, cfgPass, cfgServer, cfgCode);
+    Serial.printf("[WIFI] moved to \"%s\"\n", ssid.c_str());
+    onWiFiJoined();
+  } else {
+    Serial.printf("[WIFI] \"%s\" did not answer - back to \"%s\"\n", ssid.c_str(), oldSsid.c_str());
+    joinFor(oldSsid, oldPass, 25000UL);          // maintainWiFi takes over if this fails too
+  }
+  lastWifiChangeId = id; saveWifiChangeId(id);
+  reportWifiId = id; reportWifiOk = ok;
+  lastUploadMs = 0;                               // report at once
 }
 
 // ======================================================= command poll
@@ -710,15 +791,24 @@ void handleRoot() {
        String(lastFlowLpm, 2) + " L/min &middot; Valve: " + valveState +
        " (" + (valveReason == "" ? "auto" : valveReason) + ")</p>";
 
+  // The owner portal links here with everything in the query string, so the
+  // form comes up filled in and one press of Save does the rest.
+  bool fromPortal = web.hasArg("ssid") || web.hasArg("code");
+  String fSsid   = fromPortal ? web.arg("ssid")   : cfgSSID;
+  String fPass   = fromPortal ? web.arg("pass")   : String("");
+  String fServer = fromPortal ? web.arg("server") : cfgServer;
+  String fCode   = fromPortal ? web.arg("code")   : String("");
+  if (fromPortal) s += "<p class=k style='color:#0b6ea8'><b>Filled in from your portal.</b> Check the WiFi name, then press Save &amp; connect.</p>";
+
   s += "<form method=POST action=/save>"
-       "<label>Home WiFi name</label><input name=ssid value='" + cfgSSID + "'>"
-       "<label>WiFi password</label><input name=pass type=password value='' placeholder='" +
-       (cfgPass.length() ? "leave blank to keep the saved one" : "") + "'>"
-       "<label>Server</label><input name=server value='" + cfgServer + "' "
+       "<label>Home WiFi name</label><input name=ssid value=\"" + htmlEscape(fSsid) + "\">"
+       "<label>WiFi password</label><input name=pass type=password value=\"" + htmlEscape(fPass) + "\" placeholder='" +
+       (cfgPass.length() && !fromPortal ? "leave blank to keep the saved one" : "") + "'>"
+       "<label>Server</label><input name=server value=\"" + htmlEscape(fServer) + "\" "
        "placeholder='leave blank: find the laptop server on this network'>"
        "<span class=k>Type an address only for a server elsewhere, e.g. "
        "https://smarthoseleak.pythonanywhere.com</span>"
-       "<label>Setup code</label><input name=code placeholder='" +
+       "<label>Setup code</label><input name=code value=\"" + htmlEscape(fCode) + "\" placeholder='" +
        (devId.length() ? "leave blank to stay " + devId : String("e.g. K7M-4Q2")) + "'>" +
        (devId.length() ? "<span class=k>Enter a code only to claim this board as a different household.</span>" : "") +
        "<button type=submit>Save &amp; connect</button></form>";

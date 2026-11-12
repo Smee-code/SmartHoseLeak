@@ -176,6 +176,46 @@ class Device(models.Model):
     last_ip = models.GenericIPAddressField(null=True, blank=True)
     firmware_note = models.CharField(max_length=200, blank=True)
 
+    # Changing the WiFi of a board that is already online, from the portal.
+    # The board cannot be reached, so the new network is parked here and
+    # handed over on the reply to its next upload (store-and-forward, like a
+    # valve command). The board tries it, falls back to its old network if
+    # the new one fails, and reports either way with the change id; the
+    # password is cleared the moment it reports. wifi_ssid is what the board
+    # says it is on, so the owner can see it.
+    wifi_ssid = models.CharField(max_length=64, blank=True)
+    pending_wifi_ssid = models.CharField(max_length=64, blank=True)
+    pending_wifi_password = models.CharField(max_length=64, blank=True)
+    pending_wifi_id = models.CharField(max_length=16, blank=True)
+    pending_wifi_at = models.DateTimeField(null=True, blank=True)
+    wifi_result = models.CharField(max_length=200, blank=True)
+    wifi_result_at = models.DateTimeField(null=True, blank=True)
+
+    def request_wifi_change(self, ssid, password):
+        self.pending_wifi_ssid = ssid
+        self.pending_wifi_password = password
+        self.pending_wifi_id = secrets.token_hex(4)
+        self.pending_wifi_at = timezone.now()
+        self.wifi_result = ""
+        self.wifi_result_at = None
+        self.save(update_fields=[
+            "pending_wifi_ssid", "pending_wifi_password", "pending_wifi_id",
+            "pending_wifi_at", "wifi_result", "wifi_result_at",
+        ])
+        return self.pending_wifi_id
+
+    def clear_wifi_change(self, result):
+        self.pending_wifi_ssid = ""
+        self.pending_wifi_password = ""
+        self.pending_wifi_id = ""
+        self.pending_wifi_at = None
+        self.wifi_result = result[:200]
+        self.wifi_result_at = timezone.now()
+        self.save(update_fields=[
+            "pending_wifi_ssid", "pending_wifi_password", "pending_wifi_id",
+            "pending_wifi_at", "wifi_result", "wifi_result_at",
+        ])
+
     def save(self, *args, **kwargs):
         if not self.api_key:
             self.api_key = secrets.token_urlsafe(32)

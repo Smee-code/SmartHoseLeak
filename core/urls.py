@@ -167,6 +167,7 @@ urlpatterns = [
     path("portal/device/status/", views.owner_device_status, name="owner_device_status"),
     path("portal/device/new-code/", views.owner_device_reissue, name="owner_device_reissue"),
     path("portal/device/resend/", views.owner_device_resend, name="owner_device_resend"),
+    path("portal/device/wifi/", views.owner_device_wifi, name="owner_device_wifi"),
 
     # JSON API
     path("api/ingest/", api.ingest, name="api_ingest"),

@@ -35,9 +35,25 @@ def _state(key, label, tone, note, **extra):
         "key": key, "label": label, "tone": tone, "note": note,
         "device_id": "", "code": "", "code_expires": "", "last_seen": "",
         "can_reissue": False, "can_resend": False, "show_steps": False, "connected": False,
+        "wifi_ssid": "", "wifi_pending": "", "wifi_pending_ago": "", "wifi_result": "",
+        "wifi_result_ago": "", "can_change_wifi": False,
     }
     base.update(extra)
     return base
+
+
+def _wifi_fields(device, now):
+    """What the owner's WiFi block shows: the network, a pending change, the last result."""
+    if device is None or device.last_seen is None:
+        return {}
+    return {
+        "can_change_wifi": True,
+        "wifi_ssid": device.wifi_ssid,
+        "wifi_pending": device.pending_wifi_ssid,
+        "wifi_pending_ago": _ago(device.pending_wifi_at, now) if device.pending_wifi_at else "",
+        "wifi_result": device.wifi_result,
+        "wifi_result_ago": _ago(device.wifi_result_at, now) if device.wifi_result_at else "",
+    }
 
 
 def device_setup(household, now=None):
@@ -58,7 +74,7 @@ def device_setup(household, now=None):
             "There is nothing for you to do until they have."),
         )
 
-    common = {"device_id": device.device_id}
+    common = {"device_id": device.device_id, **_wifi_fields(device, now)}
     if device.last_seen:
         silent = (now - device.last_seen).total_seconds()
         common["last_seen"] = _ago(device.last_seen, now)

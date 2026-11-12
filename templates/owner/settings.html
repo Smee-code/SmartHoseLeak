@@ -39,6 +39,36 @@
         {% if device.device_id %}<span class="mono small muted" data-device="id">{{ device.device_id }}</span>{% endif %}
       </div>
       <p class="set-note device-note" data-device="note">{{ device.note }}</p>
+
+      <div data-device="wifi" {% if not device.can_change_wifi %}hidden{% endif %} style="margin-top:.8rem">
+        <p class="set-note" style="margin-bottom:.3rem">
+          {% trans "WiFi network:" %} <strong class="mono" data-device="wifi-ssid">{{ device.wifi_ssid|default:"?" }}</strong>
+        </p>
+        <p class="set-note" data-device="wifi-pending" {% if not device.wifi_pending %}hidden{% endif %}>
+          {% trans "Changing to" %} <strong data-device="wifi-pending-ssid">{{ device.wifi_pending }}</strong>
+          (<span data-device="wifi-pending-ago">{{ device.wifi_pending_ago }}</span>) - {% trans "waiting for the board to pick it up." %}
+        </p>
+        <p class="set-note" data-device="wifi-result" {% if not device.wifi_result %}hidden{% endif %}>
+          <span data-device="wifi-result-text">{{ device.wifi_result }}</span>
+          (<span data-device="wifi-result-ago">{{ device.wifi_result_ago }}</span>)
+        </p>
+        <details class="set-steps">
+          <summary>{% trans "Change WiFi" %}</summary>
+          <form method="post" action="{% url 'owner_device_wifi' %}" style="margin-top:.5rem">
+            {% csrf_token %}
+            <p class="set-note">{% trans "For a board that is still connected - a new router, a new password. The board tries the new network and comes back to this one if it fails. If the board is already cut off, use the setup steps instead." %}</p>
+            <div class="field">
+              <label for="wifi-ssid">{% trans "New WiFi name" %}</label>
+              <input type="text" id="wifi-ssid" name="ssid" required maxlength="32" autocomplete="off" autocapitalize="none" spellcheck="false">
+            </div>
+            <div class="field">
+              <label for="wifi-pass">{% trans "WiFi password" %}</label>
+              <input type="password" id="wifi-pass" name="password" maxlength="63" autocomplete="off">
+            </div>
+            <button type="submit" class="btn btn-primary">{% trans "Send to the board" %}</button>
+          </form>
+        </details>
+      </div>
     </div>
 
     {% comment %}
@@ -81,16 +111,32 @@
             <p class="set-note">{% trans "Works once." %} {% trans "Expires" %} <span data-device="expires">{{ device.code_expires }}</span>.</p>
           </div>
 
-          <div data-device="steps" {% if not device.show_steps and not device.can_reissue and device.key != 'connecting' %}hidden{% endif %}>
+          <div data-device="steps" {% if not device.show_steps and not device.can_reissue and device.key != 'connecting' %}hidden{% endif %}
+               data-setup-builder data-setup-server="{{ setup_server }}">
             <p class="set-lede" style="margin-bottom:.25rem">{% trans "How to connect the board" %}</p>
+            <p class="set-note">{% trans "Type your home WiFi here first, while your phone still has internet. It stays on your phone - it is not sent to us." %}</p>
+            <div class="field">
+              <label for="setup-ssid">{% trans "Home WiFi name" %}</label>
+              <input type="text" id="setup-ssid" data-setup-ssid autocomplete="off" autocapitalize="none" spellcheck="false">
+            </div>
+            <div class="field">
+              <label for="setup-pass">{% trans "WiFi password" %}</label>
+              <input type="password" id="setup-pass" data-setup-pass autocomplete="off">
+            </div>
             <ol class="device-steps">
               <li>{% trans "Plug in the board and wait about a minute." %}</li>
-              <li>{% blocktrans trimmed %}On your phone, join the WiFi network <strong>{{ setup_ssid }}</strong> (password: <strong>{{ setup_password }}</strong>).{% endblocktrans %}</li>
-              <li>{% blocktrans trimmed %}A setup page opens by itself. If it does not, open <strong>http://192.168.4.1/</strong> in your browser.{% endblocktrans %}</li>
-              <li>{% trans "Choose your home WiFi, type its password, and enter your setup code. Leave the server address as it is." %}</li>
-              <li>{% blocktrans trimmed %}Press <strong>Save</strong>. The board restarts and joins your WiFi; the setup network disappears.{% endblocktrans %}</li>
+              <li>{% blocktrans trimmed %}On your phone, join the WiFi network <strong>{{ setup_ssid }}</strong> (password: <strong>{{ setup_password }}</strong>). Your phone may say it has no internet - stay on it. Keep this page open; do not refresh it.{% endblocktrans %}</li>
+              <li>
+                {% trans "Come back here and tap:" %}
+                <a class="btn btn-primary" data-setup-link href="http://192.168.4.1/" target="_blank" rel="noopener" style="margin:.3rem 0;display:inline-block" aria-disabled="true">{% trans "Open the board's setup page" %}</a>
+                <br><span class="small muted">{% blocktrans trimmed %}It opens already filled in. Press <strong>Save &amp; connect</strong> there.{% endblocktrans %}</span>
+              </li>
+              <li>{% trans "Switch your phone back to your home WiFi. Within a minute or two the status above says Connected." %}</li>
             </ol>
-            <p class="set-note">{% trans "Keep this open. Within a minute or two the status above should say Connected." %}</p>
+            <details class="set-steps">
+              <summary>{% trans "If the link does not open" %}</summary>
+              <p class="set-note">{% blocktrans trimmed with code=device.code server=setup_server|default:"(leave blank)" %}Open <strong>http://192.168.4.1/</strong> in your browser and type: your home WiFi name and password, the setup code <strong data-device="code2">{{ code }}</strong>, and the server <strong data-setup-server-text>{{ server }}</strong>.{% endblocktrans %}</p>
+            </details>
           </div>
 
           <div data-device="trouble" {% if device.key != 'lost' and device.key != 'claimed_silent' %}hidden{% endif %}>

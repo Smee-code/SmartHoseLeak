@@ -1061,6 +1061,51 @@ A NOTE ON "FORGET SAVED NETWORK"
   them, which is why zeroing appeared to be lost after a network change.
 
 ============================================================================
+9h. THE OWNER SETS UP OR MOVES THE BOARD FROM THE PORTAL
+============================================================================
+Settings -> My device, on the owner's phone. Two things live there now.
+
+A NEW BOARD, WITHOUT TYPING ON THE BOARD'S PAGE
+  A board with no WiFi yet is not on the internet, so the website cannot
+  reach it; the phone still has to join the board's hotspot once. What the
+  portal removes is the typing:
+    1. In "Set up my board", the owner types the home WiFi name and password
+       WHILE THE PHONE STILL HAS INTERNET. These never leave the phone - the
+       page builds a link out of them locally, nothing is posted to us.
+    2. They join LeakDetect-Setup (the phone may warn "no internet"; stay on
+       it) and come back to the same tab without refreshing.
+    3. They tap "Open the board's setup page". That is a link to
+       http://192.168.4.1/?ssid=..&pass=..&server=..&code=..  - the board's
+       own page, which now reads those and comes up filled in: WiFi, the
+       setup code, and the server (the hosted https address; blank on a
+       laptop server, so the board finds it by itself - section 5).
+    4. They press Save & connect on the board's page, put the phone back on
+       the home WiFi, and the card says Connected within a minute or two.
+  "If the link does not open" under the steps shows the same details to
+  type by hand. Works on iPhone and Android alike (a plain link, no
+  Bluetooth, no app). The typed WiFi is kept in the tab's session storage
+  so an accidental reload does not lose it.
+
+CHANGING THE WIFI OF A BOARD THAT IS ONLINE
+  "Change WiFi" on the device card (shown once the board has connected at
+  least once). The owner types the new network and password; the server
+  parks them on the board's record and hands them over on the reply to its
+  next upload (within about 15 s). The board tries the new network for up to
+  25 s; if it joins, it saves it; if not, it goes back to the old one. Either
+  way its next upload reports the outcome by change id, the server clears
+  the password, the card shows "Connected to X" or "Could not join X; still
+  on Y", and the household gets a notice saying the same. The board also
+  reports the network it is on, shown as "WiFi network:" on the card.
+    - This only helps a board that is still checking in. One already cut
+      off (router replaced, password changed) needs the hotspot: the setup
+      steps above, where a blank setup code keeps the board's identity.
+    - The password sits on the server only until the board reports, a
+      matter of seconds; it is never shown again.
+    - Serial Monitor: [WIFI] portal asks to move to "X" ... [WIFI] moved
+      to "X"  /  [WIFI] "X" did not answer - back to "Y".
+
+
+============================================================================
 9f. BENCH TESTING WITHOUT THE VALVE OR THE GSM MODULE
 ============================================================================
 The sketch has two switches at the top for hardware that has not arrived:
@@ -2121,6 +2166,17 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+12 Nov 2026  The owner sets up or moves the board from the portal (section
+             9h). New board: the portal builds a link that opens the board's
+             hotspot page already filled in (WiFi, server, setup code) - the
+             WiFi never leaves the phone; one press of Save & connect on the
+             board. Online board: "Change WiFi" on the device card; the
+             network rides on the upload reply, the board tries it and falls
+             back if it fails, reports by change id, and the household is
+             told the result. Firmware: setup page pre-fill from the query
+             string, wifi_ssid / wifi_change / wifi_ok on uploads, and the
+             change itself. Migration 0044. core/tests_device_wifi.py.
+
 12 Nov 2026  A household pointing at a missing hose line crashed its owner's
              portal (seen on the hosted site after a restore). The portal
              now clears the pointer and opens; new  manage.py repair_links

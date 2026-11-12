@@ -644,7 +644,18 @@ def ingest(request):
         first_contact = device.last_seen is None
         device.last_seen = now
         device.last_ip = _client_ip(request)
-        device.save(update_fields=["last_seen", "last_ip"])
+        fields = ["last_seen", "last_ip"]
+        reported_ssid = str(payload.get("wifi_ssid") or "")[:64]
+        if reported_ssid != device.wifi_ssid:
+            device.wifi_ssid = reported_ssid
+            fields.append("wifi_ssid")
+        device.save(update_fields=fields)
+        # The board answers a WiFi change by its id, once, whichever way it
+        # went. Matching the id (not the name) means a change to the password
+        # of the same network is acknowledged too.
+        change_id = str(payload.get("wifi_change") or "")
+        if change_id and change_id == device.pending_wifi_id:
+            _finish_wifi_change(device, bool(payload.get("wifi_ok")), reported_ssid, segments)
 
     if first_contact and accepted:
         # The owner set the board up themselves; the facilitator should not
@@ -659,12 +670,41 @@ def ingest(request):
             "events": events,
             "errors": errors,
             "server_time": now.isoformat(),
-            "config": _device_config(segments),
+            "config": _device_config(segments, device),
         }
     )
 
 
-def _device_config(segments):
+def _finish_wifi_change(device, ok, reported_ssid, segments):
+    wanted = device.pending_wifi_ssid
+    if ok:
+        result = _("Connected to {ssid}.").format(ssid=wanted)
+    else:
+        result = _("Could not join {ssid}; still on {old}.").format(ssid=wanted, old=reported_ssid or "?")
+    device.clear_wifi_change(result)
+    logger.info("Board %s WiFi change %s: %s", device.device_id, "ok" if ok else "failed", result)
+    # Tell the household in its own words and language; the portal's device
+    # card shows the same result.
+    for segment in segments.values():
+        household = getattr(segment, "household", None)
+        if household is None:
+            continue
+        with translation.override(household.language or settings.LANGUAGE_CODE):
+            if ok:
+                title = _("Your board is on the new WiFi")
+                body = _("The monitoring board joined {ssid} and is sending readings again.").format(ssid=wanted)
+            else:
+                title = _("Your board could not join the new WiFi")
+                body = _("The board tried {ssid} and could not connect, so it went back to {old}. "
+                         "Check the network name and password and try again from Settings.").format(
+                    ssid=wanted, old=reported_ssid or _("its previous network"))
+            Notification.objects.create(
+                kind=Notification.Kind.AUTOMATIC, title=title, body=body,
+                recipient=household, segment=segment,
+            )
+
+
+def _device_config(segments, device=None):
     """
     The tunable settings, sent back on every batch of readings.
 
@@ -692,6 +732,12 @@ def _device_config(segments):
         "auto_close_on_flow_leak": s.auto_close_on_flow_leak,
         "upload_interval_seconds": s.upload_interval_seconds,
     }
+    if device is not None and device.pending_wifi_id:
+        detection.update({
+            "wifi_ssid": device.pending_wifi_ssid,
+            "wifi_password": device.pending_wifi_password,
+            "wifi_change": device.pending_wifi_id,
+        })
     return {
         str(index): {
             "low_pressure_bar": round(segment.low_pressure_bar, 3),

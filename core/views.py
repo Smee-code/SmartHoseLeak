@@ -1992,6 +1992,11 @@ def owner_settings(request, household):
     by people who already knew to look in a browser menu is not a feature.
     """
     push_ready, push_note = push.describe_push()
+    # The address the board should post to, pre-filled on its setup page by
+    # the portal's link. A hosted https site is given in full; a laptop
+    # server (plain http on a LAN) is left blank so the board finds it by
+    # itself (section 5 of the guide).
+    setup_server = request.build_absolute_uri("/").rstrip("/") if request.is_secure() else ""
     return render(
         request,
         "owner/settings.html",
@@ -2000,6 +2005,7 @@ def owner_settings(request, household):
             "device": setup.device_setup(household),
             "setup_ssid": settings.BOARD_SETUP_SSID,
             "setup_password": settings.BOARD_SETUP_PASSWORD,
+            "setup_server": setup_server,
             "push_ready": push_ready,
             "push_note": push_note,
             "vapid_public_key": settings.VAPID_PUBLIC_KEY,
@@ -3718,6 +3724,41 @@ def owner_device_reissue(request, household):
         request,
         _("Your new setup code is {code}.").format(code=ticket.code)
         + (_(" It was also sent by {channels}.").format(channels=_(" and ").join(sent)) if sent else ""),
+    )
+    return redirect("owner_settings")
+
+
+@owner_required
+@require_POST
+def owner_device_wifi(request, household):
+    """
+    Move an online board to another WiFi, from the portal.
+
+    The network is parked on the board's record and handed over on its next
+    upload; the board tries it, falls back if it fails, and reports back,
+    which clears the password here. Nothing is sent to the board directly -
+    it cannot be reached - so this only helps a board that is still
+    checking in: a board already cut off needs the hotspot (the steps in
+    the dialog).
+    """
+    device = _owner_device(household)
+    if device is None or device.last_seen is None:
+        messages.error(request, _("Your board has not connected yet, so a WiFi change cannot reach it. Use the setup steps instead."))
+        return redirect("owner_settings")
+    ssid = (request.POST.get("ssid") or "").strip()
+    password = request.POST.get("password") or ""
+    if not ssid or len(ssid) > 32:
+        messages.error(request, _("Enter the WiFi name (up to 32 characters)."))
+        return redirect("owner_settings")
+    if password and not 8 <= len(password) <= 63:
+        messages.error(request, _("A WiFi password is 8 to 63 characters, or blank for an open network."))
+        return redirect("owner_settings")
+    device.request_wifi_change(ssid, password)
+    AuditLog.record(request.user, "board.wifi_change", f"Owner asked {device.device_id} to move to WiFi '{ssid}'", target=device.device_id)
+    messages.success(
+        request,
+        _("Sent. The board picks it up on its next check-in (within about a minute), tries {ssid}, "
+          "and comes back to its current network if that fails. This page shows the result.").format(ssid=ssid),
     )
     return redirect("owner_settings")
 
