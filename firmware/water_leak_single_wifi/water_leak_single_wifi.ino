@@ -83,6 +83,18 @@
     Valve relay OPEN           -> GPIO 25
     Valve relay CLOSE          -> GPIO 26
     Relays here are ACTIVE LOW (ON = LOW). Flip RELAY_ON/OFF if yours differ.
+
+  THE VALVE
+    A three-wire motorised ball valve (ACARPS, DC 12-24 V, "Running Time
+    15S": N = common, CLOSE, OPEN). It moves only WHILE power is held on the
+    CLOSE or OPEN wire, and its own limit switch stops the motor at the end
+    of travel - so each relay is held for VALVE_TRAVEL_MS (rated time plus a
+    margin; holding past the limit switch is harmless). The board has no
+    feedback from the valve: it reports "closed" because it held the close
+    relay for the full travel, not because it measured the ball. A valve
+    with a different running time: change VALVE_TRAVEL_MS.
+    Wiring: supply + -> relay COM (both channels); relay 1 NO -> CLOSE wire;
+    relay 2 NO -> OPEN wire; supply - -> valve N (common).
 */
 
 #include <WiFi.h>
@@ -100,6 +112,12 @@
 #define RELAY_CLOSE  26
 #define RELAY_ON     LOW      // active-low relay board; set HIGH if active-high
 #define RELAY_OFF    HIGH
+// How long a relay is held for one full open or close. The valve's rated
+// running time is 15 s; the margin covers a cold motor and a low supply, and
+// the valve's limit switch cuts the motor once it is there, so extra time
+// costs nothing. 600 ms - the old value - turned the ball a few degrees and
+// stopped, while the board still reported "closed".
+#define VALVE_TRAVEL_MS 18000UL
 
 // ---------------------------------------------------- setup access point
 #define SETUP_AP_SSID "LeakDetect-Setup"
@@ -514,18 +532,25 @@ void valveStop() {
   digitalWrite(RELAY_CLOSE, RELAY_OFF);
   valveState = (valveReason == "") ? "idle" : valveState;
 }
-void valveOpenNow() {
+// Hold one relay for a full travel. Blocking on purpose: every caller (the
+// manual command, the auto-close, the nightly test's seal and its settle
+// timer, the restore after a reboot) relies on the valve having ARRIVED when
+// this returns. The board's own page stays answerable meanwhile; readings
+// and uploads pause for the 18 s, well inside the server's offline window.
+void valveDrive(int relayPin, const char *verb) {
   valveStop(); delay(200);
-  digitalWrite(RELAY_OPEN, RELAY_ON);
-  delay(600);                      // let the actuator travel, then release
-  digitalWrite(RELAY_OPEN, RELAY_OFF);
+  Serial.printf("[VALVE] %s - holding the relay for %lu s\n", verb, VALVE_TRAVEL_MS / 1000UL);
+  digitalWrite(relayPin, RELAY_ON);
+  unsigned long start = millis();
+  while (millis() - start < VALVE_TRAVEL_MS) { delay(50); web.handleClient(); }
+  digitalWrite(relayPin, RELAY_OFF);
+}
+void valveOpenNow() {
+  valveDrive(RELAY_OPEN, "opening");
   valveState = "open";
 }
 void valveCloseNow() {
-  valveStop(); delay(200);
-  digitalWrite(RELAY_CLOSE, RELAY_ON);
-  delay(600);
-  digitalWrite(RELAY_CLOSE, RELAY_OFF);
+  valveDrive(RELAY_CLOSE, "closing");
   valveState = "closed";
 }
 

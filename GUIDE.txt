@@ -1457,6 +1457,25 @@ have a corresponding value in core_segment.id" although the row exists
     have to be re-created in the console (Hose lines) and re-linked to
     their households. Happened 12 Nov 2026 - cause: WAL on PythonAnywhere.
 
+The dashboard says the valve is "closed" but the valve did not move
+    The board has no feedback from the valve: "closed" means it drove the
+    close relay for a full travel, not that it measured the ball. Until 14
+    Nov 2026 the sketch held the relay for only 0.6 s; the ACARPS valve
+    needs 15 s of held power (section 13), so it turned a few degrees and
+    stopped. Flash the current sketch - it holds each relay 18 s and prints
+    "[VALVE] closing - holding the relay for 18 s" in the Serial Monitor.
+    If a freshly flashed board still does not move the valve:
+      - no click from the relay: relay module power (VCC/GND), the IN wire
+        on GPIO 25/26, or an active-HIGH module (flip RELAY_ON/OFF);
+      - click but no motion: the valve's own 12-24 V supply is missing or
+        not routed through the relay contacts (supply + -> COM, NO -> the
+        CLOSE/OPEN wire, supply - -> N). Test the valve straight from its
+        supply for 15 s first; if it does not move then, it is the valve or
+        the supply, not the board.
+    While a relay is held the board's readings and uploads pause for the
+    18 s; its own web page keeps answering. This is within the offline
+    window, so the dashboard does not flash offline.
+
 The map fills with yellow "Access blocked" tiles
     OpenStreetMap could not tell which app was asking and served a blocked
     image instead of the map. Fixed in the settings (SECURE_REFERRER_POLICY),
@@ -2001,14 +2020,21 @@ WHEN A HOUSEHOLD SAYS THEY GET NOTHING
                       Lines -> Edit (section 9b). Sent to the board on every
                       upload; no reflash.
 
-  Upload interval     every 2 seconds
-  Offline after       10 seconds without a reading
-  Dashboard refresh   every 2 seconds
+  Upload interval     every 15 seconds (Console -> Detection settings;
+                      a change of status or valve uploads at once)
+  Offline after       3 missed uploads + 5 s (50 s at the default)
+  Dashboard refresh   every 5 seconds; 2 s while a valve screen is open
 
   Sensor pins         Pressure  GPIO 34   (must stay ADC1: 32-39)
                       Flow      GPIO 27
                       Valve relay OPEN  GPIO 25
                       Valve relay CLOSE GPIO 26
+  Valve               ACARPS motorised ball valve, DC 12-24 V, 3 wires
+                      (N common, CLOSE, OPEN), running time 15 s. Each
+                      relay is HELD for 18 s per move (VALVE_TRAVEL_MS in
+                      the sketch); the valve's limit switch stops the motor.
+                      Wiring: supply + -> both relay COM; relay NO -> CLOSE
+                      and OPEN wires; supply - -> valve N.
   GSM module          RX GPIO16, TX GPIO17, own 3.7-4.2V power supply
 
   Hose lines          One per household, main source -> the house. No
@@ -2218,6 +2244,14 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+14 Nov 2026  Firmware: the valve relays are now held for the valve's full
+             travel (VALVE_TRAVEL_MS = 18 s; ACARPS valve rated 15 s)
+             instead of 0.6 s, which only nudged the ball while the board
+             reported "closed". The board's page stays answerable during
+             the move. Section 12 ("valve did not move") and section 13.
+             Also corrected the cadence figures in section 13 (15 s / 50 s
+             / 5 s), which still said 2 s / 10 s / 2 s.
+
 12 Nov 2026  The PythonAnywhere database was found corrupted ("Rowid 0 out
              of order" on the hose-line table): SQLite's WAL mode, which the
              app set on every connection, is unsafe on a network filesystem
