@@ -2522,6 +2522,10 @@ msgstr "Kailangang naka-sign in ka para mabuksan ang page na iyon."
 msgid "Sign in"
 msgstr "Mag-sign in"
 
+#: .\templates\home.html
+msgid "Already have a login?"
+msgstr "May login ka na?"
+
 #: .\templates\403.html:47
 msgid ""
 "Error 403. If you should be able to open this page, ask the water system "

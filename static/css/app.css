@@ -262,17 +262,29 @@ a { color: var(--brand); }
 .topbar-actions { display: flex; align-items: center; gap: .4rem; margin-left: auto; }
 
 /* EN/FIL language switch: a two-segment pill, the active language filled.
-   Restyled for the landing page's dark top bar further down. */
+   Restyled for the landing page's dark top bar further down.
+   The same height as the .icon-btn beside it (34px with the border), so the
+   top bar's controls line up. It used to be 22px tall - the smallest thing
+   to tap on every page, and the one a resident on a phone needs first. On a
+   touch screen each half also gets an invisible margin above and below
+   (::after) so the area a thumb can hit is 44px tall without the bar
+   growing; that is why the toggle no longer clips with overflow:hidden, and
+   the rounded corners sit on the two buttons instead. */
 .lang-toggle {
-  display: inline-flex; align-items: center; margin: 0;
+  display: inline-flex; align-items: stretch; margin: 0;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
-  overflow: hidden; background: var(--surface);
+  background: var(--surface);
 }
 .lang-opt {
   appearance: none; border: 0; background: none; cursor: pointer;
-  padding: .32rem .5rem; font: 600 .72rem/1 var(--sans);
+  position: relative;
+  height: 32px; min-width: 2.5rem; padding: 0 .6rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  font: 600 .78rem/1 var(--sans);
   letter-spacing: .03em; color: var(--text-muted);
 }
+.lang-opt:first-of-type { border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px); }
+.lang-opt:last-of-type  { border-radius: 0 calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px) 0; }
 .lang-opt:hover { color: var(--text); }
 .lang-opt.is-active { background: var(--brand); color: #fff; }
 .lang-opt:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
@@ -283,6 +295,12 @@ a { color: var(--brand); }
   display: inline-flex; align-items: center; justify-content: center; font-size: 1rem;
 }
 .icon-btn:hover { background: var(--surface-2); }
+/* The theme button shows where a press takes you: the sun in dark mode, the
+   moon in light. data-theme is set on <html> before first paint, so the
+   right one is there from the start, with no script involved. */
+.theme-ico { width: 18px; height: 18px; flex-basis: 18px; }
+.theme-ico-sun, [data-theme="dark"] .theme-ico-moon { display: none; }
+[data-theme="dark"] .theme-ico-sun { display: block; }
 .avatar {
   width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff;
   display: grid; place-items: center; font-size: .78rem; font-weight: 700;
@@ -1092,7 +1110,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 /* On a phone the whole SVG shrinks, and so would every label. Sized up in
    viewBox units here so the axes stay readable; the flag's timestamp is
    dropped rather than allowed to collide with the pen. */
+/* The threshold's label: right end on a wide screen, left end on a phone,
+   where the larger type at the right end sat on top of the falling pen. */
+.r-label-narrow { display: none; }
 @media (max-width: 560px) {
+  .r-label-wide { display: none; }
+  .r-label-narrow { display: inline; }
   .r-tick, .r-label, .trace-flagsub { font-size: 17px; }
   .trace-flag { font-size: 20px; }
   .trace-flagsub { display: none; }
@@ -1195,27 +1218,30 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   overflow-x: clip;
 }
-.stage { position: relative; padding-top: 2.4rem; }
+.stage { position: relative; padding-top: 2.9rem; }
 
-/* the time axis: a hairline through the tick marks, broken at each step and
-   stopping at the last so it does not trail off the page */
+/* the time axis: a hairline running through the middle of each step's
+   marker, broken at each step and stopping just past the last so it does
+   not trail off the page */
 .stage::before {
-  content: ""; position: absolute; top: 12px; left: 0; right: -1.6rem;
+  content: ""; position: absolute; top: 14px; left: 0; right: -1.6rem;
   height: 1px; background: var(--border);
 }
-.stage:last-child::before { right: auto; width: 2rem; }
+.stage:last-child::before { right: auto; width: 3.5rem; }
 
+/* The step's marker: the numeral in a small bordered square, like a channel
+   index on the recorder above, sitting ON the axis. It used to be a 7px
+   tick with a .78rem numeral hanging below the line, which read as the
+   line being broken. The ring of page colour (box-shadow) parts the axis
+   either side of the marker. */
 .stage-num {
-  position: absolute; top: 4px; left: 0;
-  font-family: var(--mono); font-size: .78rem; font-weight: 600;
+  position: absolute; top: 0; left: 0;
+  width: 28px; height: 28px; display: grid; place-items: center;
+  font-family: var(--mono); font-size: .86rem; font-weight: 700; line-height: 1;
   color: var(--brand-strong);
-  background: var(--bg); padding-right: .5rem;
-  line-height: 1;
-}
-/* the tick itself */
-.stage-num::before {
-  content: ""; position: absolute; left: -1px; top: -7px;
-  width: 7px; height: 7px; background: var(--brand);
+  background: var(--bg);
+  border: 1px solid var(--brand); border-radius: 6px;
+  box-shadow: 0 0 0 6px var(--bg);
 }
 
 .stage h3 {
@@ -1224,10 +1250,16 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 .stage p { margin: 0; color: var(--text-muted); font-size: .92rem; line-height: 1.6; max-width: 42ch; }
 
+/* On a phone the steps stack, so the axis turns vertical: it runs down from
+   each marker to the next, and stops at the last. */
 @media (max-width: 560px) {
-  .stage::before { display: none; }
-  .stage { padding-top: 0; padding-left: 2.2rem; }
-  .stage-num { top: 2px; }
+  .stage { padding-top: 0; padding-left: 2.75rem; }
+  .stage-num { top: -2px; box-shadow: none; }
+  .stage::before {
+    top: 26px; bottom: -1.6rem; left: 14px; right: auto;
+    width: 1px; height: auto;
+  }
+  .stage:last-child::before { display: none; }
 }
 
 /* --------------------------------------------------------- who signs in
@@ -1265,8 +1297,31 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .role { grid-template-columns: 1fr; gap: .35rem; }
 }
 
-.roles-cta { margin-top: 1.6rem; display: flex; }
-.roles-cta .btn { min-width: 12rem; }
+/* On a wide screen the two roles sit side by side, each a column with its
+   name over what it opens. As label-and-text rows they filled only the left
+   half of the page and left the right half empty. Both columns are ruled top
+   and bottom, and the grid makes them the same height, so the rules line up. */
+@media (min-width: 900px) {
+  .roles {
+    display: grid; grid-template-columns: 1fr 1fr;
+    column-gap: clamp(2rem, 4vw, 3.5rem); align-items: stretch;
+  }
+  .roles > h2, .roles-signin { grid-column: 1 / -1; }
+  .role {
+    grid-template-columns: 1fr; gap: .5rem; align-content: start;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* The way in for someone who has read to the end. A line of text, not a
+   third big "Sign in" button: the hero and the top bar already have one, but
+   the top bar scrolls away on this page, so the end of it still needs a
+   link. Padded to a 44px tap height without looking like a button. */
+.roles-signin { margin: 1.2rem 0 0; color: var(--text-muted); font-size: .94rem; }
+.roles-signin a {
+  display: inline-block; padding: .7rem .25rem; margin: -.7rem 0;
+  font-weight: 600; color: var(--brand-strong);
+}
 
 /* ------------------------------------------------- the bar over the hero
    On this one page the top bar sits on the recorder's ground instead of a
@@ -1289,6 +1344,11 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .is-landing .lang-opt { color: #cfe0ea; }
 .is-landing .lang-opt:hover { color: #fff; }
 .is-landing .lang-opt.is-active { background: var(--brand); color: #fff; }
+/* The connection pill reports how well this browser reaches the server; the
+   dashboards use it to choose between the live map and the offline
+   schematic. The public page has no map, and to a visitor a green "online"
+   reads as a claim about the water system, so it is not shown here. */
+.is-landing #conn-pill { display: none; }
 
 /* ==========================================================================
    DEAD ENDS  (404, 403, 400)
@@ -1529,7 +1589,23 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 @media (hover: none) and (pointer: coarse) {
   .sidenav-nav a { padding-top: .68rem; padding-bottom: .68rem; }
   .icon-btn { width: 38px; height: 38px; }
+  /* EN/FIL: 36px tall to match the 38px icon button, wider for a thumb, and
+     4px of invisible tap area above and below - 44px in all. */
+  .lang-opt { height: 36px; min-width: 44px; }
+  .lang-opt::after { content: ""; position: absolute; inset: -4px 0; }
 }
+/* A phone's top bar holds the brand plus four controls in about 366px.
+   44px-wide language halves pushed it over, and "Sign in" and the brand
+   each broke onto two lines; 40px wide (still 44px tall to tap) and tighter
+   gaps keep it on one line at 390px. */
+@media (hover: none) and (pointer: coarse) and (max-width: 460px) {
+  .lang-opt { min-width: 40px; padding: 0 .5rem; }
+}
+@media (max-width: 460px) {
+  .topbar-inner { gap: .5rem; }
+  .topbar-actions { gap: .3rem; }
+}
+.topbar-actions .btn { white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) {
   .sidenav { transition: none; }
@@ -2488,16 +2564,15 @@ a.sent-row:hover { background: var(--surface-2); }
 .role-install { margin-top: 1rem; display: flex; flex-direction: column; gap: .6rem; align-items: flex-start; }
 .role-install .set-lede { margin: 0; }
 
-/* Landing hero fills the first screen: the dark instrument panel occupies the
-   viewport (below the topbar), the copy + recorder sit centered, and the
-   telemetry rides the bottom rail. The rest of the page scrolls below. */
+/* The landing hero is as tall as what is in it, plus room to breathe. It
+   used to fill the whole first screen with the copy and recorder centred in
+   it, which on a 1440x900 laptop left about 200px of empty panel above and
+   below, and pushed "What happens when a hose splits" off the first screen
+   entirely. Now the steps begin on the first screen of a laptop. */
 .is-landing .lead {
-  min-height: calc(100vh - 52px);
-  min-height: calc(100dvh - 52px);
-  display: flex;
-  flex-direction: column;
+  padding-top: clamp(2rem, 5vw, 3.75rem);
+  padding-bottom: clamp(1.6rem, 3.2vw, 2.4rem);
 }
-.is-landing .lead-grid { flex: 1 1 auto; align-content: center; }
 
 /* ---------- Analytics bars ----------
    Server-computed widths, no chart library: every bar is a percentage the

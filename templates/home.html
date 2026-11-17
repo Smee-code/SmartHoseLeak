@@ -27,10 +27,10 @@
   <div class="lead-grid">
 
     <div class="lead-copy">
-      <h1>{% trans "One hose to every house. A sensor on every hose. Leaks show up in seconds." %}</h1>
+      <h1>{% trans "One hose to every house. A sensor on every hose. A leak is found, and the water shut off." %}</h1>
 
       <p class="lead-sub">
-        {% blocktrans with locale=SITE_LOCALE %}Water reaches {{ locale }} downhill from one source, through a hose to every household. When a hose splits, the water runs into the ground and nobody knows until a tap upstream goes dry. A sensor on each line notices in seconds, and says whose line it is.{% endblocktrans %}
+        {% blocktrans with locale=SITE_LOCALE %}Water reaches {{ locale }} downhill from one source, through a hose to every household. When a hose splits, the water runs into the ground and nobody knows until a tap upstream goes dry. A board on each line watches the flow and the pressure, says whose line is leaking, and can close its valve before more water is lost.{% endblocktrans %}
       </p>
 
       <div class="lead-actions">
@@ -100,9 +100,13 @@
           {# the premise, stated on the plot #}
           <text class="r-label" x="66" y="50">{% trans "no taps open &mdash; recorded overnight" %}</text>
 
-          {# the low-supply threshold this line is judged against #}
+          {# the low-supply threshold this line is judged against. Labelled at #}
+          {# the right end on a wide screen; on a phone the labels are drawn  #}
+          {# larger and that end runs into the falling pen, so the phone gets  #}
+          {# the left end instead, under the steady trace (CSS picks one).    #}
           <line class="trace-rule" x1="58" y1="158" x2="610" y2="158"/>
-          <text class="r-label" x="606" y="152" text-anchor="end">{% trans "low-supply threshold" %}</text>
+          <text class="r-label r-label-wide" x="606" y="152" text-anchor="end">{% trans "low-supply threshold" %}</text>
+          <text class="r-label r-label-narrow" x="66" y="151">{% trans "low-supply threshold" %}</text>
 
           {# the pen: steady (cyan), then falling (amber), meeting where it turns #}
           <path class="trace-fill" d="M58,85 L104,83 L150,86 L196,82 L242,85 L288,83
@@ -163,7 +167,7 @@
 <div class="wrap">
 
   {% comment %}
-    Three steps, in order along a hose, so they read on a time axis. The copy
+    Four steps, in order along a hose, so they read on a time axis. The copy
     is the true mechanism: no distance markers, no calibrated flow curve -
     both were removed from the system, and the page used to advertise them.
   {% endcomment %}
@@ -173,16 +177,16 @@
     <ol class="stages">
       <li class="stage">
         <span class="stage-num" aria-hidden="true">1</span>
-        <h3>{% trans "The line is read, every second" %}</h3>
+        <h3>{% trans "The line is watched, day and night" %}</h3>
         <p>
-          {% trans "A flow sensor and a pressure sensor sit on the hose where it leaves the source. The board beside them samples both every second and keeps the steady value, not the spikes." %}
+          {% trans "A flow sensor and a pressure sensor sit on each household's hose. The board beside them reads both every two seconds, and keeps watching when the WiFi drops." %}
         </p>
       </li>
       <li class="stage">
         <span class="stage-num" aria-hidden="true">2</span>
         <h3>{% trans "The pattern gives it away" %}</h3>
         <p>
-          {% trans "Water moving while the whole barangay is asleep, pressure falling with no tap open, or flow that simply never stops. Any of those for long enough and the board calls it." %}
+          {% trans "Water that runs non-stop for too long, or a line that loses pressure when the board seals it for its nightly test. Either one, and the board calls it a possible leak." %}
         </p>
       </li>
       <li class="stage">
@@ -190,6 +194,13 @@
         <h3>{% trans "Somebody is told, by name" %}</h3>
         <p>
           {% trans "The facilitator gets a text and the household gets one too, saying which line it is. Each hose serves one house, so the alert names that house rather than a stretch of ground to go and search." %}
+        </p>
+      </li>
+      <li class="stage">
+        <span class="stage-num" aria-hidden="true">4</span>
+        <h3>{% trans "The water is shut off" %}</h3>
+        <p>
+          {% trans "The board closes the household's valve so the water stops running into the ground. It stays closed until someone checks the hose and opens it again, from the household's phone, the facilitator's dashboard, or the board itself." %}
         </p>
       </li>
     </ol>
@@ -208,7 +219,7 @@
       <h3>{% trans "Water system facilitator" %}</h3>
       <div>
         <p>
-          {% trans "The live leak map, pressure for every household, the household records, the complaints inbox, and the tools for sending notices and texts." %}
+          {% trans "The live leak map, pressure and valve control for every household, the household records, the complaints inbox, and the tools for sending notices and texts." %}
         </p>
       </div>
     </div>
@@ -217,7 +228,7 @@
       <h3>{% trans "Registered household owner" %}</h3>
       <div>
         <p>
-          {% trans "See the pressure on your own line, report a problem with your water, and read notices from the facilitator." %}
+          {% trans "See the pressure on your own line, open or close your valve, report a problem with your water, and read notices from the facilitator." %}
         </p>
         <p class="role-note">
           {% trans "Accounts are issued by the water system facilitator. If you are a registered subscriber without a login, ask them for one." %}
@@ -242,7 +253,7 @@
               {% trans "The app is already installed on this device." %}
             </p>
             <div data-install="prompt" hidden>
-              <button type="button" class="btn btn-primary" id="install-now">{% trans "Install the app on my phone" %}</button>
+              <button type="button" class="btn btn-primary" id="install-now">{% trans "Install the app on this device" %}</button>
             </div>
             <details class="set-steps" data-install="ios" hidden>
               <summary>{% trans "Install on an iPhone or iPad" %}</summary>
@@ -264,10 +275,13 @@
       </div>
     </div>
 
+    {# A text line rather than a third Sign in button: the top bar scrolls #}
+    {# away on this page, so the end of it still needs a way in.          #}
     {% if not user.is_authenticated %}
-      <div class="roles-cta">
-        <a class="btn btn-primary btn-lg" href="{% url 'login' %}" data-modal-open="login-modal">{% trans "Sign in" %}</a>
-      </div>
+      <p class="roles-signin">
+        {% trans "Already have a login?" %}
+        <a href="{% url 'login' %}" data-modal-open="login-modal">{% trans "Sign in" %}</a>
+      </p>
     {% endif %}
   </section>
 
