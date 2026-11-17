@@ -12,11 +12,11 @@
   </div>
 
   <section class="stats" aria-label="{% trans 'Headline figures' %}">
-    <div class="stat"><div class="stat-value">{{ kpis.households }}</div><div class="stat-label">{% trans "Households" %}</div></div>
-    <div class="stat"><div class="stat-value">{{ kpis.lines }}</div><div class="stat-label">{% trans "Active hose lines" %}</div></div>
-    <div class="stat"><div class="stat-value">{{ kpis.boards_online }}/{{ kpis.boards_total }}</div><div class="stat-label">{% trans "Boards online" %}</div></div>
-    <div class="stat"><div class="stat-value">{{ kpis.open_leaks }}</div><div class="stat-label">{% trans "Open leak alerts" %}</div></div>
-    <div class="stat"><div class="stat-value">{{ kpis.open_work }}</div><div class="stat-label">{% trans "Open work orders" %}</div></div>
+    <div class="stat" data-tone="brand"><span class="stat-icon" aria-hidden="true"><svg class="ico"><use href="#i-home"></use></svg></span><div class="stat-value">{{ kpis.households }}</div><div class="stat-label">{% trans "Households" %}</div></div>
+    <div class="stat" data-tone="trace"><span class="stat-icon" aria-hidden="true"><svg class="ico"><use href="#i-route"></use></svg></span><div class="stat-value">{{ kpis.lines }}</div><div class="stat-label">{% trans "Active hose lines" %}</div></div>
+    <div class="stat" data-tone="info"><span class="stat-icon" aria-hidden="true"><svg class="ico"><use href="#i-gauge"></use></svg></span><div class="stat-value">{{ kpis.boards_online }}/{{ kpis.boards_total }}</div><div class="stat-label">{% trans "Boards online" %}</div></div>
+    <div class="stat" data-tone="{% if kpis.open_leaks %}danger{% else %}quiet{% endif %}"><span class="stat-icon" aria-hidden="true"><svg class="ico"><use href="#i-alert"></use></svg></span><div class="stat-value">{{ kpis.open_leaks }}</div><div class="stat-label">{% trans "Open leak alerts" %}</div></div>
+    <div class="stat" data-tone="{% if kpis.open_work %}accent{% else %}quiet{% endif %}"><span class="stat-icon" aria-hidden="true"><svg class="ico"><use href="#i-calendar"></use></svg></span><div class="stat-value">{{ kpis.open_work }}</div><div class="stat-label">{% trans "Open work orders" %}</div></div>
   </section>
 
   <div class="tiles" style="margin-top:1.5rem">

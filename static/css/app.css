@@ -15,16 +15,38 @@
   --brand-strong: #095680;
   --brand-soft: #e3f0f9;
 
-  --ok: #17794c;
+  /* Text that sits ON a filled brand or danger surface. White in light
+     mode; in dark mode the fills are light, so the text turns dark - white
+     on the dark-mode brand blue was 2.4:1. */
+  --on-brand: #ffffff;
+  --on-danger: #ffffff;
+  /* The edge of something you type into or press: 3:1 against the surface,
+     which --border (a divider, 1.3:1) is not meant to reach. */
+  --border-strong: #8494a4;
+
+  /* THE COLOUR SCHEME
+     Brand blue (hue 202) carries structure: navigation, primary actions,
+     links. It is about 30% of a screen; neutrals are 60%.
+     Accent is the blue's complement, a warm orange (hue 26), kept to the
+     last 10%: things waiting on a person - overdue, pending, unread.
+     Info is teal (hue 175), the blue's analogous neighbour: related enough
+     to sit beside it, different enough that a "Scheduled" pill no longer
+     looks like a link or a primary button.
+     Status colours mean status and nothing else: green fine, amber
+     degraded, red a leak or a destructive action, grey not reporting.
+     Every text colour here is at least 4.5:1 on its own -soft ground. */
+  --ok: #15734a;
   --ok-soft: #dff3e8;
-  --warn: #a8620b;
+  --warn: #8a5006;
   --warn-soft: #fbeeda;
   --danger: #b3261e;
   --danger-soft: #fbe3e1;
-  --info: #0b6ea8;
-  --info-soft: #e3f0f9;
-  --offline: #6b7785;
+  --info: #0f766e;
+  --info-soft: #dcf3ef;
+  --offline: #566472;
   --offline-soft: #e8ecf0;
+  --accent: #a3470a;
+  --accent-soft: #fdecdc;
 
   --shadow: 0 1px 2px rgba(16, 32, 48, .06), 0 4px 16px rgba(16, 32, 48, .06);
   --radius: 12px;
@@ -50,10 +72,15 @@
   --warn-soft: #33270f;
   --danger: #ff8a80;
   --danger-soft: #3a1a19;
-  --info: #4bb3e8;
-  --info-soft: #12303f;
-  --offline: #8b99a7;
+  --info: #5fd4c8;
+  --info-soft: #10302d;
+  --offline: #9aa7b4;
   --offline-soft: #202e3a;
+  --accent: #f0a35e;
+  --accent-soft: #35230f;
+  --on-brand: #06202e;
+  --on-danger: #2a0907;
+  --border-strong: #62788d;
 
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 18px rgba(0, 0, 0, .35);
 }
@@ -86,7 +113,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.55 var(--sans);
+  font: 16px/1.55 var(--sans);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -112,7 +139,7 @@ a { color: var(--brand); }
 
 .skip-link {
   position: absolute; left: -999px; top: 0; z-index: 1700;
-  background: var(--brand); color: #fff; padding: .6rem 1rem; border-radius: 0 0 8px 0;
+  background: var(--brand); color: var(--on-brand); padding: .6rem 1rem; border-radius: 0 0 8px 0;
 }
 .skip-link:focus { left: 0; }
 
@@ -203,14 +230,14 @@ a { color: var(--brand); }
 
 .brand { display: flex; align-items: center; gap: .55rem; text-decoration: none; color: var(--text); min-width: 0; }
 .brand strong { display: block; font-size: .98rem; line-height: 1.1; }
-.brand small { display: block; font-size: .74rem; color: var(--text-muted); }
+.brand small { display: block; font-size: .75rem; color: var(--text-muted); }
 /* The brand lives in the sidebar on desktop; the topbar copy is for narrow
    screens, where the sidebar is hidden behind the toggle. */
 .brand-topbar { display: none; }
 
 .sidenav-nav { padding: .6rem .55rem 1rem; display: flex; flex-direction: column; gap: .1rem; }
 .sidenav-group {
-  margin: .9rem .55rem .3rem; font-size: .7rem; font-weight: 700;
+  margin: .9rem .55rem .3rem; font-size: .75rem; font-weight: 700;
   letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted);
 }
 .sidenav-group:first-child { margin-top: .2rem; }
@@ -286,7 +313,7 @@ a { color: var(--brand); }
 .lang-opt:first-of-type { border-radius: calc(var(--radius-sm) - 1px) 0 0 calc(var(--radius-sm) - 1px); }
 .lang-opt:last-of-type  { border-radius: 0 calc(var(--radius-sm) - 1px) calc(var(--radius-sm) - 1px) 0; }
 .lang-opt:hover { color: var(--text); }
-.lang-opt.is-active { background: var(--brand); color: #fff; }
+.lang-opt.is-active { background: var(--brand); color: var(--on-brand); }
 .lang-opt:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 
 .icon-btn {
@@ -302,7 +329,7 @@ a { color: var(--brand); }
 .theme-ico-sun, [data-theme="dark"] .theme-ico-moon { display: none; }
 [data-theme="dark"] .theme-ico-sun { display: block; }
 .avatar {
-  width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: var(--on-brand);
   display: grid; place-items: center; font-size: .78rem; font-weight: 700;
 }
 
@@ -382,9 +409,24 @@ a { color: var(--brand); }
   cursor: pointer; text-decoration: none;
 }
 .btn:hover { background: var(--surface-2); }
-.btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn-primary { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
 .btn-primary:hover { background: var(--brand-strong); border-color: var(--brand-strong); }
-.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
+.btn-danger:hover { background: var(--danger); filter: brightness(.92); }
+/* A consequential switch that destroys nothing (maintenance mode): amber,
+   not red. Red is kept for actions that remove or overwrite data. */
+.btn-warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.btn-warn:hover { background: var(--warn-soft); filter: brightness(.96); }
+/* Red text on a plain button: a destructive action inside a menu or beside
+   a primary, where a filled red block would shout. */
+.btn-danger-quiet { color: var(--danger); }
+.btn-danger-quiet:hover { background: var(--danger-soft); border-color: var(--danger); }
+/* Unavailable. It used to be only a paler label on a normal button, which
+   looked pressable; now it is flat, dashed and says so to the pointer. */
+.btn:disabled, .btn[aria-disabled="true"] {
+  background: transparent; color: var(--text-muted); border-style: dashed;
+  box-shadow: none; opacity: .7; cursor: not-allowed;
+}
 .btn-sm { padding: .35rem .7rem; font-size: .85rem; }
 .btn-block { width: 100%; }
 .btn-row { display: flex; flex-wrap: wrap; gap: .5rem; }
@@ -398,7 +440,7 @@ input[type=text], input[type=password], input[type=number], input[type=email],
 input[type=search], input[type=tel], input[type=date], select, textarea {
   width: 100%; padding: .55rem .7rem; font: inherit;
   background: var(--surface); color: var(--text);
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
 }
 input:focus, select:focus, textarea:focus { border-color: var(--brand); }
 textarea { resize: vertical; min-height: 84px; }
@@ -432,7 +474,7 @@ input[type=checkbox] { width: auto; margin-right: .4rem; }
    is the rollout working as planned, not a fault, and it must never compete
    for attention with a line whose device has actually stopped answering. */
 .pill-none {
-  background: var(--surface-alt, #f1f5f9);
+  background: var(--surface-2);
   color: var(--text-muted);
   border-color: var(--border);
   font-weight: 500;
@@ -440,7 +482,7 @@ input[type=checkbox] { width: auto; margin-right: .4rem; }
 
 .badge {
   display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
-  border-radius: 999px; background: var(--danger); color: #fff; font-size: .7rem; font-weight: 700;
+  border-radius: 999px; background: var(--danger); color: var(--on-danger); font-size: .75rem; font-weight: 700;
 }
 
 /* ---------- Live segment tiles ---------- */
@@ -576,7 +618,7 @@ input[type=checkbox] { width: auto; margin-right: .4rem; }
   border-color: var(--brand); background: var(--brand-soft);
 }
 .swatch-option:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
-.swatch-name { font-size: .72rem; color: var(--text-muted); }
+.swatch-name { font-size: .75rem; color: var(--text-muted); }
 .swatch-option:has(input:checked) .swatch-name { color: var(--brand-strong); font-weight: 600; }
 
 /* What a delete takes with it. */
@@ -657,13 +699,13 @@ body.modal-open { overflow: hidden; }
 .thread-item.is-active { background: var(--brand-soft); }
 .thread-avatar {
   flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%;
-  background: var(--brand); color: #fff;
+  background: var(--brand); color: var(--on-brand);
   display: grid; place-items: center; font-weight: 700; font-size: .9rem;
 }
 .thread-item-body { flex: 1 1 auto; min-width: 0; }
 .thread-item-top { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
 .thread-item-top strong { font-size: .92rem; }
-.thread-item-top time { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+.thread-item-top time { font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
 .thread-item-sub {
   display: block; font-size: .8rem; color: var(--text-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -696,7 +738,7 @@ body.modal-open { overflow: hidden; }
   background: var(--brand); flex: 0 0 auto; margin-left: auto;
 }
 
-.pill-sm { font-size: .68rem; padding: .1rem .4rem; }
+.pill-sm { font-size: .75rem; padding: .1rem .45rem; }
 
 .thread-pane {
   background: var(--surface); border: 1px solid var(--border);
@@ -779,7 +821,7 @@ body.modal-open { overflow: hidden; }
   background: var(--surface-2); border: 1px solid var(--border);
 }
 .from-me .bubble {
-  background: var(--brand); border-color: var(--brand); color: #fff;
+  background: var(--brand); border-color: var(--brand); color: var(--on-brand);
 }
 .bubble p { margin: 0; font-size: .95rem; line-height: 1.45; }
 
@@ -1343,7 +1385,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .is-landing .lang-toggle { border-color: rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .06); }
 .is-landing .lang-opt { color: #cfe0ea; }
 .is-landing .lang-opt:hover { color: #fff; }
-.is-landing .lang-opt.is-active { background: var(--brand); color: #fff; }
+.is-landing .lang-opt.is-active { background: var(--brand); color: var(--on-brand); }
 /* The connection pill reports how well this browser reaches the server; the
    dashboards use it to choose between the live map and the offline
    schematic. The public page has no map, and to a visitor a green "online"
@@ -1466,7 +1508,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .feed-title { margin: 0; font-size: .93rem; font-weight: 650; line-height: 1.35; }
 .feed-title a { color: inherit; text-decoration: none; }
 .feed-title a:hover { color: var(--brand); text-decoration: underline; }
-.feed-top time { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+.feed-top time { font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
 
 .feed-body { margin: .3rem 0 0; font-size: .88rem; color: var(--text-muted); }
 
@@ -1475,9 +1517,9 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   display: inline-flex; align-items: center;
   padding: .12rem .45rem; border-radius: 999px;
   background: var(--surface-2); border: 1px solid var(--border);
-  font-size: .72rem; color: var(--text-muted);
+  font-size: .75rem; color: var(--text-muted);
 }
-.tag-new { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 700; }
+.tag-new { background: var(--brand); border-color: var(--brand); color: var(--on-brand); font-weight: 700; }
 .tag-link { color: var(--brand); text-decoration: none; }
 .tag-link:hover { background: var(--brand-soft); border-color: var(--brand); }
 
@@ -1574,7 +1616,6 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ---- Small phone ---- */
 @media (max-width: 460px) {
-  body { font-size: 14.5px; }
   .brand small { display: none; }
   .brand strong { font-size: .92rem; }
   #conn-pill { display: none; }
@@ -1736,7 +1777,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   font-size: .78rem; color: var(--text-muted);
 }
 
-.btn-copy { padding: .12rem .45rem; font-size: .72rem; margin-left: .35rem; }
+.btn-copy { padding: .12rem .45rem; font-size: .75rem; margin-left: .35rem; }
 .btn-copy.is-copied { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
 
 
@@ -2001,7 +2042,7 @@ a.sent-row:hover { background: var(--surface-2); }
   border: 0; font-family: inherit; cursor: pointer;
   padding: .95rem 1rem; min-height: 52px;
   border-radius: var(--radius);
-  background: var(--brand); color: #fff;
+  background: var(--brand); color: var(--on-brand);
   font-size: 1.05rem; font-weight: 600; text-align: center; text-decoration: none;
 }
 .owner-action:hover { background: var(--brand-strong); }
@@ -2416,7 +2457,7 @@ a.sent-row:hover { background: var(--surface-2); }
 }
 .btn-quiet-danger:hover,
 .btn-quiet-danger:focus-visible {
-  background: var(--danger); border-color: var(--danger); color: #fff;
+  background: var(--danger); border-color: var(--danger); color: var(--on-danger);
 }
 
 /* ---- The row reads as a person ------------------------------------------
@@ -2764,7 +2805,7 @@ a.sent-row:hover { background: var(--surface-2); }
 .owner-visit-sub { margin: .2rem 0 0; font-size: .9rem; color: var(--text-muted); }
 .owner-week { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: .9rem 0 0; }
 .owner-week div { min-width: 0; padding: .55rem .7rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
-.owner-week dt { margin: 0; font-size: .74rem; color: var(--text-muted); }
+.owner-week dt { margin: 0; font-size: .75rem; color: var(--text-muted); }
 .owner-week dd { margin: .1rem 0 0; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .owner-week dd.is-live { color: var(--danger); }
 @media (max-width: 380px) { .owner-week { grid-template-columns: 1fr 1fr; } }
@@ -2783,3 +2824,301 @@ a.sent-row:hover { background: var(--surface-2); }
 .modal > .modal-inner { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
 .device-steps { padding-left: 1.25rem; margin: .25rem 0 .5rem; }
 .device-steps li { margin: .35rem 0; }
+
+/* ==========================================================================
+   CONSOLE COMPONENTS  (17 Nov 2026 review)
+   Shared pieces for the admin lists: a row menu, tables that stack on a
+   phone, role tags, and the quiet destructive button.
+   ========================================================================== */
+
+/* A destructive action that is not the point of the row. It used to be grey
+   until hovered, which read as "disabled"; now the label is red and the
+   fill arrives on hover. */
+.btn-quiet-danger { background: transparent; border-color: var(--border); color: var(--danger); }
+
+/* ---- Row menu: Edit stays a button, the rest go behind "More" ------------
+   A list of twelve accounts showed 37 buttons. One <details> per row, no
+   script needed to open it; the script in base.html only places the panel
+   (the table scrolls sideways, which would clip it) and closes it on an
+   outside press or Escape. */
+.rowmenu { position: relative; display: inline-block; }
+.rowmenu > summary { list-style: none; }
+.rowmenu > summary::-webkit-details-marker { display: none; }
+.rowmenu > summary.btn { padding-left: .5rem; padding-right: .5rem; }
+.rowmenu[open] > summary { background: var(--surface-2); border-color: var(--border-strong); }
+.rowmenu-panel {
+  position: absolute; right: 0; top: calc(100% + .3rem); z-index: 1150;
+  min-width: 11.5rem; padding: .3rem; display: grid; gap: .1rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow); text-align: left;
+}
+.rowmenu-panel form { display: block; margin: 0; }
+.rowmenu-panel .btn {
+  width: 100%; justify-content: flex-start; border-color: transparent;
+  background: transparent; padding: .5rem .6rem; font-weight: 500;
+}
+.rowmenu-panel .btn:hover { background: var(--surface-2); }
+.rowmenu-panel .btn-quiet-danger:hover,
+.rowmenu-panel .btn-quiet-danger:focus-visible { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+.row-actions { display: flex; justify-content: flex-end; gap: .4rem; flex-wrap: nowrap; }
+
+/* ---- Role tags: three roles, told apart at a glance -----------------------
+   Brand blue for the administrator, its neighbour teal for the facilitator,
+   neutral for the many household owners - so the two rare roles stand out
+   of a long list without colour being the only cue (the word is still there). */
+.tag-role {
+  display: inline-block; padding: .12rem .5rem; border-radius: 6px;
+  font-size: .8rem; font-weight: 600; white-space: nowrap;
+  background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border);
+}
+.tag-role[data-role="admin"] { background: var(--brand-soft); color: var(--brand-strong); border-color: transparent; }
+.tag-role[data-role="facilitator"] { background: var(--info-soft); color: var(--info); border-color: transparent; }
+
+/* Waiting on a person: the accent, not the amber of a degraded line. */
+.pill-accent { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+
+/* Columns that must not collapse to one word per line. */
+.col-address { min-width: 11rem; }
+.col-when { min-width: 8.5rem; }
+.cell-sub { display: block; font-size: .82rem; color: var(--text-muted); }
+
+/* ---- Tables that stack on a phone ----------------------------------------
+   A nine-column table at 390px showed four columns and hid the status and
+   every action off to the right. With .table-stack each row becomes a block:
+   the first cell is its heading, the rest are "label: value" lines (labels
+   are copied from the column headings by the script in base.html), and the
+   actions sit at the bottom where a thumb is. */
+@media (max-width: 640px) {
+  .table-stack thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
+  }
+  .table-stack, .table-stack tbody, .table-stack tr, .table-stack td { display: block; width: 100%; }
+  .table-stack tr { padding: .8rem .9rem; border-bottom: 1px solid var(--border); }
+  .table-stack tr:last-child { border-bottom: 0; }
+  /* .wrap > .table-wrap tbody td sets roomier row padding for the wide
+     layout and outranks a plain class selector, hence the longer one here. */
+  .table-wrap .table-stack tbody td, .table-stack td { border: 0; padding: .14rem 0; text-align: left; white-space: normal; }
+  /* The label is an inline block of fixed width, not a grid column: a cell
+     often holds a text node plus a pill or a second line, and a grid would
+     make each of those its own row and stretch the pill to the full width. */
+  .table-stack td[data-label]:not([data-label=""])::before {
+    content: attr(data-label); display: inline-block; width: 6.25rem; margin-right: .5rem;
+    font-size: .8rem; color: var(--text-muted); vertical-align: baseline;
+  }
+  .table-stack td:not(:first-child) .cell-sub, .table-stack td:not(:first-child) > div:not(.row-actions) { margin-left: 6.75rem; }
+  .table-wrap .table-stack tbody td:first-child, .table-stack td:first-child { font-size: 1.02rem; padding-bottom: .3rem; }
+  .table-stack td:first-child[data-label]::before { display: none; }
+  .table-stack td.empty { text-align: center; padding: 1.2rem 0; }
+  .table-stack .row-actions { justify-content: flex-start; margin-top: .45rem; }
+  .col-address, .col-when { min-width: 0; }
+}
+
+/* ==========================================================================
+   CONSOLE PAGES  (17 Nov 2026 review)
+   ========================================================================== */
+
+/* ---- Analytics bars ---------------------------------------------------
+   The fill is a <span> inside a <span>: inline, so its width and height were
+   ignored and every bar drew empty whatever its value. Block makes it a bar.
+   Tones colour a bar by what it means; a zero row steps back. */
+.barfill { display: block; background: var(--brand); }
+.barfill-ok { background: var(--ok); }
+.barfill-danger { background: var(--danger); }
+.barfill-warn { background: var(--warn); }
+.barrow.is-zero .barrow-label, .barrow.is-zero .barrow-value { color: var(--text-muted); font-weight: 400; opacity: .75; }
+.barrow.is-zero .barfill { display: none; }
+
+/* ---- Pressure tiles ---------------------------------------------------
+   Lines with a reading first, collapsed "no data yet" lines after them, and
+   holes filled: mixed in name order the grid was ragged. A line that has
+   stopped reporting keeps its last figures, but greyed - they are old. */
+.tiles-live { grid-auto-flow: dense; }
+.tiles-live .tile[data-empty="true"] { order: 1; }
+.tile[data-status="OFFLINE"] .readout-value { color: var(--text-muted); }
+
+/* ---- Overview activity feed: two lines, not one cut off with "..." ---- */
+.audit-feed .sent-text {
+  white-space: normal; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
+
+/* ---- Visit detail: narrow column, left-aligned like its neighbours ----- */
+.wrap-detail > * { max-width: 780px; }
+.kv-table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.kv-table th, .kv-table td { padding: .5rem 0; border-bottom: 1px solid var(--border); vertical-align: top; background: none; }
+.kv-table th {
+  width: 9.5rem; padding-right: 1rem; text-align: left; white-space: nowrap;
+  color: var(--text-muted); font-weight: 500; font-size: .88rem;
+}
+.kv-table tr:last-child th, .kv-table tr:last-child td { border-bottom: 0; }
+
+/* ---- Data & backups ---------------------------------------------------- */
+.card-danger { border-color: var(--danger); border-left: 5px solid var(--danger); max-width: 640px; }
+.card-danger h2 { color: var(--danger); }
+/* The browser's own file picker, dressed as one of our buttons. */
+input[type=file] { font: inherit; font-size: .9rem; color: var(--text-muted); max-width: 100%; }
+input[type=file]::file-selector-button {
+  font: inherit; font-weight: 550; margin-right: .7rem; padding: .45rem .85rem; cursor: pointer;
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+}
+input[type=file]::file-selector-button:hover { background: var(--surface-2); }
+
+/* ---- Audit log: the action code, tinted by kind -------------------------
+   Read from the code itself: what it acts on (prefix) and what it does
+   (suffix). Deleting is red, a valve or alert amber, sign-ins teal. */
+.tag-action {
+  display: inline-block; padding: .1rem .45rem; border-radius: 6px;
+  font-family: var(--mono); font-size: .8rem; white-space: nowrap;
+  background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border);
+}
+.tag-action[data-action^="valve."], .tag-action[data-action^="alert."],
+.tag-action[data-action*="maintenance"], .tag-action[data-action*="suspend"] {
+  background: var(--warn-soft); color: var(--warn); border-color: transparent;
+}
+.tag-action[data-action^="login"], .tag-action[data-action^="auth."], .tag-action[data-action^="board."] {
+  background: var(--info-soft); color: var(--info); border-color: transparent;
+}
+.tag-action[data-action$=".create"], .tag-action[data-action$=".activate"], .tag-action[data-action$=".restore"] {
+  background: var(--ok-soft); color: var(--ok); border-color: transparent;
+}
+.tag-action[data-action$=".delete"], .tag-action[data-action$=".destroy"], .tag-action[data-action$=".archive"] {
+  background: var(--danger-soft); color: var(--danger); border-color: transparent;
+}
+
+/* ---- System status ----------------------------------------------------- */
+.svc-list { display: grid; gap: 0; margin-bottom: .8rem; }
+.svc-row {
+  display: grid; grid-template-columns: minmax(9rem, 14rem) 7rem minmax(0, 1fr);
+  gap: .4rem 1rem; align-items: baseline; padding: .55rem 0; border-top: 1px solid var(--border);
+}
+.svc-row:first-child { border-top: 0; }
+.svc-name { font-weight: 550; }
+.svc-note { color: var(--text-muted); font-size: .92rem; }
+@media (max-width: 640px) {
+  .svc-row { grid-template-columns: 1fr auto; }
+  .svc-note { grid-column: 1 / -1; }
+}
+
+/* A settings form of short values: a two-digit number does not need a field
+   the width of the page. */
+.form-compact input[type=number], .form-compact input[type=text], .form-compact select { max-width: 14rem; }
+.form-group { border: 0; border-top: 1px solid var(--border); margin: 0 0 .4rem; padding: 1rem 0 0; min-width: 0; }
+.form-group legend { padding: 0 .6rem 0 0; font-weight: 650; font-size: 1.02rem; }
+
+/* ==========================================================================
+   CONSOLE COLOUR  (17 Nov 2026, after "the admin side is too plain")
+   The screens were about 95% white and grey: brand blue appeared only on the
+   active menu item and one button. Colour by area now follows 60-30-10:
+     60%  neutral content surfaces (unchanged - tables and forms stay calm)
+     30%  structure in the landing page's deep petrol: the navigation rail,
+          and a blue wash behind each page title
+     10%  accents that carry meaning: the cyan "trace" from the landing
+          chart for the current place and for quantities, plus the status
+          colours, which keep meaning status and nothing else.
+   The petrol and the cyan are the public page's own colours, so signing in
+   no longer feels like arriving at a different product.
+   ========================================================================== */
+
+:root {
+  --rail: #0a1f2c;            /* the landing hero's ground */
+  --rail-2: #123246;          /* hover / raised on the rail */
+  --rail-text: #c3d8e3;       /* 10.6:1 on --rail */
+  --rail-dim: #8fb2c4;        /* 7.3:1 on --rail */
+  --rail-rule: rgba(160, 205, 225, .16);
+  --trace: #0e8fa3;           /* the chart pen, darkened to hold 3:1 on white */
+  --trace-bright: #52d0e0;    /* the pen itself, for dark grounds */
+  --trace-soft: #dff4f7;
+}
+[data-theme="dark"] {
+  --rail: #0a1b26;
+  --rail-2: #12303f;
+  --trace: #52d0e0;
+  --trace-soft: #0f3038;
+}
+
+/* ---- 1. The navigation rail ---------------------------------------------- */
+.sidenav { background: var(--rail); border-right-color: var(--rail-rule); color: var(--rail-text); }
+.sidenav-head { border-bottom-color: var(--rail-rule); }
+.sidenav .brand, .sidenav .brand strong { color: #ffffff; }
+.sidenav .brand small { color: var(--rail-dim); }
+.sidenav-group { color: var(--rail-dim); }
+.sidenav-nav a { color: var(--rail-text); }
+.sidenav-nav a .ico { color: var(--rail-dim); }
+.sidenav-nav a:hover { background: var(--rail-2); color: #ffffff; }
+.sidenav-nav a:hover .ico { color: var(--trace-bright); }
+/* The current place: the cyan pen, as a rule down the side and on the icon. */
+.sidenav-nav a[aria-current="page"] {
+  background: rgba(82, 208, 224, .14); color: #ffffff; border-left-color: var(--trace-bright);
+}
+.sidenav-nav a[aria-current="page"] .ico { color: var(--trace-bright); }
+.sidenav-foot { background: transparent; border-top-color: var(--rail-rule); }
+.sidenav-user { color: #ffffff; }
+.sidenav-meta { color: var(--rail-dim); }
+.sidenav .icon-btn { color: #ffffff; border-color: rgba(255, 255, 255, .3); }
+.sidenav .icon-btn:hover { background: var(--rail-2); }
+.sidenav :where(a, button):focus-visible { outline-color: var(--trace-bright); }
+
+/* ---- 3. The page header band --------------------------------------------- */
+/* Only the page's own header (first thing in the wrap), not the section
+   heads further down that reuse .page-head. */
+.wrap > .page-head:first-child {
+  padding: 1rem 1.15rem; margin-bottom: 1.25rem; align-items: center;
+  background: linear-gradient(100deg, var(--brand-soft) 0%, var(--trace-soft) 58%, var(--surface) 100%);
+  border: 1px solid var(--border); border-left: 4px solid var(--brand);
+  border-radius: var(--radius);
+}
+.wrap > .page-head:first-child h1 { color: var(--brand-strong); }
+.wrap > .page-head:first-child .sub { color: var(--text-muted); }
+[data-theme="dark"] .wrap > .page-head:first-child { border-left-color: var(--trace-bright); }
+[data-theme="dark"] .wrap > .page-head:first-child h1 { color: var(--text); }
+
+/* ---- 2. Stat cards: an icon chip and a coloured edge, by meaning ---------- */
+.stat[data-tone] { position: relative; border-top: 3px solid var(--stat-c, var(--border)); padding-right: 3.2rem; }
+.stat-icon {
+  position: absolute; top: .8rem; right: .85rem;
+  width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--stat-soft, var(--surface-2)); color: var(--stat-c, var(--text-muted));
+}
+.stat-icon .ico { width: 18px; height: 18px; flex-basis: 18px; }
+.stat[data-tone="brand"]  { --stat-c: var(--brand);  --stat-soft: var(--brand-soft); }
+.stat[data-tone="trace"]  { --stat-c: var(--trace);  --stat-soft: var(--trace-soft); }
+.stat[data-tone="info"]   { --stat-c: var(--info);   --stat-soft: var(--info-soft); }
+.stat[data-tone="ok"]     { --stat-c: var(--ok);     --stat-soft: var(--ok-soft); }
+.stat[data-tone="accent"] { --stat-c: var(--accent); --stat-soft: var(--accent-soft); }
+.stat[data-tone="danger"] { --stat-c: var(--danger); --stat-soft: var(--surface); }
+/* Nothing to report: the card steps back instead of shouting a zero. */
+.stat[data-tone="quiet"]  { --stat-c: var(--border-strong); --stat-soft: var(--surface-2); }
+.stat[data-tone="quiet"] .stat-value { color: var(--text-muted); }
+
+/* ---- 4. Icons in the content carry the brand ------------------------------ */
+.sent-icon { color: var(--brand); }
+.empty-state .ico { color: var(--brand); }
+.card-head h2 .ico, .page-head h2 .ico { color: var(--brand); }
+.count-chip { background: var(--brand-soft); color: var(--brand-strong); }
+
+/* ---- 5. Tables: a header with some weight, a row you can follow ----------- */
+th {
+  background: color-mix(in srgb, var(--brand-soft) 70%, var(--surface-2));
+  color: var(--brand-strong); border-bottom-color: var(--border-strong);
+}
+[data-theme="dark"] th { color: var(--text); }
+@media (hover: hover) {
+  .table-wrap tbody tr:hover > td { background: color-mix(in srgb, var(--brand-soft) 45%, var(--surface)); }
+}
+.hh-id strong, .hh-id a { color: var(--brand-strong); }
+.kv-table th { background: none; color: var(--text-muted); border-bottom-color: var(--border); }
+
+/* ---- 6. Quantities are drawn in the trace colour -------------------------- */
+/* A plain count is the cyan pen; a bar that means good or bad keeps its
+   status colour (set after this, so it wins). */
+.barfill { background: var(--trace); }
+.barfill-ok { background: var(--ok); }
+.barfill-danger { background: var(--danger); }
+.barfill-warn { background: var(--warn); }
+.bartrack { background: var(--surface-2); }
+/* Waiting on a person: the landing page's amber alarm, as a rule down the
+   side of the "needs attention" strip. */
+.attention li[data-level="warn"] { border-left-color: var(--accent); background: var(--accent-soft); }
+.attention li[data-level="warn"] .attention-count { color: var(--accent); }
+.attention li[data-level="danger"] { background: var(--danger-soft); }

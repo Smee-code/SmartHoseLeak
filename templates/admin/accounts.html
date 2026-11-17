@@ -30,7 +30,7 @@
   </form>
 
   <div class="table-wrap">
-    <table>
+    <table class="table-stack">
       <thead>
         <tr><th>{% trans "Login" %}</th><th>{% trans "Name" %}</th><th>{% trans "Role" %}</th><th>{% trans "Status" %}</th><th></th></tr>
       </thead>
@@ -42,14 +42,14 @@
               {{ row.user.get_full_name|default:"&mdash;" }}
               {% if row.user.household %}<span class="small muted">{{ row.user.household.household_id }}</span>{% endif %}
             </td>
-            <td>{{ row.user.get_role_display }}</td>
+            <td><span class="tag-role" data-role="{{ row.user.role }}">{{ row.user.get_role_display }}</span></td>
             <td>
-              {% if row.user.is_active %}<span class="pill pill-ok">{% trans "active" %}</span>
-              {% else %}<span class="pill pill-muted">{% trans "suspended" %}</span>{% endif %}
+              {% if row.user.is_active %}<span class="pill pill-ok">{% trans "Active" %}</span>
+              {% else %}<span class="pill pill-muted">{% trans "Suspended" %}</span>{% endif %}
             </td>
             <td class="right">
               {% if row.editable %}
-                <div class="btn-row" style="justify-content:flex-end;flex-wrap:nowrap">
+                <div class="row-actions">
                   <a class="btn btn-sm" href="{% url 'account_edit' row.user.pk %}"
                      data-edit-account
                      data-action="{% url 'account_edit' row.user.pk %}"
@@ -60,17 +60,22 @@
                      data-contact="{{ row.user.contact_number }}"
                      data-email="{{ row.user.email }}">{% trans "Edit" %}</a>
                   {% if row.manageable %}
-                  <form method="post" action="{% url 'account_suspend' row.user.pk %}" style="display:inline">
+                  <details class="rowmenu">
+                    <summary class="btn btn-sm" aria-label="{% trans 'More' %}" title="{% trans 'More' %}"><svg class="ico" aria-hidden="true"><use href="#i-more"></use></svg></summary>
+                    <div class="rowmenu-panel">
+                  <form method="post" action="{% url 'account_suspend' row.user.pk %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm">
                       {% if row.user.is_active %}{% trans "Suspend" %}{% else %}{% trans "Restore" %}{% endif %}
                     </button>
                   </form>
-                  <form method="post" action="{% url 'account_delete' row.user.pk %}" style="display:inline"
+                  <form method="post" action="{% url 'account_delete' row.user.pk %}"
                         onsubmit="return confirm(interpolate(gettext('Delete the login %(login)s? This cannot be undone.'), {login: '{{ row.user.username|escapejs }}'}, true));">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm btn-quiet-danger">{% trans "Delete" %}</button>
                   </form>
+                  </div>
+                  </details>
                   {% endif %}
                 </div>
               {% else %}

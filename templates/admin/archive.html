@@ -11,10 +11,20 @@
     </div>
   </div>
 
+  {# Nothing archived: say so once, rather than two empty tables with headings. #}
+  {% if not households and not facilitators %}
+    <div class="card empty-state">
+      <svg class="ico" aria-hidden="true" style="width:28px;height:28px"><use href="#i-archive"></use></svg>
+      <p><strong>{% trans "Nothing is archived." %}</strong></p>
+      <p class="small">{% trans "A household or facilitator you archive is kept here, and can be restored." %}</p>
+    </div>
+  {% endif %}
+
+  {% if households %}
   <div class="card">
     <div class="card-head"><h2>{% trans "Households" %}</h2></div>
     <div class="table-wrap">
-      <table>
+      <table class="table-stack">
         <thead>
           <tr>
             <th>{% trans "ID" %}</th><th>{% trans "Owner" %}</th><th>{% trans "Address" %}</th><th>{% trans "Contact" %}</th><th>{% trans "Archived" %}</th><th></th>
@@ -29,7 +39,7 @@
               <td>{{ household.contact_number }}</td>
               <td class="small muted">{{ household.archived_at|date:"M j, Y H:i" }}</td>
               <td>
-                <div class="btn-row" style="flex-wrap:nowrap">
+                <div class="row-actions" style="justify-content:flex-start">
                   <form method="post" action="{% url 'archive_restore_household' household.pk %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm btn-primary">{% trans "Restore" %}</button>
@@ -53,12 +63,14 @@
       </table>
     </div>
   </div>
+  {% endif %}
   {% include "admin/_household_destroy_dialog.html" with destroy_from="archive" %}
 
+  {% if facilitators %}
   <div class="card" style="margin-top:1.5rem">
     <div class="card-head"><h2>{% trans "Facilitators" %}</h2></div>
     <div class="table-wrap">
-      <table>
+      <table class="table-stack">
         <thead>
           <tr>
             <th>{% trans "ID" %}</th><th>{% trans "Name" %}</th><th>{% trans "Username" %}</th><th>{% trans "Barangay" %}</th><th></th>
@@ -85,5 +97,6 @@
       </table>
     </div>
   </div>
+  {% endif %}
 </div>
 {% endblock %}

@@ -1,9 +1,9 @@
 {% load i18n %}{% comment %}A simple horizontal bar chart. Expects `rows` of {label, value, pct}.{% endcomment %}
 <div class="barchart">
   {% for row in rows %}
-    <div class="barrow">
+    <div class="barrow{% if not row.value %} is-zero{% endif %}">
       <span class="barrow-label" title="{{ row.label }}">{{ row.label }}</span>
-      <span class="bartrack"><span class="barfill" style="width: {{ row.pct }}%"></span></span>
+      <span class="bartrack"><span class="barfill{% if row.tone %} barfill-{{ row.tone }}{% endif %}" style="width: {{ row.pct }}%"></span></span>
       <span class="barrow-value">{{ row.value }}</span>
     </div>
   {% empty %}

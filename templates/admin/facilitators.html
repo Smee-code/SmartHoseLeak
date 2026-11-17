@@ -16,7 +16,7 @@
   </div>
 
   <div class="table-wrap">
-    <table>
+    <table class="table-stack">
       <thead>
         <tr><th>{% trans "Facilitator ID" %}</th><th>{% trans "Login" %}</th><th>{% trans "Name" %}</th><th>{% trans "Contact" %}</th><th>{% trans "Email" %}</th><th>{% trans "Status" %}</th><th></th></tr>
       </thead>
@@ -29,8 +29,8 @@
             <td class="nowrap small">{{ facilitator.contact_number|default:"&mdash;" }}</td>
             <td class="small">{{ facilitator.email|default:"&mdash;" }}</td>
             <td>
-              {% if facilitator.is_active %}<span class="pill pill-ok">{% trans "active" %}</span>
-              {% else %}<span class="pill pill-muted">{% trans "suspended" %}</span>{% endif %}
+              {% if facilitator.is_active %}<span class="pill pill-ok">{% trans "Active" %}</span>
+              {% else %}<span class="pill pill-muted">{% trans "Suspended" %}</span>{% endif %}
             </td>
             {% comment %}
               One shared edit dialog and one shared delete dialog are filled
@@ -38,7 +38,7 @@
               working link to the full page without JavaScript.
             {% endcomment %}
             <td class="right">
-              <div class="btn-row" style="justify-content:flex-end;flex-wrap:nowrap">
+              <div class="row-actions">
                 <a class="btn btn-sm" href="{% url 'facilitator_edit' facilitator.pk %}"
                    data-edit-facilitator
                    data-action="{% url 'facilitator_edit' facilitator.pk %}"

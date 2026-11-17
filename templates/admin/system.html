@@ -17,14 +17,17 @@
   {% endcomment %}
   <div class="card" style="margin-bottom:1.5rem">
     <div class="card-head"><h2>{% trans "Services" %}</h2></div>
-    <dl class="definition">
+    {# Name, state, what it means - three aligned columns. The pill used to #}
+    {# trail the name inside one cell, so the notes started at ragged places. #}
+    <div class="svc-list">
       {% for service in services %}
-        <dt>{{ service.name }}
-          {% if service.ready %}<span class="pill pill-ok">{% trans "ready" %}</span>{% else %}<span class="pill pill-warn">{% trans "not set up" %}</span>{% endif %}
-        </dt>
-        <dd>{{ service.note }}</dd>
+        <div class="svc-row">
+          <span class="svc-name">{{ service.name }}</span>
+          <span>{% if service.ready %}<span class="pill pill-ok">{% trans "Ready" %}</span>{% else %}<span class="pill pill-warn">{% trans "Not set up" %}</span>{% endif %}</span>
+          <span class="svc-note">{{ service.note }}</span>
+        </div>
       {% endfor %}
-    </dl>
+    </div>
     <p class="helptext" style="margin-bottom:0">
       {% trans "To prove email end to end:" %} <span class="mono">python manage.py send_email you@example.com</span>
     </p>
@@ -40,8 +43,8 @@
     </p>
     <p>
       {% trans "Currently:" %}
-      {% if setting.maintenance_mode %}<span class="pill pill-warn">{% trans "on" %}</span>
-      {% else %}<span class="pill pill-ok">{% trans "off" %}</span>{% endif %}
+      {% if setting.maintenance_mode %}<span class="pill pill-warn">{% trans "On" %}</span>
+      {% else %}<span class="pill pill-ok">{% trans "Off" %}</span>{% endif %}
     </p>
     <form method="post" action="{% url 'maintenance_toggle' %}">
       {% csrf_token %}
@@ -56,7 +59,8 @@
         {% if setting.maintenance_mode %}
           <button type="submit" class="btn btn-primary">{% trans "Turn maintenance off" %}</button>
         {% else %}
-          <button type="submit" class="btn btn-danger">{% trans "Turn maintenance on" %}</button>
+          {# Amber, not red: it locks people out for a while but destroys nothing. #}
+          <button type="submit" class="btn btn-warn">{% trans "Turn maintenance on" %}</button>
         {% endif %}
       </div>
     </form>
@@ -71,9 +75,28 @@
       no re-flashing.
       {% endblocktrans %}
     </p>
-    <form method="post" action="{% url 'detection_settings' %}">
+    <form method="post" action="{% url 'detection_settings' %}" class="form-compact">
       {% csrf_token %}
-      {% for field in detection_form %}{% include "_form_field.html" %}{% endfor %}
+      {{ detection_form.non_field_errors }}
+      {# Grouped by which detection a figure belongs to. Any field not named #}
+      {# in a group below still appears, under "Timing", so a setting added   #}
+      {# to the form later is never silently left off this page.             #}
+      <fieldset class="form-group">
+        <legend>{% trans "Continuous flow" %}</legend>
+        {% include "_form_field.html" with field=detection_form.flow_warn_minutes %}
+        {% include "_form_field.html" with field=detection_form.flow_leak_minutes %}
+        {% include "_form_field.html" with field=detection_form.auto_close_on_flow_leak %}
+      </fieldset>
+      <fieldset class="form-group">
+        <legend>{% trans "Nightly test" %}</legend>
+        {% include "_form_field.html" with field=detection_form.valve_test_hour %}
+        {% include "_form_field.html" with field=detection_form.valve_test_grace_minutes %}
+        {% include "_form_field.html" with field=detection_form.valve_test_drop_bar %}
+      </fieldset>
+      <fieldset class="form-group">
+        <legend>{% trans "Timing" %}</legend>
+        {% for field in detection_form %}{% if field.name not in "flow_warn_minutes flow_leak_minutes auto_close_on_flow_leak valve_test_hour valve_test_grace_minutes valve_test_drop_bar" %}{% include "_form_field.html" %}{% endif %}{% endfor %}
+      </fieldset>
       <div class="btn-row">
         <button type="submit" class="btn btn-primary">{% trans "Save detection settings" %}</button>
       </div>
@@ -84,7 +107,7 @@
     <h2>{% trans "Recent errors" %}</h2>
     <p class="sub">{% trans "Unhandled server errors, newest first. The full traceback stays in the server log." %}</p>
     <div class="table-wrap">
-      <table>
+      <table class="table-stack">
         <thead><tr><th>{% trans "When" %}</th><th>{% trans "Type" %}</th><th>{% trans "Path" %}</th><th>{% trans "Message" %}</th><th>{% trans "User" %}</th></tr></thead>
         <tbody>
           {% for e in errors %}

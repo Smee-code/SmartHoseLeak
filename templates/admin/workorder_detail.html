@@ -3,7 +3,8 @@
 {% block title %}{{ order.title }} - {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
-<div class="wrap-narrow">
+{# Left-aligned like every other console page; only the column is narrow. #}
+<div class="wrap wrap-detail">
   <div class="page-head">
     <div>
       <h1>{{ order.title }}</h1>
@@ -17,21 +18,19 @@
   </div>
 
   <div class="card">
-    <div class="table-wrap">
-    <table class="kv-table" style="width:100%;border-collapse:collapse">
+    <table class="kv-table">
       <tbody>
-        <tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">{% trans "Where" %}</th><td style="padding:.35rem 0">{{ order.where_label }}{% with house=order.target_household %}{% if house and house.navigate_url %} &middot; <a href="{{ house.navigate_url }}" target="_blank" rel="noopener">{% trans "Navigate" %}</a>{% if house.visit_route_label %} <span class="muted small">({% blocktrans trimmed with route=house.visit_route_label %}{{ route }} by road{% endblocktrans %})</span>{% endif %}{% endif %}{% endwith %}</td></tr>
-        <tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">{% trans "Barangay" %}</th><td style="padding:.35rem 0">{{ order.barangay.name|default:"&mdash;" }}</td></tr>
-        <tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">{% trans "Assigned to" %}</th><td style="padding:.35rem 0">{% if order.assigned_to %}{{ order.assigned_to.get_full_name|default:order.assigned_to.username }}{% else %}<span class="muted">{% trans "Unassigned" %}</span>{% endif %}</td></tr>
-        <tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">{% trans "Scheduled for" %}</th><td style="padding:.35rem 0">{{ order.scheduled_for|date:"l, M j, Y"|default:"&mdash;" }}</td></tr>
-        {% if order.reported_by %}<tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">{% trans "Reported by" %}</th><td style="padding:.35rem 0">{{ order.reported_by.get_full_name|default:order.reported_by.username }}</td></tr>{% endif %}
-        {% if order.source_complaint %}<tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">{% trans "From complaint" %}</th><td style="padding:.35rem 0">{{ order.source_complaint.reference }}</td></tr>{% endif %}
-        {% if order.details %}<tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">{% trans "Details" %}</th><td style="padding:.35rem 0">{{ order.details|linebreaksbr }}</td></tr>{% endif %}
-        {% if order.review_note %}<tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">{% trans "Review note" %}</th><td style="padding:.35rem 0">{{ order.review_note }}</td></tr>{% endif %}
-        {% if order.resolution_note %}<tr><th style="text-align:left;padding:.35rem .75rem .35rem 0;color:var(--text-muted);font-weight:500;vertical-align:top;white-space:nowrap">{% trans "Resolution" %}</th><td style="padding:.35rem 0">{{ order.resolution_note|linebreaksbr }}</td></tr>{% endif %}
+        <tr><th>{% trans "Where" %}</th><td>{{ order.where_label }}{% with house=order.target_household %}{% if house and house.navigate_url %} &middot; <a href="{{ house.navigate_url }}" target="_blank" rel="noopener">{% trans "Navigate" %}</a>{% if house.visit_route_label %} <span class="muted small">({% blocktrans trimmed with route=house.visit_route_label %}{{ route }} by road{% endblocktrans %})</span>{% endif %}{% endif %}{% endwith %}</td></tr>
+        <tr><th>{% trans "Barangay" %}</th><td>{{ order.barangay.name|default:"&mdash;" }}</td></tr>
+        <tr><th>{% trans "Assigned to" %}</th><td>{% if order.assigned_to %}{{ order.assigned_to.get_full_name|default:order.assigned_to.username }}{% else %}<span class="muted">{% trans "Unassigned" %}</span>{% endif %}</td></tr>
+        <tr><th>{% trans "Scheduled for" %}</th><td>{{ order.scheduled_for|date:"l, M j, Y"|default:"&mdash;" }}</td></tr>
+        {% if order.reported_by %}<tr><th>{% trans "Reported by" %}</th><td>{{ order.reported_by.get_full_name|default:order.reported_by.username }}</td></tr>{% endif %}
+        {% if order.source_complaint %}<tr><th>{% trans "From complaint" %}</th><td>{{ order.source_complaint.reference }}</td></tr>{% endif %}
+        {% if order.details %}<tr><th>{% trans "Details" %}</th><td>{{ order.details|linebreaksbr }}</td></tr>{% endif %}
+        {% if order.review_note %}<tr><th>{% trans "Review note" %}</th><td>{{ order.review_note }}</td></tr>{% endif %}
+        {% if order.resolution_note %}<tr><th>{% trans "Resolution" %}</th><td>{{ order.resolution_note|linebreaksbr }}</td></tr>{% endif %}
       </tbody>
     </table>
-    </div>
   </div>
 
   {% if order.status == 'requested' %}
@@ -86,7 +85,8 @@
             <button type="submit" name="status" value="in_progress" class="btn">{% trans "Mark in progress" %}</button>
           {% endif %}
           <button type="submit" name="status" value="done" class="btn btn-primary">{% trans "Mark done" %}</button>
-          <button type="submit" name="status" value="cancelled" class="btn btn-quiet-danger">{% trans "Cancel" %}</button>
+          {# "Cancel" alone read as "close this form"; it cancels the visit. #}
+          <button type="submit" name="status" value="cancelled" class="btn btn-quiet-danger">{% trans "Cancel visit" %}</button>
         </div>
       </form>
     </div>

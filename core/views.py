@@ -24,6 +24,7 @@ from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonRespon
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import formats, timezone
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 from django.utils import translation
 from django.utils.translation import gettext as _
@@ -3157,6 +3158,12 @@ def analytics(request):
         ("Queued", sms["queued"]),
         ("Failed / not delivered", sms["failed"]),
     ])
+    # Colour by meaning, not one blue for everything: a failed text and a
+    # leaking line are the bars somebody has to act on.
+    sms_bars[0]["tone"] = "ok"
+    sms_bars[-1]["tone"] = "danger"
+    for row in leaks_by_household:
+        row["tone"] = "danger"
 
     return render(
         request,
@@ -3385,10 +3392,21 @@ def audit_log(request):
     entries = AuditLog.objects.select_related("actor")
     if action:
         entries = entries.filter(action=action)
+    # Optional date window. A value that is not a date is ignored rather than
+    # turned into an error page: this is a filter, not a form.
+    date_from = parse_date((request.GET.get("from") or "").strip() or "")
+    date_to = parse_date((request.GET.get("to") or "").strip() or "")
+    if date_from:
+        entries = entries.filter(created_at__date__gte=date_from)
+    if date_to:
+        entries = entries.filter(created_at__date__lte=date_to)
     actions = AuditLog.objects.values_list("action", flat=True).distinct().order_by("action")
     paginator = Paginator(entries, 40)
     page = paginator.get_page(request.GET.get("page"))
-    return render(request, "admin/audit.html", {"page": page, "action": action, "actions": actions})
+    return render(request, "admin/audit.html", {
+        "page": page, "action": action, "actions": actions,
+        "date_from": date_from, "date_to": date_to,
+    })
 
 
 @admin_required
