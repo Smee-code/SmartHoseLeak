@@ -150,6 +150,9 @@ MIDDLEWARE = [
     # logger sees the signed-in user. Both are defined in core/middleware.py.
     "core.middleware.MaintenanceModeMiddleware",
     "core.middleware.ErrorLogMiddleware",
+    # Writes "Offline" into lines whose board has gone quiet, before any page
+    # renders, so the stored status matches what the live poll shows.
+    "core.middleware.StaleBoardMiddleware",
     # After auth: a signed-in owner who has not pressed EN/FIL gets their
     # household's language instead of the browser's. See core/language.py.
     "core.language.HouseholdLanguageMiddleware",
@@ -469,8 +472,9 @@ OWNER_DEVICE_CONNECTING_SECONDS = int(env("OWNER_DEVICE_CONNECTING_SECONDS", "18
 # Minute rollups older than this are pruned by `manage.py prune_rollups`.
 ROLLUP_RETENTION_DAYS = int(env("ROLLUP_RETENTION_DAYS", "90"))
 
-# How often the dashboards poll /api/live/ (milliseconds) when nobody is
-# active at a valve screen. While somebody is (mouse or touch within the last
-# two minutes on a page with valve buttons) the page polls every 2 s instead,
-# so a valve press is seen to take effect as fast as the board acts on it.
+# The dashboards' poll interval now lives in the settings row (Console ->
+# System -> Leak detection -> "Dashboard refresh"), so a demo can turn it
+# down without a redeploy. This value is only the fallback before the table
+# exists. While somebody is active at a valve screen the page polls every
+# 2 s regardless, so a valve press is seen to take effect as the board acts.
 LIVE_POLL_INTERVAL_MS = int(env("LIVE_POLL_INTERVAL_MS", "5000"))

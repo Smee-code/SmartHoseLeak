@@ -10,30 +10,12 @@ Scheduler or cron every minute if you want that audit trail.
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from core.models import LeakEvent, Segment, offline_after_seconds
+from core.models import mark_stale_offline
 
 
 class Command(BaseCommand):
-    help = "Mark segments offline when their last reading is stale."
+    help = "Mark segments offline when their last reading is stale (the site does this itself; kept for cron)."
 
     def handle(self, *args, **options):
-        cutoff = timezone.now() - timezone.timedelta(seconds=offline_after_seconds())
-        stale = Segment.objects.filter(is_active=True, latest__updated_at__lt=cutoff).exclude(
-            status__in=[Segment.Status.OFFLINE, Segment.Status.MAINTENANCE]
-        )
-        count = 0
-        for segment in stale:
-            LeakEvent.objects.filter(segment=segment, cleared_at__isnull=True).update(
-                cleared_at=timezone.now()
-            )
-            LeakEvent.objects.create(
-                segment=segment,
-                status=Segment.Status.OFFLINE,
-                previous_status=segment.status,
-                severity=LeakEvent.Severity.WARNING,
-            )
-            segment.status = Segment.Status.OFFLINE
-            segment.status_changed_at = timezone.now()
-            segment.save(update_fields=["status", "status_changed_at"])
-            count += 1
+        count = mark_stale_offline(force=True)
         self.stdout.write(self.style.SUCCESS(f"Marked {count} segment(s) offline."))

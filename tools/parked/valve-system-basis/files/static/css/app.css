@@ -1,0 +1,2715 @@
+/* =========================================================================
+   Smart Hose Leak Detection System
+   Single stylesheet. Light palette on :root, dark overrides in one block so
+   every colour has a definition in both themes.
+   ========================================================================= */
+
+:root {
+  --bg: #f4f7fa;
+  --surface: #ffffff;
+  --surface-2: #eef3f8;
+  --border: #d6e0ea;
+  --text: #16232e;
+  --text-muted: #5b6b7a;
+  --brand: #0b6ea8;
+  --brand-strong: #095680;
+  --brand-soft: #e3f0f9;
+
+  --ok: #17794c;
+  --ok-soft: #dff3e8;
+  --warn: #a8620b;
+  --warn-soft: #fbeeda;
+  --danger: #b3261e;
+  --danger-soft: #fbe3e1;
+  --info: #0b6ea8;
+  --info-soft: #e3f0f9;
+  --offline: #6b7785;
+  --offline-soft: #e8ecf0;
+
+  --shadow: 0 1px 2px rgba(16, 32, 48, .06), 0 4px 16px rgba(16, 32, 48, .06);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+[data-theme="dark"] {
+  --bg: #0e161d;
+  --surface: #172530;
+  --surface-2: #1e2f3d;
+  --border: #2a3f52;
+  --text: #e6eef5;
+  --text-muted: #9aabbb;
+  --brand: #4bb3e8;
+  --brand-strong: #7cc9f0;
+  --brand-soft: #12303f;
+
+  --ok: #58d69b;
+  --ok-soft: #12312a;
+  --warn: #e5a95a;
+  --warn-soft: #33270f;
+  --danger: #ff8a80;
+  --danger-soft: #3a1a19;
+  --info: #4bb3e8;
+  --info-soft: #12303f;
+  --offline: #8b99a7;
+  --offline-soft: #202e3a;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 18px rgba(0, 0, 0, .35);
+}
+
+* { box-sizing: border-box; }
+
+/* ---------- Stacking order ----------
+   Leaflet gives its own panes z-index 400 and its zoom/attribution controls
+   1000, and those are not ours to change. Every piece of application chrome
+   therefore has to sit above 1000, or the map paints over the top bar, the
+   navigation drawer and even dialogs - which is exactly what happened on a
+   narrow window with the drawer open.
+
+     1100  top bar
+     1150  user menu panel (above the bar it hangs from)
+     1200  navigation scrim
+     1300  navigation drawer
+     1400  toasts
+     1500  modal backdrop and dialogs
+     1700  skip link (must beat everything, it is the escape hatch)
+
+   Keep new layers on this ladder rather than inventing nearby numbers. */
+
+/* The hidden attribute only sets display:none at user-agent priority, so any
+   rule that sets display on the same element silently defeats it - leaving a
+   "hidden" full-screen overlay that still swallows clicks. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 var(--sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+h1, h2, h3, h4 { line-height: 1.25; margin: 0 0 .5rem; font-weight: 650; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: 1.02rem; }
+p { margin: 0 0 .75rem; }
+a { color: var(--brand); }
+.muted { color: var(--text-muted); }
+.small { font-size: .86rem; }
+.mono { font-family: var(--mono); }
+.nowrap { white-space: nowrap; }
+.center { text-align: center; }
+.right { text-align: right; }
+
+/* Visible to screen readers only: a label that would be redundant on screen
+   next to an obvious placeholder, but that the field still needs. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.skip-link {
+  position: absolute; left: -999px; top: 0; z-index: 1700;
+  background: var(--brand); color: #fff; padding: .6rem 1rem; border-radius: 0 0 8px 0;
+}
+.skip-link:focus { left: 0; }
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- Layout ---------- */
+
+.wrap { max-width: 1240px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+.wrap-narrow { max-width: 760px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+
+.page-head {
+  display: flex; flex-wrap: wrap; gap: .75rem 1rem;
+  align-items: flex-end; justify-content: space-between;
+  margin-bottom: 1.1rem;
+}
+.page-head h1 { margin: 0; }
+.page-head .sub { color: var(--text-muted); font-size: .92rem; margin: .15rem 0 0; }
+
+.grid { display: grid; gap: 1rem; }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.split { display: grid; gap: 1rem; grid-template-columns: 1.6fr 1fr; align-items: start; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+
+/* Grid and flex children default to min-width:auto, so a wide table or chart
+   inside one stretches the child to its content width and pushes the whole
+   page past the viewport - the .table-wrap scrollbar never gets a chance to
+   engage. Pinning min-width:0 is what makes the inner scroller work. */
+.grid > *, .split > *, .tiles > *, .stats > *, .readouts > * { min-width: 0; }
+.table-wrap, .chart-wrap { max-width: 100%; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1rem 1.1rem;
+}
+/* Wraps. A card head is a heading plus whatever control belongs to that card,
+   and as a flex row that could not wrap it had no way to fail except by
+   pushing the control through the right edge of its own card - which is what
+   "Register a board" did on the Lines page at phone width, landing on top of
+   the table below it. There is no width at which overflowing is better than
+   dropping to a second line. */
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .5rem .75rem; margin-bottom: .75rem; flex-wrap: wrap;
+}
+.card-head h2, .card-head h3 { margin: 0; }
+
+/* ---------- App shell: side navigation + content column ----------
+   Two columns on desktop. Below --shell-bp the sidebar leaves the flow and
+   becomes an off-canvas drawer, so the content column is full width on a
+   phone and no horizontal scrolling is introduced. */
+
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* 100dvh after 100vh: on a phone, 100vh includes the address bar, so the
+   page runs a little past the screen and the footer jumps as the bar shows
+   and hides. The dynamic unit is the visible height; older browsers keep vh. */
+.appshell { display: flex; align-items: flex-start; min-height: 100vh; min-height: 100dvh; }
+
+/* min-width:0 is what stops a wide table or chart inside the content column
+   from forcing the whole flex row wider than the viewport. */
+.appmain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+
+.sidenav {
+  flex: 0 0 250px; width: 250px;
+  position: sticky; top: 0;
+  height: 100vh; height: 100dvh;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto; overscroll-behavior: contain;
+}
+
+.sidenav-head {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  padding: .85rem .9rem; border-bottom: 1px solid var(--border);
+}
+/* Scoped one level deeper than .icon-btn, which sets display:inline-flex and
+   would otherwise win on source order and leave these visible on desktop. */
+.sidenav .sidenav-close { display: none; flex: 0 0 auto; }
+
+.brand { display: flex; align-items: center; gap: .55rem; text-decoration: none; color: var(--text); min-width: 0; }
+.brand strong { display: block; font-size: .98rem; line-height: 1.1; }
+.brand small { display: block; font-size: .74rem; color: var(--text-muted); }
+/* The brand lives in the sidebar on desktop; the topbar copy is for narrow
+   screens, where the sidebar is hidden behind the toggle. */
+.brand-topbar { display: none; }
+
+.sidenav-nav { padding: .6rem .55rem 1rem; display: flex; flex-direction: column; gap: .1rem; }
+.sidenav-group {
+  margin: .9rem .55rem .3rem; font-size: .7rem; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted);
+}
+.sidenav-group:first-child { margin-top: .2rem; }
+
+.sidenav-nav a {
+  display: flex; align-items: center; gap: .65rem;
+  padding: .55rem .6rem; border-radius: var(--radius-sm);
+  text-decoration: none; color: var(--text-muted);
+  font-size: .92rem; font-weight: 500;
+  border-left: 3px solid transparent;
+}
+.sidenav-nav a > span:first-of-type { flex: 1 1 auto; min-width: 0; }
+.sidenav-nav a:hover { background: var(--surface-2); color: var(--text); }
+.sidenav-nav a[aria-current="page"] {
+  background: var(--brand-soft); color: var(--brand-strong);
+  border-left-color: var(--brand); font-weight: 600;
+}
+.ico {
+  width: 19px; height: 19px; flex: 0 0 19px;
+  fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+
+.sidenav-foot {
+  margin-top: auto; padding: .75rem .9rem;
+  border-top: 1px solid var(--border); background: var(--surface);
+}
+.sidenav-user { margin: 0; font-size: .88rem; font-weight: 600; }
+.sidenav-meta { margin: 0; font-size: .78rem; color: var(--text-muted); }
+
+.sidenav-scrim {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(8, 18, 27, .5); backdrop-filter: blur(1px);
+}
+
+/* ---------- Top bar ---------- */
+
+.topbar {
+  position: sticky; top: 0; z-index: 1100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-inner {
+  max-width: 1240px; margin: 0 auto; padding: .5rem 1rem;
+  display: flex; align-items: center; gap: .75rem; min-height: 52px;
+}
+.topbar .navtoggle { display: none; flex: 0 0 auto; font-size: 1.1rem; }
+
+.topbar-actions { display: flex; align-items: center; gap: .4rem; margin-left: auto; }
+
+/* EN/FIL language switch: a two-segment pill, the active language filled.
+   Restyled for the landing page's dark top bar further down. */
+.lang-toggle {
+  display: inline-flex; align-items: center; margin: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; background: var(--surface);
+}
+.lang-opt {
+  appearance: none; border: 0; background: none; cursor: pointer;
+  padding: .32rem .5rem; font: 600 .72rem/1 var(--sans);
+  letter-spacing: .03em; color: var(--text-muted);
+}
+.lang-opt:hover { color: var(--text); }
+.lang-opt.is-active { background: var(--brand); color: #fff; }
+.lang-opt:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+
+.icon-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--text);
+  width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.icon-btn:hover { background: var(--surface-2); }
+.avatar {
+  width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff;
+  display: grid; place-items: center; font-size: .78rem; font-weight: 700;
+}
+
+.usermenu { position: relative; }
+.usermenu-panel {
+  position: absolute; right: 0; top: calc(100% + .4rem); min-width: 210px; z-index: 1150;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: .6rem;
+}
+.usermenu-name { margin: 0; font-weight: 600; font-size: .92rem; }
+.usermenu-role { margin: 0 0 .4rem; font-size: .8rem; color: var(--text-muted); }
+.usermenu-panel a, .usermenu-panel .linklike {
+  display: block; width: 100%; text-align: left; padding: .4rem .5rem;
+  border-radius: 6px; text-decoration: none; color: var(--text); font-size: .9rem;
+  background: none; border: 0; cursor: pointer; font-family: inherit;
+}
+.usermenu-panel a:hover, .usermenu-panel .linklike:hover { background: var(--surface-2); }
+
+/* ---------- Site footer ----------
+   margin-top:auto pins it to the bottom of the content column on short pages
+   (.appmain is a flex column with min-height:100vh), instead of floating
+   halfway up. The inner row shares .wrap's 1240px measure so it lines up with
+   the page content rather than starting flush against the sidebar.
+
+   One row, not four stacked blocks. This is provenance - who made it, where
+   it runs - and none of it is what anybody opened the page for, so it gets
+   one line and steps out of the way. */
+
+.sitefoot {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: .7rem 1rem;
+  font-size: .78rem;
+  color: var(--text-muted);
+}
+.sitefoot-inner {
+  max-width: 1240px; margin: 0 auto;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem;
+}
+.sitefoot-brand { display: inline-flex; align-items: center; gap: .4rem; }
+.sitefoot-brand img { flex: 0 0 auto; border-radius: 4px; }
+.sitefoot-brand strong { color: var(--text); font-weight: 600; }
+
+/* Hidden when the row wraps, so a stray dot never starts a line. */
+.sitefoot-sep { opacity: .5; }
+
+/* Pushed to the far end on one line; falls in beside the rest when wrapped. */
+.sitefoot-copy { margin-left: auto; }
+
+@media (max-width: 700px) {
+  .sitefoot-sep { display: none; }
+  .sitefoot-inner { gap: .15rem .6rem; }
+  .sitefoot-copy { margin-left: 0; }
+}
+
+/* ---------- Messages ---------- */
+
+.messages { max-width: 1240px; margin: .8rem auto 0; padding: 0 1rem; display: grid; gap: .5rem; }
+.message {
+  display: flex; gap: .75rem; align-items: flex-start; justify-content: space-between;
+  padding: .7rem .9rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--info-soft); color: var(--text);
+  font-size: .92rem;
+}
+.message-success { background: var(--ok-soft); border-color: var(--ok); }
+.message-error { background: var(--danger-soft); border-color: var(--danger); }
+.message-warning { background: var(--warn-soft); border-color: var(--warn); }
+.message-close { background: none; border: 0; font-size: 1.15rem; cursor: pointer; color: inherit; line-height: 1; }
+
+/* ---------- Buttons & forms ---------- */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+  padding: .55rem .95rem; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font: inherit; font-weight: 550;
+  cursor: pointer; text-decoration: none;
+}
+.btn:hover { background: var(--surface-2); }
+.btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-strong); border-color: var(--brand-strong); }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-sm { padding: .35rem .7rem; font-size: .85rem; }
+.btn-block { width: 100%; }
+.btn-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+.field { margin-bottom: .9rem; }
+.field label { display: block; font-weight: 550; font-size: .9rem; margin-bottom: .3rem; }
+.field .helptext { display: block; font-size: .82rem; color: var(--text-muted); margin-top: .25rem; }
+.field .errorlist { margin: .3rem 0 0; padding-left: 1.1rem; color: var(--danger); font-size: .85rem; }
+
+input[type=text], input[type=password], input[type=number], input[type=email],
+input[type=search], input[type=tel], input[type=date], select, textarea {
+  width: 100%; padding: .55rem .7rem; font: inherit;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+input:focus, select:focus, textarea:focus { border-color: var(--brand); }
+textarea { resize: vertical; min-height: 84px; }
+input[type=checkbox] { width: auto; margin-right: .4rem; }
+.field-inline { display: flex; align-items: center; gap: .4rem; }
+.field-inline label { margin: 0; }
+
+.filters { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin-bottom: 1rem; }
+.filters .field { margin: 0; min-width: 180px; }
+
+/* ---------- Status colours ---------- */
+
+.pill {
+  display: inline-flex; align-items: center; gap: .3rem;
+  padding: .2rem .55rem; border-radius: 999px;
+  font-size: .78rem; font-weight: 600; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.pill-NORMAL   { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+.pill-LOW_SUPPLY { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+.pill-POSSIBLE_LEAK { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
+.pill-MAINTENANCE { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+.pill-OFFLINE  { background: var(--offline-soft); color: var(--offline); border-color: var(--offline); }
+.pill-muted    { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); }
+.pill-ok       { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+.pill-warn     { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+.pill-danger   { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
+.pill-info     { background: var(--info-soft); color: var(--info); border-color: var(--info); }
+
+/* A line with no board yet. Deliberately the quietest pill on the page: it
+   is the rollout working as planned, not a fault, and it must never compete
+   for attention with a line whose device has actually stopped answering. */
+.pill-none {
+  background: var(--surface-alt, #f1f5f9);
+  color: var(--text-muted);
+  border-color: var(--border);
+  font-weight: 500;
+}
+
+.badge {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--danger); color: #fff; font-size: .7rem; font-weight: 700;
+}
+
+/* ---------- Live segment tiles ---------- */
+
+.tiles { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+
+.tile {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 5px solid var(--offline);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem;
+}
+.tile[data-status="NORMAL"] { border-left-color: var(--ok); }
+.tile[data-status="LOW_SUPPLY"] { border-left-color: var(--warn); }
+.tile[data-status="POSSIBLE_LEAK"] { border-left-color: var(--danger); }
+.tile[data-status="MAINTENANCE"] { border-left-color: var(--warn); }
+.tile[data-status="OFFLINE"] { border-left-color: var(--offline); opacity: .82; }
+
+.tile[data-status="POSSIBLE_LEAK"] .tile-title { color: var(--danger); }
+
+.tile-head { display: flex; justify-content: space-between; align-items: start; gap: .5rem; margin-bottom: .3rem; }
+.tile-title { font-weight: 650; font-size: .98rem; }
+.tile-sub { color: var(--text-muted); font-size: .8rem; margin-bottom: .8rem; }
+
+.readouts { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.readout { background: var(--surface-2); border-radius: var(--radius-sm); padding: .55rem .7rem; }
+/* Sentence case. A tracked-out ALL-CAPS micro-label above every value is the
+   commonest tell of a generated page, and capitals give the eye no ascenders
+   to read by at .72rem. */
+.readout-label { font-size: .8rem; color: var(--text-muted); }
+.readout-value { font-size: 1.32rem; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.readout-alt { font-size: .78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.tile-foot {
+  margin-top: .8rem; padding-top: .6rem; border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+  font-size: .8rem; color: var(--text-muted);
+}
+
+/* Admin manual valve control on a live tile. */
+.tile-valve {
+  margin-top: .6rem; padding-top: .6rem; border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+}
+.valve-readout { font-size: .8rem; color: var(--text-muted); }
+.valve-readout strong { color: var(--text); text-transform: capitalize; }
+.valve-readout .small { display: block; text-transform: none; font-weight: 400; }
+.valve-actions { display: flex; gap: .4rem; }
+
+/* The facilitator's Open/Close pair, inline in a table row's button group. */
+.valve-cell { display: inline-flex; align-items: center; gap: .4rem; }
+.valve-cell form { margin: 0; }
+/* The system's status the board has not confirmed: a relay, a wire or an
+   old build. The sentence under the state carries the warning. */
+[data-valve-control].is-warn [data-field="valve_detail"] { color: var(--warn); font-weight: 600; }
+.owner-valve.is-warn { outline: 2px solid #ffc466; outline-offset: 3px; }
+.owner-valve.is-warn .owner-valve-detail { color: #ffd38a; }
+
+/* Pulse only while an alert is live; respects reduced-motion. */
+@keyframes shl-pulse {
+  0%, 100% { box-shadow: var(--shadow); }
+  50% { box-shadow: 0 0 0 4px var(--danger-soft), var(--shadow); }
+}
+.tile[data-status="POSSIBLE_LEAK"] { animation: shl-pulse 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .tile[data-status="POSSIBLE_LEAK"] { animation: none; }
+}
+
+/* ---------- Stats ---------- */
+
+.stats { display: grid; gap: .8rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: .85rem 1rem;
+}
+.stat-value { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.stat-label { font-size: .82rem; color: var(--text-muted); }
+.device-ip { display: block; margin-top: .15rem; font-family: var(--mono); font-size: .8rem; }
+
+/* ---------- Modal ----------
+   Centred on desktop, a bottom sheet on a phone so the form sits above the
+   thumb and the on-screen keyboard does not push it out of view. Scrolls
+   internally rather than growing past the viewport. */
+
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 1500;
+  background: rgba(8, 18, 27, .55);
+  display: grid; place-items: center;
+  padding: 1rem;
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: min(620px, 100%);
+  max-height: calc(100vh - 2rem);
+  display: flex; flex-direction: column;
+  animation: shl-modal-in .18s ease;
+}
+.modal-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem;
+  padding: .9rem 1.1rem; border-bottom: 1px solid var(--border);
+}
+.modal-head h2 { margin: 0; font-size: 1.08rem; }
+.modal-head .sub { margin: .15rem 0 0; font-size: .85rem; color: var(--text-muted); }
+/* The form, not the head/body/foot, is .modal's child, so it has to carry the
+   flex column too - otherwise the body cannot scroll and a tall form pushes
+   the Save button off the bottom of the screen. */
+.modal > form { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.modal-body { padding: 1rem 1.1rem; overflow-y: auto; min-height: 0; }
+.modal-foot {
+  display: flex; justify-content: flex-end; gap: .5rem; flex-wrap: wrap;
+  padding: .85rem 1.1rem; border-top: 1px solid var(--border);
+}
+
+/* ---------- Colour swatch picker ---------- */
+
+.swatch {
+  display: inline-block; width: 13px; height: 13px; border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, .25); vertical-align: -2px; margin-right: .35rem;
+}
+.swatch-lg { width: 26px; height: 26px; border-radius: 5px; margin: 0; }
+
+.swatch-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.swatch-option {
+  display: flex; flex-direction: column; align-items: center; gap: .25rem;
+  padding: .4rem .45rem; border: 2px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; background: var(--surface); min-width: 62px;
+}
+.swatch-option:hover { background: var(--surface-2); }
+/* The radio itself is hidden, but only visually - it stays focusable and
+   keyboard-selectable, and the focus ring is drawn on the label instead. */
+.swatch-option input {
+  position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0;
+}
+.swatch-option:has(input:checked) {
+  border-color: var(--brand); background: var(--brand-soft);
+}
+.swatch-option:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
+.swatch-name { font-size: .72rem; color: var(--text-muted); }
+.swatch-option:has(input:checked) .swatch-name { color: var(--brand-strong); font-weight: 600; }
+
+/* What a delete takes with it. */
+.delete-list { margin: .4rem 0 .9rem; padding-left: 1.2rem; }
+.delete-list li { margin-bottom: .2rem; }
+
+/* A value the system assigns, shown where its input used to be. */
+.assigned-id {
+  margin: 0; padding: .55rem .7rem;
+  background: var(--surface-2); border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-weight: 600; color: var(--text);
+}
+
+/* Two-up rows inside the modal that collapse on a narrow screen. */
+.field-pair { display: grid; gap: 0 .75rem; grid-template-columns: 1fr 1fr; }
+@media (max-width: 520px) { .field-pair { grid-template-columns: 1fr; } }
+
+@keyframes shl-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(.99); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .modal { animation: none; } }
+
+@media (max-width: 560px) {
+  .modal-backdrop { padding: 0; place-items: end stretch; }
+  .modal {
+    width: 100%; max-height: 92vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    border-bottom: 0;
+  }
+  .modal-foot { padding-bottom: calc(.85rem + env(safe-area-inset-bottom, 0px)); }
+  .modal-foot .btn { flex: 1 1 auto; }
+}
+
+body.modal-open { overflow: hidden; }
+
+/* ---------- Complaint threads ----------
+   A list of conversations beside the open one. Below 900px only one pane is
+   shown at a time: the list, or the thread once one is opened. */
+
+.chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .3rem .7rem; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text-muted); text-decoration: none; font-size: .84rem;
+}
+.chip:hover { background: var(--surface-2); color: var(--text); }
+.chip-on { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-strong); font-weight: 600; }
+.chip-count { font-size: .75rem; opacity: .8; }
+
+.thread-shell {
+  display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 1rem;
+  align-items: start;
+}
+
+.thread-list {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  max-height: 70vh; overflow-y: auto; overscroll-behavior: contain;
+}
+
+/* Sticks to the top of the list while the conversations scroll under it, so
+   the box is still reachable once the list is long. */
+.thread-search {
+  position: sticky; top: 0; z-index: 1;
+  padding: .6rem .65rem;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.thread-search input { padding: .45rem .6rem; font-size: .88rem; }
+.thread-item {
+  display: flex; gap: .65rem; padding: .7rem .8rem;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none; color: var(--text);
+}
+.thread-item:last-child { border-bottom: 0; }
+.thread-item:hover { background: var(--surface-2); }
+.thread-item.is-active { background: var(--brand-soft); }
+.thread-avatar {
+  flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%;
+  background: var(--brand); color: #fff;
+  display: grid; place-items: center; font-weight: 700; font-size: .9rem;
+}
+.thread-item-body { flex: 1 1 auto; min-width: 0; }
+.thread-item-top { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
+.thread-item-top strong { font-size: .92rem; }
+.thread-item-top time { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+.thread-item-sub {
+  display: block; font-size: .8rem; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.thread-item-foot { display: flex; align-items: center; gap: .4rem; margin-top: .25rem; }
+
+/* ---- Unread conversations -------------------------------------------------
+   Weight, colour and a dot, all at once. A list row already carries an
+   avatar, a name, a date, a subject and a status pill, and a small count
+   badge alongside all that is easy to scan past. The one question this list
+   has to answer without being read is "has somebody written to me".
+   -------------------------------------------------------------------------- */
+
+.thread-item.is-unread {
+  background: var(--brand-soft);
+  /* A left edge, so the unread ones line up as a column down the list
+     rather than each needing to be judged on its own. */
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.thread-item.is-unread .thread-item-top strong { font-weight: 800; }
+.thread-item.is-unread .thread-item-top time { color: var(--brand-strong); font-weight: 600; }
+.thread-item.is-unread .thread-item-sub { color: var(--text); font-weight: 600; }
+
+/* The open thread is by definition read, so the active state wins - otherwise
+   the row you are looking at would keep shouting for attention. */
+.thread-item.is-unread.is-active { box-shadow: none; }
+
+.unread-dot {
+  width: .5rem; height: .5rem; border-radius: 50%;
+  background: var(--brand); flex: 0 0 auto; margin-left: auto;
+}
+
+.pill-sm { font-size: .68rem; padding: .1rem .4rem; }
+
+.thread-pane {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; min-height: 60vh; min-width: 0;
+}
+.thread-empty {
+  margin: auto; text-align: center; color: var(--text-muted); padding: 2rem 1rem;
+}
+.thread-empty .ico { stroke: currentColor; margin-bottom: .5rem; }
+
+.thread-head {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .8rem 1rem; border-bottom: 1px solid var(--border);
+}
+/* flex-basis keeps the title on the same line as the back arrow instead of
+   being wrapped onto its own row by a wide neighbour. */
+.thread-head-main { flex: 1 1 11rem; min-width: 0; }
+.thread-head h2 { margin: 0; font-size: 1.05rem; }
+.thread-head .sub { margin: .1rem 0 0; font-size: .82rem; color: var(--text-muted); }
+.thread-status { display: flex; gap: .4rem; align-items: center; }
+.thread-status select { width: auto; padding: .35rem .5rem; font-size: .85rem; }
+
+/* Hidden on desktop, where the list is already beside the thread. On narrow
+   screens it is a compact circle sitting immediately left of the title, the
+   way a phone detail screen usually reads - not a wide button on its own
+   line above the heading. */
+.thread-back {
+  display: none;
+  flex: 0 0 auto; width: 32px; height: 32px;
+  align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 50%;
+  background: var(--surface); color: var(--text);
+  text-decoration: none; font-size: 1.05rem; line-height: 1;
+}
+.thread-back:hover { background: var(--surface-2); }
+
+/* Where the house is and the number to ring - the two things wanted while
+   reading a complaint. Spaced rather than strung together with middle dots,
+   which is the commonest tell of a generated page and reads as one run-on
+   string rather than three separate facts. */
+.thread-context {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .3rem 1.1rem;
+  padding: .5rem 1rem; border-bottom: 1px solid var(--border);
+  background: var(--surface-2); font-size: .85rem; color: var(--text-muted);
+}
+.thread-context-where { min-width: 0; }
+.thread-context-call { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+/* The one string here that gets read out over the phone. */
+.thread-ref {
+  margin-left: .5rem; font-family: var(--mono); font-size: .8rem;
+  color: var(--text-muted);
+}
+
+/* The conversation sits against the composer, not at the top of the pane.
+   A short thread used to float at the ceiling with a field of empty space
+   between the last message and the box you reply in - every chat anybody has
+   used grows upward from the place they type. justify-content does it
+   without scripting, and the pane still scrolls when a thread is long. */
+.thread-messages {
+  flex: 1 1 auto; overflow-y: auto; max-height: 48vh; min-height: 14rem;
+  padding: 1rem; display: flex; flex-direction: column;
+  justify-content: flex-end; gap: .3rem;
+}
+/* A row is now a bubble and, sometimes, the time beneath it - so it stacks
+   and aligns its children to whichever side the message came from. */
+.bubble-row { display: flex; flex-direction: column; }
+.bubble-row.from-them { align-items: flex-start; }
+.bubble-row.from-me { align-items: flex-end; }
+
+/* Consecutive messages from the same side tuck closer together than the gap
+   between speakers, so a run reads as one turn rather than three. */
+.bubble-row + .bubble-row { margin-top: .5rem; }
+.bubble-row.from-them + .bubble-row.from-them,
+.bubble-row.from-me + .bubble-row.from-me { margin-top: .12rem; }
+.bubble {
+  max-width: min(72%, 44rem);
+  padding: .55rem .75rem; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.from-me .bubble {
+  background: var(--brand); border-color: var(--brand); color: #fff;
+}
+.bubble p { margin: 0; font-size: .95rem; line-height: 1.45; }
+
+/* The time heads its group rather than trailing one message inside it.
+   Printed once per minute, not once per message: three replies sent in the
+   same minute carried three identical copies of "Sep 14, 3:47 PM", which is
+   more text than the messages it stamped - "Okay ma'am" is nine characters.
+
+   Centred, because it belongs to the conversation rather than to either
+   speaker, which is also where every chat anybody has used puts it. */
+.thread-when {
+  align-self: center; margin: .85rem 0 .35rem;
+  font-size: .75rem; color: var(--text-muted);
+}
+.thread-when:first-child { margin-top: 0; }
+
+.thread-compose {
+  display: flex; gap: .5rem; align-items: flex-end;
+  padding: .75rem 1rem; border-top: 1px solid var(--border);
+}
+.thread-compose textarea { flex: 1 1 auto; resize: vertical; min-height: 44px; }
+.thread-note { padding: 0 1rem .75rem; margin: 0; }
+
+@media (max-width: 900px) {
+  .thread-shell { grid-template-columns: 1fr; }
+  /* One pane at a time: the list, or the thread once one is open. */
+  .thread-shell.thread-open .thread-list { display: none; }
+  .thread-shell:not(.thread-open) .thread-pane { display: none; }
+  .thread-back { display: inline-flex; }
+  .thread-list { max-height: none; }
+  .thread-messages { max-height: 55vh; }
+  .bubble { max-width: 85%; }
+}
+
+/* ---------- Toasts ----------
+   Transient announcements (device online/offline). Fixed to the bottom-right
+   on desktop, full width above the safe area on a phone. The container is
+   click-through so it never blocks the page underneath; the toasts themselves
+   are not. */
+
+.toasts {
+  position: fixed; z-index: 1400;
+  right: 1rem; top: 1rem;
+  width: min(360px, calc(100vw - 2rem));
+  display: flex; flex-direction: column; gap: .5rem;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex; align-items: flex-start; gap: .6rem;
+  background: var(--surface);
+  border: 1px solid var(--border); border-left: 4px solid var(--info);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  padding: .7rem .85rem;
+  animation: shl-toast-in .22s ease;
+}
+.toast-ok { border-left-color: var(--ok); }
+.toast-warn { border-left-color: var(--warn); }
+.toast-danger { border-left-color: var(--danger); }
+
+.toast-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: .35rem; flex: 0 0 10px; }
+.toast-ok .toast-dot { background: var(--ok); }
+.toast-warn .toast-dot { background: var(--warn); }
+.toast-danger .toast-dot { background: var(--danger); }
+.toast-info .toast-dot { background: var(--info); }
+
+.toast-text { flex: 1 1 auto; min-width: 0; }
+.toast-title { font-weight: 600; font-size: .92rem; }
+.toast-body { color: var(--text-muted); font-size: .84rem; margin-top: .1rem; }
+.toast-close {
+  background: none; border: 0; color: var(--text-muted); cursor: pointer;
+  font-size: 1.1rem; line-height: 1; padding: 0 .1rem; flex: 0 0 auto;
+}
+.toast-close:hover { color: var(--text); }
+
+@keyframes shl-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
+@media (max-width: 560px) {
+  .toasts {
+    left: .75rem; right: .75rem; width: auto;
+    top: calc(.75rem + env(safe-area-inset-top, 0px)); bottom: auto;
+  }
+}
+
+/* ---------- Device setup hint ---------- */
+
+.setup-hint { border-left: 4px solid var(--brand); }
+.ingest-url {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: .6rem .75rem; margin: 0 0 .6rem;
+  font-size: .95rem; user-select: all;      /* one tap/click selects the whole line */
+  overflow-wrap: anywhere;                   /* never widens the card on a phone */
+}
+
+/* ---------- Tables ---------- */
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { padding: .6rem .75rem; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+th { background: var(--surface-2); font-weight: 600; font-size: .82rem; white-space: nowrap; color: var(--text-muted); }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--surface-2); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.empty { padding: 2rem 1rem; text-align: center; color: var(--text-muted); }
+
+.pager { display: flex; gap: .5rem; align-items: center; justify-content: center; margin-top: 1rem; font-size: .9rem; }
+
+/* ---------- Map ---------- */
+
+#map-panel { position: relative; }
+/* Tall enough to see the whole municipality and still pick out individual
+   households; capped so it cannot swallow a laptop screen. */
+#leak-map {
+  height: clamp(420px, 58vh, 720px);
+  border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2);
+}
+@media (max-width: 720px) { #leak-map { height: clamp(340px, 52vh, 460px); } }
+#map-schematic { padding: .5rem 0; }
+
+/* Water source marker. Square, so it is still distinguishable from the round
+   household and line markers without relying on colour, and larger with a
+   pulsing halo and a permanent label because it is the anchor point the whole
+   system's distances are measured from. */
+/* Violet, deliberately outside the status palette. Households and lines are
+   green / amber / red / grey, and the map itself is green land and blue
+   water, so none of those reads as "not a reading". Violet belongs to
+   nothing else on screen, which is the whole point. */
+.src-pin { position: relative; }
+.src-pin-dot {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 22px; height: 22px;
+  background: #7e22ce; border: 3px solid #fff; border-radius: 4px;
+  box-shadow: 0 0 0 2px rgba(8, 24, 38, .6), 0 2px 8px rgba(0, 0, 0, .45);
+}
+.src-pin-halo {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(126, 34, 206, .32);
+  animation: shl-src-pulse 2.4s ease-out infinite;
+}
+@keyframes shl-src-pulse {
+  0%   { transform: translate(-50%, -50%) scale(.6); opacity: .9; }
+  70%  { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .src-pin-halo { animation: none; opacity: .5; }
+}
+
+/* Always-visible label, readable over both light and dark map tiles. */
+.leaflet-tooltip.src-tip {
+  background: #7e22ce; color: #fff;
+  border: 0; border-radius: 5px;
+  font-weight: 700; font-size: .78rem; padding: .2rem .5rem;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, .5);
+  white-space: nowrap;
+}
+.leaflet-tooltip.src-tip::before { border-right-color: #7e22ce; }
+.map-note {
+  font-size: .8rem; color: var(--text-muted); margin-top: .5rem;
+  display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+}
+.legend { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .8rem; color: var(--text-muted); margin-top: .6rem; align-items: center; }
+.legend + .legend { margin-top: .35rem; }
+.legend-head { font-weight: 650; color: var(--text); }
+.legend span { display: inline-flex; align-items: center; gap: .32rem; }
+.legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+/* ---------- Charts ---------- */
+
+.chart-wrap { overflow-x: auto; }
+.chart { width: 100%; min-width: 480px; height: 240px; }
+.chart-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .82rem; margin-top: .5rem; }
+.chart-legend span { display: inline-flex; align-items: center; gap: .35rem; color: var(--text-muted); }
+.chart-legend i { width: 14px; height: 3px; border-radius: 2px; }
+
+/* ==========================================================================
+   LANDING PAGE  -  "the instrument"
+   The one public page, written for a defence panel: in about ten seconds it
+   has to read as a real, engineered instrument that watches pressure and
+   catches a leak - not a web page with a chart pasted into it.
+
+   So the hero is built as the face of a chart recorder: a bezel, strip-chart
+   grid, calibrated axes, and a pen that draws the one pattern the whole
+   system turns on - pressure sliding away while no tap is open. Deep petrol,
+   the colour of the inside of a pipe, not a tinted black. One display
+   typeface, self-hosted, because the rest of the app is an offline PWA and
+   this page keeps that discipline. The boldness is spent entirely on the
+   recorder; everything around it is quiet instrument labelling.
+   ========================================================================== */
+
+/* Saira - a technical grotesque, self-hosted from static/fonts. One variable
+   file, latin only, ~33 KB. Only the landing page sets this family, so no
+   other page ever fetches it. */
+@font-face {
+  font-family: "Saira";
+  src: url("../fonts/saira-latin-var.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+.lead {
+  --ink: #0a1f2c;            /* deep petrol - inside of a pipe */
+  --panel: #0e2838;          /* the recorder's face */
+  --bezel: rgba(150, 205, 225, .20);
+  --grid: rgba(130, 190, 215, .11);  /* strip-chart paper */
+  --rule: rgba(160, 205, 225, .30);  /* hairline dividers */
+  --ink-text: #e9f3f7;
+  --ink-dim: #8fb2c4;
+  --trace: #52d0e0;          /* the steady pen */
+  --alarm: #f2a43a;          /* the falling pen and the flag */
+  --display: "Saira", var(--sans);
+
+  background:
+    radial-gradient(135% 105% at 82% -12%, #123a55, transparent 58%),
+    var(--ink);
+  color: var(--ink-text);
+  padding: clamp(1.4rem, 3vw, 2.4rem) 1rem clamp(1.6rem, 3.2vw, 2.6rem);
+  border-bottom: 1px solid var(--border);
+}
+
+.lead-grid {
+  max-width: 1200px; margin: 0 auto;
+  display: grid; gap: clamp(1.6rem, 4vw, 3.2rem);
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  align-items: center;
+}
+@media (max-width: 920px) { .lead-grid { grid-template-columns: 1fr; } }
+
+.lead-copy h1 {
+  font-family: var(--display);
+  margin: 0 0 1.1rem;
+  /* Three short declaratives, set as one balanced block rather than forced
+     one-per-line: a hard break orphans "hose." and "seconds." the moment the
+     column is a little narrow, and the column width swings with the layout.
+     Balanced wrapping keeps the rhythm (the periods still pace it) without the
+     orphans, at every width. */
+  font-size: clamp(1.95rem, 3.4vw, 2.5rem);
+  line-height: 1.08;
+  letter-spacing: -.015em;
+  font-weight: 800;
+  text-wrap: balance;
+}
+
+.lead-sub {
+  margin: 0 0 1.7rem; max-width: 52ch;
+  font-size: clamp(1rem, 1.1vw, 1.06rem); line-height: 1.6;
+  color: var(--ink-dim);
+}
+
+.lead-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.btn-lg { padding: .72rem 1.35rem; font-size: 1rem; }
+
+/* A second action that does not compete with the first. On this ground an
+   outline in the text colour is enough. */
+.btn-ghost {
+  background: transparent; color: var(--ink-text);
+  border: 1px solid rgba(255, 255, 255, .32);
+}
+.btn-ghost:hover { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .6); }
+
+/* ------------------------------------------------------ the chart recorder
+   The hero. Not a card with a chart in it - the faceplate of an instrument:
+   a bezel, a strip-chart grid behind the pen, and a bottom rail of readouts.
+   -------------------------------------------------------------------------- */
+
+.recorder {
+  margin: 0;
+  background: linear-gradient(180deg, var(--panel), #0a1e2b);
+  border: 1px solid var(--bezel);
+  border-radius: 10px;
+  padding: .45rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 20px 46px -26px #000;
+}
+
+/* The strip above the trace: what this recording is, and its unit. Said
+   plainly so a panel cannot mistake the illustration for a live feed. */
+.recorder-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem; padding: .25rem .55rem .45rem;
+}
+.recorder-head .r-what {
+  font-family: var(--display); font-weight: 600; font-size: .82rem;
+  color: var(--ink-text); letter-spacing: .01em;
+}
+.recorder-head .r-unit {
+  font-family: var(--mono); font-size: .72rem; color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.recorder-face {
+  border: 1px solid var(--grid);
+  border-radius: 6px;
+  background: #07171f;
+  padding: .2rem .2rem 0;
+}
+
+.trace-svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+/* strip-chart paper */
+.r-grid { stroke: var(--grid); stroke-width: 1; }
+.r-axis { stroke: var(--rule); stroke-width: 1; }
+.r-tick { fill: var(--ink-dim); font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.r-tick-y { text-anchor: end; }
+.r-label { fill: var(--ink-dim); font-size: 11px; }
+
+/* the threshold this line is judged against */
+.trace-rule { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 2 4; }
+
+/* the pen. Two paths meeting where the pattern turns, so the falling half can
+   carry the alarm colour. Each draws itself on load. */
+.trace-fill { fill: url(#fade); opacity: .5; }
+.trace-line { fill: none; stroke: var(--trace); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.trace-line.is-falling { stroke: var(--alarm); }
+
+/* the moment it was called */
+.trace-mark { stroke: var(--alarm); stroke-width: 1; stroke-dasharray: 2 3; }
+.trace-dot { fill: var(--alarm); stroke: #07171f; stroke-width: 3; }
+.trace-flag { fill: var(--alarm); font-family: var(--display); font-size: 13px; font-weight: 700; }
+.trace-flagsub { fill: var(--ink-dim); font-family: var(--mono); font-size: 11px; }
+
+/* On a phone the whole SVG shrinks, and so would every label. Sized up in
+   viewBox units here so the axes stay readable; the flag's timestamp is
+   dropped rather than allowed to collide with the pen. */
+@media (max-width: 560px) {
+  .r-tick, .r-label, .trace-flagsub { font-size: 17px; }
+  .trace-flag { font-size: 20px; }
+  .trace-flagsub { display: none; }
+}
+
+.recorder figcaption {
+  margin: .55rem .55rem .15rem; font-size: .82rem; line-height: 1.5;
+  color: var(--ink-dim); max-width: 54ch;
+}
+
+/* one orchestrated reveal: the pen draws, then the flag arrives. Shows the
+   mechanism - steady, then the fall, then the alarm - and happens once. */
+@keyframes r-draw { to { stroke-dashoffset: 0; } }
+@keyframes r-fade { to { opacity: .5; } }
+@keyframes r-flag { to { opacity: 1; transform: translateY(0); } }
+@keyframes r-pen-run { to { offset-distance: 100%; } }
+@keyframes r-pen-show { 0% { opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes r-pulse {
+  0%   { transform: scale(1);   opacity: .85; }
+  70%  { transform: scale(3.2); opacity: 0; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+
+.trace-line { stroke-dasharray: 100; stroke-dashoffset: 100; }
+.trace-line.is-steady  { animation: r-draw 1s ease-out .15s forwards; }
+.trace-line.is-falling { animation: r-draw .55s ease-in 1.15s forwards; }
+.trace-fill { opacity: 0; animation: r-fade .9s ease-out .7s forwards; }
+
+/* The recorder's pen: a bright tip that rides the leading edge of the trace
+   as it draws, so the reveal reads as a pen actually moving across the paper,
+   then fades as it reaches the leak. The path matches the two trace segments
+   joined end to end. */
+.trace-pen {
+  fill: #eafcff;
+  offset-path: path("M58 85 L104 83 L150 86 L196 82 L242 85 L288 83 L334 85 L380 83 L395 84 L410 90 L426 104 L452 126 L486 150 L524 172 L566 190 L610 202");
+  offset-distance: 0%;
+  offset-rotate: 0deg;
+  opacity: 0;
+  filter: drop-shadow(0 0 3px var(--trace));
+  animation: r-pen-run 1.55s linear .15s forwards,
+             r-pen-show 1.7s linear .15s forwards;
+}
+
+.trace-flaggroup {
+  opacity: 0; transform: translateY(6px);
+  animation: r-flag .45s ease-out 1.75s forwards;
+}
+
+/* The alarm: a ring pulsing out from the flagged point - the one thing on the
+   page meant to keep catching the eye, the way an instrument's alarm light
+   does. Slow and single, not decoration. */
+.trace-pulse {
+  fill: none; stroke: var(--alarm); stroke-width: 2;
+  transform-box: fill-box; transform-origin: center;
+  animation: r-pulse 2.4s ease-out 2.1s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trace-line { stroke-dashoffset: 0; animation: none; }
+  .trace-fill { opacity: .5; animation: none; }
+  .trace-flaggroup { opacity: 1; transform: none; animation: none; }
+  .trace-pen { display: none; animation: none; }
+  .trace-pulse { display: none; animation: none; }
+}
+
+/* ---------------------------------------------------- the telemetry rail
+   The counts, as readouts along the panel's bottom edge - not three equal
+   big numbers, which is the stock hero treatment. Labels are plain sentence
+   case; the mono tabular numerals do the instrument work. */
+.telemetry {
+  max-width: 1200px; margin: clamp(1.4rem, 3vw, 2.2rem) auto 0;
+  padding-top: 1rem; border-top: 1px solid var(--rule);
+  display: flex; flex-wrap: wrap; gap: .7rem 2.4rem;
+}
+.telemetry div { display: flex; align-items: baseline; gap: .5rem; }
+.telemetry dt { font-size: .86rem; color: var(--ink-dim); }
+.telemetry dd {
+  margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 1.15rem; font-weight: 600; color: var(--ink-text);
+}
+.telemetry .t-alert { margin-left: auto; }
+@media (max-width: 680px) { .telemetry .t-alert { margin-left: 0; } }
+
+/* ----------------------------------------------------------- the sequence
+   Three steps, in order, along a hose - so they are drawn on a time axis,
+   the same kind of axis the recorder above reads on. Numbered because the
+   order is real; the numerals are mono, like a channel index on the panel.
+   -------------------------------------------------------------------------- */
+
+.how { margin-top: clamp(2.4rem, 5vw, 3.6rem); }
+.how h2 {
+  font-family: var(--display); font-weight: 700;
+  font-size: clamp(1.3rem, 2.6vw, 1.7rem); letter-spacing: -.01em;
+  margin-bottom: 1.7rem;
+}
+
+.stages {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 1.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  overflow-x: clip;
+}
+.stage { position: relative; padding-top: 2.4rem; }
+
+/* the time axis: a hairline through the tick marks, broken at each step and
+   stopping at the last so it does not trail off the page */
+.stage::before {
+  content: ""; position: absolute; top: 12px; left: 0; right: -1.6rem;
+  height: 1px; background: var(--border);
+}
+.stage:last-child::before { right: auto; width: 2rem; }
+
+.stage-num {
+  position: absolute; top: 4px; left: 0;
+  font-family: var(--mono); font-size: .78rem; font-weight: 600;
+  color: var(--brand-strong);
+  background: var(--bg); padding-right: .5rem;
+  line-height: 1;
+}
+/* the tick itself */
+.stage-num::before {
+  content: ""; position: absolute; left: -1px; top: -7px;
+  width: 7px; height: 7px; background: var(--brand);
+}
+
+.stage h3 {
+  font-family: var(--display); font-weight: 600;
+  margin: 0 0 .4rem; font-size: 1.04rem; letter-spacing: -.005em;
+}
+.stage p { margin: 0; color: var(--text-muted); font-size: .92rem; line-height: 1.6; max-width: 42ch; }
+
+@media (max-width: 560px) {
+  .stage::before { display: none; }
+  .stage { padding-top: 0; padding-left: 2.2rem; }
+  .stage-num { top: 2px; }
+}
+
+/* --------------------------------------------------------- who signs in
+   A datasheet, not a set of cards: role in one column, what it opens in the
+   next, on hairline rows. The one action - sign in - is a single control at
+   the end, not a third card pretending to be a feature.
+   -------------------------------------------------------------------------- */
+
+.roles {
+  margin: clamp(2.6rem, 5vw, 3.8rem) 0 clamp(2rem, 4vw, 3rem);
+  padding-top: clamp(1.6rem, 3vw, 2.2rem);
+  border-top: 1px solid var(--border);
+}
+.roles > h2 {
+  font-family: var(--display); font-weight: 700;
+  font-size: clamp(1.15rem, 2.4vw, 1.5rem); letter-spacing: -.01em;
+  margin: 0 0 1.3rem;
+}
+
+.role {
+  display: grid; grid-template-columns: minmax(10rem, 14rem) 1fr;
+  gap: .3rem 2rem;
+  padding: 1rem 0; border-top: 1px solid var(--border);
+}
+.role:last-of-type { border-bottom: 1px solid var(--border); }
+.role h3 {
+  font-family: var(--display); font-weight: 600;
+  margin: 0; font-size: 1.02rem; letter-spacing: -.005em; color: var(--text);
+}
+.role p { margin: 0; color: var(--text-muted); font-size: .94rem; line-height: 1.6; max-width: 52ch; }
+.role p + p { margin-top: .5rem; }
+.role-note { font-size: .86rem; }
+
+@media (max-width: 560px) {
+  .role { grid-template-columns: 1fr; gap: .35rem; }
+}
+
+.roles-cta { margin-top: 1.6rem; display: flex; }
+.roles-cta .btn { min-width: 12rem; }
+
+/* ------------------------------------------------- the bar over the hero
+   On this one page the top bar sits on the recorder's ground instead of a
+   white strip cutting the page in two. Not sticky: transparent chrome over
+   the light sections below would be unreadable, and there is no script here
+   to swap it on scroll - it scrolls away, which a landing bar should.
+   -------------------------------------------------------------------------- */
+
+.is-landing .topbar {
+  position: static;
+  background: #0a1f2c;
+  border-bottom: 0;
+  color: #e9f3f7;
+}
+.is-landing .topbar .brand strong { color: #e9f3f7; }
+.is-landing .topbar .brand small { color: #8fb2c4; }
+.is-landing .topbar .icon-btn { border-color: rgba(255, 255, 255, .3); color: #e9f3f7; }
+.is-landing .topbar .icon-btn:hover { background: rgba(255, 255, 255, .1); }
+.is-landing .lang-toggle { border-color: rgba(255, 255, 255, .3); background: rgba(255, 255, 255, .06); }
+.is-landing .lang-opt { color: #cfe0ea; }
+.is-landing .lang-opt:hover { color: #fff; }
+.is-landing .lang-opt.is-active { background: var(--brand); color: #fff; }
+
+/* ==========================================================================
+   DEAD ENDS  (404, 403, 400)
+   A page that cannot do anything for you. It is not a feature and must not
+   look like one, so there is no card, no panel, no colour and no illustration
+   - just the sentence, the address, and the ways out, left-aligned and given
+   room. The 500 page is deliberately not here; it carries its own styles so
+   it cannot fail for the same reason the site just did.
+   ========================================================================== */
+
+.deadend { max-width: 38rem; padding: clamp(1.5rem, 6vw, 3.5rem) 0; }
+
+.deadend h1 {
+  margin: 0 0 .7rem;
+  font-size: clamp(1.4rem, 3.4vw, 1.9rem);
+  letter-spacing: -.02em; line-height: 1.2;
+}
+
+.deadend-lede {
+  margin: 0 0 1.2rem; max-width: 46ch;
+  font-size: 1.02rem; line-height: 1.6; color: var(--text-muted);
+}
+
+/* The address that was asked for. Monospace because it is a literal string
+   somebody may need to compare character by character against the link they
+   meant to open, and the whole reason it is here is that a typo is invisible
+   in a proportional face. */
+.deadend-path {
+  margin: 0 0 1.4rem;
+  /* Long paths wrap rather than stretching the page sideways. */
+  overflow-wrap: anywhere;
+}
+.deadend-path code {
+  display: inline-block; padding: .4rem .6rem;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-family: var(--mono); font-size: .9rem; color: var(--text);
+}
+
+/* The ways out, as links. Three buttons would make a dead end look like a
+   menu of actions, and none of these is an action - they are all just
+   somewhere else to be. */
+.deadend-ways { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; margin-bottom: 1.8rem; }
+.deadend-ways a {
+  /* A tap target on a phone, not a line of text. */
+  display: inline-flex; align-items: center; min-height: 44px;
+  color: var(--brand); font-size: 1.02rem; font-weight: 500;
+}
+.deadend-ways a:hover { color: var(--brand-strong); }
+
+/* The status code, last and small. It is the one thing on this page nobody
+   needs in order to carry on, and the one thing worth quoting if they report
+   it - which is exactly the wrong set of properties for a giant numeral at
+   the top, where this page's usual design puts it. */
+.deadend-code {
+  margin: 0; padding-top: 1.2rem; max-width: 46ch;
+  border-top: 1px solid var(--border);
+  font-size: .9rem; line-height: 1.55; color: var(--text-muted);
+}
+
+/* ---------- Auth ---------- */
+
+.auth-shell { min-height: 70vh; display: grid; place-items: center; padding: 2rem 1rem; }
+.auth-card { width: 100%; max-width: 400px; }
+
+/* ---------- Timeline / notifications ---------- */
+
+/* ---------- Notice feed ----------
+   A single rail down the left with an icon node per entry, grouped by day.
+   The icon says what kind of notice it is, which frees the card from having
+   to spell that out in a line of grey text under every message. */
+
+/* Sentence case, at a readable size. A tracked-out .72rem ALL-CAPS label is
+   the commonest tell of a generated page, and it is also the least legible
+   thing you can do to a date on a phone held in daylight - capitals have no
+   ascenders or descenders for the eye to use. */
+.feed-day {
+  margin: 1.5rem 0 .5rem;
+  font-size: .95rem; font-weight: 600; color: var(--text);
+}
+.feed-day:first-of-type { margin-top: .25rem; }
+
+.feed { list-style: none; margin: 0; padding: 0; position: relative; }
+/* The rail sits behind the nodes and stops at the last one rather than
+   running past it. */
+.feed::before {
+  content: ""; position: absolute; left: 15px; top: 8px; bottom: 8px;
+  width: 2px; background: var(--border);
+}
+.feed-item { position: relative; display: flex; gap: .8rem; padding-bottom: .7rem; }
+
+.feed-node {
+  position: relative; z-index: 1; flex: 0 0 32px;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--surface-2); border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+  color: var(--text-muted);
+}
+.feed-node .ico { width: 16px; height: 16px; }
+.feed-item[data-kind="automatic"] .feed-node { background: var(--danger-soft); color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+.feed-item[data-kind="broadcast"] .feed-node { background: var(--brand-soft); color: var(--brand-strong); box-shadow: 0 0 0 1px var(--brand); }
+.feed-item[data-kind="targeted"] .feed-node { background: var(--ok-soft); color: var(--ok); box-shadow: 0 0 0 1px var(--ok); }
+
+.feed-card {
+  flex: 1 1 auto; min-width: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: .7rem .85rem;
+}
+.feed-item[data-new="true"] .feed-card {
+  border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+.feed-top { display: flex; gap: .6rem; align-items: baseline; justify-content: space-between; }
+.feed-title { margin: 0; font-size: .93rem; font-weight: 650; line-height: 1.35; }
+.feed-title a { color: inherit; text-decoration: none; }
+.feed-title a:hover { color: var(--brand); text-decoration: underline; }
+.feed-top time { font-size: .74rem; color: var(--text-muted); white-space: nowrap; }
+
+.feed-body { margin: .3rem 0 0; font-size: .88rem; color: var(--text-muted); }
+
+.feed-meta { display: flex; flex-wrap: wrap; gap: .35rem; margin: .55rem 0 0; }
+.tag {
+  display: inline-flex; align-items: center;
+  padding: .12rem .45rem; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  font-size: .72rem; color: var(--text-muted);
+}
+.tag-new { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 700; }
+.tag-link { color: var(--brand); text-decoration: none; }
+.tag-link:hover { background: var(--brand-soft); border-color: var(--brand); }
+
+.empty-state { text-align: center; padding: 2.25rem 1.25rem; color: var(--text-muted); }
+.empty-state .ico { stroke: currentColor; margin-bottom: .5rem; }
+.empty-state p { margin: 0 0 .25rem; }
+
+@media (max-width: 560px) {
+  .feed-item { gap: .6rem; }
+  .feed::before { left: 13px; }
+  .feed-node { flex-basis: 28px; width: 28px; height: 28px; }
+  .feed-node .ico { width: 14px; height: 14px; }
+  .feed-top { flex-wrap: wrap; }
+}
+
+.notice-list { display: grid; gap: .7rem; }
+.notice {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 4px solid var(--info); border-radius: var(--radius-sm); padding: .8rem 1rem;
+}
+.notice[data-unread="true"] { background: var(--info-soft); }
+.notice[data-kind="automatic"] { border-left-color: var(--danger); }
+.notice[data-kind="broadcast"] { border-left-color: var(--brand); }
+.notice-head { display: flex; justify-content: space-between; gap: .75rem; align-items: baseline; flex-wrap: wrap; }
+.notice-title { font-weight: 600; margin: 0; }
+.notice-time { font-size: .78rem; color: var(--text-muted); white-space: nowrap; }
+.notice-body { margin: .4rem 0 0; font-size: .9rem; color: var(--text-muted); }
+
+.definition { display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: .45rem 1rem; font-size: .92rem; }
+.definition dt { color: var(--text-muted); }
+.definition dd { margin: 0; font-weight: 500; }
+
+/* ---------- Owner portal ---------- */
+
+.big-readout { text-align: center; padding: 1.4rem 1rem; }
+.big-readout .value { font-size: 3.1rem; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.big-readout .unit { font-size: 1.1rem; color: var(--text-muted); font-weight: 500; }
+.big-readout .alt { color: var(--text-muted); font-size: .95rem; margin-top: .2rem; }
+
+/* =========================================================================
+   Responsive
+   Signed-out pages have no sidebar, so they show the brand in the top bar at
+   every width.
+   ========================================================================= */
+
+.appshell-plain .brand-topbar { display: flex; }
+
+/* ---- Laptop: narrow the rail rather than dropping it ---- */
+@media (max-width: 1180px) {
+  .sidenav { flex-basis: 214px; width: 214px; }
+  .sidenav-nav a { font-size: .89rem; gap: .55rem; }
+}
+
+/* ---- Tablet and below: sidebar becomes an off-canvas drawer ---- */
+@media (max-width: 1024px) {
+  .appshell { display: block; }
+  .appmain { min-height: 0; }
+
+  .sidenav {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    z-index: 1300; flex-basis: auto; width: min(82vw, 300px);
+    height: 100%; border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+    transition: transform .22s ease;
+    box-shadow: var(--shadow);
+  }
+  .sidenav.is-open { transform: none; }
+
+  .brand-topbar { display: flex; }
+  .topbar .navtoggle,
+  .sidenav .sidenav-close { display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Locked while the drawer is open so the page behind cannot scroll. */
+  body.nav-open { overflow: hidden; }
+}
+
+/* ---- Phone ---- */
+@media (max-width: 720px) {
+  .topbar-inner { padding: .45rem .75rem; gap: .5rem; }
+  .wrap, .wrap-narrow { padding: 1rem .75rem 2.5rem; }
+  .messages { padding: 0 .75rem; }
+
+  .readouts { grid-template-columns: 1fr; }
+  .split { grid-template-columns: 1fr; }
+  .page-head { align-items: flex-start; }
+  h1 { font-size: 1.35rem; }
+
+  /* Full-width actions read better than a cramped row of small buttons. */
+  .btn-row .btn { flex: 1 1 auto; }
+  .filters .field { min-width: 0; flex: 1 1 160px; }
+  .definition { grid-template-columns: 1fr; gap: .1rem .5rem; }
+  .definition dd { margin-bottom: .5rem; }
+}
+
+/* ---- Small phone ---- */
+@media (max-width: 460px) {
+  body { font-size: 14.5px; }
+  .brand small { display: none; }
+  .brand strong { font-size: .92rem; }
+  #conn-pill { display: none; }
+  .stats { grid-template-columns: 1fr 1fr; }
+  .stat-value { font-size: 1.45rem; }
+  .big-readout .value { font-size: 2.5rem; }
+  .tile, .card { padding: .85rem; }
+  .notice { padding: .7rem .8rem; }
+}
+
+/* Touch devices: give tap targets room without affecting mouse layouts. */
+@media (hover: none) and (pointer: coarse) {
+  .sidenav-nav a { padding-top: .68rem; padding-bottom: .68rem; }
+  .icon-btn { width: 38px; height: 38px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidenav { transition: none; }
+}
+
+@media print {
+  .topbar, .sidenav, .sidenav-scrim, .sitefoot, .btn-row, .messages, .filters { display: none !important; }
+  .appshell { display: block; }
+  body { background: #fff; }
+  .card, .table-wrap { box-shadow: none; border-color: #999; }
+}
+
+
+/* ---------------------------------------------------------------- live table
+   One row per household, replacing the per-line cards. Cards read well at
+   three lines and fail at twenty: the facilitator's question is "is anything
+   wrong anywhere", which is a scan down one column, not a hunt through a wall
+   of panels. Anything needing action is raised into Open alerts instead.
+   ------------------------------------------------------------------------ */
+
+.live-table td { vertical-align: middle; }
+.live-table .unit { font-size: .78rem; color: var(--text-muted); font-weight: 500; }
+.live-table .swatch { margin-right: .4rem; vertical-align: middle; }
+
+/* A row that needs attention is tinted along its whole width rather than
+   given a badge, so it is visible while scanning the pressure column - which
+   is where the eye actually is. */
+.live-table tr[data-status="POSSIBLE_LEAK"] { background: var(--danger-soft); }
+.live-table tr[data-status="LOW_SUPPLY"]    { background: var(--warn-soft); }
+.live-table tr[data-status="OFFLINE"] td    { opacity: .65; }
+
+/* Device heartbeat. Green is "reporting now", grey-red is "should be
+   reporting and is not". A line with no device gets no dot at all. */
+.dot {
+  display: inline-block; width: .55rem; height: .55rem;
+  border-radius: 50%; margin-right: .35rem; vertical-align: middle;
+  background: var(--text-muted);
+}
+.dot-live { background: var(--ok); }
+.dot-down { background: var(--danger); }
+
+@media (max-width: 720px) {
+  /* Below this the columns cannot all fit, and stacking them into cards
+     would undo the reason for a table: values that line up and compare.
+     Scrolling sideways keeps the comparison intact. */
+  .live-table { min-width: 660px; }
+}
+
+
+/* ------------------------------------------------------------- notices + SMS
+   One compose form, two channels. The pieces below exist so that choosing
+   recipients and choosing channels read as two separate decisions rather
+   than one long column of checkboxes.
+   ------------------------------------------------------------------------ */
+
+.check-row { display: flex; align-items: center; gap: .5rem; margin: .35rem 0; }
+.check-row input[type="checkbox"] { width: auto; margin: 0; }
+.check-row label { margin: 0; font-weight: 500; }
+
+/* Households wrap across the width rather than stacking in a scrolling box.
+   Seven of them took 190px and a scrollbar to show five; wrapping, they take
+   two rows and hide none. The cap only bites past roughly twenty, where a
+   full list would be the thing pushing the message box off the screen. */
+.pick-grid {
+  display: grid; gap: .1rem .9rem;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  max-height: 148px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .45rem .6rem; margin-top: .4rem; background: var(--surface);
+}
+.pick-option { display: flex; align-items: center; gap: .5rem; padding: .22rem 0; font-weight: 400; }
+.pick-option input { width: auto; margin: 0; }
+
+/* Ticking "all households" makes the list irrelevant, not wrong - so it is
+   dimmed and inert rather than hidden, which would make the options appear
+   to vanish. */
+.pick-grid.is-disabled { opacity: .45; pointer-events: none; }
+
+.channel-box {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .7rem .9rem; margin: 1rem 0 .9rem;
+}
+.channel-box legend { padding: 0 .35rem; color: var(--text-muted); font-weight: 600; }
+
+/* The two channels on one line: in the app and by text are one decision -
+   where does this go - not two. */
+.channel-row { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
+
+/* It was class="helptext" with an inline margin, but the rule that colours
+   help text is scoped to .field - so outside a field it was only ever styled
+   by accident. Given its own name and its own measure. */
+.channel-note {
+  margin: .45rem 0 0; font-size: .82rem; color: var(--text-muted);
+  max-width: 62ch; line-height: 1.45;
+}
+
+/* The submit closes the form rather than sitting inside the channel group.
+   Right-aligned, because the form is read top to bottom and the action is
+   the end of it. */
+.compose-send { display: flex; justify-content: flex-end; }
+
+/* A message that will split into several texts is not an error - it costs
+   more and may arrive out of order. Amber, not red. */
+.warn-text { color: var(--warn); font-weight: 600; }
+
+
+/* ----------------------------------------------------------------- devices
+   The two values that have to reach a board by hand.
+   ------------------------------------------------------------------------ */
+
+/* Same reasoning one level down: a fixed 170px field plus a button is wider
+   than a card on a phone, and min-width on a flex item is a floor the field
+   cannot go below however little room is left. The field takes what there is
+   and the button keeps its own size, because a button narrower than its
+   label is unreadable while a shorter text box is merely a shorter text box. */
+.inline-form { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+.inline-form input { width: auto; flex: 1 1 10rem; min-width: 0; margin: 0; }
+.inline-form .btn { flex: 0 0 auto; }
+
+/* The key is shown in full rather than masked. It has to be read and copied
+   during setup, and hiding it would only mean revealing it a click later on
+   a page that already requires the facilitator login. It is truncated with
+   an ellipsis so one 43-character token cannot stretch the table past the
+   screen; the Copy button carries the whole value regardless. */
+.key-text {
+  display: inline-block; max-width: 20ch; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
+  font-size: .78rem; color: var(--text-muted);
+}
+
+.btn-copy { padding: .12rem .45rem; font-size: .72rem; margin-left: .35rem; }
+.btn-copy.is-copied { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+
+
+/* --------------------------------------------------------------- sent feed
+   What has gone out, as rows rather than cards.
+
+   Every reply in a complaint thread also becomes a notice for the owner, so
+   this list is mostly one-line replies. A card each meant seven short
+   messages filled the panel, and it grew with every reply ever sent.
+   -------------------------------------------------------------------------- */
+
+/* A card head whose subtitle is a sentence rather than a two-word tag. Every
+   card head wraps now, so this only has to stop the heading itself being
+   squeezed into two lines to make room for the sentence beside it. */
+@media (max-width: 620px) {
+  .card-head-stack > h2 { flex: 1 0 100%; }
+}
+
+
+/* ------------------------------------------------------------ SMS gateway
+   Whether a text can leave the building, said once above the compose form.
+
+   Two states, not three colours. Working is a plain line on the page
+   background - it is the normal condition and does not deserve a banner.
+   Blocked is amber with a left bar, which is the only thing on this page
+   that uses colour, so it cannot be mistaken for decoration.
+   -------------------------------------------------------------------------- */
+
+.gateway {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: .35rem 1.1rem;
+  margin: 0 0 1.1rem;
+  padding: .1rem 0;
+}
+.gateway-state { margin: 0; font-size: .9rem; color: var(--text-muted); max-width: 70ch; }
+
+.gateway.is-blocked {
+  padding: .65rem .9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--warn);
+  border-left-width: 4px;
+  background: var(--warn-soft);
+}
+.gateway.is-blocked .gateway-state { color: var(--text); font-weight: 500; }
+
+/* The queue counts, pushed to the far end so they read as a tally against
+   the sentence rather than a continuation of it. */
+.gateway-queue {
+  margin: 0 0 0 auto; display: flex; flex-wrap: wrap; gap: .25rem .9rem;
+  font-size: .82rem; color: var(--text-muted);
+}
+.gateway-queue .is-bad { color: var(--danger); font-weight: 600; }
+
+.sent-feed { display: flex; flex-direction: column; }
+
+.sent-row {
+  display: flex; align-items: baseline; gap: .55rem;
+  padding: .45rem .1rem;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none; color: var(--text);
+  font-size: .86rem;
+}
+.sent-row:last-child { border-bottom: 0; }
+a.sent-row:hover { background: var(--surface-2); }
+
+.sent-icon { flex: 0 0 auto; color: var(--text-muted); font-size: .9rem; }
+
+/* min-width: 0 so the text can actually ellipsis inside a flex row - without
+   it the line grows instead and pushes the date off the panel. */
+.sent-main { flex: 1 1 auto; min-width: 0; }
+
+.sent-text {
+  display: block;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The title carries the separation that an em dash used to, so the dash is
+   gone and the space does the work. */
+.sent-text strong { margin-right: .35rem; }
+
+/* .74rem is 11.8px - the smallest text anywhere in the system, used for the
+   line that says who a notice went to. Raised to a size that can be read
+   without leaning in. */
+.sent-meta { display: block; margin-top: .1rem; font-size: .8rem; color: var(--text-muted); }
+.sent-time { flex: 0 0 auto; font-size: .8rem; color: var(--text-muted); white-space: nowrap; }
+
+/* The complaint reference is the one token here that gets read out over the
+   phone, so it is set apart from the sentence around it. */
+.sent-ref { font-variant-numeric: tabular-nums; color: var(--text); }
+
+/* A folded run of replies, and whether a notice has been read: counts and
+   states, not more sentence. */
+.sent-also,
+.sent-read,
+.sent-unread {
+  display: inline-block; margin-left: .3rem;
+  padding: 0 .35rem; border-radius: 999px;
+  font-size: .78rem; line-height: 1.55;
+  border: 1px solid var(--border); background: var(--surface-2);
+}
+.sent-unread { color: var(--brand-strong); border-color: var(--brand-soft); background: var(--brand-soft); }
+
+/* A reply is quieter than a notice the facilitator wrote: it is already
+   handled in the thread, and this list is only saying it happened. */
+.sent-row.is-reply .sent-text { color: var(--text-muted); }
+
+
+/* ---------------------------------------------------------- token picker
+   Chosen households as chips inside the field, with a filtered menu under
+   it. The real checkboxes are still in the page and still what the form
+   posts; this drives them. With no JavaScript the plain grid shows instead.
+   -------------------------------------------------------------------------- */
+
+.token-field {
+  position: relative;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); padding: .3rem .4rem; margin-top: .4rem;
+}
+.token-field:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.token-field.is-disabled { opacity: .45; pointer-events: none; }
+
+.token-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+.token-chip {
+  display: inline-flex; align-items: center; gap: .3rem;
+  background: var(--brand-soft); color: var(--brand-strong);
+  border: 1px solid var(--brand); border-radius: 999px;
+  padding: .1rem .2rem .1rem .5rem; font-size: .78rem; font-weight: 600;
+}
+.token-x {
+  border: 0; background: none; cursor: pointer; color: inherit;
+  font-size: .95rem; line-height: 1; padding: 0 .25rem;
+}
+.token-x:hover { color: var(--danger); }
+
+.token-input {
+  border: 0; outline: 0; background: none; width: 100%;
+  padding: .25rem .2rem; margin: 0; font-size: .86rem; color: var(--text);
+}
+
+/* Above the fold of the form, not pushing it: the menu floats, so opening it
+   never moves the message box the facilitator is about to type into. */
+.token-menu {
+  position: absolute; left: 0; right: 0; top: calc(100% + 2px); z-index: 60;
+  margin: 0; padding: .25rem; list-style: none;
+  max-height: 210px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: 0 8px 22px rgba(0, 0, 0, .14);
+}
+.token-opt { padding: .38rem .55rem; border-radius: calc(var(--radius) - 3px); cursor: pointer; font-size: .86rem; }
+.token-opt.is-active { background: var(--brand-soft); color: var(--brand-strong); }
+.token-none { padding: .38rem .55rem; font-size: .82rem; color: var(--text-muted); }
+
+
+/* ======================================================================
+   OWNER PORTAL
+   ======================================================================
+   A different person, on a different device, asking a different question.
+
+   The facilitator works at a desk across many households and needs density.
+   An owner opens one screen on a cheap Android phone, often outdoors in
+   daylight, to find out whether their water is all right. Same tokens as the
+   rest of the system, used with far more air and far larger type.
+
+   Nothing here drops below .95rem. The portal's old .8rem metadata was
+   legible on the laptop it was built on and disappears in sunlight.
+   ====================================================================== */
+
+.owner-page { padding-bottom: 2rem; }
+
+.owner-greeting {
+  margin: .2rem 0 1rem;
+  font-size: 1.15rem; font-weight: 600; color: var(--text);
+}
+
+/* ---- The answer ----------------------------------------------------------
+   A filled block, not a white card with a coloured badge. Read at arm's
+   length in daylight, a tinted background and a 12px pill vanish; a solid
+   field of colour does not. This is the one place the design raises its
+   voice - everything below it stays quiet.
+   ------------------------------------------------------------------------ */
+
+.water-state {
+  border-radius: var(--radius);
+  padding: 1.5rem 1.25rem 1.1rem;
+  color: #fff;
+  background: var(--text-muted);          /* unknown until a status arrives */
+}
+.water-state[data-status="NORMAL"]        { background: #15803d; }
+.water-state[data-status="LOW_SUPPLY"]    { background: #b45309; }
+.water-state[data-status="POSSIBLE_LEAK"] { background: #b3261e; }
+.water-state[data-status="MAINTENANCE"]   { background: #0b6ea8; }
+.water-state[data-status="OFFLINE"]       { background: #475569; }
+
+.water-state-head {
+  margin: 0; font-size: 1.75rem; line-height: 1.15;
+  font-weight: 700; letter-spacing: -.01em;
+}
+.water-state-sub {
+  margin: .45rem 0 0; font-size: 1rem; line-height: 1.45;
+  color: rgba(255, 255, 255, .92);
+}
+
+/* The reading, kept as evidence rather than headline. It is what makes the
+   answer believable, and what the facilitator asks for over the phone. */
+.water-reading {
+  display: flex; flex-wrap: wrap; gap: .9rem 1.6rem;
+  margin: 1.25rem 0 0; padding-top: .9rem;
+  border-top: 1px solid rgba(255, 255, 255, .28);
+}
+.water-reading div { min-width: 0; }
+.water-reading dt {
+  margin: 0; font-size: .9rem; color: rgba(255, 255, 255, .85);
+}
+.water-reading dd {
+  margin: .1rem 0 0; font-size: 1.05rem; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- The owner's valve ---------------------------------------------------
+   Sits inside the coloured water-state block, below the readings, so it is
+   read with them: the state in one word, the reason in one sentence, and
+   the single button that applies. The button is white on the tinted field
+   so it reads as an action, not as more status.
+   ------------------------------------------------------------------------ */
+
+.owner-valve {
+  margin-top: 1.1rem; padding-top: .9rem;
+  border-top: 1px solid rgba(255, 255, 255, .28);
+}
+.owner-valve-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: .8rem;
+}
+.owner-valve-label { font-size: .9rem; color: rgba(255, 255, 255, .85); }
+.owner-valve-state { font-size: 1.15rem; text-transform: capitalize; }
+.owner-valve-detail {
+  margin: .3rem 0 0; font-size: .95rem; line-height: 1.4;
+  color: rgba(255, 255, 255, .92);
+}
+.owner-valve-actions { margin-top: .8rem; }
+.owner-valve-actions form { margin: 0; }
+.owner-valve-btn {
+  display: block; width: 100%; min-height: 48px;
+  background: #fff; color: var(--text); border-color: transparent;
+  font-size: 1rem; font-weight: 600;
+}
+.owner-valve-btn:hover { background: rgba(255, 255, 255, .92); }
+.owner-valve-btn-close { color: var(--danger, #b42318); }
+.owner-valve-locked {
+  margin: 0; font-size: .9rem; color: rgba(255, 255, 255, .92);
+}
+
+/* ---- The one thing an owner can do --------------------------------------
+   Full width and thumb height. 52px clears the 44px minimum with room for a
+   mis-tap, which is what happens on a phone held in one hand outdoors.
+   ------------------------------------------------------------------------ */
+
+.owner-action {
+  /* width, not just display:block. This class was written for an <a>, which
+     fills its container when blocked; the Settings page uses it on a
+     <button>, which sizes to its label instead and came out a third of the
+     width of every other action in the portal. */
+  display: block; width: 100%; margin: 1rem 0 0;
+  border: 0; font-family: inherit; cursor: pointer;
+  padding: .95rem 1rem; min-height: 52px;
+  border-radius: var(--radius);
+  background: var(--brand); color: #fff;
+  font-size: 1.05rem; font-weight: 600; text-align: center; text-decoration: none;
+}
+.owner-action:hover { background: var(--brand-strong); }
+.owner-action:active { transform: translateY(1px); }
+
+/* ---- Shortcuts, not features --------------------------------------------
+   These used to be three tiles with icons, repeating the menu in the header.
+   They are links; they look like links.
+   ------------------------------------------------------------------------ */
+
+.owner-links { display: flex; flex-direction: column; margin-top: .4rem; }
+.owner-links a {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: .75rem; padding: .95rem .2rem; min-height: 52px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text); text-decoration: none; font-size: 1rem;
+}
+.owner-links a:last-child { border-bottom: 0; }
+.owner-links a:hover { color: var(--brand-strong); }
+.owner-count {
+  font-size: .85rem; font-weight: 600;
+  color: var(--brand-strong); background: var(--brand-soft);
+  border-radius: 999px; padding: .1rem .55rem;
+}
+
+/* ---- Settings ------------------------------------------------------------
+   Install the app, and alerts on this phone. Read on a phone, often by
+   somebody following the steps with the other thumb, so the type floor from
+   the rest of the owner portal holds: nothing below .95rem.
+   ------------------------------------------------------------------------ */
+
+.owner-h1 { margin: .2rem 0 1.2rem; font-size: 1.45rem; letter-spacing: -.01em; }
+
+.set-lede {
+  margin: 0 0 .9rem; font-size: .98rem; line-height: 1.55;
+  color: var(--text-muted); max-width: 46ch;
+}
+
+/* Something is stopping this working, and it is not the person's fault. The
+   left bar is the same device the SMS banner uses on the facilitator side,
+   for the same reason: colour on a page means this one needs you. */
+.set-warn {
+  margin: .9rem 0; padding: .75rem .9rem;
+  border: 1px solid var(--warn); border-left-width: 4px;
+  border-radius: var(--radius-sm); background: var(--warn-soft);
+  font-size: .95rem; line-height: 1.5;
+}
+
+.set-done {
+  margin: .9rem 0; padding: .75rem .9rem;
+  border: 1px solid var(--ok); border-left-width: 4px;
+  border-radius: var(--radius-sm); background: var(--ok-soft);
+  font-size: .95rem; line-height: 1.5;
+}
+
+.set-note { margin: .5rem 0 0; font-size: .95rem; color: var(--text-muted); }
+
+.set-status { margin: .7rem 0 0; font-size: .95rem; color: var(--text-muted); min-height: 1.4em; }
+
+.set-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .9rem; }
+
+/* The steps, folded away on the phones that have a button and opened on the
+   phones that do not. A summary is a tap target, so it gets a tap target's
+   height rather than a line of text's. */
+.set-steps {
+  margin-top: .9rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface);
+}
+.set-steps > summary {
+  padding: .9rem 1rem; min-height: 52px;
+  display: flex; align-items: center;
+  cursor: pointer; font-weight: 600; font-size: 1rem;
+  list-style: none;
+}
+.set-steps > summary::-webkit-details-marker { display: none; }
+.set-steps > summary::after {
+  content: ""; margin-left: auto;
+  width: .5rem; height: .5rem;
+  border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted);
+  transform: rotate(45deg); transition: transform .15s ease;
+}
+.set-steps[open] > summary::after { transform: rotate(-135deg); }
+@media (prefers-reduced-motion: reduce) {
+  .set-steps > summary::after { transition: none; }
+}
+
+.set-steps ol { margin: 0; padding: 0 1rem 1rem 2.4rem; }
+.set-steps li { margin-bottom: .6rem; font-size: .98rem; line-height: 1.55; }
+.set-steps li:last-child { margin-bottom: 0; }
+.set-steps .set-note { padding: 0 1rem 1rem; margin: 0; }
+
+/* ---- Notices ------------------------------------------------------------- */
+
+.owner-section { margin-top: 1.8rem; }
+.owner-section h2 {
+  display: flex; align-items: center; gap: .5rem;
+  margin: 0 0 .6rem; font-size: 1.05rem;
+}
+
+.owner-feed { display: flex; flex-direction: column; }
+.owner-note {
+  padding: .8rem 0; border-bottom: 1px solid var(--border);
+}
+.owner-note:last-child { border-bottom: 0; }
+.owner-note-body { margin: 0; font-size: 1rem; line-height: 1.5; color: var(--text); }
+.owner-note-meta { margin: .3rem 0 0; font-size: .9rem; color: var(--text-muted); }
+
+/* An unread notice is marked on the edge rather than tinted: the tint was
+   invisible outdoors, and a bar survives any amount of glare. */
+.owner-note.is-unread {
+  padding-left: .7rem;
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.owner-note.is-unread .owner-note-body { font-weight: 600; }
+
+.owner-more {
+  display: inline-block; margin-top: .8rem;
+  font-size: 1rem; font-weight: 600;
+}
+.owner-empty {
+  margin: 0; padding: 1.2rem 0; font-size: 1rem;
+  color: var(--text-muted); line-height: 1.5;
+}
+
+@media (min-width: 720px) {
+  /* The phone layout is the real one. On a laptop it simply has more air
+     rather than rearranging into something the owner will never see. */
+  .water-state { padding: 2rem 1.75rem 1.4rem; }
+  .water-state-head { font-size: 2.1rem; }
+  .owner-action { max-width: 22rem; }
+}
+
+
+/* The notices timeline is an owner screen, so it takes the portal's floor on
+   type size: nothing load-bearing below .95rem, because the laptop this was
+   written on is not where it gets read. */
+.is-owner .feed-title { font-size: 1.02rem; line-height: 1.4; }
+.is-owner .feed-body { font-size: 1rem; line-height: 1.5; }
+.is-owner .feed-card time { font-size: .85rem; }
+.is-owner .page-head h1 { font-size: 1.35rem; }
+.is-owner .page-head .sub { font-size: 1rem; }
+
+
+/* ---- Complaints, on the owner's side -------------------------------------
+   The facilitator reads this list across every household and needs it dense.
+   An owner has five of them, so density buys nothing and costs legibility.
+   Same component, more air and larger type, under .is-owner only.
+   ------------------------------------------------------------------------ */
+
+.is-owner .thread-item { padding: .9rem .85rem; }
+.is-owner .thread-item-top strong { font-size: 1.02rem; line-height: 1.35; }
+.is-owner .thread-item-top time { font-size: .88rem; }
+.is-owner .thread-item-sub { font-size: .88rem; }
+.is-owner .pill-sm { font-size: .8rem; padding: .15rem .5rem; }
+.is-owner .thread-avatar { width: 38px; height: 38px; flex-basis: 38px; font-size: 1rem; }
+
+.is-owner .msg-text { font-size: 1rem; line-height: 1.5; }
+.is-owner .msg-time { font-size: .85rem; }
+
+/* The one action on the page. On a phone it is worth the full width and a
+   thumb's height - it is why somebody opened this screen. */
+@media (max-width: 720px) {
+  .is-owner .page-head .btn-row { width: 100%; }
+  .is-owner .page-head .btn-primary {
+    display: block; width: 100%; padding: .9rem 1rem;
+    min-height: 52px; font-size: 1.05rem;
+  }
+}
+
+
+/* The "New" marker and the link out of a notice. Both are owner-facing, so
+   both clear the portal's floor on type size - the .72rem .tag they used to
+   borrow was built for a dense facilitator table. */
+.is-owner .tag { font-size: .85rem; padding: .18rem .6rem; }
+.feed-link {
+  font-size: .95rem; font-weight: 600;
+  color: var(--brand-strong); text-decoration: underline;
+}
+.feed-link:hover { color: var(--brand); }
+
+/* The chart's own empty state borrows .small, which is sized for a dense
+   dashboard. On the owner's pressure page it is the only thing on screen. */
+.is-owner .chart-wrap .small { font-size: .95rem; }
+
+/* Buttons on the owner's side are actions, not controls in a toolbar, and
+   .btn-sm was sized for a facilitator's dense row of them. */
+.is-owner .btn-sm { font-size: .95rem; padding: .5rem .9rem; min-height: 40px; }
+
+
+/* The two numbers, explained. A definition list left to the browser's own
+   styling indents the answer away from its term, which reads as decoration;
+   these belong together as one block of prose. */
+.owner-define { margin: 0; }
+.owner-define dt {
+  margin: .9rem 0 .15rem; font-size: 1rem; font-weight: 700; color: var(--text);
+}
+.owner-define dt:first-child { margin-top: 0; }
+.owner-define dd {
+  margin: 0; font-size: 1rem; line-height: 1.5; color: var(--text-muted);
+}
+
+/* The history controls. Side by side with the heading they are squeezed into
+   half a phone's width; stacked and full width they are tappable. */
+@media (max-width: 720px) {
+  .is-owner .card-head { flex-wrap: wrap; gap: .5rem; }
+  .is-owner .card-head .btn-row { width: 100%; flex-wrap: wrap; gap: .5rem; }
+  .is-owner .card-head select { flex: 1 1 10rem; min-height: 44px; font-size: .95rem; }
+}
+
+
+/* ======================================================================
+   FACILITATOR DASHBOARD
+   ======================================================================
+   One person, a laptop, seven households, several times a day. The page has
+   one job before any other: say whether anything is wrong.
+
+   The governing rule here is that COLOUR MEANS STATE. Everything that is not
+   a state - headings, rules, counts, chrome - is greyscale and structural.
+   The old page sprinkled colour everywhere, so when a row did turn red it
+   had to compete with a palette already in use for decoration.
+   ====================================================================== */
+
+/* ---- The standing answer -------------------------------------------------
+   A band, not three tiles. Three equal numbers reading 7 / 0 / 0 gave a count
+   that never changes the same weight as the one fact this screen exists to
+   report. A sentence answers first; the counts stay underneath as evidence.
+   ------------------------------------------------------------------------ */
+
+.standing {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--ok);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 1.1rem 1.25rem;
+}
+.standing[data-state="alert"] { border-left-color: var(--danger); background: var(--danger-soft); }
+/* A silent board is a fault but not an emergency: somebody has to go and look
+   at a device, and the water may be perfectly fine meanwhile. Amber says
+   that; red would put it on a level with a leak. */
+.standing[data-state="watch"] { border-left-color: var(--warn); background: var(--warn-soft); }
+.standing[data-state="watch"] .standing-line { color: var(--warn); }
+
+.standing-line {
+  margin: 0; font-size: 1.35rem; font-weight: 650;
+  line-height: 1.25; letter-spacing: -.01em; color: var(--text);
+}
+.standing[data-state="alert"] .standing-line { color: var(--danger); }
+
+.standing-sub { margin: .3rem 0 0; font-size: .95rem; color: var(--text-muted); }
+
+/* The counts, demoted to supporting evidence. Tabular figures so the column
+   of digits lines up rather than wobbling as values change under the poll. */
+.standing-counts {
+  display: flex; flex-wrap: wrap; gap: .6rem 2.25rem;
+  margin: 1rem 0 0; padding-top: .85rem;
+  border-top: 1px solid var(--border);
+}
+.standing-counts div { min-width: 0; }
+.standing-counts dt { margin: 0; font-size: .85rem; color: var(--text-muted); }
+.standing-counts dd {
+  margin: .1rem 0 0; font-size: 1.25rem; font-weight: 650;
+  font-variant-numeric: tabular-nums; color: var(--text);
+}
+/* A count only earns colour when it is not zero. A red 0 is a contradiction:
+   it says "look at me" about nothing. */
+.standing-counts dd.is-live { color: var(--danger); }
+
+/* ---- Section rhythm ------------------------------------------------------
+   The page was a stack of identically weighted white cards - the map, the
+   alerts, the chart and the log all looked equally important. Headings now
+   carry the hierarchy and the cards stop competing.
+   ------------------------------------------------------------------------ */
+
+.wrap > h2,
+.wrap > .split > .card > .card-head > h2,
+.wrap > .card > .card-head > h2 {
+  font-size: 1.05rem; font-weight: 650; letter-spacing: -.005em;
+}
+.wrap > h2 { margin-top: 2rem; }
+.wrap > h2 + .muted { margin-top: .2rem; }
+
+/* ---- The households table ------------------------------------------------
+   This is the dashboard. Everything else on the page is evidence for it.
+   ------------------------------------------------------------------------ */
+
+.live-table thead th {
+  font-size: .8rem; font-weight: 600; color: var(--text-muted);
+  background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+.live-table td { padding-top: .75rem; padding-bottom: .75rem; }
+
+/* The swatch was a decorative dot carrying the household's map colour. Made
+   into the row's left edge it does the same job in no space at all, and ties
+   a row to its hose on the map directly below. */
+.live-table .swatch {
+  width: .55rem; height: 1.6rem; border-radius: 2px;
+  margin-right: .55rem; vertical-align: middle;
+}
+
+/* A line waiting for hardware is not a fault and must not read as one. It is
+   set back rather than tinted - no colour at all, because it has no state. */
+.live-table tr:has(.pill-none) td { color: var(--text-muted); }
+.live-table tr:has(.pill-none) strong { font-weight: 600; }
+
+/* psi under every bar reading doubled the height of the column to restate the
+   same number in a unit this system never uses anywhere else. Kept, because
+   a gauge on site reads in psi - but at the weight of a footnote. */
+.live-table .small.muted { font-size: .78rem; }
+
+@media (min-width: 1100px) {
+  /* The map and the alerts beside it are a pair: the alert names a household,
+     the map shows where it is. Giving the map the room means the pins are far
+     enough apart to tell one from another at a glance. */
+  .wrap > .split { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
+}
+
+
+/* The history controls were stacked beside their heading, which left the
+   heading floating in the middle of two selects. They are one row of
+   controls, so they sit on one row. */
+.wrap > .card > .card-head { align-items: center; }
+.wrap > .card > .card-head .btn-row { flex-wrap: wrap; gap: .5rem; }
+/* Selects are width:100% by default, which is right inside a form field and
+   wrong inside a toolbar - in a flex row each one claimed the whole line, so
+   two controls stacked and left their heading floating between them. */
+.wrap > .card > .card-head select { width: auto; min-width: 9.5rem; }
+
+/* The standing band in dark mode. The soft danger tint is built for a white
+   ground; on a dark one it has to come from the dark palette's own token or
+   it glows. */
+:root[data-theme="dark"] .standing[data-state="alert"],
+:root:not([data-theme="light"]) .standing[data-state="alert"] {
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+}
+
+
+/* ======================================================================
+   PRESSURE TAB
+   ======================================================================
+   The tiles and the table below were the same seven households twice over.
+   Both stay; they now answer different questions. The tiles are what is
+   reading NOW. The table is the full record - every column, the psi, the
+   links - which the tiles never carried.
+   ====================================================================== */
+
+/* A card's size is how much it has to say. Six tiles of four empty wells
+   buried the one line that was live and made a rollout going to plan look
+   like six faults. A line with no reading collapses to its own name. */
+.tiles-live { grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+
+.tile[data-empty="true"] { padding: .7rem .9rem; box-shadow: none; background: var(--surface-2); }
+.tile[data-empty="true"] .readouts,
+.tile[data-empty="true"] .tile-foot { display: none; }
+.tile[data-empty="true"] .tile-head { align-items: center; }
+.tile[data-empty="true"] .tile-title { font-size: .95rem; }
+.tile[data-empty="true"] .tile-sub { font-size: .85rem; }
+
+/* A collapsed tile takes a quarter of a row, so the ones with readings keep
+   the width they need to be read at a glance. */
+@media (min-width: 900px) {
+  /* A reading tile is twice as wide and twice as tall as a collapsed one, so
+     the collapsed ones stack neatly beside it instead of leaving a hole under
+     the row it shares. */
+  .tiles-live {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: minmax(76px, auto); align-items: stretch;
+  }
+  .tiles-live .tile:not([data-empty="true"]) { grid-column: span 2; grid-row: span 2; }
+  .tiles-live .tile[data-empty="true"] { display: flex; align-items: center; }
+  .tiles-live .tile[data-empty="true"] .tile-head { width: 100%; }
+}
+
+/* The reading is the point of the tile, so it gets the size. The unit beside
+   it does not need to compete with it. */
+.tiles-live .readout-value { font-size: 1.5rem; }
+.tiles-live .readout { background: transparent; padding: .2rem 0 0; }
+.tiles-live .readouts {
+  gap: 1.4rem; padding-top: .7rem; margin-top: .55rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ---- The record below ----------------------------------------------------
+   One line per household means the Supply line column now restates the
+   household and the owner either side of it. It stays - it is the line's
+   actual name and the CSV carries it - but it stops shouting.
+   ------------------------------------------------------------------------ */
+.wrap > .card table td:nth-child(3) { color: var(--text-muted); font-size: .85rem; }
+
+/* A household with no reading is not a fault; it is a line with no board yet.
+   Dashes at full strength read as missing data rather than absent hardware. */
+.wrap > .card table tr:has(.pill-OFFLINE) td { color: var(--text-muted); }
+
+
+/* ======================================================================
+   HOUSEHOLDS
+   ======================================================================
+   A register of people, not a grid of records. The eye should land on who,
+   and the destructive action should be available without being advertised.
+   ====================================================================== */
+
+/* ---- Delete, demoted ----------------------------------------------------
+   Seven saturated red buttons made a stripe down the right edge of a page
+   whose job is to show households, and sent the eye straight to the one
+   action nobody opened the page to take. It stays exactly where it was and
+   does exactly what it did - it just stops shouting until it is reached.
+   The confirmation dialog is where the danger belongs.
+   ------------------------------------------------------------------------ */
+
+.btn-quiet-danger {
+  background: transparent; border-color: var(--border); color: var(--text-muted);
+}
+.btn-quiet-danger:hover,
+.btn-quiet-danger:focus-visible {
+  background: var(--danger); border-color: var(--danger); color: #fff;
+}
+
+/* ---- The row reads as a person ------------------------------------------
+   Identity carries the weight; everything else is the detail you check once
+   you have found the right row.
+   ------------------------------------------------------------------------ */
+
+.hh-id a { font-weight: 650; text-decoration: none; }
+.hh-id a:hover { text-decoration: underline; }
+.hh-owner { font-weight: 550; }
+
+/* This column is its two neighbours run together - "HH-001 - Maria Santos"
+   beside HH-001 and Maria Santos. It stays, because it is the line's real
+   name and the export carries it, but a column that repeats what is already
+   on the row is reference rather than signal. */
+.hh-line { color: var(--text-muted); }
+
+/* Rules rather than stripes. Zebra banding paints half the rows a colour
+   that means nothing, on a page where colour is supposed to mean state. */
+.wrap > .table-wrap tbody tr { border-bottom: 1px solid var(--border); }
+.wrap > .table-wrap tbody tr:last-child { border-bottom: 0; }
+.wrap > .table-wrap tbody td { padding-top: .7rem; padding-bottom: .7rem; }
+.wrap > .table-wrap tbody tr:hover { background: var(--surface-2); }
+
+/* A household that is no longer active is the only thing in this list with a
+   state, so it is the only thing that takes colour away from the text. */
+.wrap > .table-wrap tbody tr:has(.pill-muted) td { color: var(--text-muted); }
+
+/* ---- The search row ------------------------------------------------------
+   One line. A label stacked over an input stacked over a button put three
+   rows of chrome above a list of seven people.
+   ------------------------------------------------------------------------ */
+
+.filters-inline { align-items: center; gap: .6rem; }
+.filters-inline .field { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.filters-inline .field label { margin: 0; white-space: nowrap; font-weight: 550; }
+.filters-inline .field input { width: 20rem; max-width: 100%; }
+
+@media (max-width: 640px) {
+  .filters-inline .field { width: 100%; }
+  .filters-inline .field input { width: 100%; }
+}
+
+
+/* ======================================================================
+   HOSE LINES
+   ======================================================================
+   A plumbing register: which hose goes where, what colour it is on the map,
+   which board is on it, and what counts as low for it. Visited deliberately
+   and rarely, so it is laid out to be worked through rather than scanned.
+   ====================================================================== */
+
+/* ---- The source, folded away --------------------------------------------
+   It is set once and then left for years, and it was opening a four-field
+   form across the whole top of the page - above the lines that are the
+   reason anybody came. Collapsed, it states where it is in one line; opened,
+   it is exactly the form it always was. It starts open when no location is
+   set, because then it is the one thing that needs doing.
+   ------------------------------------------------------------------------ */
+
+.source-block {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); margin-bottom: 1.2rem;
+}
+.source-block > summary {
+  display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  padding: .85rem 1.1rem; cursor: pointer; list-style: none;
+}
+.source-block > summary::-webkit-details-marker { display: none; }
+
+/* A disclosure triangle drawn in CSS, so the row reads as openable without
+   an icon font or an inline SVG per page. */
+.source-block > summary::before {
+  content: ""; flex: 0 0 auto;
+  border: solid var(--text-muted); border-width: 0 2px 2px 0;
+  padding: 3px; transform: rotate(-45deg); margin-right: .1rem;
+  transition: transform .15s ease;
+}
+.source-block[open] > summary::before { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) {
+  .source-block > summary::before { transition: none; }
+}
+
+.source-block > summary:hover { background: var(--surface-2); }
+.source-title { font-weight: 650; }
+.source-where { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.source-block > summary .pill { margin-left: auto; }
+
+.source-block > *:not(summary) { padding-left: 1.1rem; padding-right: 1.1rem; }
+.source-block > form { padding-bottom: 1.1rem; }
+.source-block > p { margin-top: 0; }
+
+/* ---- The lines table -----------------------------------------------------
+   The swatch is how a row is matched to a hose on the leak map, so it is the
+   column, and its name is the label beneath it.
+   ------------------------------------------------------------------------ */
+
+.swatch-lg {
+  width: 1rem; height: 1rem; border-radius: 3px;
+  vertical-align: -2px; margin-right: .45rem;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+}
+.line-colour { white-space: nowrap; }
+
+/* Named after its household, so this column repeats the one beside it. It
+   stays - the delete dialog and the export both use it - at the weight of a
+   reference rather than a heading. */
+.line-name { color: var(--text-muted); font-size: .88rem; }
+
+/* Three controls per row is a lot of button; they read as one group and stop
+   wrapping into a second line on a laptop. */
+.wrap .table-wrap .btn-row { flex-wrap: nowrap; }
+
+
+/* ---- Devices --------------------------------------------------------------
+   Two machine strings, a claim code and three controls per row. It had got
+   tight enough that "New key" and "Issue code" were breaking across two
+   lines, which makes a button look like a paragraph.
+   ------------------------------------------------------------------------ */
+
+.devices-table td { vertical-align: top; padding-top: .75rem; padding-bottom: .75rem; }
+.devices-table .btn { white-space: nowrap; }
+
+/* The id and the key are strings to be copied, not read. They get the mono
+   face because a character has to be told apart from one that looks like it,
+   and they truncate rather than wrapping - the Copy button carries the whole
+   value, so a broken line buys nothing. */
+.devices-table .mono { display: inline-block; max-width: 22ch; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.devices-table .key-text { max-width: 18ch; }
+
+/* A device label sits under its id. This one happens to hold a pasted API
+   key, which is long - it wraps rather than stretching the column. */
+.devices-table .device-label {
+  display: block; max-width: 26ch; margin-top: .15rem;
+  overflow-wrap: anywhere; font-size: .8rem; color: var(--text-muted);
+}
+
+
+/* The subject leads a row, so it gets the room a name used to have. */
+.thread-item-top strong { line-height: 1.3; }
+.thread-item.is-unread .thread-item-sub { font-weight: 500; }
+
+/* Install option on the landing page's household-owner row (owner PWA). */
+.role-install { margin-top: 1rem; display: flex; flex-direction: column; gap: .6rem; align-items: flex-start; }
+.role-install .set-lede { margin: 0; }
+
+/* Landing hero fills the first screen: the dark instrument panel occupies the
+   viewport (below the topbar), the copy + recorder sit centered, and the
+   telemetry rides the bottom rail. The rest of the page scrolls below. */
+.is-landing .lead {
+  min-height: calc(100vh - 52px);
+  min-height: calc(100dvh - 52px);
+  display: flex;
+  flex-direction: column;
+}
+.is-landing .lead-grid { flex: 1 1 auto; align-content: center; }
+
+/* ---------- Analytics bars ----------
+   Server-computed widths, no chart library: every bar is a percentage the
+   view already worked out, so the page needs no JavaScript and the colours
+   come from the same tokens as everything else, light and dark alike. */
+.barchart { display: grid; gap: .55rem; margin: .4rem 0 0; }
+.barrow { display: grid; grid-template-columns: 10rem 1fr 2.5rem; align-items: center; gap: .75rem; }
+.barrow-label { font-size: .85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bartrack { background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; height: .7rem; overflow: hidden; }
+.barfill { height: 100%; background: var(--info); border-radius: 999px; min-width: 2px; }
+.barrow-value { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; font-size: .9rem; }
+@media (max-width: 560px) { .barrow { grid-template-columns: 6.5rem 1fr 2.2rem; gap: .5rem; } }
+
+/* ---------- Show/hide password ----------
+   The eye sits inside the field; the input keeps room for it on the right
+   so the last characters typed are never hidden under the button. */
+.pw-field { position: relative; }
+.pw-field input { padding-right: 2.6rem; }
+.pw-toggle {
+  position: absolute; right: .35rem; top: 50%; transform: translateY(-50%);
+  width: 2rem; height: 2rem; display: grid; place-items: center; padding: 0;
+  background: none; border: 0; border-radius: var(--radius-sm);
+  color: var(--text-muted); cursor: pointer;
+}
+.pw-toggle:hover, .pw-toggle:focus-visible { color: var(--text); background: var(--surface-2); }
+.pw-toggle .ico { width: 18px; height: 18px; }
+
+/* The sign-in dialog: one full-width button, nothing else in the foot. */
+.login-modal .modal-foot { display: block; }
+
+/* ---------- Sign-in dialog details ----------
+   The system's own door, not a generic login. One accent only - the brand
+   edge along the top - and icons only where they aid recognition. Fields and
+   the eye are sized for a thumb, because most sign-ins happen on a phone. */
+.login-modal { border-top: 3px solid var(--brand); }
+.login-head { align-items: center; }
+.login-brand { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.login-brand img { flex: 0 0 auto; }
+.login-brand h2 { font-size: 1.15rem; }
+.login-lede { margin: 0 0 1rem; font-size: .9rem; line-height: 1.5; color: var(--text-muted); }
+.login-modal .field input { min-height: 44px; }
+
+/* iOS/Safari zooms the whole page in when a focused field is under 16px.
+   Hold the sign-in and password-reset fields at 16px so tapping one on a
+   phone just focuses it, with no zoom. */
+.login-modal input[type=text],
+.login-modal input[type=password],
+.auth-card input[type=text],
+.auth-card input[type=password],
+.auth-card input[type=email] { font-size: 16px; }
+
+/* A leading icon inside a field. The icon is decoration for the eye, so it
+   takes no clicks and the input keeps room for it on the left. */
+.input-icon { position: relative; }
+.input-icon > .ico {
+  position: absolute; left: .7rem; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; color: var(--text-muted); pointer-events: none;
+}
+.input-icon input { padding-left: 2.4rem; }
+.input-icon:focus-within > .ico { color: var(--brand); }
+
+/* After a failed attempt both fields are marked, and the alert can take
+   focus so it is announced and the visitor tabs straight on to the field. */
+.login-modal input[aria-invalid="true"] { border-color: var(--danger); }
+.login-modal input[aria-invalid="true"]:focus { box-shadow: 0 0 0 3px var(--danger-soft); }
+.login-error { margin-bottom: 1rem; }
+.login-error:focus { outline: 2px solid var(--danger); outline-offset: 2px; }
+.login-caps { color: var(--warn); }
+.login-help { margin: .25rem 0 0; }
+
+.login-modal .pw-toggle { width: 2.75rem; height: 2.75rem; right: .15rem; }
+.login-modal .pw-field input { padding-right: 3rem; }
+.login-modal [data-login-submit] { min-height: 46px; }
+.login-modal [data-login-submit][aria-busy="true"] { opacity: .75; cursor: progress; }
+
+/* The code-channel choice. Borderless, so it is one quiet block in the form
+   rather than a boxed panel competing with the fields above it. The two
+   channels are one decision, so they share a segmented toggle; "remember this
+   device" is a separate thought and sits on its own line below. */
+.otp-choice { border: 0; padding: 0; margin: 1.2rem 0 .3rem; min-width: 0; }
+.otp-choice legend { padding: 0; font-size: .85rem; color: var(--text-muted); }
+
+.seg {
+  display: grid; grid-template-columns: 1fr 1fr; gap: .25rem;
+  margin-top: .45rem; padding: .25rem;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+/* Real radios, hidden but still focusable via the label. */
+.seg input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.seg label {
+  display: flex; align-items: center; justify-content: center; gap: .45rem;
+  margin: 0; min-height: 40px; border-radius: 6px;
+  font-weight: 600; font-size: .92rem; color: var(--text-muted);
+  cursor: pointer; transition: background .12s ease, color .12s ease;
+}
+.seg label .ico { width: 16px; height: 16px; flex: 0 0 16px; }
+.seg input:checked + label { background: var(--surface); color: var(--brand); box-shadow: var(--shadow); }
+.seg input:focus-visible + label { outline: 2px solid var(--brand); outline-offset: 2px; }
+.seg label:hover { color: var(--text); }
+.seg input:checked + label:hover { color: var(--brand); }
+
+.remember-device {
+  display: flex; align-items: center; gap: .55rem;
+  margin: .9rem 0 0; font-weight: 500; font-size: .92rem; cursor: pointer;
+}
+.remember-device input { width: auto; margin: 0; flex: 0 0 auto; }
+
+@media (prefers-reduced-motion: reduce) { .seg label { transition: none; } }
+
+/* ---------- Escalate a complaint to the administrator ----------
+   One row under the thread header: what the household needs, an optional
+   note, and the button. Wraps on a phone rather than overflowing. */
+.thread-escalate {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  padding: .6rem 1rem; border-bottom: 1px solid var(--border); font-size: .9rem;
+}
+.thread-escalate-form { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; width: 100%; }
+.thread-escalate-form select { width: auto; }
+.thread-escalate-form input[type=text] { flex: 1 1 12rem; width: auto; }
+
+/* ---------- Visit routes on the leak map ----------
+   The checkbox beside the map switch, and the two legend swatches that say
+   which kind of line is which: solid is the hose, dotted is the road. */
+.route-toggle { display: inline-flex; align-items: center; gap: .35rem; margin: 0; white-space: nowrap; }
+.route-toggle input { width: auto; margin: 0; }
+.legend .legend-solid { background: #64748b; height: 3px; width: 18px; border-radius: 2px; }
+.legend .legend-dotted {
+  width: 18px; height: 4px; border-radius: 2px;
+  background: repeating-linear-gradient(90deg, #64748b 0 3px, transparent 3px 7px);
+}
+
+/* ---------- Sign-in code page ----------
+   The resend row sits under the dialog form: a question, the two channels
+   and one button, wrapping on a phone. */
+.login-resend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
+  padding: .75rem 1.1rem 1rem; border-top: 1px solid var(--border);
+}
+.login-resend label { display: inline-flex; align-items: center; gap: .3rem; margin: 0; }
+.login-resend input[type=radio] { width: auto; margin: 0; }
+#login-code { font-size: 1.35rem; letter-spacing: .35em; font-variant-numeric: tabular-nums; }
+
+/* ---------- Dashboards for numbers that grow ----------
+   A tile says which way it moved this week; the one tile that can mean
+   harm (open leaks) is allowed to turn red. Short attention strip, counts
+   on section headings, relative dates on visits. */
+.stat-delta {
+  margin-top: .3rem; font-size: .78rem; color: var(--text-muted);
+  display: flex; align-items: center; gap: .25rem;
+}
+.stat-delta .ico { width: 14px; height: 14px; flex: 0 0 auto; }
+.stat-delta.is-up { color: var(--ok); }
+.stat-delta.is-down { color: var(--danger); }
+.stat.is-alert { border-color: var(--danger); background: var(--danger-soft); }
+.stat.is-alert .stat-value { color: var(--danger); }
+
+.attention { display: grid; gap: .5rem; margin: 1.2rem 0 0; padding: 0; list-style: none; }
+.attention li {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  padding: .6rem .8rem; background: var(--surface);
+  border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius-sm);
+}
+.attention li[data-level="danger"] { border-left-color: var(--danger); }
+.attention li[data-level="warn"]   { border-left-color: var(--warn); }
+.attention li[data-level="info"]   { border-left-color: var(--info); }
+.attention-count { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+.attention li > a { margin-left: auto; white-space: nowrap; }
+
+.count-chip {
+  display: inline-block; margin-left: .35rem; padding: 0 .5rem; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-muted);
+  font-size: .78rem; font-weight: 600; line-height: 1.5; vertical-align: middle;
+}
+.live-filter { margin: .8rem 0 0; }
+.live-filter .check-row { white-space: nowrap; }
+.when-overdue { color: var(--danger); font-weight: 650; }
+.when-today   { color: var(--ok); font-weight: 650; }
+.when-soon    { font-weight: 600; }
+.audit-feed .sent-text { font-size: .92rem; }
+
+/* The owner's next visit and past week, in the same quiet register as the
+   rest of the owner page: one bordered card, three small counts. */
+.owner-visit {
+  margin-top: .9rem; padding: .9rem 1rem; background: var(--surface);
+  border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: var(--radius);
+}
+.owner-visit-head { margin: 0; font-weight: 650; }
+.owner-visit-sub { margin: .2rem 0 0; font-size: .9rem; color: var(--text-muted); }
+.owner-week { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: .9rem 0 0; }
+.owner-week div { min-width: 0; padding: .55rem .7rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.owner-week dt { margin: 0; font-size: .74rem; color: var(--text-muted); }
+.owner-week dd { margin: .1rem 0 0; font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.owner-week dd.is-live { color: var(--danger); }
+@media (max-width: 380px) { .owner-week { grid-template-columns: 1fr 1fr; } }
+
+/* Activation dialog: the administrator's entries, read-only, above the two
+   fields the facilitator fills in. */
+.activate-facts { padding: .75rem .9rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2, var(--surface)); margin-bottom: .25rem; }
+
+/* Owner > Settings > My device */
+.device-card { border: 1px solid var(--border); border-radius: var(--radius); padding: .9rem 1rem; background: var(--surface); }
+.device-card[data-device-state="connected"] { border-color: var(--ok); }
+.device-card[data-device-state="lost"], .device-card[data-device-state="claimed_silent"], .device-card[data-device-state="expired"] { border-color: var(--danger, #c0392b); }
+.device-row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.device-note { margin: .6rem 0 0; }
+.setup-code { font-size: 1.9rem; letter-spacing: .12em; margin: 0; font-weight: 700; }
+.modal > .modal-inner { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.device-steps { padding-left: 1.25rem; margin: .25rem 0 .5rem; }
+.device-steps li { margin: .35rem 0; }

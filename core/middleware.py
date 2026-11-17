@@ -73,3 +73,32 @@ class ErrorLogMiddleware:
             # Recording the error must never itself raise and mask the original.
             pass
         return None  # let Django's normal 500 handling proceed
+
+
+class StaleBoardMiddleware:
+    """
+    Keep the stored line status honest on every page view.
+
+    A board that stops reporting is shown Offline on the live dashboards at
+    once, but the Lines page, the household pages and the overview counters
+    read the stored status, which stayed "Normal" until somebody ran
+    mark_offline by hand. This asks the model to sweep (one cheap query,
+    throttled to once in ten seconds) before any page is rendered. Device
+    uploads and static files are left alone.
+    """
+
+    SKIP_PREFIXES = ("/api/", "/static/", "/sw.js", "/manifest")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if not request.path.startswith(self.SKIP_PREFIXES):
+            try:
+                from .models import mark_stale_offline
+                mark_stale_offline()
+            except Exception:
+                # Never fail a page over housekeeping (first migrate, a locked
+                # SQLite file on a busy second).
+                pass
+        return self.get_response(request)

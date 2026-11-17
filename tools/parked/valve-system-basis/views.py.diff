@@ -1,0 +1,24 @@
+--- core/views.py	2026-11-15 18:16:14.000000000 +0800
++++ tools/parked/valve-system-basis/files/core/views.py	2026-11-15 18:16:10.000000000 +0800
+@@ -1186,9 +1186,7 @@
+         return redirect(next_url)
+ 
+     if action == Segment.ValveCommand.CLOSE:
+-        segment.valve_command = Segment.ValveCommand.CLOSE
+-        segment.valve_closed_by = role
+-        segment.save(update_fields=["valve_command", "valve_closed_by"])
++        segment.set_valve_target(Segment.ValveTarget.CLOSED, role)
+         _record_valve_action(segment, user, role, closed=True)
+         if mine:
+             messages.success(
+@@ -1208,9 +1206,7 @@
+                 _("The administrator closed this line. Only the administrator can open it again."),
+             )
+             return redirect(next_url)
+-        segment.valve_command = Segment.ValveCommand.OPEN
+-        segment.valve_closed_by = Segment.ValveClosedBy.NOBODY
+-        segment.save(update_fields=["valve_command", "valve_closed_by"])
++        segment.set_valve_target(Segment.ValveTarget.OPEN, Segment.ValveClosedBy.NOBODY)
+         _record_valve_action(segment, user, role, closed=False)
+         messages.success(
+             request,

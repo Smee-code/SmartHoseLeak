@@ -40,6 +40,7 @@ from .models import (
     ValveReason,
     ValveState,
     describe_valve,
+    mark_stale_offline,
     offline_after_seconds,
     psi,
 )
@@ -905,6 +906,10 @@ def live(request):
     """Current state of every segment, plus open alerts. Polled by dashboards."""
     if not request.user.is_authenticated:
         return JsonResponse({"ok": False, "error": "authentication required"}, status=403)
+
+    # A board that has gone quiet is written Offline here (throttled), so the
+    # stored status every other page reads agrees with what this poll shows.
+    mark_stale_offline()
 
     # One household per line, so it joins rather than being counted. Pulling
     # it in the same query keeps the live poll at a fixed cost instead of one

@@ -1,0 +1,46 @@
+--- static/js/app.js	2026-11-15 18:16:16.000000000 +0800
++++ tools/parked/valve-system-basis/files/static/js/app.js	2026-11-15 18:16:10.000000000 +0800
+@@ -1425,25 +1425,31 @@
+         var fitted = segment.valve_state && segment.valve_state !== 'not_fitted';
+         valveControl.hidden = !fitted;
+         if (fitted) {
+-          var closed = segment.valve_state === 'closed';
+-          var moving = segment.valve_state === 'moving';
+-          var pending = segment.valve_command;
+-          var label = moving ? gettext('moving')
+-            : pending === 'close' ? gettext('closing…')
+-            : pending === 'open' ? gettext('opening…')
+-            : closed ? gettext('closed') : gettext('open');
++          // The system's status is the headline: that is what the board is
++          // made to follow. Whether the board has confirmed it is the
++          // sentence underneath (valve_detail, written on the server), and
++          // an unconfirmed status marks the block as a warning.
++          var target = segment.valve_target || (segment.valve_state === 'closed' ? 'closed' : 'open');
++          var agreement = segment.valve_agreement || 'confirmed';
++          var wantClosed = target === 'closed';
++          var label;
++          if (agreement === 'pending') label = wantClosed ? gettext('closing…') : gettext('opening…');
++          else if (agreement === 'board_hold') label = gettext('closed');
++          else if (agreement === 'waiting') label = gettext('checking…');
++          else label = wantClosed ? gettext('closed') : gettext('open');
+           var txt = $('[data-field="valve_state_text"]', valveControl);
+           if (txt) txt.textContent = label;
++          valveControl.classList.toggle('is-warn', !!segment.valve_warn);
+           var role = valveControl.getAttribute('data-valve-role') || 'admin';
+           var locked = !!segment.valve_locked && role !== 'admin';
+-          // Offer Open when shut (or closing); Close when open (or opening).
++          // Offer the button that changes the system's status: Open when it
++          // says closed, Close when it says open.
+           var openForm = $('[data-valve-open]', valveControl);
+           var closeForm = $('[data-valve-close]', valveControl);
+           var lockNote = $('[data-valve-locked]', valveControl);
+-          var showOpen = closed || pending === 'close';
+-          if (openForm) openForm.hidden = !showOpen || locked;
+-          if (closeForm) closeForm.hidden = showOpen;
+-          if (lockNote) lockNote.hidden = !(showOpen && locked);
++          if (openForm) openForm.hidden = !wantClosed || locked;
++          if (closeForm) closeForm.hidden = wantClosed;
++          if (lockNote) lockNote.hidden = !(wantClosed && locked);
+         }
+       }
+ 

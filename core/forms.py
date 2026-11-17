@@ -907,6 +907,7 @@ class DetectionSettingsForm(forms.ModelForm):
             "valve_test_drop_bar",
             "auto_close_on_flow_leak",
             "upload_interval_seconds",
+            "live_poll_seconds",
         ]
         HOUR_CHOICES = [
             (h, f"{h % 12 or 12}:00 {'AM' if h < 12 else 'PM'}")
@@ -919,6 +920,9 @@ class DetectionSettingsForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Added after the other settings; an older form post (or a script)
+        # that leaves it out keeps the current value rather than failing.
+        self.fields["live_poll_seconds"].required = False
         # A budget, not a threshold: leaving it blank keeps the value in use.
         self.fields["upload_interval_seconds"].required = False
 
@@ -940,6 +944,9 @@ class DetectionSettingsForm(forms.ModelForm):
             )
         return cleaned
 
+    def clean_live_poll_seconds(self):
+        value = self.cleaned_data.get("live_poll_seconds")
+        return value if value else (self.instance.live_poll_seconds if self.instance.pk else 5)
 
 class OwnerContactForm(forms.Form):
     """

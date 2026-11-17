@@ -3,7 +3,7 @@ from pathlib import Path
 
 from django.conf import settings
 
-from .models import Complaint, Notification, WorkOrder
+from .models import live_poll_ms, Complaint, Notification, WorkOrder
 
 # Files the service worker keeps in its offline shell cache. Their combined
 # fingerprint names that cache, so editing any of them retires the old one.
@@ -39,7 +39,7 @@ def site_context(request):
     context = {
         "SITE_NAME": settings.SITE_NAME,
         "SITE_LOCALE": settings.SITE_LOCALE,
-        "LIVE_POLL_INTERVAL_MS": settings.LIVE_POLL_INTERVAL_MS,
+        "LIVE_POLL_INTERVAL_MS": live_poll_ms(),
         "OTP_ENABLED": settings.OTP_ENABLED,
         "ASSET_VERSION": asset_version(),
         "is_facilitator": False,

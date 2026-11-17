@@ -1810,6 +1810,21 @@ class SystemSetting(models.Model):
         ),
     )
 
+    # How often the dashboards and the owner's page ask /api/live/ when nobody
+    # is at a valve screen. 5 s is the everyday value, chosen for the hosted
+    # server's CPU budget; 1 s with a 2 s board interval is the demo setting,
+    # where the figures move as the water does. Both live here so a demo
+    # needs no .env edit and no redeploy, and is put back the same way.
+    live_poll_seconds = models.PositiveSmallIntegerField(
+        default=5, validators=[MinValueValidator(1), MaxValueValidator(60)],
+        verbose_name=_("Dashboard refresh (seconds)"),
+        help_text=_(
+            "How often the dashboards and the owner's page fetch fresh figures. "
+            "1 second with a 2-second board interval is the live-demo setting; "
+            "5 and 15 are the everyday ones."
+        ),
+    )
+
     @property
     def offline_after_seconds(self):
         """Three missed uploads plus a little slack for a slow network."""
@@ -1848,6 +1863,63 @@ def offline_after_seconds():
         _OFFLINE_WINDOW["value"] = SystemSetting.load().offline_after_seconds
         _OFFLINE_WINDOW["at"] = now
     return _OFFLINE_WINDOW["value"]
+
+
+_LIVE_POLL = {"at": 0.0, "value": None}
+
+
+def live_poll_ms():
+    """Milliseconds between dashboard polls, from the settings row (cached 5 s)."""
+    now = time.monotonic()
+    if _LIVE_POLL["value"] is None or now - _LIVE_POLL["at"] > 5.0:
+        try:
+            _LIVE_POLL["value"] = SystemSetting.load().live_poll_seconds * 1000
+        except Exception:                      # first migrate: no table yet
+            _LIVE_POLL["value"] = settings.LIVE_POLL_INTERVAL_MS
+        _LIVE_POLL["at"] = now
+    return _LIVE_POLL["value"]
+
+
+_STALE_SWEEP = {"at": 0.0}
+
+
+def mark_stale_offline(force=False):
+    """
+    Write "Offline" into every line whose board has gone quiet.
+
+    The live poll already paints a stale line Offline on the fly, but the
+    STORED status is what the Lines page, the household pages, the overview
+    counters and the event history read, and a board that died overnight
+    stayed "Normal" there until somebody ran mark_offline by hand. Called
+    from the live poll and from every page view, throttled to one sweep in
+    ten seconds, so the stored status follows within moments of the board
+    going silent; the board's next upload flips it back through the normal
+    status-change path. Returns how many lines were marked.
+    """
+    now = time.monotonic()
+    if not force and now - _STALE_SWEEP["at"] < 10.0:
+        return 0
+    _STALE_SWEEP["at"] = now
+    cutoff = timezone.now() - timezone.timedelta(seconds=offline_after_seconds())
+    stale = Segment.objects.filter(
+        is_active=True, device__isnull=False, latest__updated_at__lt=cutoff,
+    ).exclude(status__in=[Segment.Status.OFFLINE, Segment.Status.MAINTENANCE])
+    count = 0
+    for segment in stale:
+        LeakEvent.objects.filter(segment=segment, cleared_at__isnull=True).update(
+            cleared_at=timezone.now()
+        )
+        LeakEvent.objects.create(
+            segment=segment,
+            status=Segment.Status.OFFLINE,
+            previous_status=segment.status,
+            severity=LeakEvent.Severity.WARNING,
+        )
+        segment.status = Segment.Status.OFFLINE
+        segment.status_changed_at = timezone.now()
+        segment.save(update_fields=["status", "status_changed_at"])
+        count += 1
+    return count
 
 
 class ErrorLog(models.Model):

@@ -14,7 +14,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import (
-    Barangay, Device, Household, LatestReading, Segment, SystemSetting, User,
+    Barangay, Device, Household, LatestReading, LeakEvent, Segment, SystemSetting, User,
+    mark_stale_offline, offline_after_seconds,
     ValveState, offline_after_seconds,
 )
 
@@ -178,3 +179,63 @@ class ValveWatchTests(_Fixture):
         self.segment.refresh_from_db(); other.refresh_from_db()
         self.assertTrue(self.segment.valve_watched)
         self.assertIsNone(other.valve_watch_until)
+
+
+class StaleBoardTests(_Fixture):
+    """A board that goes quiet is written Offline everywhere, and comes back on its next upload."""
+
+    def _go_quiet(self):
+        LatestReading.objects.filter(segment=self.segment).update(
+            updated_at=timezone.now() - timezone.timedelta(seconds=offline_after_seconds() + 5)
+        )
+
+    def test_the_stored_status_follows_the_silence_and_the_recovery(self):
+        self._ingest()
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.status, Segment.Status.NORMAL)
+
+        self._go_quiet()
+        self.assertEqual(mark_stale_offline(force=True), 1)
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.status, Segment.Status.OFFLINE)
+        self.assertTrue(LeakEvent.objects.filter(
+            segment=self.segment, status=Segment.Status.OFFLINE, cleared_at__isnull=True,
+        ).exists())
+        # The Lines page reads the stored status, so it now says so too.
+        faci = User.objects.create_user(username="f7", password="pw", role=User.Role.FACILITATOR, barangay=self.brgy)
+        self.client.force_login(faci)
+        self.assertContains(self.client.get(reverse("segment_list")), "pill-OFFLINE")
+
+        # The next upload brings it back through the normal status-change path.
+        self._ingest()
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.status, Segment.Status.NORMAL)
+        self.assertFalse(LeakEvent.objects.filter(segment=self.segment, cleared_at__isnull=True).exists())
+
+    def test_the_live_poll_and_any_page_view_run_the_sweep(self):
+        self._ingest()
+        self._go_quiet()
+        mark_stale_offline.__globals__["_STALE_SWEEP"]["at"] = 0.0      # past the throttle
+        self.client.force_login(self.owner_user)
+        self.client.get(reverse("api_live"))
+        self.segment.refresh_from_db()
+        self.assertEqual(self.segment.status, Segment.Status.OFFLINE)
+
+    def test_a_board_under_maintenance_or_without_a_device_is_left_alone(self):
+        self._ingest()
+        self._go_quiet()
+        self.segment.status = Segment.Status.MAINTENANCE
+        self.segment.save(update_fields=["status"])
+        self.assertEqual(mark_stale_offline(force=True), 0)
+
+
+class DashboardRefreshTests(_Fixture):
+    def test_the_refresh_interval_comes_from_the_settings_row(self):
+        setting = SystemSetting.load()
+        setting.live_poll_seconds = 1
+        setting.save()
+        from core.models import _LIVE_POLL
+        _LIVE_POLL["value"] = None                                       # drop the 5 s cache
+        self.client.force_login(self.owner_user)
+        self.assertContains(self.client.get(reverse("owner_home")), "pollMs: 1000")
+        _LIVE_POLL["value"] = None

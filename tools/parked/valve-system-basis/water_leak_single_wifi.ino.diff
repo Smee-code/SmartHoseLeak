@@ -1,0 +1,267 @@
+--- firmware/water_leak_single_wifi/water_leak_single_wifi.ino	2026-11-15 18:16:16.000000000 +0800
++++ tools/parked/valve-system-basis/files/firmware/water_leak_single_wifi/water_leak_single_wifi.ino	2026-11-15 18:16:12.000000000 +0800
+@@ -98,6 +98,20 @@
+     with a different running time: change VALVE_TRAVEL_MS.
+     Wiring: supply + -> relay COM (both channels); relay 1 NO -> CLOSE wire;
+     relay 2 NO -> OPEN wire; supply - -> valve N (common).
++
++  WHO DECIDES THE VALVE
++    The SYSTEM does. Every reply from the server carries valve_target
++    ("open" or "closed"), the status the portal, the dashboard and the
++    console show; the board drives the valve to it whenever its own
++    position differs, so a reboot, a reflash or a dropped reply cannot
++    leave the valve somewhere the system does not know. Two decisions stay
++    the board's and the system adopts them: the nightly test and the flow
++    hold (temporary, the system's "open" does not undo them) and a close or
++    open made at the board itself (its page, serial CLOSE/OPEN), which the
++    board numbers (valve_local_seq) so the system adopts each one once.
++    An administrator's close stands even against the board's own page.
++    On boot the valve is left where it is until the system has spoken, or
++    BOOT_TARGET_WAIT_MS has passed; meanwhile it reports "unknown".
+ */
+ 
+ #include <WiFi.h>
+@@ -171,6 +185,11 @@
+ // first time. Seen 14 Nov 2026: 26 h offline, fixed by a power cycle.
+ #define WIFI_RESTART_AFTER_MS   (15UL * 60UL * 1000UL)
+ 
++// On boot the valve is left where it is until the system has said where it
++// should be (valve_target on the first reply). If no word comes in this time
++// - no WiFi, no server - the board falls back to its own memory.
++#define BOOT_TARGET_WAIT_MS     60000UL
++
+ // Server discovery (see the header). Matches core/discovery.py on the server.
+ #define DISCOVERY_PORT          18830
+ #define DISCOVERY_PROBE         "SHL-DISCOVER?"
+@@ -231,6 +250,17 @@
+ bool testRequested = false;
+ String valveState  = "idle";
+ 
++// The SYSTEM's status for the valve ("open"/"closed"), as last heard on a
++// reply. The system is the basis: the board drives the valve to it whenever
++// its own position differs and nothing temporary (test, flow) holds it.
++String        serverTarget     = "";
++bool          heardTarget      = false;
++bool          bootValveSettled = false;   // the boot wait has ended, one way or the other
++unsigned long bootMs           = 0;
++// Closes/opens made at the board itself (its page, serial CLOSE/OPEN),
++// numbered so the system adopts each one once however many uploads repeat it.
++uint32_t      localValveSeq    = 0;
++
+ // Continuous-flow tracking.
+ unsigned long flowStartMs  = 0;        // when non-stop flow began (0 = idle)
+ unsigned long flowClosedAt = 0;        // when the flow-leak close happened
+@@ -265,6 +295,7 @@
+   // A valve an admin sealed by hand must stay sealed across a power cut, so
+   // the "manual" ownership is remembered rather than lost on reboot.
+   valveReason    = prefs.getString("valvern", "");
++  localValveSeq  = prefs.getUInt("vseq", 0);
+   lastWifiChangeId = prefs.getString("wifiid", "");
+   prefs.end();
+ }
+@@ -321,6 +352,21 @@
+   prefs.end();
+ }
+ 
++// A close or open made at the board itself: number it so the system adopts
++// it once, and report at once. A person at the board also ends the boot
++// wait - they have decided.
++void saveLocalValveSeq() {
++  prefs.begin("shl", false);
++  prefs.putUInt("vseq", localValveSeq);
++  prefs.end();
++}
++void noteLocalValve() {
++  localValveSeq++;
++  saveLocalValveSeq();
++  bootValveSettled = true;
++  lastUploadMs = 0;
++}
++
+ String normaliseServer(String url) {
+   url.trim();
+   while (url.endsWith("/")) url.remove(url.length() - 1);
+@@ -498,6 +544,16 @@
+     if (nssid.length()) changeWifi(changeId, nssid, npass);
+   }
+ 
++  // The system's status for the valve, restated on every reply. This is the
++  // basis: drive the valve to it whenever the board's own position differs.
++  // An older server sends none; the one-shot valve_command below still works.
++  String vt;
++  if (extractJsonString(resp, "valve_target", vt) && (vt == "open" || vt == "closed")) {
++    serverTarget = vt; heardTarget = true;
++    if (!bootValveSettled) settleBootValve();
++    else followServerTarget();
++  }
++
+   String vcmd;
+   if (extractJsonString(resp, "valve_command", vcmd)) {
+     if (vcmd == "close" && valveState != "closed") {
+@@ -564,6 +620,52 @@
+   valveState = "closed";
+ }
+ 
++// What the upload says about the valve. "unknown" until the boot wait has
++// ended, so the screens never show a position the board has not taken.
++String reportedValveState() {
++  if (!bootValveSettled) return "unknown";
++  return valveState == "closed" ? "closed" : "open";
++}
++
++// Drive the valve to the system's status, if it is not already there and
++// nothing temporary of the board's own (the nightly test, a flow hold) is
++// holding it. Called on every reply that carries valve_target.
++void followServerTarget() {
++  if (!heardTarget) return;
++  if (valveReason == "test" || valveReason == "flow") return;
++  if (serverTarget == "closed" && valveState != "closed") {
++    valveCloseNow();
++    if (valveReason == "decay") pressureTestLeak = true;      // still the leak the test found
++    else { valveReason = "manual"; saveValveReason(); }
++    Serial.println("[VALVE] the system says closed - closed");
++  } else if (serverTarget == "open" && valveState != "open") {
++    valveOpenNow();
++    valveReason = ""; flowStartMs = 0; pressureTestLeak = false; saveValveReason();
++    Serial.println("[VALVE] the system says open - opened");
++  }
++}
++
++// End of the boot wait: the system has spoken, or the time is up.
++void settleBootValve() {
++  if (bootValveSettled) return;
++  bootValveSettled = true;
++  if (heardTarget) {
++    Serial.println("[VALVE] boot: the system says " + serverTarget);
++    followServerTarget();
++    return;
++  }
++  // No word from the system: the board's own memory. A manual or leak-found
++  // close stays shut; anything else is driven open.
++  if (valveReason == "manual" || valveReason == "decay") {
++    valveCloseNow();
++    if (valveReason == "decay") pressureTestLeak = true;
++    Serial.println("[VALVE] boot: no word from the system - restored " + valveReason + " close");
++  } else {
++    valveOpenNow();
++    Serial.println("[VALVE] boot: no word from the system - opened");
++  }
++}
++
+ // ======================================================= detection
+ // Continuous-flow staging and the auto-close/auto-open around a flow leak.
+ void updateFlowDetection() {
+@@ -573,8 +675,12 @@
+   // Reopen a flow-leak close once the cooldown has passed.
+   if (valveReason == "flow" &&
+       now - flowClosedAt >= (unsigned long)FLOW_LEAK_REOPEN_MINUTES * 60000UL) {
+-    valveOpenNow();
+-    valveReason = "";
++    if (serverTarget == "closed") {   // the system wants it shut: hand it over, leave it
++      valveReason = "manual"; saveValveReason();
++    } else {
++      valveOpenNow();
++      valveReason = "";
++    }
+     flowStartMs = 0;               // give the line a fresh start
+   }
+ 
+@@ -637,8 +743,12 @@
+         saveValveReason();
+         Serial.println("[TEST] leak found - holding the valve closed.");
+       } else {
+-        valveOpenNow();                          // no leak: give the water back
+-        valveReason = "";
++        if (serverTarget == "closed") {          // the system wants it shut: leave it
++          valveReason = "manual"; saveValveReason();
++        } else {
++          valveOpenNow();                        // no leak: give the water back
++          valveReason = "";
++        }
+       }
+     }
+   }
+@@ -709,11 +819,13 @@
+     "\"pressure_bar\":" + String(lastPressureBar, 3) + ","
+     "\"flow_lpm\":" + String(lastFlowLpm, 3) + ","
+     "\"status\":\"" + reportStatus + "\","
+-    "\"valve_state\":\"" + String(valveState == "closed" ? "closed" : "open") + "\","
++    "\"valve_state\":\"" + reportedValveState() + "\","
+     // Why it is closed - "flow", "test", "decay", "manual" or empty. The owner's and
+     // the facilitator's screens say it in words, so a closed valve at night
+     // reads as the leak test and not as a fault.
+-    "\"valve_reason\":\"" + valveReason + "\""
++    "\"valve_reason\":\"" + valveReason + "\","
++    // Closes/opens made at the board itself, numbered (see noteLocalValve).
++    "\"valve_local_seq\":" + String(localValveSeq) +
+     "}],"
+     "\"wifi_ssid\":\"" + jsonEscape(cfgSSID) + "\"," +
+     "\"lan_ip\":\"" + WiFi.localIP().toString() + "\"" +
+@@ -825,7 +937,9 @@
+        "<br>Status: " + reportStatus +
+        " &middot; Pressure: " + String(lastPressureBar, 2) + " bar &middot; Flow: " +
+        String(lastFlowLpm, 2) + " L/min &middot; Valve: " + valveState +
+-       " (" + (valveReason == "" ? "auto" : valveReason) + ")</p>";
++       " (" + (valveReason == "" ? "auto" : valveReason) + ")" +
++       (heardTarget ? " &middot; System says: " + serverTarget
++                    : String(" &middot; System: no word yet")) + "</p>";
+ 
+   // The owner portal links here with everything in the query string, so the
+   // form comes up filled in and one press of Save does the rest.
+@@ -886,8 +1000,8 @@
+   String cmd = web.arg("cmd");
+   // Local close latches the same way an admin close does, so a valve shut
+   // from the board's own page also stays shut across a reboot.
+-  if (cmd == "open")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; saveValveReason(); }
+-  else if (cmd == "close") { valveCloseNow(); valveReason = "manual"; saveValveReason(); }
++  if (cmd == "open")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; saveValveReason(); noteLocalValve(); }
++  else if (cmd == "close") { valveCloseNow(); valveReason = "manual"; saveValveReason(); noteLocalValve(); }
+   web.sendHeader("Location", "/");
+   web.send(303, "text/plain", "");
+ }
+@@ -986,19 +1100,13 @@
+   lastPulseReset = millis();
+ 
+   loadConfig();
+-  // A line the admin sealed stays sealed through a power cut: re-close it
+-  // before anything else can decide the valve should be open.
+-  if (valveReason == "manual" || valveReason == "decay") {
+-    valveCloseNow();
+-    if (valveReason == "decay") pressureTestLeak = true;   // keep reporting it
+-    Serial.println("[VALVE] restored " + valveReason + " close after reboot");
+-  } else {
+-    // Any other close (the nightly test, a flow-leak auto-close) does not
+-    // survive a reboot, so the valve is driven open now rather than left
+-    // wherever the power cut found it while the board reports "open".
+-    valveOpenNow();
+-    Serial.println("[VALVE] opened on boot");
+-  }
++  // The valve is left where it is until the system says where it should be:
++  // settleBootValve() on the first reply, or when BOOT_TARGET_WAIT_MS is up
++  // with no word (then the board's own memory decides). Until then the
++  // uploads say "unknown".
++  bootMs = millis();
++  if (valveReason == "decay") pressureTestLeak = true;       // keep reporting it meanwhile
++  Serial.println("[VALVE] boot: waiting for the system to say open or closed");
+   if (!connectWiFi()) {
+     startAP();
+   } else if (apiKey.length() == 0 && cfgCode.length() > 0) {
+@@ -1019,8 +1127,8 @@
+   if (Serial.available()) {
+     String c = Serial.readStringUntil('\n');
+     c.trim(); c.toUpperCase();
+-    if (c == "OPEN")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; saveValveReason(); }
+-    else if (c == "CLOSE") { valveCloseNow(); valveReason = "manual"; saveValveReason(); }
++    if (c == "OPEN")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; saveValveReason(); noteLocalValve(); }
++    else if (c == "CLOSE") { valveCloseNow(); valveReason = "manual"; saveValveReason(); noteLocalValve(); }
+     else if (c == "TEST")  { testRequested = true; Serial.println("[TEST] requested from serial."); }
+   }
+ 
+@@ -1029,6 +1137,7 @@
+   if (millis() - lastSampleMs >= SAMPLE_INTERVAL_MS) {
+     lastSampleMs = millis();
+     maintainWiFi();
++    if (!bootValveSettled && millis() - bootMs >= BOOT_TARGET_WAIT_MS) settleBootValve();
+     if (apiKey.length() == 0 && cfgCode.length() > 0 && cfgServer.length() > 0 &&
+         WiFi.status() == WL_CONNECTED) {
+       claimDevice();

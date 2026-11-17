@@ -1,0 +1,14 @@
+--- static/css/app.css	2026-11-15 18:16:16.000000000 +0800
++++ tools/parked/valve-system-basis/files/static/css/app.css	2026-11-15 18:16:10.000000000 +0800
+@@ -474,6 +474,11 @@
+ /* The facilitator's Open/Close pair, inline in a table row's button group. */
+ .valve-cell { display: inline-flex; align-items: center; gap: .4rem; }
+ .valve-cell form { margin: 0; }
++/* The system's status the board has not confirmed: a relay, a wire or an
++   old build. The sentence under the state carries the warning. */
++[data-valve-control].is-warn [data-field="valve_detail"] { color: var(--warn); font-weight: 600; }
++.owner-valve.is-warn { outline: 2px solid #ffc466; outline-offset: 3px; }
++.owner-valve.is-warn .owner-valve-detail { color: #ffd38a; }
+ 
+ /* Pulse only while an alert is live; respects reduced-motion. */
+ @keyframes shl-pulse {

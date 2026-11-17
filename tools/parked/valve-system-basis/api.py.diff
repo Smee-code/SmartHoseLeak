@@ -1,0 +1,182 @@
+--- core/api.py	2026-11-15 18:16:14.000000000 +0800
++++ tools/parked/valve-system-basis/files/core/api.py	2026-11-15 18:16:10.000000000 +0800
+@@ -23,6 +23,7 @@
+ from django.utils import translation
+ from django.utils.translation import gettext as _
+ 
++from django.utils.translation import gettext
+ from .models import (
+     ClaimCode,
+     Device,
+@@ -39,7 +40,12 @@
+     Trigger,
+     ValveReason,
+     ValveState,
++    Notification,
++    AuditLog,
++    ValveReason,
++    ValveState,
+     describe_valve,
++    valve_agreement,
+     offline_after_seconds,
+     psi,
+ )
+@@ -589,6 +595,10 @@
+                 entry.get("valve_reason"), ValveReason, ValveReason.NONE
+             )
+ 
++            previous_reason = (
++                LatestReading.objects.filter(segment=segment)
++                .values_list("valve_reason", flat=True).first()
++            ) or ValveReason.NONE
+             LatestReading.objects.update_or_create(
+                 segment=segment,
+                 defaults={
+@@ -627,6 +637,11 @@
+                 segment.valve_command = Segment.ValveCommand.NONE
+                 segment.save(update_fields=["valve_command"])
+ 
++            # The system is the basis for the valve, but two decisions are the
++            # board's and the system adopts them: a leak found by the nightly
++            # test, and a close or open made at the board itself.
++            _adopt_board_valve_decisions(segment, entry, valve_state, valve_reason, previous_reason, now)
++
+             rollup, _created = ReadingRollup.objects.get_or_create(segment=segment, minute=minute)
+             rollup.fold(pressure_bar, flow_lpm, mapped_status == Segment.Status.POSSIBLE_LEAK)
+             rollup.save()
+@@ -760,6 +775,97 @@
+     }
+ 
+ 
++def _adopt_board_valve_decisions(segment, entry, valve_state, valve_reason, previous_reason, now):
++    """
++    Take over the valve decisions only the board can make.
++
++    A leak found by the nightly test: the board holds the line shut, and the
++    system adopts "closed" so it does not tell the board to reopen a leaking
++    line; anyone with the button opens it once it is fixed. A close or open
++    made at the board itself (its own page, or CLOSE/OPEN on the serial
++    monitor): the board numbers each one (valve_local_seq) so it is adopted
++    once however many uploads repeat it. An administrator's lock stands even
++    against the board's own page - the open is not adopted, the reply
++    restates closed, and the board shuts the line again.
++    """
++    changed = False
++    # A close the board made itself is also the board's to release. Older
++    # firmware has no sequence numbers, so a board that reports open after a
++    # close the system adopted from it (and that nobody else has since taken
++    # over) is believed, rather than nagged with "not confirmed" for ever.
++    if (valve_state == ValveState.OPEN and valve_reason != ValveReason.DECAY
++            and segment.valve_target == Segment.ValveTarget.CLOSED
++            and segment.valve_closed_by == Segment.ValveClosedBy.BOARD):
++        segment.valve_target = Segment.ValveTarget.OPEN
++        segment.valve_target_at = now
++        segment.valve_closed_by = Segment.ValveClosedBy.NOBODY
++        segment.valve_command = Segment.ValveCommand.NONE
++        changed = True
++    # Adopted when the reason BECOMES decay. The same report repeated while a
++    # person's Open is on its way to the board must not undo that Open.
++    if (valve_reason == ValveReason.DECAY and previous_reason != ValveReason.DECAY
++            and valve_state == ValveState.CLOSED
++            and segment.valve_target != Segment.ValveTarget.CLOSED):
++        segment.valve_target = Segment.ValveTarget.CLOSED
++        segment.valve_target_at = now
++        segment.valve_closed_by = Segment.ValveClosedBy.BOARD
++        segment.valve_command = Segment.ValveCommand.NONE
++        changed = True
++
++    raw_seq = entry.get("valve_local_seq")
++    try:
++        seq = int(raw_seq) if raw_seq is not None else None
++    except (TypeError, ValueError):
++        seq = None
++    if seq is not None and seq > segment.valve_local_seq:
++        segment.valve_local_seq = seq
++        wanted = (Segment.ValveTarget.CLOSED if valve_state == ValveState.CLOSED
++                  else Segment.ValveTarget.OPEN)
++        if segment.valve_locked and wanted == Segment.ValveTarget.OPEN:
++            pass                                    # the administrator's close stands
++        elif wanted != segment.valve_target:
++            segment.valve_target = wanted
++            segment.valve_target_at = now
++            segment.valve_closed_by = (
++                Segment.ValveClosedBy.BOARD if wanted == Segment.ValveTarget.CLOSED
++                else Segment.ValveClosedBy.NOBODY
++            )
++            segment.valve_command = Segment.ValveCommand.NONE
++            closed = wanted == Segment.ValveTarget.CLOSED
++            verb = "closed" if closed else "opened"
++            AuditLog.record(
++                None, "valve.close" if closed else "valve.open",
++                f"The valve on {segment.name} was {verb} at the board itself",
++                target=segment.name,
++            )
++            _notify_board_valve(segment, closed)
++        changed = True
++
++    if changed:
++        segment.save(update_fields=[
++            "valve_target", "valve_target_at", "valve_closed_by", "valve_command", "valve_local_seq",
++        ])
++
++
++def _notify_board_valve(segment, closed):
++    """Tell the household, in their language, that their valve moved at the board."""
++    household = getattr(segment, "household", None)
++    if household is None:
++        return
++    with translation.override(household.language or settings.LANGUAGE_CODE):
++        body = (
++            gettext("Your water valve was closed at the board itself. Your water is off until it is opened again.")
++            if closed else gettext("Your water valve was opened at the board itself. Water is back.")
++        )
++        Notification.objects.create(
++            kind=Notification.Kind.VALVE,
++            title=gettext("Valve closed") if closed else gettext("Valve opened"),
++            body=body,
++            recipient=household,
++            segment=segment,
++        )
++
++
+ def _command_payload(segment):
+     """
+     What the board must act on now, and how soon to ask again.
+@@ -771,6 +877,11 @@
+     return {
+         "run_valve_test": segment.valve_test_requested,
+         "valve_command": segment.valve_command,
++        # The system's status, restated on every reply. The board drives the
++        # valve to it whenever its own position differs (and it is not in the
++        # middle of a nightly test or a flow hold), so a reboot or a lost
++        # reply cannot leave the valve somewhere the system does not know.
++        "valve_target": segment.valve_target,
+         "command_poll_seconds": settings.COMMAND_POLL_SECONDS if segment.valve_watched else 0,
+     }
+ 
+@@ -830,6 +941,8 @@
+     if stale and segment.status != Segment.Status.MAINTENANCE:
+         effective = Segment.Status.OFFLINE
+ 
++    agreement = valve_agreement(segment, latest, stale)
++
+     return {
+         "id": segment.id,
+         "module": segment.module_index,
+@@ -857,10 +970,15 @@
+         "valve_reason": latest.valve_reason if latest else ValveReason.NONE,
+         # The sentence every screen shows under the state, and the lock the
+         # household's and facilitator's buttons must respect.
+-        "valve_detail": describe_valve(segment, latest),
++        "valve_detail": describe_valve(segment, latest, stale),
+         "valve_locked": segment.valve_locked,
+         "valve_closed_by": segment.valve_closed_by,
+         "valve_command": segment.valve_command,
++        # The system's status, and whether the board's last report agrees
++        # with it. valve_warn is the "not confirmed" case every screen shows.
++        "valve_target": segment.valve_target,
++        "valve_agreement": agreement,
++        "valve_warn": agreement == "unconfirmed",
+         "calibrating": latest.calibrating if latest else False,
+         "simulated": latest.simulated if latest else False,
+         "updated_at": latest.updated_at.isoformat() if latest else None,

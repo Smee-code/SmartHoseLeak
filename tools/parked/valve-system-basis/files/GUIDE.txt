@@ -1,0 +1,2754 @@
+============================================================================
+SMART HOSE LEAK DETECTION SYSTEM - OPERATOR GUIDE
+============================================================================
+Keep this open when you are setting up. Everything you need to run the
+system, connect the ESP32, and fix the things that usually go wrong.
+
+Last updated: 28 October 2026 (admin role + multi-barangay console)
+
+
+============================================================================
+0. THE 60-SECOND VERSION
+============================================================================
+1. Open a terminal in D:\USB Drive\SmartHoseLeak
+2. Run:   .venv\Scripts\activate
+3. Run:   python manage.py runserver 0.0.0.0:8000
+4. Read the two addresses it prints. Open the "On the network" one.
+5. Log in as  facilitator / facilitator123
+6. Power the ESP32. Within ~10 seconds the dashboard should say Online.
+
+If it says Offline, go to section 7.
+
+
+============================================================================
+1. HOW THE PIECES FIT TOGETHER
+============================================================================
+  ESP32  --(WiFi, every 2s)-->  Django server on your laptop  -->  Dashboard
+                                       (the database)              (browser)
+
+  - The ESP32 PUSHES readings. The server never asks for them.
+  - "Online" is not detected. It just means a reading arrived in the last
+    10 seconds. A powered board with the wrong server address looks exactly
+    the same as an unplugged board.
+  - The leak decision and the SMS happen ON THE BOARD. They keep working
+    even with the server off, the WiFi down, or no internet at all.
+  - The server owns history, households, complaints and notifications.
+
+Two things are both called "the dashboard". Do not mix them up:
+  - Django dashboard   http://<laptop-ip>:8000/dashboard/   (the real system)
+  - The ESP32's own page   http://<device-ip>/              (live values only)
+
+
+============================================================================
+2. STARTING THE SYSTEM
+============================================================================
+Open Command Prompt in the project folder, then:
+
+    .venv\Scripts\activate
+    python manage.py runserver 0.0.0.0:8000
+
+IMPORTANT: the "0.0.0.0:8000" part is not optional.
+Plain "python manage.py runserver" listens on this computer ONLY. The ESP32
+cannot reach it, your phone cannot reach it, and the dashboard will sit at
+Offline forever. The command warns you if you forget.
+
+It prints something like:
+
+    Addresses for this session
+      On this computer   http://127.0.0.1:8000/dashboard/
+      On the network     http://172.20.10.2:8000/dashboard/
+
+      ESP32 Server address (paste into the device's /wifi page):
+          http://172.20.10.2:8000/api/ingest/
+
+Use the "On the network" address in your browser. Copy the last line into
+the ESP32 when the network changes (section 5).
+
+Windows Firewall may ask for permission the first time. Click ALLOW.
+To stop the server: press Ctrl+C in that terminal window.
+
+
+============================================================================
+3. LOGINS
+============================================================================
+  Administrator (admin console)     admin / <shown once by setup_demo>
+  Facilitator (full dashboard)      facilitator / facilitator123
+  Household owner (owner portal)    hh001 / demo12345
+
+  ESP32 settings page (/wifi)       admin / leakadmin
+  ESP32 setup hotspot               LeakDetect-Setup / leakdetect123
+
+THREE ROLES NOW, NOT TWO. setup_demo creates a separate "admin" login as
+well as the facilitator:
+
+  - Admin signs in and lands on the ADMIN CONSOLE at /console/. From there
+    they manage everything: facilitator accounts, household registration,
+    visit scheduling, every login in the system (suspend or delete),
+    announcements, analytics, data/backups, the audit log and maintenance.
+  - Sidebar -> Administration -> Households (/console/households/) is the
+    admin's register of households: a searchable list of everyone added,
+    with Edit and Delete on each row (both open as dialogs on the page),
+    and a "Register household" button that opens the registration dialog.
+    The admin enters the household in words only: owner, purok/street
+    (province, municipality and barangay are shown read-only - one barangay
+    is served), contact, email, notes. A hose line AND a new board are
+    registered with it automatically. It then shows "Pending activation" until
+    the facilitator activates it - adds the coordinates and creates the
+    owner's login (section 3e). The list shows who activated it and when.
+    Adding a facilitator works the same way on the Facilitators page
+    (/console/facilitators/): every facilitator is numbered FAC-001,
+    FAC-002 ... automatically on creation (never typed, never editable),
+    shown in the first column; Edit changes name/contact/email only (the
+    login, password and number stay), Delete removes the account - visits
+    assigned to that person stay on the schedule as Unassigned.
+    Deleting a household also removes its complaints, notices and the
+    owner's login; the hose line and its readings stay. Every add, edit and
+    delete is written to the audit log.
+  - EVERY ADD/EDIT FORM OPENS AS A DIALOG on the page it belongs to, for
+    all roles: register household / add facilitator / schedule a visit /
+    new announcement / edit a visit (on the visit's page) / edit a login's
+    contact details (Accounts), and on the facilitator side add/edit a
+    household (list and record pages) or a hose line. The Overview buttons
+    land on the right page with the dialog already open (?open=...).
+    Without JavaScript each button is still a plain link to a full-page
+    version of the same form.
+    Admin and facilitator are SEPARATE roles: an admin sees only the
+    console, not the facilitator dashboard.
+  - THE SYSTEM SERVES ONE BARANGAY (Lower Dakong Patag). Nothing asks which
+    barangay anything belongs to; records are attached to it automatically.
+    (The data model can hold more than one - that is simply switched off in
+    the screens.)
+  - A facilitator lands on the monitoring dashboard at /dashboard/ and works
+    inside their own barangay only. They CANNOT open the console.
+  - Neither role can open the other's pages; each is turned away with a 403.
+  - Any Django superuser is treated as an admin. The demo facilitator is not
+    a superuser, so it exercises the plain facilitator role.
+
+  setup_demo prints the admin password once when it first creates the
+  account. To set a known one:  python manage.py setup_demo --password <pw>
+  (that password is used for BOTH the admin and the facilitator on first
+  creation). A forgotten admin password is reset with createsuperuser or
+  "python manage.py changepassword admin".
+
+Households hh002-hh006 have generated passwords that cannot be recovered.
+To give an owner a new one: log in as facilitator, open the household, and
+use the reset-password button on their record.
+
+CHANGE "leakadmin" AND "leakdetect123" BEFORE THE DEFENCE. They are the
+shipped defaults and are written in the firmware source.
+
+
+============================================================================
+3b. VISIT SCHEDULING
+============================================================================
+The admin schedules household visits; the facilitator carries them out.
+
+ADMIN  (console sidebar -> Visits -> Visit schedule -> "Schedule a visit")
+  Pick the household (it needs NO portal account yet - the text goes to the
+  number on its record), give the visit a title, choose the FACILITATOR and
+  the DATE. Saving with a facilitator chosen schedules it and TEXTS both the
+  household and the facilitator. Saved without a facilitator it waits as
+  "Requested" until one is assigned from the visit's page.
+  The console Overview shows the next visits; "All visits" lists them with a
+  status filter.
+
+FACILITATOR  (sidebar -> Schedule)
+  Who they will visit and when, grouped by day: Overdue, Today, Tomorrow,
+  Later this week, Later, Not yet scheduled. "Start" and "Mark done" with a
+  note. The dashboard carries a "Your schedule" card with the next three,
+  and each visit has a NAVIGATE link (section 3f).
+
+THE SMS
+  Uses the same SMS queue as everything else (section 9c). With no
+  credit or no API key the texts wait in the queue and go out later - the
+  visit is scheduled either way. So "scheduled but nobody got a text yet" is
+  usually the SMS queue, not a fault here.
+
+
+============================================================================
+3c. ANNOUNCEMENTS & ANALYTICS (admin console)
+============================================================================
+ANNOUNCEMENTS  (console sidebar -> Communications -> Announcements)
+  The admin's version of the facilitator's "Notices & SMS", but able to reach
+  more than one barangay. Pick an audience - every active household, one
+  barangay, or specific households - a title and a message, and the channels
+  (in the app, by SMS, or both). It is delivered the same way a facilitator
+  notice is: it shows up in each household's Notices feed, and SMS goes
+  through the same SMS queue (section 9c). The list is a history with
+  the reach of each one.
+
+PRESSURE & FLOW  (console sidebar -> Administration -> Pressure & flow)
+  The admin's read-only view of live pressure and flow for EVERY household,
+  across every barangay - the same tiles, table and history chart the
+  facilitator monitors, widened to the whole system. Export pressure log
+  (CSV) gives the last 24h of minute rollups. The facilitator acts on these;
+  the admin oversees them.
+
+ANALYTICS  (console sidebar -> Administration -> Analytics)
+  Headline totals plus simple bar charts across every barangay: households
+  and leak alerts per barangay, work orders by status and kind, complaints by
+  status, and SMS delivery. Leaks and SMS cover the last 30 days. The charts
+  are drawn in the page itself (no chart library), so they need no internet
+  and print cleanly for the defence.
+
+
+============================================================================
+3d. DATA & SYSTEM OPS (admin console)
+============================================================================
+DATA & BACKUPS  (console sidebar -> System -> Data & backups)
+  - Export: households, work orders and the audit log as CSV, across every
+    barangay, for the LGU's records.
+  - Import households: upload a CSV with a header row of owner_name, address,
+    contact_number and optionally barangay. Rows that name no barangay use
+    the one you pick on the page; a row with no owner_name is skipped.
+  - Backup: downloads a full JSON copy of the data. It contains sensitive
+    details (logins, device keys) - keep the file somewhere safe.
+  - Restore: upload a backup JSON. It OVERWRITES records that share an id with
+    the backup and adds any it is missing; it does NOT delete newer rows. You
+    must type RESTORE to confirm. Built on Django's dumpdata/loaddata.
+
+IF A HOUSEHOLD'S PORTAL SHOWS "Something went wrong" AFTER A RESTORE
+  The log says "Segment matching query does not exist": the household
+  points at a hose line that is not in the database (a backup that held
+  the household but not its line, a hand edit, or a recovery from a damaged
+  file). The portal now clears that pointer by itself and opens with "no
+  line yet"; to clean every such record at once, in the console:
+      python manage.py repair_links
+  It clears household -> line, line -> board, notice -> line and work order
+  -> line pointers whose target is gone, then asks SQLite for any broken
+  reference it still sees and lists those (table, row, points-at) - such a
+  row has a required pointer and must be deleted or re-targeted by hand.
+  The Restore button runs the same repair after loading a backup.
+  The same broken pointer also stops "python manage.py migrate" with
+  "IntegrityError: ... core_household.segment_id contains a value 'N' that
+  does not have a corresponding value in core_segment.id" (SQLite checks
+  every foreign key when a migration rebuilds a table). Run repair_links
+  first, then migrate again. Seen on PythonAnywhere, 12 Nov 2026.
+
+HOUSEHOLDS: ARCHIVE, DELETE, AND THE DUPLICATE WARNING  (console -> Households)
+  - Archive hides a household from the admin's list and disables the owner's
+    login. Nothing is removed: its line, readings, events, complaints and
+    notices stay, and Console -> Archive -> Restore brings it all back. Note
+    that an archived household's line still shows on the facilitator's
+    screens and the map, and still alerts, until it is deleted or restored.
+  - Delete (the red button on the list and on the Archive page) is for
+    good. It removes the household, its login, its hose line with every
+    reading and event, its complaints, notices and work orders. The BOARD
+    is kept and becomes a spare for the next household. The household ID
+    has to be typed back in the dialog, and the server checks it again.
+    Use it for a duplicate registration or a test entry; for anything
+    else, archive.
+  - Registering a contact number or email that is already on a household
+    (archived or not) stops with a warning naming the match: a link to the
+    existing record, or "Restore it instead" when it is archived. Tick
+    "Register anyway" only when it really is a second household sharing a
+    phone. Before this, the same owner registered twice got a second
+    household, a second login (name2) and a second set of texts, which is
+    how an emailed password turns out to belong to the other account.
+
+AUDIT LOG  (console sidebar -> System -> Audit log)
+  Who did what, and when: account suspensions and deletions, facilitator
+  creation, work-order approvals and rejections, announcements, backups,
+  restores and maintenance toggles. Write-once - there is no edit or delete.
+
+SYSTEM STATUS  (console sidebar -> System -> System status)
+  - Maintenance mode: turn it on to show households and facilitators a short
+    notice and keep them out while you work. The ADMIN CONSOLE and the DEVICE
+    INGEST stay live on purpose - you can still turn it off, and the boards
+    never stop recording water. Turn it off to let everyone back in.
+  - Recent errors: the last server errors, newest first, so a 500 leaves a
+    trace you can see here instead of only in the terminal. The full traceback
+    stays in the server log.
+  - Leak detection: the figures every board decides against (section 9e)
+    and, at the bottom, "Board upload interval (seconds)" - how often a board
+    posts a routine reading (15 by default). See section 9g before changing
+    it; it is a budget for the hosted server, not a detection setting.
+
+
+============================================================================
+3e. THE FACILITATOR SIDE  (one barangay each)
+============================================================================
+A FACILITATOR SEES ONLY THEIR OWN BARANGAY. Every facilitator screen -
+dashboard, households, lines, pressure, alerts, complaints, notices & SMS,
+reports and exports, and the live map feed - shows only the barangay the
+admin assigned to their account. A link into another barangay's record
+simply comes back "not found". A facilitator with NO barangay assigned sees
+an empty dashboard with a notice saying so; the admin assigns one at
+Console -> Facilitators / Accounts.
+
+  - Each barangay has its OWN main water source (Lines page, top). The
+    facilitator places theirs; the map draws that barangay's hoses from it.
+  - Leak-alert texts go to the facilitator OF THAT LINE'S BARANGAY, not to
+    every facilitator in the system.
+
+EVERYTHING THE FACILITATOR COULD DO BEFORE STILL WORKS (households, lines,
+boards, alerts, complaints, notices, reports). New on top of it:
+
+TEXTING A HOUSEHOLD ITS LOGIN
+  REGISTERING A HOUSEHOLD IS A TWO-PERSON JOB.
+    1. The ADMIN enters the household during application (console ->
+       Households -> Register household): owner, purok/street, contact,
+       email, notes. The hose line and a new board are created at once.
+       No location, no login: the record shows "Pending activation".
+    2. The FACILITATOR opens Households (the dashboard's "Activate
+       households" button lists the pending ones; the search box finds a
+       name, ID, address or number), clicks ACTIVATE on the household, sees
+       what the admin entered read-only, types the LATITUDE and LONGITUDE
+       of the house, and clicks Create account. That creates the Owner
+       Portal login: the username and temporary password are shown once
+       and sent to the household by text and, if it has an email, by
+       email. The owner is asked to change the password on first sign-in.
+       ACTIVATION NEEDS A BOARD on the household's line (the row says
+       "Register board" until there is one): the board's setup code is
+       issued at the same moment and sent to the owner as a second text /
+       email. The OWNER connects the board to their own WiFi - section 9d.
+    The admin's list shows who activated each household and when. The
+    facilitator can still Edit a household (including its coordinates) and
+    reset or re-send a password from the household's record.
+
+SCHEDULE  (sidebar -> Schedule)
+  Who you will visit and when, grouped by day: Overdue, Today, Tomorrow,
+  Later this week, Later, Not yet scheduled. "Start" and "Mark done" with a
+  note. The dashboard carries a "Your schedule" card with the next three.
+
+NOTICES BY EMAIL
+  Notices & SMS has a third tick, "Also send by email", for households with
+  an email on their record (or on their login). Needs the mailbox in
+  section 3g; without it the email is printed to the server terminal.
+
+THE VALVE, FROM THE DASHBOARD
+  The Valve column now says why a valve is closed (nightly test, water left
+  running, or who closed it), and each row with a fitted valve has "Open
+  valve" / "Close valve" alongside "Test valve". A line the administrator
+  closed shows "Locked by admin" instead of Open. Every press is audited and
+  the household is told in their Notices feed. The "Valve actions" card
+  lists the barangay's last five presses, including the households' own.
+  Details in section 9e, THE VALVE.
+
+
+============================================================================
+3f. VISIT ROUTES ON THE MAP, AND NAVIGATE
+============================================================================
+TWO KINDS OF LINE ON THE LEAK MAP
+  - SOLID line  = the hose. It runs cross-country from the source and is
+                  drawn STRAIGHT on purpose: it means "this house is on this
+                  hose", not "this is the path of the pipe".
+  - DOTTED line = the VISIT ROUTE: the road from the barangay's water source
+                  to the house, for a facilitator going out there. Tick
+                  "Visit routes" above the map to show or hide them.
+
+WHERE ROUTES COME FROM
+  Fetched ONCE from OpenRouteService (a free routing service) when a
+  household's coordinates are saved - or when the barangay's water source is
+  moved - and stored on the household. The map then draws them with no
+  internet and no further calls, exactly like the hoses.
+
+SETTING IT UP  (once)
+  1. Sign up free at openrouteservice.org and copy your API key.
+  2. Put it in .env:
+         ORS_API_KEY=your-key-here
+  3. Restart the server.
+  4. For households surveyed BEFORE the key existed:
+         python manage.py fetch_routes          (only the ones without a route)
+         python manage.py fetch_routes --all    (redo every one)
+  Without a key nothing is fetched and the map simply shows no routes; the
+  hoses and everything else are unaffected. The household record says why
+  ("No OpenRouteService key set").
+
+ON THE HOUSEHOLD RECORD  ("Getting there")
+  The route's length and time by road, a "Fetch route / Refetch route"
+  button for when the first attempt failed, and NAVIGATE.
+
+NAVIGATE  (household record, Schedule cards, admin work order, map pins)
+  Opens Google Maps directions on the phone, from the water source to the
+  house - real turn-by-turn, in the app people already have. Needs no key.
+  This is the thing that actually gets someone to the door; the dotted route
+  is the overview.
+
+A CAVEAT ABOUT RURAL ROADS
+  OpenStreetMap's road data around Sison is thin in places. A house on a
+  footpath the map does not know about routes to the nearest known road and
+  ends in a short straight stub. That is the map data, not a fault - use
+  Navigate for the last stretch. ROUTING_PROFILE=foot-walking in .env makes
+  the service use footpaths where it has them.
+
+
+============================================================================
+3g. SIGN-IN CODES (OTP), EMAIL, AND THE APP ON EVERY PHONE
+============================================================================
+SIGNING IN NOW HAS TWO STEPS, FOR EVERY ROLE
+  1. EMAIL OR USERNAME, plus password. Either identifier works: households
+     built on short usernames (hh002) still use those; anyone with an email
+     on their account can type that instead. (Email only resolves when one
+     account carries it; it is not forced to be unique on the table.) On the
+     sign-in dialog, pick where the code should go - Text or Email - and
+     optionally "Remember this device for 30 days".
+  2. A 6-DIGIT CODE arrives by text (iprogSMS) or email. Type it in. It is
+     good for 10 MINUTES and 5 wrong guesses; "Send a new code" is allowed
+     once a minute and can switch channel.
+
+  FORGOT A PASSWORD: the "Forgot your password?" link on the sign-in dialog
+  emails a one-time reset link to the address on the account. The link is
+  built from the host the page was opened on, so open it through the public
+  tunnel (not 127.0.0.1) for a link that works off this machine. Accounts
+  with no email on file cannot self-reset - a facilitator sets a new password
+  from the household record (section above), or use Django admin.
+
+  If the channel you picked is not on your account (no email, say), the
+  other one is used and the code page says where it went. An account with
+  NEITHER a number nor an email signs in on the password alone, with a
+  warning - add one in the console (Accounts) or Django admin.
+
+  REMEMBER THIS DEVICE sets a signed cookie on that browser for 30 days;
+  signing out does not clear it (the device is trusted, not the session).
+  Clearing the browser's cookies does.
+
+  IN DEVELOPMENT (DEBUG=True) THE CODE IS ALSO SHOWN ON THE SIGN-IN PAGE,
+  so a demo never depends on SMS credit or a mailbox. Never in production.
+  To switch the step off entirely: OTP_ENABLED=False in .env.
+
+EMAIL  (one-time setup, about 5 minutes)
+  Sign-in codes by email, and "Also send by email" on notices and
+  announcements, go out from the project mailbox smarthoseleak@gmail.com.
+  It needs an APP PASSWORD, which is a 16-letter code Google issues for
+  one program - not the Gmail password:
+
+    1. Sign in to Gmail as smarthoseleak@gmail.com.
+    2. Google Account -> Security -> turn on 2-Step Verification (required).
+    3. Google Account -> Security -> 2-Step Verification -> App passwords
+       (or search "App passwords" in the account settings). Name it
+       "Smart Hose Leak", click Create, copy the 16 letters.
+    4. In .env, paste it (spaces or not, both work):
+          EMAIL_HOST_USER=smarthoseleak@gmail.com       (already there)
+          EMAIL_HOST_PASSWORD=abcd efgh ijkl mnop
+    5. Restart the server, then prove it:
+          python manage.py send_email your.own@address.com
+       It says "Sent" and the message arrives (check spam the first time).
+
+  Admin console -> System status -> Services shows whether email, SMS and
+  routes are set up, in one place. Until the app password is in, every
+  email is PRINTED TO THE SERVER TERMINAL instead of sent, the pages say
+  email is not set up, and a sign-in code by email that cannot be sent is
+  reported as such (it is not claimed as sent).
+  Households get an email address on their record (Add/Edit household);
+  facilitators on their account (console -> Facilitators -> Add).
+
+LANGUAGE: ENGLISH / FILIPINO
+  A small EN/FIL switch sits in the top bar on every page. It stores the
+  choice in a cookie (django_language) and is also honoured from the
+  browser's language setting. Translated so far: the public landing page and
+  the whole sign-in flow (login, the code step, and password reset). The rest
+  of the app stays English; untranslated text simply shows in English.
+
+  Strings are Django's gettext catalogs under locale/fil/. To change or add
+  Filipino wording, edit locale/fil/LC_MESSAGES/django.po, then compile:
+        python manage.py compilemessages -l fil
+  After wrapping NEW text in a template ({% trans "..." %} or
+  {% blocktrans %}...{% endblocktrans %}, with {% load i18n %} at the top),
+  re-extract first:
+        python manage.py makemessages -l fil --ignore=.venv --ignore=staticfiles
+  Both need GNU gettext on PATH (msgfmt/xgettext; MinGW provides them here).
+  Restart the server after compiling.
+
+THE APP ON EVERY PHONE
+  All three roles can install the app (the same one). On an https address
+  the user menu (top right) shows "Install the app on this device" when
+  the browser offers it; the public landing page has the install button for
+  households. The installed icon opens straight into whichever portal the
+  signed-in person belongs to. Section 12f has the https requirement and
+  the iPhone steps.
+
+
+============================================================================
+3h. ENGLISH / FILIPINO
+============================================================================
+EVERY SCREEN IS IN BOTH LANGUAGES: the landing page, sign-in, the owner
+portal, the facilitator dashboard and the admin console, the live text the
+page writes by itself (status words, toasts, the valve readout, the map),
+the messages after an action, form labels and errors, and the texts and
+notices the system sends.
+
+THE EN / FIL TOGGLE (top of every page) sets a cookie on that browser for
+a year. Facilitators, the admin and visitors get whatever the toggle says;
+before they touch it, the browser's own language.
+
+A HOUSEHOLD HAS A LANGUAGE OF ITS OWN, on its record (Households -> Edit,
+"Language"; Filipino by default). It does two things:
+  - The portal OPENS in it for that owner, until they press the toggle.
+    Pressing the toggle also writes the choice back to the household.
+  - Every text and notice to that household is written in it - the 2 am
+    leak alert, the water-running warning, the valve notice, the visit
+    text, the login and setup-code texts, the sign-in code - whatever
+    language the facilitator or admin who caused it was working in.
+  The demo owner (CREDENTIALS.txt) opens in Filipino: press EN to compare.
+
+STYLE: conversational Filipino, with the words people actually use kept
+in English (pressure, valve, bar, board, WiFi, password, facilitator,
+dashboard...). Glossary the translations follow: leak = tagas, line =
+linya, household = sambahayan, owner = may-ari, notice = abiso, alert =
+alerto, complaint = reklamo, visit = pagbisita, work order = trabaho,
+open/closed valve = bukas/sarado.
+
+WHEN YOU CHANGE OR ADD ENGLISH TEXT
+  Templates wrap text in {% trans "..." %} / {% blocktrans %}; Python
+  uses gettext ("_"); app.js and map.js use gettext(). Then:
+      python manage.py makemessages -l fil --ignore=.venv --ignore=staticfiles --ignore=GUIDE.txt
+      python manage.py makemessages -d djangojs -l fil --ignore=.venv --ignore=staticfiles
+  Open locale\fil\LC_MESSAGES\django.po (and djangojs.po for the browser
+  text), fill in the new msgstr lines (an empty msgstr shows the English),
+  remove any "#, fuzzy" line once you have checked that guess, then:
+      python manage.py compilemessages
+  (needs gettext on the PATH; C:\MinGW\bin has it on this laptop). Restart
+  the server; the .mo files are read at start-up.
+  Catalog size at the time of writing: 1,189 strings + 100 browser strings.
+
+
+====================================================================================================================================================
+4. CONNECTING THE ESP32 TO A NEW WIFI NETWORK
+============================================================================
+The WiFi name and password are NOT in the code. They live in the board's
+own memory, so this needs a phone, not a laptop.
+
+IF THE OLD NETWORK IS GONE (you moved location):
+  1. Power the board on and wait about a minute. It tries the saved network
+     and, after about six misses, raises its own hotspot - while still
+     trying the old network in the background.
+  2. On your phone, join the WiFi network:  LeakDetect-Setup
+     Password:  leakdetect123
+  3. Open a browser and go to  http://192.168.4.1/
+  4. Type the new network's name and password. Leave the SERVER box blank
+     when the server is a laptop on that same network (section 5), and
+     leave the SETUP CODE blank so the board keeps its identity and the
+     household's history continues. Press Save & connect.
+  5. The board reboots and joins. THE HOTSPOT DISAPPEARING MEANS IT WORKED.
+
+IF THE NETWORK DROPS WHILE THE BOARD IS RUNNING:
+  Nothing to do. It retries every 10 seconds and rejoins by itself; after
+  about a minute without the network it raises the hotspot too, in case
+  the network is really gone, and closes it again the moment it rejoins.
+  The sensors and the valve keep working the whole time (section 9e).
+
+IF THE BOARD IS ON THE NETWORK AND YOU WANT TO CHANGE SOMETHING:
+  Open  http://<board-ip>/  (the address is on the Serial Monitor at boot,
+  "[WIFI] got 192.168.x.x", or in your router's device list). The same page
+  as the hotspot: WiFi, server, setup code, plus the live readings and the
+  last upload result.
+
+THE BOARD ONLY RUNS THE OLD MULTI-MODULE SKETCH'S FEATURES IF YOU FLASHED
+THAT ONE. The per-household sketch (section 10) has no /wifi page, no
+network list, no admin login and no "Forget network" button: one page at /,
+type the network name.
+
+
+============================================================================
+5. TELLING THE ESP32 WHERE THE SERVER IS
+============================================================================
+IN MOST CASES YOU DO NOT HAVE TO. The board asks the network where the
+server is and remembers the answer.
+
+  - When it joins a network and has no address, or a laptop-style http://
+    address, it asks before posting anything.
+  - While running, if three uploads in a row get no reply at all, it asks
+    again (at most once every 30 seconds) and adopts the new address.
+  - What it finds is saved, so after a power cut it comes back pointed at
+    the right place.
+  - A public https:// address (PythonAnywhere) is never replaced: that one
+    was typed on purpose and works from any network.
+
+This is why the startup banner says "Devices can find this server by
+themselves". It only works when the server is started with 0.0.0.0:8000;
+bound to localhost there is nothing for a device to find.
+
+Watch for this in the Serial Monitor:
+    [DISCOVER] Server found at http://192.168.1.21:8000 (was "http://172.20.10.2:8000")
+    [DISCOVER] No server answered on this network.
+and on the board's page, the "Server search:" line.
+
+THIS WAS THE BUG WHEN A BOARD WAS MOVED. Until 11 Nov 2026 the per-household
+sketch simply remembered the laptop's address. Moved to a new network it
+joined fine, then posted every two seconds to the OLD laptop address, got no
+reply, and the dashboard showed nothing - and because the hotspot only
+opened when the WiFi itself failed, there was no way to correct the address
+without the Serial Monitor. Now the board asks the network, and a laptop
+address can also be typed at http://<board-ip>/ at any time.
+
+SET IT BY HAND when the board is on a different network from the laptop, or
+when you want it pointed somewhere specific:
+  1. Start the server (section 2) and read the "ESP32 Server address" line.
+     Or open the Django dashboard - if no readings have arrived it shows a
+     "Device setup" panel with the exact line to copy.
+  2. Open the board's page: http://192.168.4.1/ on the hotspot, or
+     http://<board-ip>/ when it is on the network.
+  3. Put the address in the "Server" box, e.g.  http://172.20.10.2:8000
+     (with or without /api/ingest/ - the board trims it).
+  4. Leave the other boxes blank and press Save & connect. The board reboots
+     and uses it.
+
+Notes:
+  - Never use 127.0.0.1 or localhost. On the ESP32 those mean the ESP32
+    itself.
+  - The board remembers this address after a power cut.
+  - Blank the box and save to go back to asking the network.
+
+
+====
+6. FINDING YOUR LAPTOP'S IP ADDRESS
+============================================================================
+Easiest: it is printed when you start the server (section 2).
+
+By hand:
+    ipconfig
+
+Look for the section "Wireless LAN adapter Wi-Fi:" and read its
+IPv4 Address.
+
+WATCH OUT: this laptop shows TWO addresses. The extra one (192.168.137.1)
+belongs to a dormant Windows hotspot adapter and DOES NOT WORK.
+The correct one is the one that has a "Default Gateway" listed under it.
+
+From a phone with no laptop access: install Fing (free) and scan the
+network - the laptop appears as LAPTOP-MAG82PTI with its IP. On an iPhone
+hotspot the phone is always 172.20.10.1 and the laptop is usually
+172.20.10.2.
+
+
+============================================================================
+7. WHEN THE DASHBOARD SAYS OFFLINE
+============================================================================
+Work down this list in order. Most of the time it is #1 or #2.
+
+1. IS THE SERVER LISTENING ON THE NETWORK?
+   Run:  netstat -ano | findstr :8000
+   You want:  0.0.0.0:8000        LISTENING
+   If it says 127.0.0.1:8000, stop the server and restart it with
+   "0.0.0.0:8000" (section 2).
+
+2. IS THE SERVER ADDRESS ON THE BOARD CORRECT?
+   Compare the address in section 2 against what the board has. Open
+   http://<device-ip>/status and look at "server_url".
+
+3. ARE THEY ON THE SAME WIFI?
+   The ESP32 and the laptop must be on the same network. A phone hotspot
+   counts, as long as both joined it.
+
+4. WHAT DOES THE SERIAL MONITOR SAY? (section 8)
+   [UPLOAD] OK                 -> working, problem is elsewhere
+   [UPLOAD] REJECTED 401       -> wrong API key
+   [UPLOAD] Failed: ...        -> cannot reach the laptop; check 1-3
+   [UPLOAD] Skipped - WiFi ... -> not on WiFi; see section 4
+
+5. FIREWALL
+   Windows Firewall may be blocking Python. Test from your PHONE: open
+   http://<laptop-ip>:8000/ - if the login page loads, the network path is
+   fine and the problem is on the board.
+
+
+============================================================================
+8. THE SERIAL MONITOR (Arduino IDE)
+============================================================================
+Plug the ESP32 into USB, then:
+    Tools -> Serial Monitor      (or Ctrl+Shift+M)
+    Set the baud rate to 115200  (bottom-right dropdown)
+    Set Tools -> Port to the ESP32's COM port
+
+Lines worth knowing:
+    [WIFI] Connected. Dashboard: http://192.168.1.42/   <- the board's IP
+    [WIFI] Scan result: 7 network(s)                    <- WiFi scan worked
+    [UPLOAD] OK                                         <- server receiving
+    [UPLOAD] REJECTED 401 ...                        <- key not recognised
+    [ID] Claimed as esp32-01                         <- board has an identity
+    [ID] Not claimed. Enter a claim code ...         <- it does not (sec 9d)
+    [CLAIM] Success. This board is esp32-01.         <- claiming worked
+    [CLAIM] could not reach the server ...           <- WiFi has no internet
+    [VALVE] Sealed at 0.812 bar. Holding 300 s.      <- leak test running
+    [FLOW] Ignoring 538.6 L/min ...                  <- noise on the flow wire
+    [M1] P=2.41 bar ... valve=open | NORMAL (none/none)   <- live readings
+
+
+============================================================================
+9. SERIAL MONITOR COMMANDS  (115200 baud)
+============================================================================
+ZEROING - do this once per board, before trusting any reading.
+
+    Z         zero the pressure sensor. EMPTY THE LINE FIRST.
+
+  Until this is done the board reports its own resting voltage as pressure -
+  about 0.45 bar on a dry hose. Every threshold is then compared against a
+  number that means nothing, and an empty hose looks like a working one.
+
+VALVE
+
+    V         run a sealed-line test now. It still waits until the line has
+              been idle for 10 minutes; cutting water off while somebody is
+              using it is not something a demonstration gets to override.
+    O         open the valve, abandoning any test in progress.
+    N         pretend it is night, on or off - for testing the night-flow
+              window without staying up until 1 AM.
+
+SIMULATION - inject fake readings without water running:
+
+    S1,1.2,4.5    pretend 1.2 bar and 4.5 L/min
+    R1            back to the real sensor
+    R             back to the real sensor
+
+  Simulated readings are flagged in the dashboard, so they cannot be
+  mistaken for real data.
+
+THERE IS NO CALIBRATION ANY MORE.
+  The C / A / F commands went with the Q = K x sqrt(P) method. It needed a
+  field calibration nobody could do reliably, and only ever described a line
+  whose conductance had not changed since the day it was measured. The four
+  tests in section 9e replaced it and need no calibration at all.
+
+
+============================================================================
+9a. ONE HOSE LINE PER HOUSEHOLD
+============================================================================
+The system used to be three sensor pairs on one board, strung along a single
+run, with a leak reported as "somewhere between 15 m and 30 m". It is now one
+hose per household - main source straight to the house - with its own board.
+A leak is attributed to a HOUSEHOLD, not to a distance along a pipe.
+
+WHAT CHANGED ON SCREEN
+  - Dashboard shows one ROW per household instead of three big cards.
+  - Each row shows pressure, flow, valve, device and status.
+  - "Distance markers" and "Length" are gone everywhere. There is no
+    distance to record any more.
+  - Lines are named after the household (HH-001 - Maria Santos).
+
+THE BOARD'S OWN PAGE
+  The device's IP address is shown under "live" in the Device column, as a
+  link. Click it to open that board's own page (WiFi settings, live
+  readings, valve state). It is kept current by the dashboard's live poll,
+  because the address changes whenever the network does - which is exactly
+  when you need it.
+
+  There is no longer a single "Device status" tile at the top of the
+  dashboard. With a board per household, one global answer could only
+  describe one of them; the Households table answers it per house.
+
+DEVICE COLUMN - THE THREE STATES
+  No device       grey pill. No board fitted to this hose yet. This is the
+                  rollout working as planned, not a fault.
+  live            green dot. The board reported within the last 10 seconds.
+  not reporting   red dot. A board IS fitted and has gone quiet - power,
+                  WiFi, or the server being down. Somebody should look.
+
+  Those three are deliberately different. A house waiting for hardware and a
+  house whose board has died must never look the same.
+
+ADDING A HOUSEHOLD, ITS HOSE AND ITS BOARD  (all in one)
+  Dashboard -> Households -> Add household.
+
+  The hose line is created for you and named after the household. You are
+  not asked to pick one: a line serves exactly one house, so there was only
+  ever one right answer.
+
+  Under "Hardware", choose one:
+    No device yet             the hose is laid, the board is not fitted.
+                              The dashboard shows "No device", which is the
+                              rollout working, not a fault.
+    Register a new board      a Device ID and API key are generated and
+                              shown when you save.
+    Use a board already       pick from boards that are not on another
+    registered                house's hose.
+
+  CLAIMING THE BOARD
+    1. Dashboard -> Lines -> Devices table. Find the board.
+    2. Press Copy next to the Device ID.
+    3. Join the board's "LeakDetect-Setup" hotspot on the same phone.
+    4. Paste it into the setup page. Do the same for the API key.
+    Nothing is re-flashed. The same sketch runs on every board.
+
+    Do NOT type the key by hand. It is 43 mixed-case characters with dashes
+    and underscores; a typo gives a 401 that looks exactly like a network
+    fault.
+
+  WHERE THE KEY LIVES
+    On the facilitator side, permanently, on the Lines page. It is never
+    typed and cannot be edited - only the server issues one. It stays
+    readable because it has to be entered again if the board is replaced,
+    and unlike an owner password it cannot simply be reset.
+
+  REPLACING A DEAD BOARD
+    Flash the same sketch to the spare, join its hotspot, and paste the SAME
+    Device ID and API key. The household keeps its history.
+    Only use "New key" if the key has actually leaked - the board goes
+    silent the moment you do, until somebody walks to it.
+
+
+ADDING A LINE
+  Dashboard -> Lines -> Add hose line. It is created with NO device: a hose
+  is laid long before a board is fitted to it. When the board arrives, open
+  Edit on that line and pick it in the Device field.
+
+  One board can only be on one line. If you pick a board that is already on
+  another line, the save is refused.
+
+RIGHT NOW
+  Only HH-001 has the board. The other five lines exist with no device, which
+  is exactly what the dashboard is built to show.
+
+  The board is still running the THREE-MODULE sketch, so it posts modules 1,
+  2 and 3. Module 1 lands on HH-001's line; modules 2 and 3 are rejected with
+  "no segment configured for module 2/3" in the reply. That is harmless, and
+  it stops as soon as the per-household firmware is flashed - that build
+  reports one module.
+
+
+============================================================================
+9b. SETTING THE LOW-WATER-SUPPLY THRESHOLD  (from the dashboard, no reflash)
+============================================================================
+Each supply line has its own pressure threshold. Below it, that line is
+reported as Low Water Supply. You change it in the browser and the board
+picks it up on its next upload - within about 2 seconds. Nothing is flashed
+and nothing is restarted.
+
+TO CHANGE IT
+  1. Dashboard -> Lines
+  2. Click Edit on the line
+  3. "Low supply below" - type the value in bar
+  4. Save changes
+
+The Lines table shows every line's current threshold, in bar and psi. The
+board's own page (http://<esp32-ip>) shows it too, in the "Low below" column
+right next to the live pressure, so you can see on site whether a LOW SUPPLY
+reading is a weak line or a threshold set too high for it.
+
+WHAT VALUE TO USE
+Pressure and height are the same thing in a gravity system: 1 bar is about
+10 metres of drop from the source tank down to the sensor. So the right
+threshold is different for every line, and it depends on your site, not on
+the code.
+
+  under 0.2 bar    effectively no water
+  0.2 - 0.3 bar    a trickle
+  0.3 - 0.5 bar    usable but low
+  0.5 - 2.0 bar    normal for a gravity-fed rural system
+  over 4 bar       unusual for gravity - a pump, or a closed valve
+
+The default is 0.3 bar, which is about 3 m of head - the minimum pressure
+rural gravity systems are designed around. It is a safe starting point, not
+an answer.
+
+TO FIND THE REAL VALUE FOR A LINE
+  1. Zero the sensors first (section 9, the Z command). Until that is done
+     the pressure figures are the sensor's own resting voltage, not water,
+     and any threshold is being compared against a meaningless number.
+  2. Run the line normally for a full day - morning, midday, evening.
+  3. Find the lowest pressure seen during a stretch when everybody agreed
+     the water was fine.
+  4. Set the threshold 20-30% below that.
+
+That way "low supply" means "lower than this line has ever been while
+working", which is the only definition that will not cry wolf.
+
+NOTES
+  - The form refuses 0 (could never trigger) and anything above 4 bar (would
+    trigger forever on a gravity line).
+  - The board keeps the last value it was told, in flash. If the WiFi drops
+    or the board reboots, it carries on using your figure - not the default.
+  - A board that has never reached a server uses 0.3 bar.
+
+
+============================================================================
+9c. SENDING SMS  (Notices & SMS tab)
+============================================================================
+WHAT SENDS IT
+  iprogSMS (iprogsms.com), a Philippine SMS gateway, over the internet.
+  There is NO GSM module on the server any more.
+
+  The earlier plan was a SIM800L plugged into this laptop. It was dropped
+  because a hosted server has no USB port to plug a modem into, and the code
+  can only open a port on the machine it is running on - so the modem and the
+  server would have to stay in the same room forever. A gateway works from
+  this laptop and from a hosted server alike, so nothing has to change later.
+
+  What that gives up is SMS during an internet outage. The answer to that is
+  the SIM800L on the BOARD, which texts the owner directly when it cannot
+  reach the server at all. Different module, different job.
+
+SETTING IT UP  (about 5 minutes)
+  1. Sign up at iprogsms.com. They give trial credits.
+  2. Copy your API key.
+  3. Put it in .env in the project folder:
+
+         IPROGSMS_API_TOKEN=your-key-here
+
+  4. Restart the server. It prints:
+
+         SMS: Texts are going out. Credit: 100.
+
+  The same line is at the top of the Notices & SMS page, because running out
+  of credit is the failure that looks most like the system being broken, so
+  it is shown before you write anything. It says one of:
+
+         Texts are going out. Credit: 100.        nothing to do
+         Texts are going out, but credit is low - 12 left.   top up soon
+         There is no SMS credit left, so no text can be sent.    AMBER
+
+  The last one is a stop, not a warning: at zero credit the gateway refuses
+  every send with "402: insufficient credit". Messages you send are still
+  written down and still go out after you top up - nothing is lost, it just
+  waits. Only that state is coloured; a working gateway is a quiet grey line,
+  so colour on this page always means something needs you.
+
+  The balance is looked up at most once every 5 minutes. iprogSMS rate-
+  limits that call, and being told "too many attempts" instead of a
+  number would be worse than a number a few minutes old. A top-up therefore
+  takes up to 5 minutes to show.
+
+  Cost is roughly PHP 0.50-1 per message. Leak alerts are rare; budget well
+  under PHP 100 a month for seven households.
+
+SENDING ONE BY HAND
+  Dashboard -> Notices & SMS
+  1. Choose who it goes to:
+       - Tick "All active households" for everyone. This is one click and is
+         the common case - a scheduled interruption concerns the barangay.
+       - Or type in the "Send to" box. It filters as you type, on the name or
+         the household ID. Enter or a click adds them as a chip; the x on a
+         chip removes them, and Backspace in an empty box removes the last.
+     The chips stay visible while you write, so you can see who it is going
+     to without reopening anything.
+  2. Title and message
+  3. Under "How to send it", tick "Show in the app", "Also send as SMS", or
+     both. At least one is required. Send notice is on the same line.
+
+  A counter shows how many texts it will cost. Over 160 characters it is
+  split into numbered parts.
+
+AUTOMATIC LEAK ALERTS
+  When a line is flagged, TWO texts go out:
+
+    To the household owner:
+      LEAK ALERT HH-001: possible leak Sep 16 1:08PM, moderate. Please check
+      all your faucets are closed. If they are and water still runs, tell the
+      facilitator.
+
+    To the facilitator:
+      LEAK: HH-001 (Maria Santos), moderate. 0.20 bar, 1.40 L/min. Detected
+      by night flow. The owner has been asked to check their faucets.
+
+  They are worded differently on purpose. The owner is asked to check their
+  own taps first - a small leak and a tap left slightly open are identical to
+  the sensors, and the tap is far more common. The facilitator needs to know
+  which house and how bad, to decide whether to go.
+
+  Both fit in one message. An all-clear is sent in the app only.
+
+  Switch either off in .env:
+      SMS_AUTO_ON_LEAK=False
+      SMS_FACILITATOR_ON_LEAK=False
+
+  THE FACILITATOR NEEDS A CONTACT NUMBER or their copy is silently skipped.
+  Set it in Django admin -> Users -> facilitator -> Contact number.
+
+"RECENTLY SENT"
+  Rows, not cards. Every reply you write in a complaint thread also becomes a
+  notice for that owner, so this list is mostly one-line replies - seven
+  short messages used to fill the whole panel, and it grew with every reply
+  ever sent.
+
+  A reply is shown as one compact line and LINKS TO THE THREAD, which is
+  where you can actually do something about it. Several replies in a row to
+  the same complaint are folded into one line with "+2 more replies".
+
+  Notices you composed keep their title, in bold, with an envelope.
+
+READING THE DELIVERY LOG
+  Queued            not handed over yet. Normal for a few seconds.
+  Sent to network   the gateway accepted it and is delivering it.
+  Delivered         it reached the handset. This is confirmed, not assumed.
+  Not delivered     the gateway tried and could not. Reason shown.
+  Failed            could not be handed over at all after 3 attempts.
+
+  "Sent to network" and "Delivered" are deliberately different. A gateway
+  accepting a message is not a phone receiving it, and this table exists to
+  answer one question: somebody says they never got a text - did one reach
+  them?
+
+  "Try again" re-queues anything that failed or was not delivered.
+
+  A missing API key HOLDS messages without using up an attempt - that is a
+  setup problem, not the message's fault.
+
+PHONE NUMBERS
+  09171234501, +639171234501 and 639171234501 are all accepted and converted.
+  A number that is not a valid PH mobile is failed with that reason rather
+  than being sent into nothing.
+
+  THE HOUSEHOLD NUMBERS ARE STILL PLACEHOLDERS. HH-001 is +639171234567.
+  Put a real number - yours - on one household and test with that before
+  turning automatic alerts on, or the first real leak texts a stranger.
+
+CHECKING IT FROM THE TERMINAL
+      python manage.py send_sms              send now, and check delivery
+      python manage.py send_sms --status-only  only check delivery
+      python manage.py send_sms --watch        keep running
+
+
+============================================================================
+9d. SETTING UP A BOARD  (the OWNER does it - claim code, no laptop)
+============================================================================
+The SAME sketch goes on every board. What makes a board belong to a household
+is a short setup (claim) code typed on the board's own setup page - and the
+HOUSEHOLD OWNER types it, on their own phone, with their own WiFi password.
+Nobody else needs to know that password.
+
+HOW THE CODE REACHES THEM
+  1. Admin -> Households -> Register household. A new board is registered
+     with every household automatically (for an older record without one,
+     the facilitator presses REGISTER BOARD on the household's row).
+  2. Facilitator -> Households -> ACTIVATE (needs a board - the button says
+     "Register board" until there is one). Entering the coordinates and
+     pressing Create account does three things: creates the owner's login,
+     issues the board's setup code, and sends the owner TWO messages by text
+     and (if on file) email - the login, and the setup code with the steps.
+     The facilitator's screen shows both too, for telling the owner in person.
+  3. Owner -> signs in -> Settings -> MY DEVICE. A live status card, and a
+     "Set up my board" button that opens a dialog with the code, the steps
+     and the resend / new-code actions (the status is repeated inside it, so
+     the owner can keep it open until it says Connected). Once connected the
+     button disappears; if the board later goes quiet it becomes "What to
+     check" and opens the troubleshooting steps instead.
+
+WHAT THE OWNER DOES  (also in their Settings page)
+  1. Plug in the board, wait about a minute.
+  2. On the phone, join WiFi "LeakDetect-Setup", password leakdetect123
+     (BOARD_SETUP_SSID / BOARD_SETUP_PASSWORD in .env - change them with the
+     firmware before deployment).
+  3. The setup page opens by itself; otherwise http://192.168.4.1/
+  4. Choose the home WiFi, type its password, enter the setup code. Leave
+     the server address alone - the board finds the server itself (sec 5).
+  5. Save. The board reboots and joins; the setup hotspot disappearing means
+     it worked. Settings > My device turns to CONNECTED within a minute.
+
+THE STATUS CARD  (Settings > My device, updates every 5 s)
+  No board fitted yet              nothing on the line - facilitator's job
+  Board fitted, awaiting activation  the facilitator has not activated yet
+  Ready to set up                  code shown; follow the steps
+  Setup code expired               codes last 14 days; "Get a new setup code"
+  Connecting...                    code accepted, waiting for first readings
+  Problem: not sending readings    code accepted >3 min ago, nothing arrived:
+                                   WiFi has no internet, or board unpowered.
+                                   A new code can be requested.
+  Connected                        readings arriving (last heard N ago)
+  Problem: connection lost         silent >3 min after having worked: power
+                                   cut, WiFi down, or WiFi password changed
+  The owner can re-send the current code or get a new one ONLY until the
+  board has connected once. After that, a new code (which lets a blank
+  board take over this identity) is the facilitator's call: Lines ->
+  Devices -> Issue code.
+  The facilitator is TEXTED when a board sends its first reading, and the
+  same state shows on the household's record and the admin's Households
+  list, so an owner who is stuck is visible without a phone call.
+
+YOU NEVER TYPE THE API KEY. The board fetches it. A key is 43 mixed-case
+characters and mistyping one gives a 401, which on the serial monitor looks
+exactly like a wrong server address.
+
+WHEN A CODE DOES NOT WORK
+  "could not reach the server"   The WiFi has no INTERNET, or the server is
+                                 not running. WiFi alone is not enough.
+  "already been used"            Codes work once. The owner gets a new one
+                                 from Settings > My device (before the board
+                                 has connected) or the facilitator from
+                                 Dashboard -> Lines -> Devices.
+  "has expired"                  Codes last 14 days. Same two places.
+
+  Watch the serial monitor while it tries - it prints [CLAIM] lines.
+
+REPLACING A DEAD BOARD
+  Flash the spare with the same sketch, issue a new claim code for that
+  household's board on the dashboard (Lines -> Devices -> Issue code), and
+  enter it on the spare's setup page. The household keeps its history.
+
+A NOTE ON "FORGET SAVED NETWORK"
+  It now forgets ONLY the network. The board's identity, the server address,
+  the zero offsets and the thresholds are kept. Before this it wiped all of
+  them, which is why zeroing appeared to be lost after a network change.
+
+============================================================================
+9h. THE OWNER SETS UP OR MOVES THE BOARD FROM THE PORTAL
+============================================================================
+Settings -> My device, on the owner's phone. Two things live there now.
+
+A NEW BOARD, WITHOUT TYPING ON THE BOARD'S PAGE
+  A board with no WiFi yet is not on the internet, so the website cannot
+  reach it; the phone still has to join the board's hotspot once. What the
+  portal removes is the typing:
+    1. In "Set up my board", the owner types the home WiFi name and password
+       WHILE THE PHONE STILL HAS INTERNET. These never leave the phone - the
+       page builds a link out of them locally, nothing is posted to us.
+    2. They join LeakDetect-Setup (the phone may warn "no internet"; stay on
+       it) and come back to the same tab without refreshing.
+    3. They tap "Open the board's setup page". That is a link to
+       http://192.168.4.1/?ssid=..&pass=..&server=..&code=..  - the board's
+       own page, which now reads those and comes up filled in: WiFi, the
+       setup code, and the server (the hosted https address; blank on a
+       laptop server, so the board finds it by itself - section 5).
+    4. They press Save & connect on the board's page, put the phone back on
+       the home WiFi, and the card says Connected within a minute or two.
+  "If the link does not open" under the steps shows the same details to
+  type by hand. Works on iPhone and Android alike (a plain link, no
+  Bluetooth, no app). The typed WiFi is kept in the tab's session storage
+  so an accidental reload does not lose it.
+
+"OPEN THE BOARD'S PAGE" is on the device card in every state. It links to
+  http://192.168.4.1/ (the hotspot) until the board is online, then to the
+  address the board reports on the home WiFi (e.g. http://192.168.1.57/),
+  which a phone on that same WiFi can open. The note under it says which.
+
+CHANGING THE WIFI OF A BOARD THAT IS ONLINE
+  "Change WiFi" on the device card (shown once the board has connected at
+  least once). The owner types the new network and password; the server
+  parks them on the board's record and hands them over on the reply to its
+  next upload (within about 15 s). The board tries the new network for up to
+  25 s; if it joins, it saves it; if not, it goes back to the old one. Either
+  way its next upload reports the outcome by change id, the server clears
+  the password, the card shows "Connected to X" or "Could not join X; still
+  on Y", and the household gets a notice saying the same. The board also
+  reports the network it is on, shown as "WiFi network:" on the card.
+    - This only helps a board that is still checking in. One already cut
+      off (router replaced, password changed) needs the hotspot: the setup
+      steps above, where a blank setup code keeps the board's identity.
+    - The password sits on the server only until the board reports, a
+      matter of seconds; it is never shown again.
+    - Serial Monitor: [WIFI] portal asks to move to "X" ... [WIFI] moved
+      to "X"  /  [WIFI] "X" did not answer - back to "Y".
+
+
+============================================================================
+9f. BENCH TESTING WITHOUT THE VALVE OR THE GSM MODULE
+============================================================================
+The sketch has two switches at the top for hardware that has not arrived:
+
+    #define VALVE_FITTED false
+    #define GSM_FITTED   false
+
+Leave both false until the hardware is actually wired. Set each to true when
+it is, and re-flash.
+
+WHY THIS MATTERS - IT IS NOT JUST TIDINESS
+  With no valve and VALVE_FITTED true, the board would close nothing, then
+  measure the pressure drift of an OPEN hose for five minutes and report it
+  as a leak. Phantom leaks are worse than no leak detection: they teach
+  everyone to ignore the alerts.
+
+  With no module and GSM_FITTED true, every AT command waits out a timeout
+  that never ends, inside a loop that is also serving the board's web page
+  and uploading readings.
+
+WHAT YOU GET WITH BOTH FALSE
+  - Three of the four tests still run: burst, night flow, and sustained low
+    flow. Only the sealed-line decay test is disabled, and it is the only one
+    that needs the valve.
+  - The dashboard shows the valve as "Not fitted" and hides the Test valve
+    button by itself. No configuration needed on that side.
+  - The board still boots faster - no 8-second valve travel, no 3-second GSM
+    wait.
+  - If the board ever cannot reach the server, the serial monitor prints
+    "[GSM] No module - would have sent: ..." so you can still see that the
+    fallback path was reached.
+  - On boot it prints a line confirming what it thinks is wired:
+        [HW] Valve NOT fitted (sealed-line test disabled), GSM NOT fitted.
+
+YOUR LAPTOP AS THE SERVER
+  That is the normal setup for now and needs nothing special:
+
+    python manage.py runserver 0.0.0.0:8000
+
+  The board finds the laptop by itself if the address changes (section 5),
+  so a new IP does not mean touching the board. Leave the Server address
+  field on the setup page alone.
+
+
+============================================================================
+9e. THE FOUR LEAK TESTS  (what the board actually does now)
+============================================================================
+There is no calibration any more. The K = Q/sqrt(P) method is gone, along
+with the C / A / F commands. The board now judges by PATTERNS over time:
+
+  1. BURST       Flow above 3 L/min AND pressure below half what this line
+                 normally sits at, for a minute. Normal use does not crash
+                 the pressure; a split hose does.
+
+  2. NIGHT FLOW  Any flow for 5+ minutes between 1 AM and 4 AM. Needs the
+                 clock, which comes from the internet - so this test is
+                 silent until the board has been online once.
+
+  3. SUSTAINED   0.2-2 L/min that never returns to zero for 30 minutes.
+     LOW FLOW    Nobody runs a tap that low that long. A tap left slightly
+                 open looks identical, which is why the alert asks the owner
+                 to check their faucets first.
+
+  4. VALVE TEST  After 10 minutes of no flow, the board closes the valve,
+                 waits 30 s, then watches the pressure for 5 minutes. A
+                 sealed line holds it; a hole bleeds it away. This is the
+                 ONLY test that finds a pinhole. Runs about once an hour.
+                 If anyone opens a tap during it, the valve reopens at once
+                 and the test is abandoned.
+
+  Low pressure with nothing flowing is LOW SUPPLY, not a leak.
+
+THE VALVE
+  THE SYSTEM IS THE BASIS (since 15 Nov 2026). The status the portal, the
+  dashboard and the console show is what the server holds (valve_target);
+  the board follows it. Every reply to an upload or a command poll carries
+  it, and the board drives the valve to it whenever its own position
+  differs, so a reboot, a reflash or a dropped reply ends with the valve
+  where the system says. Under the status, one sentence says whether the
+  board has confirmed it:
+    "Closing." / "Opening."          - changed under 30 s ago, not reported yet
+    "...The board has not confirmed
+     this. Check the valve and its
+     wiring."                        - the board still reports the other
+                                       position after 30 s: a relay, a wire
+                                       or an old build (amber on every screen)
+    "The board has just restarted
+     and is asking the system..."    - the boot wait below
+    "...The board is not reporting"  - the board is offline
+  Two decisions stay the board's, and the system adopts them:
+    - the nightly test and the flow hold are temporary closes; the system's
+      "open" does not undo them, and when they end the valve goes where the
+      system says;
+    - a leak found by the nightly test becomes "closed" in the system until
+      somebody presses Open; a CLOSE or OPEN typed at the board (its own
+      page, the serial monitor) is adopted too, numbered so it is adopted
+      once, and the household gets a notice. An administrator's close
+      stands even against the board's own page: the open is not adopted,
+      the reply restates closed, and the board shuts the line again.
+  ON BOOT the valve is left where it is until the system has said open or
+  closed (the first reply - seconds, when online); meanwhile the board
+  reports "unknown" and the screens say it is asking. With no word after
+  60 s (no WiFi, no server) the board's own memory decides: a manual or
+  leak-found close is restored shut, anything else is driven open.
+
+  IT CLOSES FOR FOUR REASONS, and every screen says which:
+    "Closed for the nightly leak test"      - the grace period, then reopens
+                                              by itself IF no leak was found
+    "Closed because the nightly test found
+     a leak"                                - STAYS SHUT until somebody opens
+                                              it; the line reads POSSIBLE_LEAK
+                                              until then
+    "Closed automatically because water
+     ran non-stop for too long"             - reopens after 10 min (firmware)
+    "Closed by the household / the
+     facilitator / the administrator"       - stays shut until opened
+  The board sends the reason with every reading (valve_reason). A board on
+  older firmware sends none, and the screens simply say "Closed".
+
+  THE NIGHT TEST, STEP BY STEP (firmware water_leak_single_wifi):
+    1. At the set hour (Console -> System -> Detection settings; 2 am by
+       default), with nobody holding the valve, the board closes it.
+    2. It waits 8 seconds for the pressure to settle and takes a baseline.
+    3. It waits the grace period (60 min by default) and reads again.
+    4. Drop bigger than the threshold (0.15 bar by default) = LEAK. The
+       valve is held shut, saved so a power cut keeps it shut, and the
+       board reports POSSIBLE_LEAK: the household and the facilitator get
+       the text, and every screen says why the valve is closed.
+       No leak: the valve reopens and the night goes on.
+    5. After the repair, anyone with the button opens it (portal,
+       dashboard, console, the board's own page, or serial OPEN). That
+       clears the leak and the line goes back to NORMAL.
+  "Test valve" on the dashboard runs steps 1-5 NOW instead of at the hour,
+  as does typing TEST in the serial monitor. A requested run does not use
+  up that night's scheduled one.
+
+  WHO SEES IT, WHO CAN PRESS IT
+    Household  Portal home, under the readings: "Water valve: open/closed",
+               the sentence above, and ONE button - "Close my valve" when it
+               is open, "Open my valve" when it is shut. Closing asks first.
+    Facilitator  Dashboard, Valve column shows state + reason; the row's
+               buttons gain "Open valve" / "Close valve" (own barangay only).
+               A "Valve actions" card lists who pressed what lately.
+    Admin      Console -> Pressure, as before.
+  Nothing shows until the board reports a valve is fitted (VALVE_FITTED).
+
+  THE ADMIN'S CLOSE IS A LOCK. A line the ADMINISTRATOR closed shows
+  "Only the administrator can open it again" to the household and the
+  facilitator, and their Open button is gone; the server refuses the press
+  too. A close by the facilitator or the household is NOT a lock - either
+  of them can reopen it. This is deliberate: a shut-off for a burst, an
+  unpaid bill or a repair must not be undone from the kitchen.
+
+  EVERY PRESS LEAVES A TRAIL. Console -> System -> Audit log records who
+  (and in which role) opened or closed which line. The household's Notices
+  feed gets "Your water valve was closed by the facilitator" (or "You closed
+  your water valve"), and the facilitator's dashboard lists the same. No
+  SMS is sent for a valve press.
+
+  The board's own page still has "Run valve test now" and "Open valve" /
+  "Close valve" (config password). A close made there reads on screen as
+  "Closed by hand at the board", because the server does not know who.
+
+  Serial (water_leak_single_wifi):  TEST = run the night test now,
+                                    OPEN = open the valve, CLOSE = close it.
+  (V / O / N are the OLD three-module sketch's commands.)
+
+
+============================================================================
+9g. HOW OFTEN A BOARD TALKS TO THE SERVER  (and why a valve press is fast)
+============================================================================
+A board reads its sensors and runs the detections every 2 seconds, online or
+not. How often it TALKS to the server is a separate matter, because on the
+hosted server every request costs CPU time from a daily allowance
+(section 16), and a board posting every 2 s is 43,000 requests a day.
+
+ROUTINE READINGS go up every "Board upload interval" seconds (Console ->
+System -> Leak detection; 15 by default, 2 to 300). The board picks the
+value up on its next reply, so no re-flash. This paces two things only:
+  - how often the pressure and flow figures on the dashboards refresh;
+  - how fast a dead board is noticed: a line reads Offline after missing
+    three uploads in a row, plus 5 s (15 s -> 50 s; 30 s -> 95 s). This is
+    derived, not set anywhere; the old DEVICE_OFFLINE_AFTER_SECONDS setting
+    is gone.
+
+CHANGES DO NOT WAIT. A new status (water running, possible leak, back to
+normal), a valve that moved or a new valve reason is uploaded within about
+a second of happening, whatever the interval says.
+
+MANUAL VALVE BUTTONS DO NOT WAIT EITHER. The board cannot be reached from the
+server (it dials out), so a press is parked on the server for the board to
+fetch. To keep that under three seconds without the board asking all day:
+  - A page with valve buttons (owner portal, facilitator dashboard, admin
+    Pressure) tells the server "a person is active here" on every live poll
+    while the mouse, keyboard or screen was touched in the last 2 minutes.
+    It also polls every 2 s instead of 5 while so, to show the result.
+  - The server remembers that for 45 s per line and tells the board on its
+    next reply (command_poll_seconds: 2).
+  - The board then asks GET /api/commands/ every 2 s - the cheapest request
+    the server answers, one lookup and no writes - acts on an open/close at
+    once, and uploads the new valve state within a second, which is the
+    acknowledgement that clears the command.
+  - When nobody has been active for 2 minutes (or the tab is hidden), the
+    poll stops marking, the watch lapses, the next reply says 0, and the
+    board goes back to uploads only.
+  Serial Monitor:  [POLL] somebody is at a valve screen - asking for
+  commands every 2 s   /   [POLL] nobody at a valve screen - back to uploads
+  only.  The board's own page shows the same on its status line.
+
+THE ONE CASE THAT IS SLOWER: you open a valve page and press within the
+first seconds, before the board has uploaded once and learned you are
+there. The press then rides on the next upload, up to one interval away.
+Wait for the tile to refresh once and every press after that is fast.
+
+BUDGET, ROUGHLY, PER BOARD PER DAY: 15 s uploads = 5,800 requests; 30 s =
+2,900; the old 2 s = 43,200. A valve screen actively watched for an hour
+adds 1,800 cheap polls. The hosted plan's allowance is a few thousand CPU
+seconds a day; at 15 s about ten boards fit with room for the dashboards.
+
+
+============================================================================
+10. FLASHING THE FIRMWARE
+============================================================================
+Sketch to open in the Arduino IDE:
+    D:\USB Drive\SmartHoseLeak\firmware\water_leak_single_wifi\
+        water_leak_single_wifi.ino
+
+  This is the per-household sketch: one pressure + one flow sensor, the
+  motorised valve, the continuous-flow and night-test detections, and the
+  valve reason reporting. It is the one the server's valve screens expect.
+  (The older three-module sketch is still in firmware\ for reference, and
+  a copy may be in Downloads\. Do not flash that one for a household.)
+
+  It compiles cleanly against the ESP32 core 3.3.x (checked 11 Nov 2026,
+  82% of program storage). From a terminal, without opening the IDE:
+    "%LOCALAPPDATA%\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" compile --fqbn esp32:esp32:esp32 firmware\water_leak_single_wifi
+
+Board:  ESP32 Dev Module          Baud: 115200
+
+BEFORE UPLOADING:
+    Tools -> Erase All Flash Before Sketch Upload = DISABLED
+    If this is enabled, the upload wipes the saved WiFi credentials and
+    server address, and you have to redo section 4.
+
+Current size: about 83% of program storage, 15% of RAM. That is fine, but
+there is not a lot of headroom left for big new features.
+
+IF THE UPLOAD FAILS WITH "Failed to extract libcrypto-3.dll":
+    That is not a code error - the C: drive is full and esptool cannot
+    unpack itself. See section 12.
+
+
+============================================================================
+11. USEFUL COMMANDS
+============================================================================
+Run these from D:\USB Drive\SmartHoseLeak with the venv activated.
+
+    .venv\Scripts\activate                    turn the venv on
+
+  ALWAYS ACTIVATE THE VENV FIRST. Without it, "python" is the system Python,
+  which has a different Django version installed (4.2 rather than the 5.2
+  this project expects). It mostly works, but not always, and the differences
+  are the kind that appear at the worst moment.
+  To check which one you are on: python -c "import django; print(django.get_version())"
+
+    python manage.py runserver 0.0.0.0:8000   start the system
+    python manage.py migrate                  apply database changes
+    python manage.py createsuperuser          make an admin login
+    python manage.py setup_demo               rebuild demo data (SEE BELOW)
+                                              (creates the admin + facilitator
+                                               logins and the founding barangay)
+    python manage.py mark_offline             log an offline event now
+    python manage.py prune_rollups            delete history over 90 days
+
+    ipconfig                                  find your IP
+    netstat -ano | findstr :8000              check what is listening
+
+WARNING about setup_demo: it regenerates the device API key. If you run it,
+the ESP32's key no longer matches and you must update the sketch and
+reflash. Do not run it casually.
+
+GIT (repo: https://github.com/Smee-code/SmartHoseLeak - private)
+    git status                    what has changed
+    git add -A
+    git commit -m "message"
+    git push                      send it to GitHub
+
+  If git status / git add hangs for minutes (0% CPU, a .git/index.lock
+  file appears and never goes away), it is git's filesystem monitor on the
+  USB drive. Fix once per clone:
+    git fsmonitor--daemon stop
+    git config core.fsmonitor false
+    del .git\index.lock           (only after killing the stuck git.exe)
+  12 Nov 2026: this repo already has core.fsmonitor false.
+
+
+============================================================================
+12. OTHER PROBLEMS AND FIXES
+============================================================================
+"This site can't be reached" / ERR_CONNECTION_REFUSED
+    The server is not listening on the network. Section 7, step 1.
+
+Chrome forces https:// and the server log fills with "code 400, message Bad
+request version" garbage
+    Chrome is upgrading the address to HTTPS. The dev server only speaks
+    HTTP. Type the address WITH "http://" in front. If it still happens:
+    Chrome -> Settings -> Privacy and security -> Security ->
+    turn OFF "Always use secure connections". An Incognito window is a
+    quick test.
+
+The page looks broken - giant icons, no layout
+    The service worker served an old stylesheet. Press Ctrl+Shift+R.
+    If it persists: F12 -> Application -> Service Workers -> Unregister,
+    then reload. (The cache is now named after the file contents, so this
+    should not recur.)
+
+The C: drive is full / upload fails / compiler "out of memory"
+    Clear the temp folder: press Win+R, type %TEMP%, Enter, Ctrl+A, Delete.
+    Close the Arduino IDE first. Skip any file that is in use.
+    For more space: Disk Cleanup -> "Clean up system files" ->
+    Windows Update Cleanup.
+
+Dashboard shows a leak on a line reading 0.00 L/min
+    That is the valve test doing its job. It found the line losing pressure
+    while sealed, which is a leak too small for the flow sensor to register -
+    see section 9e. If the pressure reading also sits at its maximum, check
+    the sensor wiring instead.
+
+The board's page says "Not claimed"
+    It has no identity yet. Enter a claim code on its setup page - section
+    9d. Until then it does not upload at all, deliberately: an unclaimed
+    board posting every 2 seconds would only collect 401s, and a 401 looks
+    exactly like a wrong server address.
+
+The server log shows "database is locked" and a POST /api/ingest/ 500
+    That batch of readings was dropped because two things tried to write at
+    the same moment. Fixed in the settings by switching the database to WAL
+    mode, which lets reading and writing happen together.
+    If it ever returns, the usual cause is the database file being on slow
+    or failing storage - it lives on the USB drive. Copying the project to
+    the internal drive would make it far less likely.
+    WAL is for the laptop only. On PythonAnywhere the app uses the plain
+    rollback journal (SQLITE_JOURNAL_MODE, section 16) because WAL on that
+    kind of disk corrupted the database - see "PRAGMA integrity_check" below.
+
+migrate fails with "IntegrityError: ... contains a value 'N' that does not
+have a corresponding value in core_segment.id" although the row exists
+    First try  python manage.py repair_links  (a genuinely dangling pointer,
+    section 3d). If it clears 0 and migrate still fails, the file itself is
+    damaged. Check:
+        python manage.py shell -c "from django.db import connection as c; print(c.cursor().execute('PRAGMA integrity_check').fetchall())"
+    Anything but [('ok',)] means corruption ("Rowid 0 out of order", "row N
+    missing from index", "NULL value in ..."). Recovery, in the console,
+    with the web app's Always-on task disabled first so nothing writes:
+        cp db.sqlite3 ~/db.sqlite3.corrupt-$(date +%F)
+        sqlite3 db.sqlite3 ".recover" | sqlite3 ~/db.recovered.sqlite3
+        sqlite3 ~/db.recovered.sqlite3 "PRAGMA integrity_check"      -> ok
+        mv db.sqlite3 ~/db.sqlite3.old; rm -f db.sqlite3-wal db.sqlite3-shm
+        mv ~/db.recovered.sqlite3 db.sqlite3
+        python manage.py repair_links && python manage.py migrate
+    then Reload on the Web tab and re-enable the task. Rows .recover could
+    not read land in a table called lost_and_found; damaged hose lines may
+    have to be re-created in the console (Hose lines) and re-linked to
+    their households. Happened 12 Nov 2026 - cause: WAL on PythonAnywhere.
+
+The owner's page (or the dashboard) shows no Open/Close valve buttons
+    The buttons appear only once the board reports a valve. A board whose
+    uploads carry no valve_state - the three-module sketch, or the October
+    "data-path build" (Code\smarthoseleak\smarthoseleak.ino, uploads
+    every 2 s, nothing but pressure/flow/status) - is stored as "Not
+    fitted", and every screen hides the buttons on purpose: that sketch
+    also ignores valve_command, so a button would do nothing. Seen 14 Nov
+    2026 on the hosted site, HH-007, board esp32-21: online, readings
+    normal, no valve row. Tell-tales of the old build on the owner's
+    Settings page: "WiFi network: ?" and "Open the board's page" saying
+    it opens only on the board's own WiFi (no wifi_ssid, no lan_ip).
+    Fix: flash firmware\water_leak_single_wifi (section 10) with "Erase
+    All Flash" DISABLED so the claim survives. The row "Water valve: open"
+    and the one button show up on the next upload, about 15 s later, with
+    no change on the server.
+
+The valve row says "The board has not confirmed this" (amber)
+    The system's status and the board's last report have disagreed for more
+    than 30 s. The system keeps restating its status on every reply, and a
+    board on the 15 Nov 2026 firmware drives the valve to it as soon as it
+    hears - so a warning that lasts means the board cannot: the relay for
+    that direction, its wiring or its supply (next entry), or a board on
+    older firmware, which acts only on the one-shot command and ignores the
+    restated status - reflash it. Pressing the button again re-sends the
+    one-shot command that old firmware does understand.
+
+The dashboard says the valve is "closed" but the valve did not move
+    The board has no feedback from the valve: "closed" means it drove the
+    close relay for a full travel, not that it measured the ball. Until 14
+    Nov 2026 the sketch held the relay for only 0.6 s; the ACARPS valve
+    needs 15 s of held power (section 13), so it turned a few degrees and
+    stopped. Flash the current sketch - it holds each relay 18 s and prints
+    "[VALVE] closing - holding the relay for 18 s" in the Serial Monitor.
+    If a freshly flashed board still does not move the valve:
+      - it moves the WRONG way (CLOSE opens it, OPEN closes it - seen 15
+        Nov 2026): the valve's two wires are on each other's relay. Swap
+        the two valve wires at the relay NO terminals (or the two jumpers
+        at IN1/IN2) - or, as was done on 15 Nov 2026, swap the two pin
+        numbers RELAY_OPEN / RELAY_CLOSE at the top of the sketch and
+        reflash. Never change the server for this: it only says "open"
+        or "close" and the board picks the pin. Then type CLOSE and OPEN
+        once each so the board's idea of the position matches the ball;
+      - no click from the relay: relay module power (VCC/GND), the IN wire
+        on GPIO 25/26, or an active-HIGH module (flip RELAY_ON/OFF);
+      - click but no motion: the valve's own 12-24 V supply is missing or
+        not routed through the relay contacts (supply + -> COM, NO -> the
+        CLOSE/OPEN wire, supply - -> N). Test the valve straight from its
+        supply for 15 s first; if it does not move then, it is the valve or
+        the supply, not the board.
+    While a relay is held the board's readings and uploads pause for the
+    18 s; its own web page keeps answering. This is within the offline
+    window, so the dashboard does not flash offline.
+
+The map fills with yellow "Access blocked" tiles
+    OpenStreetMap could not tell which app was asking and served a blocked
+    image instead of the map. Fixed in the settings (SECURE_REFERRER_POLICY),
+    but your browser will have cached the blocked images - press
+    Ctrl+Shift+R once to clear them.
+    If it ever comes back: the map is optional. Press "Switch to offline
+    schematic" and carry on; the schematic needs no internet at all.
+
+The upload stops part-way: "No more data to read from the serial port"
+    esptool writes the bootloader and partition table, starts the big
+    program image, then loses the port ("Hard resetting via RTS pin" in
+    the middle of a write). Seen 15 Nov 2026 at 9%. The serial link
+    dropped: a USB cable or hub that cannot hold 921600 baud, or the 5 V
+    sagging under the relays, sensors and valve hanging off the board
+    while the flash is written. The board is now HALF-FLASHED and will
+    not run until an upload succeeds; its saved WiFi, server and claim
+    are intact (that flash area is never erased unless "Erase All Flash"
+    is on). Fix, in order:
+      1. Tools -> Upload Speed -> 115200. Slow but it finishes.
+      2. Unplug the relay board, the sensors and the valve supply from
+         the ESP32 for the upload; use a short known-good data cable
+         straight into the laptop, not a hub.
+      3. Close the Serial Monitor and anything else holding COM9.
+      4. Upload again. If "Connecting...." hangs, hold BOOT until it
+         says Connected.
+    Or from a terminal, which lets you set the speed without the IDE:
+        "%LOCALAPPDATA%\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" upload -p COM9 --fqbn esp32:esp32:esp32:UploadSpeed=115200 firmware/water_leak_single_wifi
+
+The board stays offline for hours and does not come back by itself
+    Seen 14-15 Nov 2026 (esp32-21, "connection lost" for 26 h). Physical
+    checks first: is the board powered, and is it within reach of the
+    WiFi it was told (the owner's Settings card names it)? A board
+    carried from that network to a bench cannot join it. "Change WiFi"
+    on the portal reaches only a board that is ONLINE; a cut-off board
+    needs the hotspot route (Settings -> What to check). Join
+    LeakDetect-Setup and open http://192.168.4.1/ - "Hotspot mode. Still
+    trying <name>" means it sees no such network or the password is wrong.
+    If power and range are fine and it still sits offline for hours, it
+    is the ESP32's radio: after a long outage (router rebooted, power back
+    before the router was up) the WiFi stack can stay stuck however often
+    it retries, while a fresh boot joins first time. Firmware from 15 Nov
+    2026 restarts the board by itself after 15 minutes without the
+    network, provided nobody is on its hotspot (WIFI_RESTART_AFTER_MS),
+    and turns on the stack's own auto-reconnect. Older firmware: pull the
+    power for ten seconds, then reflash to get the self-restart.
+
+The device page shows the wrong upload result
+    http://<device-ip>/status shows server_url and server_upload, which is
+    the fastest way to see what the board is actually trying to do.
+
+
+============================================================================
+12b. HOUSEHOLDS, COORDINATES AND THE LEAK MAP
+============================================================================
+ADDING A HOUSEHOLD
+  Dashboard -> Households -> "Add household". It opens a dialog.
+  The Household ID is assigned automatically (HH-001, HH-002, ...) - you no
+  longer type it. The dialog shows which one it will get.
+
+EDITING A HOUSEHOLD
+  Dashboard -> Households -> "Edit" on the row. It opens a dialog with the
+  current details already filled in. The Household ID is fixed and is not
+  editable.
+
+DELETING A HOUSEHOLD
+  Dashboard -> Households -> "Delete" on the row. A confirmation dialog
+  lists exactly what goes with it before you commit:
+
+      - that household's complaints
+      - that household's notices
+      - the owner's Owner Portal login
+
+  All of it is permanent; there is no undo in the dashboard. Pressure
+  readings and leak events are NOT affected, because those are recorded
+  against the hose line rather than the household.
+
+  If you only want to stop an owner using the system, set their Account
+  status to Inactive with Edit instead of deleting them - that keeps the
+  record and its history.
+
+COORDINATES
+  Latitude and longitude are optional. Fill them in and the household
+  appears as a pin on the leak map. Leave BOTH blank if not yet surveyed -
+  one without the other is rejected.
+
+  Format: decimal degrees, e.g.  9.6620  and  125.5290
+  Sison is roughly latitude 9.61 to 9.70, longitude 125.44 to 125.54.
+
+  Anything outside the municipality is refused, because a mistyped digit
+  puts the household hundreds of kilometres away and on the map it just
+  looks like a pin in the sea rather than an obvious mistake.
+
+  To get a coordinate: stand at the house, open Google Maps on your phone,
+  long-press your location, and copy the two numbers it shows.
+
+THE MAIN SOURCE (where every hose starts)
+  Dashboard -> Lines -> the box at the top of the page.
+  This is the single point every household's hose runs from. Give it a name
+  ("Main source", "Spring box", "Reservoir tank"), its coordinates, and an
+  optional note like "beside the barangay hall". Same coordinate rules as
+  households.
+
+  It used to be called the main valve, back when it was the 0 m mark that
+  distance markers were measured from. There are no distance markers now,
+  and the valves that matter are the motorised ones on each household's
+  line - so calling this one a valve too would only confuse the two.
+
+THE LEAK MAP
+  It draws the real municipal boundary of Sison (dashed blue outline) from
+  the official NAMRIA / PSA data, so the map is always framed on the right
+  place even before anything has been surveyed.
+
+  - The main source is a PURPLE square with a pulsing ring and a permanent
+    "Main source" label. Purple is used for nothing else, so it is the
+    easiest thing on the map to find.
+  - Households with coordinates appear as round pins that carry TWO pieces
+    of information at once:
+        the FILL colour is that household's own hose colour
+            one colour per household, shown in the legend under the map
+        the RING colour says what state that line is in
+            green = normal, amber = low supply / maintenance,
+            red = possible leak, grey = offline
+    So a household keeps its identity on the map even when every line
+    happens to be in the same state.
+  - Each household's hose is drawn as its OWN line, straight from the main
+    source to that house, in that household's colour:
+
+        [source] ---- HH-001
+                 \--- HH-002
+                  \-- HH-003
+                   \- HH-004
+
+    One hose per house. They are NOT chained through each other: nothing is
+    shared, and a run visiting the houses in turn would draw plumbing that
+    does not exist and suggest a leak upstream affects everyone below it.
+
+    A hose with no board fitted is drawn DASHED - the pipe is there, nothing
+    is watching it yet.
+
+    A LEAKING hose gets a RED OUTLINE and widens into a halo, while keeping
+    its own colour inside. The outline carries the alarm so both read at
+    once: you can still see whose hose it is while the red says something is
+    wrong with it. It appears within about two seconds of the device
+    reporting, without reloading the page.
+
+    The line shows WHICH house a hose serves, not the route the pipe
+    physically takes in the ground.
+  - The hoses appear as soon as the households have coordinates. Nothing
+    needs to be maintained by hand: add a household or move a coordinate and
+    the map redraws itself.
+  - "Switch to offline schematic" draws the hose run as a diagram instead.
+    That view needs no internet and is the safe choice on a weak signal.
+
+  Map tiles come from the internet. With no connection the map goes blank
+  and the schematic is the one to use.
+
+
+THE DEVICE'S OWN PAGE
+  http://<device-ip>/ shows, above the live readings:
+
+      Network       which WiFi it joined, and how strong the signal is
+      This device   its own IP address
+      Sending to    the server address it is posting readings to
+      Last upload   whether the most recent one worked, and if not, what
+                    happened the last time it went looking for the server
+
+  That is the fastest way to answer "why is the dashboard not updating" -
+  it tells you in one screen whether the problem is the WiFi, the server
+  address, or neither. It refreshes itself every 3 seconds.
+
+
+FINDING THE DEVICE'S OWN ADDRESS
+  The Device status box on the dashboard shows the ESP32's IP underneath
+  "just now". Click it to open the board's own page. It updates by itself
+  when the board moves to a different network.
+
+  DO NOT CONFUSE THE TWO ADDRESSES:
+      192.168.1.9:8000   your laptop - the dashboard, /admin/
+      192.168.1.13       the ESP32 - its own page and /wifi settings
+  The board serves on the normal web port, so no ":8000" on its address.
+  Asking Django for /wifi just gives a 404, because that page lives on the
+  board, not on the server.
+
+  The IP is also in Dashboard -> Lines, in the Devices table ("Last IP"),
+  and the Serial Monitor prints it at boot.
+
+
+============================================================================
+12c. ADDING A HOSE LINE
+============================================================================
+Dashboard -> Lines -> "Add hose line". It opens a dialog asking for:
+
+    Name        e.g. "HH-007 - Juan Cruz"
+    Map colour  pick one of eight swatches
+
+The line is created with NO device. A hose is laid long before a board is
+fitted to it; attach the board later from Edit once it exists.
+
+The colour is what that household's hose and pin are drawn in on the leak
+map, so each house stays identifiable even when every line is in the same
+state. You can change it later with Edit. The next unused colour is
+pre-selected so two new lines never come out looking alike.
+
+EDITING A LINE
+  "Edit" on the row opens a dialog with the current values filled in -
+  name, the device fitted to this line, map colour, the low-supply
+  threshold, optional coordinates, maintenance note and whether the line is
+  active.
+
+DELETING A LINE
+  "Delete" on the row asks for confirmation first and names exactly what
+  goes: that line's minutes of pressure history and its leak events. Both
+  are permanent.
+
+  Households on the line are NOT deleted. They become Unassigned and stop
+  receiving alerts until you move them to another line.
+
+  If a sensor is only being repaired, use Maintenance instead of Delete -
+  it silences that line's alerts and keeps every reading.
+
+IMPORTANT - ADDING A LINE DOES NOT ADD A BOARD.
+A new line shows "No device" until a board is fitted and claimed. That is
+not a fault; it is the rollout working, and the dashboard keeps it visually
+distinct from a board that has stopped reporting.
+
+To make it live: register a board for it (Dashboard -> Lines -> Devices, or
+tick "Register a new board" while adding the household), then claim that
+board with its code - section 9d.
+
+There is no line limit any more. One board serves one household, so another
+household means another board, not another module on an existing one.
+
+
+============================================================================
+12d. COMPLAINTS (CONVERSATIONS)
+
+UNREAD CONVERSATIONS
+  A thread nobody has opened yet is shown the way a message list shows one:
+  the row is tinted, has a blue bar down its left edge, the name and subject
+  are bold, and there is a red count plus a blue dot.
+
+  Opening it marks it read, and it goes plain. Nothing to click and nothing
+  to tidy up.
+
+  Only messages FROM THE OWNER count. Your own replies are not unread to you.
+
+============================================================================
+Dashboard -> Complaints is a message inbox, not a ticket table.
+
+  LEFT       every complaint as a conversation, newest activity at the top,
+             with the owner's name, the subject, its status, and a red
+             badge counting messages you have not read yet.
+  RIGHT      the conversation you clicked, oldest message first. Theirs on
+             the left, yours on the right.
+  BOTTOM     a box to write a reply. Sending also drops the message into
+             the owner's Notices, so they see it even if they do not open
+             the portal.
+
+  The Status dropdown at the top right of a conversation moves it between
+  Pending / In Progress / Resolved / Rejected. Changing status does NOT
+  send the owner a message - use the reply box for that.
+
+  Opening a conversation is what marks its messages as read, so the badge
+  clears by reading, not by replying.
+
+  The search box at the top of the list narrows it as you type, matching the
+  owner's name or the household ID. It searches within whichever status chip
+  is selected, so pick "All" first if you cannot find someone. Press Escape
+  to clear it. The list scrolls on its own once there are more conversations
+  than fit, and the search box stays pinned at the top while it does.
+
+ONE CONVERSATION PER PROBLEM, NOT PER PERSON
+  If a household reports a leak in March and low pressure in June, those
+  are two conversations. That is deliberate: you can resolve the leak while
+  the pressure issue stays open, and the dashboard's "Pending complaints"
+  count stays meaningful. A household with two open problems appears twice
+  in the list.
+
+THE OWNER'S SIDE
+  Portal -> Complaints works the same way. The "New complaint" button at the
+  top right opens a dialog asking for a category, a subject and a
+  description; submitting it drops them straight into the new conversation.
+  Opening one of their own conversations lets them reply to you. They can
+  only ever see their own household's threads.
+
+
+============================================================================
+12e. SHOWING THE SYSTEM ON A PHONE WITHOUT DEPLOYING IT
+============================================================================
+
+IF THE PHONE IS ON THE SAME WIFI - nothing special needed
+  1. Start the server with  python manage.py runserver 0.0.0.0:8000
+     (the 0.0.0.0 matters; plain runserver is reachable only by the laptop)
+  2. Open the "On the network" address it prints, on the phone.
+  Works for anyone in the room, no accounts, no setup.
+
+  IF THE PHONE SAYS "This site can't provide a secure connection"
+  (ERR_SSL_PROTOCOL_ERROR), and the server window fills with lines like
+  code 400, message Bad request version ('...'):
+
+    The browser used https:// and this server only speaks http://. Those
+    two lines are the same event - the phone sent an encrypted handshake,
+    the server tried to read it as plain text. Nothing is broken.
+
+    Type the address with http:// spelled out:
+
+        http://192.168.1.3:8000/        <- your IP will differ
+
+    If the browser keeps switching it back to https, it is forcing the
+    upgrade and has to be told not to:
+      Chrome / Edge: Settings -> Privacy and security -> Security ->
+                     turn off "Always use secure connections"
+      Or the phone is autocompleting an https address you used before -
+      delete that suggestion rather than tapping it.
+
+    Do NOT try to fix this on the server. Nothing in this project redirects
+    to https, and there is no setting that stops a browser choosing it.
+
+IF THE PHONE IS ON MOBILE DATA OR A DIFFERENT NETWORK
+  1. Leave the server running.
+  2. In VS Code: PORTS tab -> Forward a Port -> type 8000 -> Enter
+  3. Sign in with GitHub when asked.
+  4. Right-click the new row -> Port Visibility -> Public.
+     Skip this and visitors hit a Microsoft login instead of your system.
+  5. Copy the Forwarded Address (looks like
+     https://xxxxx-8000.asse.devtunnels.ms) and open it on the phone.
+
+  The URL changes every time you forward the port again. Django is already
+  set up to accept it whichever address it gets, so there is nothing to edit.
+
+  Leave the ESP32 pointed at the LAN address, not the tunnel. The board
+  speaks plain HTTP and finds the server by broadcasting on the local
+  network; neither of those crosses the internet. Board on the LAN, viewers
+  on the tunnel - both work at the same time.
+
+  Close the port (the X on the row) when you are done. While it is Public
+  the login page is on the open internet.
+
+
+SHOWING IT TO SOMEBODY FAR AWAY - USE CLOUDFLARE  (recommended)
+  This is the one that works on this laptop. No account, no signup, no
+  warning page for the visitor, and real HTTPS - so the portal can be
+  installed and notifications switched on from it.
+
+  ONE-TIME:   winget install --id Cloudflare.cloudflared
+
+  EVERY SESSION, in a second terminal next to the running server:
+
+      cloudflared tunnel --url http://127.0.0.1:8000
+
+  It prints a https://....trycloudflare.com address. Send that to whoever
+  needs it. Measured on 2 Oct 2026: 10 of 10 requests succeeded, the login
+  page in 0.5 s and the 100 KB stylesheet in 1.3 s, over a Singapore edge.
+
+  Use 127.0.0.1, not localhost - on this laptop "localhost" resolves to the
+  IPv6 address ::1 first and the server only listens on IPv4.
+
+  The address changes every time cloudflared restarts. Nothing needs
+  editing: settings.py already trusts *.trycloudflare.com for CSRF.
+
+  The laptop has to stay awake with both the server and cloudflared running.
+  Closing either closes the door. For something that outlives the laptop,
+  deploy the system properly instead of tunnelling.
+
+WHY NOT THE OTHER TWO
+  VS CODE PORT FORWARDING delivered static files but silently dropped every
+  HTML page - app.css arrived, /login/ never did, while both answered
+  instantly on 127.0.0.1.
+
+  ngrok was worse on this machine: its agent endpoints are blocked here.
+  ngrok.com loads fine, but connect.ngrok-agent.com and tunnel.us.ngrok.com
+  cannot be reached at all and tunnel.ap.ngrok.com is cut during the TLS
+  handshake, so the agent loops on "reconnecting" and the edge reports
+  ERR_NGROK_3200 (endpoint offline). With region: ap set in ngrok.yml it
+  improved to about 3 requests in 10 succeeding. Malwarebytes is installed
+  on this laptop and blocks ngrok's agent domains by default - malware
+  abuses ngrok, so it is on their block list. Cloudflare is not blocked.
+
+  Keeping the ngrok notes below in case that block is ever lifted.
+
+IF VS CODE'S PORT FORWARDING WILL NOT WORK - USE ngrok INSTEAD
+  On 2 Oct 2026 the VS Code tunnel started delivering static files but
+  silently dropping every HTML page: app.css arrived, /login/ never did.
+  Nothing was wrong with the server - the same URLs answered instantly on
+  127.0.0.1 and on the LAN. Rather than keep fighting it, use ngrok.
+
+  ONE-TIME SETUP (already done on this laptop)
+    winget install --id Ngrok.Ngrok
+    ngrok update                      <- winget ships an old build that the
+                                         service now refuses (ERR_NGROK_121)
+    ngrok config add-authtoken <your token from dashboard.ngrok.com>
+
+  EVERY SESSION
+    1. Start Django as usual:   python manage.py runserver 0.0.0.0:8000
+    2. In a SECOND terminal:    ngrok http 127.0.0.1:8000
+
+       Use 127.0.0.1, not localhost. On this laptop "localhost" resolves to
+       the IPv6 address ::1 first, and the server only listens on IPv4.
+
+    3. ngrok prints a "Forwarding" line. Open that https:// address on the
+       phone.
+    4. The first visit shows an ngrok warning page ("You are about to
+       visit..."). Tap "Visit Site". It appears once per device.
+
+  THE ADDRESS CHANGES EVERY TIME ngrok RESTARTS on the free plan. Nothing
+  needs editing when it does - settings.py trusts the ngrok wildcards for
+  CSRF already, including the newer .ngrok-free.dev domain.
+
+  Closing the ngrok terminal closes the tunnel. While it is open, the login
+  page is on the open internet.
+
+  Leave the ESP32 on the LAN address, exactly as with the VS Code tunnel.
+
+  http://127.0.0.1:4040 is ngrok's own inspector - every request and
+  response, which is the quickest way to see whether a phone reached you.
+
+
+============================================================================
+12f. INSTALLING THE PORTAL ON A HOUSEHOLD'S PHONE  (and turning on alerts)
+============================================================================
+
+WHAT THIS IS
+  The Owner Portal is a Progressive Web App - a PWA. It is the website, but
+  a phone can keep it on its home screen and open it full screen with no
+  browser bar, like an installed app. There is no Play Store or App Store
+  entry and nothing to download; the phone saves the page it already has.
+
+  Owners find it at Portal -> Settings, which has the steps for their own
+  phone and a button to turn on alerts.
+
+  Careful with the letters: PWA is the app thing. WPA is the WiFi password
+  thing. They are unrelated and the system uses both.
+
+THE ONE REQUIREMENT - AN https:// ADDRESS
+  No phone will install from http://192.168.x.x, and the alerts cannot be
+  switched on there either. This is the browser's rule, not ours, and there
+  is no way around it.
+
+  Three addresses behave differently:
+
+    http://127.0.0.1:8000       installs fine. Browsers trust localhost.
+                                Only the laptop itself can open it.
+    http://192.168.x.x:8000     does NOT install. This is the address phones
+                                on your WiFi use (section 12e), so an owner
+                                on the barangay WiFi cannot install from it.
+    the VS Code forwarded URL   installs fine - it is https. Section 12e.
+    a real hosted domain        installs fine, and is the only one that
+                                survives the laptop being closed.
+
+  The Settings page says so itself: on an address that will not work it
+  shows an amber note instead of pretending the button will do something.
+
+ON AN ANDROID PHONE
+  1. Open the portal in Chrome and sign in.
+  2. Go to Settings in the menu.
+  3. Tap "Install on this phone".
+     (If that button is not there: three dots at the top right ->
+      "Install app" or "Add to Home screen".)
+
+ON AN iPHONE OR iPAD
+  There is no install button on an iPhone. Apple does not give web pages
+  one, so it is always done by hand:
+
+  1. Open the portal in SAFARI. Chrome on an iPhone cannot install it.
+  2. Tap Share - the square with the arrow pointing up, at the bottom.
+  3. Scroll down, tap "Add to Home Screen", then "Add".
+
+TURNING ON ALERTS
+  Portal -> Settings -> "Turn on alerts". The phone asks for permission
+  once; after that a leak on that household's line puts a notification on
+  the screen even with the app closed. "Send a test" proves it end to end.
+
+  On an iPhone the app MUST be installed to the home screen first. Apple
+  does not deliver notifications to a web page in Safari - only to an
+  installed one, on iOS 16.4 or newer.
+
+  Alerts never replace the SMS. The text goes out regardless, to every
+  household with a number on file. Notifications are a second, faster route
+  for the phones that have asked for them, and a phone that is off, out of
+  battery or out of signal simply does not get one.
+
+SETTING IT UP ON THE SERVER  (once, by the facilitator)
+  Nothing is registered with Google, Apple or anybody else. The server
+  signs its own notifications with a key pair it generates:
+
+      python manage.py make_push_keys
+
+  It prints three lines. Paste them into .env and restart:
+
+      VAPID_PUBLIC_KEY=...
+      VAPID_PRIVATE_KEY=...
+      VAPID_SUBJECT=mailto:your-email@example.com
+
+  Generate these ONCE. Every phone's subscription is tied to the public key
+  it saw when it was set up, so making a new pair silently stops
+  notifications on every phone that already has them, with no error
+  anywhere - each household would have to turn them on again.
+
+  Until the keys exist, Settings tells the owner plainly that notifications
+  are not set up yet and that nothing is wrong with their phone.
+
+WHEN A HOUSEHOLD SAYS THEY GET NOTHING
+  - Did they install it? On iPhone, nothing arrives until it is on the home
+    screen.
+  - Is the address https? Check what link they were given.
+  - Is their phone's notification permission still allowed? If they tapped
+    "Block" once, the browser will not ask again - it has to be changed in
+    the phone's settings for that site.
+  - Did they turn alerts off, or clear their browser data? Both unregister
+    the phone. Settings -> Turn on alerts again.
+  - Is PUSH_ENABLED=false in .env?
+
+  The SMS log (section 9c) is the independent record. If the text went and
+  the notification did not, the problem is on the phone, not the server.
+
+
+============================================================================
+12g. WHEN SOMEBODY LANDS ON A PAGE THAT ISN'T THERE
+============================================================================
+
+  A mistyped address, an old bookmark or a stale link now gets a proper page
+  saying so, with the address it tried and links to wherever that person
+  belongs - the dashboard for you, the portal for a household, the sign-in
+  page for anyone else. There are four:
+
+      404  the page does not exist
+      403  the account cannot open that page (facilitator pages and
+           household pages are separate; this says so rather than looking
+           like a fault)
+      400  the request was malformed - usually a form left open so long its
+           security token expired
+      500  something broke on the server
+
+  YOU WILL NOT SEE THEM WHILE DEVELOPING
+  With DEBUG=True Django shows its own yellow traceback page instead, no
+  matter what templates exist. That is deliberate on Django's part and
+  nothing is wrong. To look at the real pages:
+
+      set DEBUG=False in .env, restart, and visit any wrong address
+      (runserver also needs --insecure to keep serving CSS with DEBUG off)
+
+  Put DEBUG back to True afterwards, or you lose the traceback that tells
+  you what actually went wrong while you are building.
+
+  WHY DEBUG MUST BE False WHEN THIS IS HOSTED
+  The traceback page lists every URL pattern in the project to whoever
+  typed the bad address - including api/claim/ and the device key endpoints.
+  It also prints settings and local variables on a crash. It is a
+  development tool and it must never be reachable from the internet.
+
+  The 500 page is deliberately plain and does not use the site's stylesheet
+  or layout. If the thing that broke is the database or the static files, a
+  nicely styled error page would fail for the same reason and the visitor
+  would get Django's bare "A server error occurred" instead. It also tells
+  the household the one thing worth knowing: detection runs on the board at
+  their house, so their line is still being watched while the website is
+  down.
+
+
+============================================================================
+13. KEY FACTS AND VALUES
+============================================================================
+  Project folder      D:\USB Drive\SmartHoseLeak
+  GitHub              https://github.com/Smee-code/SmartHoseLeak (private)
+  Database            db.sqlite3   (NOT in GitHub - back it up yourself)
+
+  Device ID / key     NOT in the sketch any more. Issued by the server and
+                      entered on the board via a claim code (section 9d).
+                      Both are on Dashboard -> Lines -> Devices.
+
+  SMS                 iprogSMS gateway (iprogsms.com) over the internet.
+                      Needs IPROGSMS_API_TOKEN in .env - section 9c.
+                      No GSM module on the server.
+
+  Notifications       Web Push, keys made by "manage.py make_push_keys"
+                      and kept in .env - section 12f. Needs https. Not
+                      Firebase; nothing is registered with anyone.
+
+  Low supply below    0.3 bar per line by default, set at Dashboard ->
+                      Lines -> Edit (section 9b). Sent to the board on every
+                      upload; no reflash.
+
+  Upload interval     every 15 seconds (Console -> Detection settings;
+                      a change of status or valve uploads at once)
+  Offline after       3 missed uploads + 5 s (50 s at the default)
+  WiFi recovery       retry every 10 s; hotspot beside it after 6 misses;
+                      the board restarts itself after 15 min without the
+                      network if nobody is on the hotspot (firmware)
+  Valve on boot       left as found for up to 60 s while the board asks the
+                      system; then driven to the system's status (or by the
+                      board's own memory if no word came)
+  Dashboard refresh   every 5 seconds; 2 s while a valve screen is open
+
+  Sensor pins         Pressure  GPIO 34   (must stay ADC1: 32-39)
+                      Flow      GPIO 27
+                      Valve relay OPEN  GPIO 26
+                      Valve relay CLOSE GPIO 25
+                      (swapped 15 Nov 2026 to match the wiring in place;
+                      RELAY_OPEN / RELAY_CLOSE at the top of the sketch)
+  Valve               ACARPS motorised ball valve, DC 12-24 V, 3 wires
+                      (N common, CLOSE, OPEN), running time 15 s. Each
+                      relay is HELD for 18 s per move (VALVE_TRAVEL_MS in
+                      the sketch); the valve's limit switch stops the motor.
+                      Wiring: supply + -> both relay COM; relay NO -> CLOSE
+                      and OPEN wires; supply - -> valve N.
+  GSM module          RX GPIO16, TX GPIO17, own 3.7-4.2V power supply
+
+  Hose lines          One per household, main source -> the house. No
+                      distance markers; a leak names a household (section 9a).
+
+
+============================================================================
+14. STILL TO DO
+============================================================================
+  [ ] Flash the new per-household firmware and claim the board (section 9d)
+  [ ] Wire the motorised valve to GPIO 25 / 26 through a 2-channel relay
+  [ ] Zero the pressure sensors. Empty the line, then type Z in the Serial
+      Monitor. Until this is done all three read about 0.45 bar with no
+      water in the hose - that is the sensors' own resting voltage, not
+      pressure, and it makes an empty line look like a working one.
+  [ ] Set each line's low-supply threshold from a real measured day
+      (section 9b). All three are on the 0.3 bar default.
+  [ ] Change SETUP_AP_PASSWORD and CONFIG_PASSWORD from their defaults
+  [ ] Set OWNER_PHONE_NUMBER in the sketch to the real number
+      (currently the placeholder +639171234567)
+  [ ] Add coordinates to each household's hose line so the branches are
+      drawn on the map, not just the household pins
+  [ ] Rewrite the firmware for one household per board: 1 module, the four
+      new leak tests (burst / sustained low flow / night flow / valve-closed
+      decay), and the motorised valve. The server side is already built and
+      accepts severity, trigger and valve_state.
+  [ ] Buy and fit the motorised ball valves and 2-channel relays
+  [ ] Sign up at iprogsms.com and put IPROGSMS_API_TOKEN in .env, so SMS
+      actually leaves the queue (section 9c)
+  [ ] Put a contact number on the facilitator account (Django admin ->
+      Users), or their copy of every leak alert is silently skipped
+  [ ] Replace the placeholder contact numbers on the households with real
+      ones - texts go to whatever is on the record
+  [ ] Decide where the main source really is. It is currently at the centre
+      of the municipality (9.647119, 125.495095), which is about 2.7 km from
+      the households. The monitored run is only 50 m, so the map implies a
+      main line far longer than the real one. If you want it at the head of
+      the run instead, use:  9.637250 , 125.517620
+      Change it at Dashboard -> Lines.
+  [ ] Replace the household coordinates with real surveyed ones. All seven
+      currently have PLACEHOLDER positions around Brgy. Lower Dakong Patag -
+      they are inside the municipality and near the right village, but they
+      were calculated, not measured. Walk to each house, long-press your
+      location in Google Maps, and paste the real numbers in.
+
+
+============================================================================
+15. SCALING  (this is now how the system works)
+============================================================================
+Superseded 16 Sep 2026. The plan here used to be "one ESP32 per zone, three
+lines each", written while the rig was three sensor pairs sharing a board. It
+was never built, and the design moved past it.
+
+HOW IT WORKS NOW
+  One board serves one household. Adding a household means adding a board,
+  and no existing board is opened, re-flashed or disturbed.
+
+  There is no line limit. The old ceiling of about five lines per board came
+  from running out of pins: pressure sensors need ADC1 pins (32-39), because
+  ADC2 stops working while WiFi is on, and flow sensors need interrupt-
+  capable pins, which rules out 34-39. One sensor pair per board removes that
+  constraint entirely.
+
+  Boards are numbered separately from households - esp32-01, esp32-02 - and
+  the server links a board to a household's line. A board is a physical
+  object with a service life; a household is a place. Naming the board after
+  the house would mean a replacement board had to reuse that name, and the
+  event log could then never tell the original board from the one fitted
+  after it failed.
+
+WHAT IT COSTS PER HOUSEHOLD
+  An ESP32, a pressure sensor, a flow sensor, a motorised ball valve (about
+  PHP 938), a 2-channel relay, and the fittings. The valve is the largest
+  single item - see section 14.
+
+THE ONE THING THAT DOES NOT SCALE YET
+  The server. It is one machine running `runserver`, which is a development
+  server and says so. Past a handful of boards posting every 2 seconds it
+  should move to a real WSGI server, and the readings table will need
+  trimming - a minute-level rollup already exists, but the raw table grows
+  without bound.
+
+
+============================================================================
+16. DEPLOYING TO PYTHONANYWHERE
+============================================================================
+
+  What deploys cleanly: the whole web side - dashboards, the owner portal,
+  the landing page, complaints, logins. What does NOT work on the free tier,
+  and why, is at the bottom of this section. Read that before you promise
+  anybody a live text message.
+
+  BEFORE YOU START
+    - Push your commits to GitHub. PythonAnywhere pulls the code from there.
+    - Pick Python 3.13 when it asks (3.11 or 3.12 are fine too). This laptop
+      runs 3.14, which PythonAnywhere does not offer yet; Django 5.2 is happy
+      on any of these.
+
+  ONE-TIME SETUP
+    1. On pythonanywhere.com, open a Bash console and clone the repo:
+           git clone https://github.com/<you>/SmartHoseLeak.git
+           cd SmartHoseLeak
+
+    2. Make a virtualenv and install:
+           mkvirtualenv shl --python=python3.13
+           pip install -r requirements.txt
+
+    3. Create the .env file (it is gitignored, so it is not in the clone):
+           nano .env
+       Put in at least these five lines:
+           DEBUG=False
+           SECRET_KEY=<paste a fresh key - see below>
+           ALLOWED_HOSTS=<you>.pythonanywhere.com
+           CSRF_TRUSTED_ORIGINS=
+           SQLITE_JOURNAL_MODE=DELETE
+
+       SQLITE_JOURNAL_MODE=DELETE matters: the laptop uses SQLite's WAL mode,
+       which is unsafe on PythonAnywhere's networked disk and corrupted the
+       database once (section 12). The app also switches to DELETE by itself
+       when it sees PythonAnywhere's environment, so the line is a belt to
+       those braces.
+
+       Generate the key in the same console:
+           python -c "from django.core.management.utils import get_random_secret_key as g; print(g())"
+
+       CSRF_TRUSTED_ORIGINS can stay blank - the server derives
+       https://<you>.pythonanywhere.com from ALLOWED_HOSTS by itself.
+
+       The server WILL REFUSE TO START if DEBUG=False and either SECRET_KEY is
+       still the development default or ALLOWED_HOSTS is empty. That is on
+       purpose - it tells you exactly what is missing in the error log rather
+       than running insecure.
+
+    4. Set up the database and static files:
+           python manage.py migrate
+           python manage.py collectstatic --noinput
+           python manage.py createsuperuser
+
+    5. In the PythonAnywhere "Web" tab:
+         - Add a new web app, "Manual configuration", Python 3.13.
+         - Source code:   /home/<you>/SmartHoseLeak
+         - Virtualenv:    /home/<you>/.virtualenvs/shl
+         - Edit the WSGI file it generates: set
+               os.environ['DJANGO_SETTINGS_MODULE'] = 'config.settings'
+           and point it at the project (the stock Django block, pointing at
+           config.wsgi, works as-is).
+         - Static files mapping:
+               URL:  /static/        Directory: /home/<you>/SmartHoseLeak/staticfiles
+         - Click "Reload".
+
+    6. Confirm it is set up right. In the console:
+           python manage.py check --deploy
+       Two warnings are expected and fine: SECURE_SSL_REDIRECT and
+       SECURE_HSTS_SECONDS are off by default. Turn them on in .env once you
+       have confirmed HTTPS works end to end (SECURE_SSL_REDIRECT=True, then
+       SECURE_HSTS_SECONDS=2592000) and reload.
+
+  UPDATING AFTER A CODE CHANGE
+      git pull
+      pip install -r requirements.txt          # only if requirements changed
+      python manage.py migrate                 # only if there are new migrations
+      python manage.py collectstatic --noinput
+      # then hit "Reload" in the Web tab
+
+  WHAT DOES NOT WORK ON THE FREE TIER
+    SMS and push notifications both reach OUT to the internet (the iprogSMS
+    gateway; the browsers' push services). The free tier only allows outbound
+    traffic to a fixed allowlist of sites, and those are not on it - so both
+    silently fail there. They need a PAID tier, which has open outbound.
+
+    SMS also needs a worker. The queue is drained by a background thread that
+    only runs under "runserver" - under the hosted WSGI it never starts. On a
+    paid account, add an Always-on task running:
+        python manage.py send_sms --watch
+    (or a Scheduled task running "python manage.py send_sms" on the shortest
+    interval your plan allows). The free tier's once-a-day task is far too
+    slow for a leak alert.
+
+    The ESP32 cannot be found over the internet, so discovery (section 5)
+    does not apply: type https://<you>.pythonanywhere.com in the Server box
+    on the board's page (section 4). The board keeps an https:// address for
+    good and reaches it from any WiFi.
+
+    In short: the free tier is enough to put the whole interface online for a
+    panel to click through. Live SMS, live push and a live board over the
+    internet are a paid tier plus the worker task above.
+
+  ON THE PAID TIER (the account was upgraded 11 Nov 2026)
+    - Outbound internet is open: iprogSMS and the push services are
+      reachable. Add the Always-on task  python manage.py send_sms --watch
+      or texts sit in the queue.
+    - CPU allowance. Every request costs CPU seconds from a daily allowance
+      (a few thousand on the paid plans); past it the site is throttled
+      until midnight UTC, which looks exactly like the system dying in the
+      middle of a demonstration. This is why the boards upload every 15 s
+      and not every 2 s, and why the dashboards poll every 5 s unless a
+      person is at a valve screen - section 9g has the arithmetic. Keep an
+      eye on the CPU bar on the PythonAnywhere dashboard the first day.
+    - setup_demo_owner refuses to run with DEBUG=False, on purpose. The
+      hosted site gets a real household instead; an account with no phone
+      and no email still signs in on the password alone.
+    - Order of work after a git pull: migrate (0040-0043 this week),
+      collectstatic, Reload. The .mo translation files are in the repo, so
+      compilemessages is not needed there.
+
+
+============================================================================
+CHANGE LOG OF THIS GUIDE
+============================================================================
+15 Nov 2026  The system is the basis for the valve. The server holds the
+             status (Segment.valve_target, migration 0046), restates it on
+             every reply, and the board drives the valve to it. The board's
+             own temporary closes (night test, flow hold) are kept; a leak
+             found, or a CLOSE/OPEN typed at the board, is adopted by the
+             system (numbered, once; the household gets a notice); an
+             admin close stands even against the board's own page. Every
+             screen shows the system's status with one sentence on whether
+             the board has confirmed it, amber after 30 s of disagreement.
+             On boot the board waits up to 60 s for the system before
+             moving the valve and reports "unknown" meanwhile. Firmware,
+             server, tests, Filipino strings. Section 9e THE VALVE, section
+             12 (amber sentence), section 13.
+
+15 Nov 2026  Firmware: RELAY_OPEN is GPIO 26 and RELAY_CLOSE GPIO 25 now
+             (they were the other way round), matching the board as wired
+             - CLOSE was opening the valve. Section 13 pin table.
+
+15 Nov 2026  Section 12: an upload that dies part-way ("No more data to
+             read from the serial port") - cable/power; drop the upload
+             speed to 115200 and flash with nothing hanging off the board.
+
+15 Nov 2026  Firmware: a board without its WiFi for 15 min, with nobody on
+             its hotspot, restarts itself (the ESP32 radio can stay stuck
+             after a long outage; a fresh boot joins), and the stack's
+             auto-reconnect is on. The valve is now really driven open on
+             boot unless a manual or leak-found close is being restored -
+             section 9e promised this, but the sketch only released the
+             relays, so a power cut during the night test left the house
+             shut while the board said "open". Section 12: "stays offline
+             for hours"; section 13 cadence table.
+
+14 Nov 2026  Section 12: why the valve buttons are missing on a household
+             whose board is online (the board's firmware reports no valve;
+             reflash water_leak_single_wifi). Seen on HH-007 / esp32-21.
+
+14 Nov 2026  Firmware: the valve relays are now held for the valve's full
+             travel (VALVE_TRAVEL_MS = 18 s; ACARPS valve rated 15 s)
+             instead of 0.6 s, which only nudged the ball while the board
+             reported "closed". The board's page stays answerable during
+             the move. Section 12 ("valve did not move") and section 13.
+             Also corrected the cadence figures in section 13 (15 s / 50 s
+             / 5 s), which still said 2 s / 10 s / 2 s.
+
+12 Nov 2026  The PythonAnywhere database was found corrupted ("Rowid 0 out
+             of order" on the hose-line table): SQLite's WAL mode, which the
+             app set on every connection, is unsafe on a network filesystem
+             with two writing processes (web app + send_sms worker). New
+             SQLITE_JOURNAL_MODE setting - DELETE automatically on
+             PythonAnywhere, WAL elsewhere, .env overrides. Recovery steps in
+             section 12; deploy step 3 in section 16 gained the .env line.
+
+12 Nov 2026  "Open the board's page" button on the owner's device card, in
+             every state: the hotspot address until the board is online,
+             then the address the board reports on the home WiFi (new
+             lan_ip on uploads; migration 0045). Section 9h.
+
+12 Nov 2026  The owner sets up or moves the board from the portal (section
+             9h). New board: the portal builds a link that opens the board's
+             hotspot page already filled in (WiFi, server, setup code) - the
+             WiFi never leaves the phone; one press of Save & connect on the
+             board. Online board: "Change WiFi" on the device card; the
+             network rides on the upload reply, the board tries it and falls
+             back if it fails, reports by change id, and the household is
+             told the result. Firmware: setup page pre-fill from the query
+             string, wifi_ssid / wifi_change / wifi_ok on uploads, and the
+             change itself. Migration 0044. core/tests_device_wifi.py.
+
+12 Nov 2026  A household pointing at a missing hose line crashed its owner's
+             portal (seen on the hosted site after a restore). The portal
+             now clears the pointer and opens; new  manage.py repair_links
+             clears every such pointer, and Restore runs it.
+
+12 Nov 2026  Delete, beside Archive. The admin's Households list and the
+             Archive page both have a permanent Delete (typed household ID
+             to confirm; removes the login, the line and its readings, the
+             complaints and notices; keeps the board as a spare). The
+             facilitator's Delete now removes the hose line too. Registering
+             a contact number or email already on a household stops with a
+             warning, a link to the match or "Restore it instead" for an
+             archived one, and a "Register anyway" tick. core/tests_households.py.
+
+11 Nov 2026  Pre-deployment walk-through, and what it found. New test module
+             core/tests_walk.py signs in as each role, follows every link,
+             and presses Save on every form three times (empty, junk with a
+             script tag and a bad phone number, plausible values), then
+             walks every page again in Filipino; plus a board sending
+             nonsense. Run it alone with
+                 python manage.py test core.tests_walk
+             Fixed as a result: a contact number was never validated (now
+             a Philippine mobile number or blank, on the household,
+             facilitator and account forms and the CSV import); a board
+             posting NaN/Infinity or an absurd value crashed ingest with a
+             500 (now "reading out of range"); /api/history/?segment=x
+             crashed (now 400); fitting a board already on another line
+             crashed Save with a database error (now a form message naming
+             the line); a stray __str__ on ComplaintMessage crashed Django's
+             admin; three form help texts were untranslated.
+
+11 Nov 2026  Boards upload every 15 s instead of 2 s, and a valve press still
+             lands in under three seconds. The interval is a global setting
+             (Console -> System -> Leak detection, "Board upload interval")
+             carried to the boards on the reply; a line reads Offline after
+             three missed uploads plus 5 s, derived from it (the
+             DEVICE_OFFLINE_AFTER_SECONDS setting is gone). Status, valve
+             and valve-reason changes are uploaded at once. New
+             GET /api/commands/: while a person is active at a valve screen
+             (the live poll says so, Segment.valve_watch_until) the board
+             asks it every 2 s for a pending open/close; otherwise it only
+             uploads. Dashboards poll every 5 s, 2 s while watching. Done
+             for the PythonAnywhere CPU allowance. Sections 3d, 9g, 16.
+
+11 Nov 2026  A moved board finds the server again. The per-household sketch
+             remembered the laptop's address, so after a move it joined the
+             new WiFi and posted into the void (section 5). It now asks the
+             network (UDP discovery, same as the old sketch and the server's
+             core/discovery.py): at join when it holds no address or an
+             http:// one, and after three unanswered uploads. Also: the
+             hotspot comes up about a minute after the network is lost
+             while running (not only at boot) and closes by itself on
+             rejoin; leak detection and the valve keep running in hotspot
+             mode (they used to pause); a blank setup code keeps the board's
+             identity, a new one re-claims it; the board's page shows the
+             server, the last upload and the last server search. Section 4
+             and 5 rewritten for this sketch (no /wifi page, no admin login).
+
+11 Nov 2026  Filipino everywhere. Until now only the landing page and the
+             sign-in dialog were translated (86 strings); everything behind
+             the login stayed English whichever way the toggle was set.
+             Now every template, every message after an action, form
+             labels and errors, the browser-side text (app.js, map.js via
+             Django's JavaScript catalog) and the texts and notices the
+             system sends are translatable, and all 1,289 strings are
+             translated in conversational Filipino. Households have a
+             language on their record (Filipino by default): the portal
+             opens in it, the toggle writes back to it, and every text or
+             notice to that household is written in it regardless of who
+             caused it. New: core/language.py (middleware + toggle view),
+             core/tests_language.py. See section 3h.
+
+9 Nov 2026   The night test now HOLDS the valve shut when it finds a leak,
+             instead of reopening it and letting the leak run until morning.
+             The board reports the new reason ("decay"), every screen says
+             "Closed because the nightly test found a leak", the line stays
+             POSSIBLE_LEAK, and whoever fixes it opens the valve from their
+             button. The dashboard's "Test valve" button now actually
+             starts the test on this sketch (it was wired on the server but
+             the firmware ignored it), and TEST on the serial monitor does
+             the same. A reboot restores a held valve. Firmware verified to
+             compile with arduino-cli; section 10 now points at the right
+             sketch. Also: a new test file, core/tests_endpoints.py, opens
+             EVERY route as a visitor, an owner, a facilitator and the
+             admin (none may error, and each must be turned away from the
+             others' areas), then walks each role through its real
+             transactions with real form data. 5 checks, all green, on
+             top of the 206 unit tests. Texts the gateway marks
+             "completed" are now shown as delivered instead of sitting
+             at "awaiting delivery" forever.
+
+9 Nov 2026   Added setup_demo_owner: one furnished household (HH-DEMO,
+             login demo / demo12345) with a board, a valve, a day of
+             pressure history, past alerts, notices, a complaint thread and
+             a scheduled visit, for showing the owner portal with every
+             feature populated. It has no phone and no email on purpose, so
+             no sign-in code is asked for. DEBUG only. The simulator gained
+             --modules, --valve and --valve-reason so it can stand in for
+             the per-household board. See CREDENTIALS.txt, DEMO OWNER.
+
+9 Nov 2026   The motorised valve is now visible to, and controllable by,
+             the household and the facilitator, not only the administrator.
+             The household's portal shows "Water valve: open/closed", why,
+             and one button; the facilitator's dashboard shows state and
+             reason per row with Open/Close buttons and a "Valve actions"
+             card. The board now reports WHY the valve is closed
+             (valve_reason: test / flow / manual), so a closed valve at 2 am
+             reads as the leak test, not a fault. An administrator's close
+             is a lock nobody else can undo; a facilitator's or household's
+             close is not. Every press goes to the audit log and to the
+             household's Notices feed. No SMS. See section 9e, THE VALVE.
+             Firmware: reflash water_leak_single_wifi for the reason to show;
+             older firmware keeps working and the screens just say "Closed".
+
+5 Oct 2026   Made the project deployable. With DEBUG=False the server now
+             sets the secure-cookie and proxy-HTTPS settings a host like
+             PythonAnywhere needs, derives its CSRF origin from ALLOWED_HOSTS,
+             and refuses to start on the development SECRET_KEY or an empty
+             ALLOWED_HOSTS rather than running insecure. None of it touches
+             local development. Added section 16 with the PythonAnywhere
+             walkthrough and what the free tier cannot do (SMS, push, a live
+             board - all need the paid tier or a worker task).
+
+2 Oct 2026   Wrong addresses now get a real page instead of Django's
+             development traceback, which besides looking like a fault
+             also listed every URL in the project - the claim endpoint and
+             the device key endpoints included - to whoever typed the
+             address. 404, 403, 400 and 500 all written, each pointing the
+             reader at wherever they actually belong. See section 12g.
+
+2 Oct 2026   The Owner Portal can now be installed on a phone's home
+             screen and send notifications. It was always a PWA - the
+             manifest and the service worker have been there since the
+             start - but nothing in the app ever said so, so nobody
+             installed it. Portal -> Settings now carries the steps for
+             each kind of phone, an install button on Android, and a
+             switch for alerts. Notifications use the Web Push standard
+             with keys this server generates itself: no Firebase, no
+             account, and no SDK fetched from a CDN, which matters for an
+             app whose job is to open on a weak signal. Alerts never
+             replace the SMS; the text goes out regardless. Needs an
+             https:// address - see section 12f.
+
+2 Oct 2026   Running out of SMS credit is now reported as a stop rather than
+             as a healthy gateway. The banner on Notices & SMS used to be
+             green on every load, including the load where it read "LOW
+             CREDIT: 0 left" - the one state in which nothing can be sent
+             looked the most reassuring. It is amber and plainly worded now,
+             a working gateway is a quiet grey line, and the gateway
+             account name is not shown in the status line. See section 9c.
+
+11 Sep 2026  First version. Covers startup, WiFi setup, server address,
+             troubleshooting, calibration, commands and key values.
+             Reflects: server address now configurable from the device's
+             own /wifi page (no reflash needed); runserver prints the LAN
+             address; offline threshold lowered from 60s to 10s.
+
+11 Sep 2026  Added section 12b. Household IDs are now assigned
+             automatically, the add-household form is a dialog with
+             latitude/longitude fields, coordinates are checked against the
+             municipal boundary, and the leak map is larger and draws the
+             real outline of Sison.
+
+11 Sep 2026  The water source (start of the main line) can now be placed on
+             the map from Dashboard -> Lines, and appears there as a blue
+             square alongside the household pins.
+
+11 Sep 2026  All seven households given placeholder coordinates around Brgy.
+             Lower Dakong Patag. Main valve placed at the centre of the
+             municipality and given a permanent "Main valve" label plus a
+             pulsing halo so it is easy to spot.
+
+11 Sep 2026  Added section 12d. Complaints are now threaded conversations
+             with a messenger-style inbox on both the facilitator and the
+             owner side, replacing the single-reply ticket screen. Existing
+             complaints were converted into threads automatically.
+
+14 Sep 2026  The ESP32 now finds the server by itself. The laptop's address
+             changes whenever it joins a different network, and the board
+             used to keep posting to the old one until someone noticed and
+             retyped it. It now asks the network, and re-asks whenever
+             uploads stop getting through. See section 5.
+
+16 Sep 2026  SMS now goes through the iprogSMS gateway instead of a SIM800L
+             plugged into this machine. The modem was chosen for costing
+             nothing per message, but pyserial can only open a port on the
+             machine running the code, so the modem and the server would have
+             had to stay in the same room forever - a gateway works from a
+             laptop and a hosted server alike. The serial code is gone, and
+             with it the pyserial dependency.
+
+             Leak alerts now also copy the facilitator, worded for them
+             rather than for the owner. The delivery log distinguishes
+             "Sent to network" from "Delivered", because the gateway
+             accepting a message is not a phone receiving it, and the log
+             exists to answer exactly that question. See section 9c.
+
+16 Sep 2026  Added VALVE_FITTED and GSM_FITTED to the sketch, both false,
+             for testing before the hardware arrives. Without them the board
+             would have measured the pressure drift of an open hose and
+             reported it as a leak, and would have blocked on AT commands to
+             a module that is not there. The dashboard's "Test valve" button
+             also did nothing: the server sent the request and the firmware
+             never read it. See section 9f.
+
+16 Sep 2026  Retired the calibration instructions in section 9 - they
+             described C / A / F commands the sketch no longer has - and
+             replaced them with the zeroing and valve commands. Section 15
+             rewrote the old "one board per zone" scaling plan, which the
+             design has passed. Sections 9a to 9e are in reading order.
+
+16 Sep 2026  The firmware is now a per-household device: one sensor pair,
+             the four pattern-based leak tests, the motorised valve, NTP for
+             the night window, HTTPS, and identity entered as a claim code
+             instead of compiled in. Calibration and the K = Q/sqrt(P)
+             method are gone entirely - they needed a field calibration
+             nobody could do reliably, and only ever described a line whose
+             conductance had not changed since the day it was measured.
+             "Forget saved network" no longer wipes the zero offsets,
+             thresholds and identity along with the credentials. Flow
+             readings the sensor cannot physically produce are discarded,
+             and the flow interrupt is debounced. See sections 9d and 9e.
+
+16 Sep 2026  Adding a household now creates its hose line and registers its
+             board in the same dialog, because that is one real event and
+             three screens is how a house ends up recorded with no line.
+             Device IDs and API keys are issued by the server, shown with
+             copy buttons on the Lines page, and can never be typed or
+             edited - "New key" is a separate confirmed action that names
+             the household about to go silent. The redundant "Supply line"
+             filter on the Households page was removed: it narrowed the list
+             to one row, which the search box already does. See section 9a.
+
+16 Sep 2026  The single "Device status" tile was removed from the facilitator
+             dashboard. It described one board, and there is now one per
+             household, so it could only ever be wrong or meaningless. The
+             board's IP address moved into the Households table's Device
+             column, still a live link to its own page.
+
+16 Sep 2026  Notices can now be sent as SMS as well as in the app, from one
+             compose screen - writing it twice would have guaranteed the two
+             eventually disagreed. Leak alerts text the household
+             automatically, in wording short enough for one message and
+             asking them to check their own faucets first. Messages are
+             queued and sent by a background worker, so a facilitator never
+             waits on a modem and nothing is lost when it is unplugged. The
+             tab is now "Notices & SMS" and carries a delivery log. See
+             section 9c.
+
+16 Sep 2026  A leaking hose is now drawn with a red outline on the leak map,
+             keeping its own colour inside so the household stays
+             identifiable. The hoses also repaint on the live poll - before
+             this they were painted once at load, so a leak reported two
+             seconds later did not show until the page was reloaded.
+
+16 Sep 2026  The "main valve" is now the "main source", and the leak map
+             draws one hose per household straight from it, instead of
+             chaining several houses onto one shared branch. A hose with no
+             board fitted is drawn dashed. Nothing is shared between
+             households any more, so a chained run was drawing plumbing that
+             does not exist.
+
+16 Sep 2026  One hose line per household, each with its own device,
+             replacing three shared runs on one board. The dashboard shows a
+             row per household instead of three cards; distance markers and
+             "leak location" are gone, and a leak now names a household. A
+             line can exist with no device fitted, shown as "No device" and
+             kept visually distinct from a board that has stopped reporting.
+             Valve state and a "Test valve" button are built and appear once
+             a board reports a valve. Readings, alerts and rollups from the
+             old three-line geometry were discarded; households, complaints,
+             notices and logins were kept. See section 9a.
+
+14 Sep 2026  The low-water-supply threshold is now set per line from the
+             dashboard instead of being compiled into the sketch. The server
+             sends it back on the reply to every upload and the board keeps
+             it in flash, so tuning a line to its site takes a few seconds
+             in a browser and survives reboots and WiFi outages. The old
+             built-in value was 1.5 bar, which suited a pressurised
+             municipal main and reported a healthy gravity-fed line as low
+             supply forever; the new default is 0.3 bar. See section 9b.
+
+14 Sep 2026  The system can now be opened on a phone that is not on the same
+             WiFi, using VS Code's "Forward a Port", without deploying it
+             anywhere. See section 12e.
+
+11 Sep 2026  Confirmation messages ("... returned to live monitoring", and
+             similar) now appear as toasts in the bottom-right corner
+             instead of a bar across the page. They pause while the mouse
+             is over them, and anything containing a password or username
+             stays until you dismiss it, so a temporary password can never
+             disappear before it is written down.
+
+11 Sep 2026  The Device status box on the dashboard now shows the ESP32's IP
+             address as a link to the board's own page, kept current by the
+             live poll.
+
+11 Sep 2026  Hose lines can now be edited and deleted from the Lines table,
+             both through dialogs. The delete dialog names the history and
+             events that go with the line, and warns that its households
+             become Unassigned.
+
+11 Sep 2026  Added section 15, recording the agreed plan for scaling past
+             three lines (one board per zone). Noted only - not built.
+
+11 Sep 2026  Fixed the leak map escaping its card on a narrow window: the
+             map library stacks its own layers above everything, so it was
+             painting over the top bar and the navigation drawer. All
+             application chrome now sits above it, and the map re-measures
+             itself whenever its container changes size.
+
+11 Sep 2026  Households can now be edited and deleted from the Households
+             table, both through dialogs. The delete dialog names the
+             complaints, notices and login that go with the household.
+
+11 Sep 2026  Added section 12c. New hose lines can now be created from
+             Dashboard -> Lines, each with its own map colour chosen from a
+             swatch picker. The map reads those stored colours instead of
+             three hardcoded ones.
+
+11 Sep 2026  Leak map now draws one branch per supply line from the valve
+             through that line's households, instead of a separate spur to
+             each house. Households are ordered nearest-to-the-valve first.
+
+11 Sep 2026  Main valve marker changed to purple (it was brand blue and hard
+             to pick out). Households now carry their supply line as a fill
+             colour and their status as a ring colour, and a dashed line in
+             the line's colour joins each household to the valve. Fixed
+             map.js being served from a stale cache - it was the only script
+             without a version stamp, so map changes were not reaching the
+             browser.
+============================================================================
