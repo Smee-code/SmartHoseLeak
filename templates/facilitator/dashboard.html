@@ -308,6 +308,12 @@
                   <a class="small mono device-ip" data-field="device_ip" href="#"
                      target="_blank" rel="noopener"
                      title="{% trans "Open this board's own page" %}" hidden></a>
+                  {% comment %}
+                    Why the board last started, from the chip itself. A board
+                    that says "brownout" whenever the valve moves has a power
+                    problem, not a WiFi one.
+                  {% endcomment %}
+                  <div class="small muted" data-field="device_boot"></div>
                 {% else %}
                   <span class="pill pill-none">{% trans "No device" %}</span>
                 {% endif %}

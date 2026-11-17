@@ -180,6 +180,13 @@ class Device(models.Model):
     # page" button points here while the board is online.
     lan_ip = models.GenericIPAddressField(null=True, blank=True)
     firmware_note = models.CharField(max_length=200, blank=True)
+    # Why the board last started, as the chip itself reports it on its first
+    # upload after a boot ("power-on", "brownout", "software restart",
+    # "watchdog", "crash"). A board that resets every time the valve motor
+    # starts says "brownout" here, which turns a board that "keeps going
+    # quiet" into a wiring fault with a name.
+    last_boot_reason = models.CharField(max_length=40, blank=True)
+    last_boot_at = models.DateTimeField(null=True, blank=True)
 
     # Changing the WiFi of a board that is already online, from the portal.
     # The board cannot be reached, so the new network is parked here and
@@ -664,7 +671,7 @@ def describe_valve(segment, latest):
     if reason == ValveReason.FLOW:
         return (
             gettext("Closed automatically because water ran non-stop for too long. "
-            "It reopens on its own after a few minutes.")
+            "Check your taps and hose, then open it here once fixed.")
         )
     if reason == ValveReason.TEST:
         return gettext("Closed for the nightly leak test. It reopens when the test ends.")

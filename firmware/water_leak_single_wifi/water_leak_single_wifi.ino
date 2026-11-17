@@ -80,8 +80,11 @@
   WIRING (change the pins below if yours differ)
     Pressure sensor (analog)   -> GPIO 34   (input only)
     Flow sensor (pulse)        -> GPIO 27
-    Valve relay OPEN           -> GPIO 25
-    Valve relay CLOSE          -> GPIO 26
+    Valve relay OPEN           -> GPIO 26
+    Valve relay CLOSE          -> GPIO 25
+    (Swapped 15 Nov 2026 to match the board as wired: the valve's CLOSE
+    wire sits on the relay driven by GPIO 25. If a board is wired the
+    other way round, swap these two numbers rather than the wires.)
     Relays here are ACTIVE LOW (ON = LOW). Flip RELAY_ON/OFF if yours differ.
 
   THE VALVE
@@ -104,12 +107,13 @@
 #include <WiFiClientSecure.h>
 #include <Preferences.h>
 #include <time.h>
+#include <esp_system.h>   // esp_reset_reason()
 
 // ---------------------------------------------------------------- pins
 #define PRESSURE_PIN 34
 #define FLOW_PIN     27
-#define RELAY_OPEN   25
-#define RELAY_CLOSE  26
+#define RELAY_OPEN   26
+#define RELAY_CLOSE  25
 #define RELAY_ON     LOW      // active-low relay board; set HIGH if active-high
 #define RELAY_OFF    HIGH
 // How long a relay is held for one full open or close. The valve's rated
@@ -136,7 +140,9 @@
 // After an auto-close for a continuous-flow leak, hold the valve shut this
 // long, then auto-open so water is not cut off indefinitely. If the leak is
 // real it will be detected and closed again.
-#define FLOW_LEAK_REOPEN_MINUTES 10    // TODO: tune
+// A flow-leak close used to reopen by itself after 10 minutes. It no longer
+// does: a leak is a leak until a person has looked, so the valve stays shut
+// and the line stays POSSIBLE_LEAK until somebody presses Open (15 Nov 2026).
 
 // A few seconds after the valve seals for the nightly test, the line settles;
 // the pressure read then is the baseline the drop is measured from.
@@ -161,6 +167,12 @@
 #define WIFI_RETRY_INTERVAL_MS  10000UL
 #define WIFI_FAILS_BEFORE_AP    6
 #define WIFI_RETRY_IN_AP_MS     60000UL
+// A board that has been without its network this long is restarted, unless
+// somebody is on its hotspot. After a long outage (router rebooted, power
+// back before the router was up) the ESP32's WiFi stack sometimes never
+// re-associates however often begin() is called, while a fresh boot joins
+// first time. Seen 14 Nov 2026: 26 h offline, fixed by a power cycle.
+#define WIFI_RESTART_AFTER_MS   (15UL * 60UL * 1000UL)
 
 // Server discovery (see the header). Matches core/discovery.py on the server.
 #define DISCOVERY_PORT          18830
@@ -179,6 +191,7 @@ bool   apMode = false;
 
 uint8_t       wifiFailCount   = 0;
 unsigned long lastWifiRetryMs = 0;
+unsigned long wifiDownSince   = 0;             // millis() when the network was last seen to drop
 uint8_t       uploadFailStreak = 0;            // transport failures in a row
 unsigned long lastDiscoveryMs  = 0;
 String        lastDiscoveryResult = "not needed yet";
@@ -206,11 +219,19 @@ unsigned long lastPulseReset = 0;
 float  lastPressureBar = 0.0f;
 float  lastFlowLpm     = 0.0f;
 String lastUploadResult = "not sent yet";
+// Why the chip last started: "power-on", "brownout", "software restart",
+// "watchdog", "crash"... Printed first thing on the serial monitor, shown on
+// the board's page, and sent once per boot (boot_reason) so the server can
+// say it on the device's row. A board that dies whenever the valve motor
+// starts reports "brownout" here, which is the difference between a wiring
+// fault and a mystery.
+String bootReason   = "unknown";
+bool   bootReported = false;                     // sent on the first accepted upload
 String reportStatus    = "NORMAL";
 
 // Valve ownership so the two detections never fight over it.
 //   ""       -> open / nobody holds it
-//   "flow"   -> closed by the continuous-flow leak (reopens after a hold)
+//   "flow"   -> closed by the continuous-flow leak; held shut until somebody opens it
 //   "test"   -> closed while the nightly pressure test runs
 //   "decay"  -> the test found a leak; held shut until somebody opens it
 //   "manual" -> closed by a person; held shut until somebody opens it
@@ -223,7 +244,7 @@ String valveState  = "idle";
 
 // Continuous-flow tracking.
 unsigned long flowStartMs  = 0;        // when non-stop flow began (0 = idle)
-unsigned long flowClosedAt = 0;        // when the flow-leak close happened
+bool          flowLeakHeld = false;    // the flow leak shut the valve; POSSIBLE_LEAK until opened
 
 // Nightly pressure test.
 enum TestPhase { TEST_IDLE, TEST_SETTLING, TEST_RUNNING };
@@ -494,7 +515,7 @@ void applyServerConfig(const String &resp) {
       valveCloseNow(); valveReason = "manual"; saveValveReason();
       Serial.println("[VALVE] manual close (from the server)");
     } else if (vcmd == "open" && valveState != "open") {
-      valveOpenNow(); valveReason = ""; flowStartMs = 0; pressureTestLeak = false;
+      valveOpenNow(); valveReason = ""; flowStartMs = 0; pressureTestLeak = false; flowLeakHeld = false;
       saveValveReason();
       Serial.println("[VALVE] manual open (from the server)");
     }
@@ -560,14 +581,6 @@ void updateFlowDetection() {
   unsigned long now = millis();
   bool flowing = (lastFlowLpm >= FLOW_RUNNING_LPM);
 
-  // Reopen a flow-leak close once the cooldown has passed.
-  if (valveReason == "flow" &&
-      now - flowClosedAt >= (unsigned long)FLOW_LEAK_REOPEN_MINUTES * 60000UL) {
-    valveOpenNow();
-    valveReason = "";
-    flowStartMs = 0;               // give the line a fresh start
-  }
-
   if (flowing) {
     if (flowStartMs == 0) flowStartMs = now;
     unsigned long mins = (now - flowStartMs) / 60000UL;
@@ -575,12 +588,15 @@ void updateFlowDetection() {
       if (dsAutoClose && valveReason == "") {    // auto-close on the flow leak
         valveCloseNow();
         valveReason = "flow";
-        flowClosedAt = now;
+        flowLeakHeld = true;                     // ...and hold it, like a leak the night test found
+        saveValveReason();                       // survives a power cut
+        Serial.println("[FLOW] leak - closed the valve; it stays shut until somebody opens it");
       }
     }
   } else {
-    // Idle again. If nothing is holding the valve shut, the flow run is over.
-    if (valveReason != "flow") flowStartMs = 0;
+    // Idle again: the flow run is over. A held close is remembered by
+    // flowLeakHeld, not by the timer, so the timer can reset.
+    flowStartMs = 0;
   }
 }
 
@@ -637,7 +653,7 @@ void updatePressureTest() {
 // What to report this cycle. A latched pressure-test leak wins; otherwise the
 // flow run's duration decides.
 String computeReportStatus() {
-  if (pressureTestLeak) return "POSSIBLE_LEAK";
+  if (pressureTestLeak || flowLeakHeld) return "POSSIBLE_LEAK";
   if (flowStartMs != 0) {
     unsigned long mins = (millis() - flowStartMs) / 60000UL;
     if (mins >= (unsigned long)dsFlowLeakMin) return "POSSIBLE_LEAK";
@@ -707,6 +723,7 @@ void uploadReadings() {
     "}],"
     "\"wifi_ssid\":\"" + jsonEscape(cfgSSID) + "\"," +
     "\"lan_ip\":\"" + WiFi.localIP().toString() + "\"" +
+    (bootReported ? String("") : ",\"boot_reason\":\"" + bootReason + "\"") +
     (reportWifiId.length() ? ",\"wifi_change\":\"" + reportWifiId + "\",\"wifi_ok\":" + String(reportWifiOk ? "true" : "false") : String("")) +
     "}";
 
@@ -729,6 +746,7 @@ void uploadReadings() {
   if (code == 200) {
     sentStatus = reportStatus; sentValve = valveState; sentReason = valveReason;
     reportWifiId = "";                            // the outcome has been delivered
+    bootReported = true;                          // the reset reason has been delivered
     applyServerConfig(resp);                     // adopt any retuned settings
   }
   Serial.printf("[UPLOAD] %s  %s  P=%.3f bar  F=%.3f L/min\n",
@@ -809,6 +827,7 @@ void handleRoot() {
   s += "<p class=k>Identity: " + (devId.length() ? devId : String("not claimed")) +
        " &middot; Server: " + (cfgServer.length() ? cfgServer : String("not set - will search")) +
        "<br>Last upload: " + lastUploadResult +
+       "<br>Last restart: " + bootReason +
        " &middot; Server search: " + lastDiscoveryResult +
        "<br>Uploads every " + String(dsUploadSec) + " s" +
        (cmdPollSec > 0 ? " &middot; asking for valve commands every " + String(cmdPollSec) + " s" : "") +
@@ -876,7 +895,7 @@ void handleValve() {
   String cmd = web.arg("cmd");
   // Local close latches the same way an admin close does, so a valve shut
   // from the board's own page also stays shut across a reboot.
-  if (cmd == "open")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; saveValveReason(); }
+  if (cmd == "open")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; flowLeakHeld = false; saveValveReason(); }
   else if (cmd == "close") { valveCloseNow(); valveReason = "manual"; saveValveReason(); }
   web.sendHeader("Location", "/");
   web.send(303, "text/plain", "");
@@ -914,10 +933,21 @@ void onWiFiJoined() {
 // and after enough misses the hotspot comes up beside the retries.
 void maintainWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
+    wifiDownSince = 0;
     if (wifiFailCount > 0 || apMode) onWiFiJoined();
     return;
   }
   if (cfgSSID.length() == 0) { startAP(); return; }
+  if (wifiDownSince == 0) wifiDownSince = millis();
+  // The last resort: a clean boot. Skipped while a phone is on the hotspot,
+  // so a person typing in a new network is never cut off mid-form. A manual
+  // or leak-found valve close is restored by setup(), so nothing is lost.
+  if (millis() - wifiDownSince >= WIFI_RESTART_AFTER_MS && WiFi.softAPgetStationNum() == 0) {
+    Serial.printf("[WIFI] no network for %lu min and nobody on the hotspot - restarting for a clean radio.\n",
+                  WIFI_RESTART_AFTER_MS / 60000UL);
+    delay(200);
+    ESP.restart();
+  }
   unsigned long gap = apMode ? WIFI_RETRY_IN_AP_MS : WIFI_RETRY_INTERVAL_MS;
   if (millis() - lastWifiRetryMs < gap) return;
   lastWifiRetryMs = millis();
@@ -934,6 +964,8 @@ void maintainWiFi() {
 bool connectWiFi() {
   if (cfgSSID.length() == 0) return false;
   apMode = false;
+  WiFi.persistent(false);          // our Preferences hold the network; keep the stack from rewriting flash
+  WiFi.setAutoReconnect(true);     // let the stack retry on its own between our timed begin() calls
   WiFi.mode(WIFI_STA);
   WiFi.begin(cfgSSID.c_str(), cfgPass.c_str());
   Serial.printf("[WIFI] joining %s", cfgSSID.c_str());
@@ -949,10 +981,28 @@ bool connectWiFi() {
   return false;
 }
 
+// ======================================================= reset reason
+String resetReasonText() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:   return "power-on";
+    case ESP_RST_BROWNOUT:  return "brownout";
+    case ESP_RST_SW:        return "software restart";
+    case ESP_RST_PANIC:     return "crash";
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT:       return "watchdog";
+    case ESP_RST_DEEPSLEEP: return "deep sleep";
+    case ESP_RST_EXT:       return "reset pin";
+    default:                return "unknown";
+  }
+}
+
 // ======================================================= setup / loop
 void setup() {
   Serial.begin(115200);
   delay(200);
+  bootReason = resetReasonText();
+  Serial.println("[BOOT] reset reason: " + bootReason);
 
   pinMode(PRESSURE_PIN, INPUT);
   pinMode(FLOW_PIN, INPUT_PULLUP);
@@ -965,10 +1015,17 @@ void setup() {
   loadConfig();
   // A line the admin sealed stays sealed through a power cut: re-close it
   // before anything else can decide the valve should be open.
-  if (valveReason == "manual" || valveReason == "decay") {
+  if (valveReason == "manual" || valveReason == "decay" || valveReason == "flow") {
     valveCloseNow();
     if (valveReason == "decay") pressureTestLeak = true;   // keep reporting it
+    if (valveReason == "flow")  flowLeakHeld = true;       // ...this one too
     Serial.println("[VALVE] restored " + valveReason + " close after reboot");
+  } else {
+    // Any other close (the nightly test, a flow-leak auto-close) does not
+    // survive a reboot, so the valve is driven open now rather than left
+    // wherever the power cut found it while the board reports "open".
+    valveOpenNow();
+    Serial.println("[VALVE] opened on boot");
   }
   if (!connectWiFi()) {
     startAP();
@@ -990,7 +1047,7 @@ void loop() {
   if (Serial.available()) {
     String c = Serial.readStringUntil('\n');
     c.trim(); c.toUpperCase();
-    if (c == "OPEN")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; saveValveReason(); }
+    if (c == "OPEN")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; flowLeakHeld = false; saveValveReason(); }
     else if (c == "CLOSE") { valveCloseNow(); valveReason = "manual"; saveValveReason(); }
     else if (c == "TEST")  { testRequested = true; Serial.println("[TEST] requested from serial."); }
   }

@@ -111,6 +111,9 @@
             <td class="small">
               {% if segment.device %}
                 {{ segment.device.device_id }}
+                {% if segment.device.last_boot_reason %}
+                  <br><span class="muted">{% trans "Last restart:" %} {{ segment.device.last_boot_reason }}, {{ segment.device.last_boot_at|date:"M j H:i" }}</span>
+                {% endif %}
               {% else %}
                 <span class="pill pill-none">{% trans "No device" %}</span>
               {% endif %}

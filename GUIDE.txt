@@ -1544,6 +1544,29 @@ The owner's page (or the dashboard) shows no Open/Close valve buttons
     and the one button show up on the next upload, about 15 s later, with
     no change on the server.
 
+The board goes quiet the moment the valve moves (and may never come back)
+    Seen 14 Nov 2026 on HH-007: "water running" -> "possible leak" -> back
+    to "normal, 0.00 L/min" within the same minute, twice, and flow figures
+    of 150-1000 L/min. A tap does not do that; a board that RESET does -
+    its flow timer starts empty, so it reports normal. "Possible leak" is
+    the moment the relay pulls in and the valve motor starts, so the
+    supply is sagging under the motor and the ESP32 browns out. With the
+    open-on-boot build that can loop: boot -> drive open 18 s -> brownout
+    -> boot, and the board never reaches WiFi (HH-007 sat offline from
+    15 Nov). The impossible flow figures are the same fault: motor/relay
+    noise counted as flow pulses.
+    HOW TO TELL: firmware from 17 Nov 2026 prints the chip's own reset
+    reason as its first serial line ("[BOOT] reset reason: brownout"),
+    shows it on the board's page ("Last restart:") and reports it once per
+    boot; the dashboard row and the Lines page show it as "Last restart:
+    brownout, Nov 14 12:11". Type CLOSE on the serial monitor: a board that
+    prints a boot banner instead of holding the relay 18 s is browning out.
+    FIX (wiring): the ESP32 on its own USB supply; the valve on its own
+    12-24 V supply; the relay module's coils (VCC) from the USB 5 V, not
+    the ESP32's 5 V pin; a 1000 uF capacitor across the ESP32's 5 V and
+    GND. Test by unplugging the valve supply: if the board then stays
+    online, it was the motor.
+
 The dashboard says the valve is "closed" but the valve did not move
     The board has no feedback from the valve: "closed" means it drove the
     close relay for a full travel, not that it measured the ball. Until 14
@@ -2159,6 +2182,9 @@ WHEN A HOUSEHOLD SAYS THEY GET NOTHING
   WiFi recovery       retry every 10 s; hotspot beside it after 6 misses;
                       the board restarts itself after 15 min without the
                       network if nobody is on the hotspot (firmware)
+  Reset reason        printed first on the serial monitor, on the board's
+                      page, sent once per boot (boot_reason) and shown on
+                      the dashboard row / Lines page as "Last restart:"
   Dashboard refresh   every 5 seconds; 2 s while a valve screen is open
 
   Sensor pins         Pressure  GPIO 34   (must stay ADC1: 32-39)
@@ -2406,6 +2432,13 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+17 Nov 2026  The board reports why it last started (esp_reset_reason):
+             first serial line, the board's page, boot_reason on the first
+             upload after a boot; Device.last_boot_reason / last_boot_at
+             (migration 0046); shown on the facilitator's dashboard row and
+             the Lines page as "Last restart: brownout, Nov 14 12:11".
+             Section 12: "The board goes quiet the moment the valve moves".
+
 15 Nov 2026  Firmware: a continuous-flow leak now holds the valve shut until
              somebody presses Open, like a leak the night test found; it
              used to reopen by itself after 10 minutes and the line went

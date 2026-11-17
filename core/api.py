@@ -655,6 +655,12 @@ def ingest(request):
         if (lan_ip or None) != device.lan_ip:
             device.lan_ip = lan_ip or None
             fields.append("lan_ip")
+        # Sent once per boot, on the first upload the server accepts.
+        boot_reason = str(payload.get("boot_reason") or "").strip()[:40]
+        if boot_reason:
+            device.last_boot_reason = boot_reason
+            device.last_boot_at = now
+            fields += ["last_boot_reason", "last_boot_at"]
         device.save(update_fields=fields)
         # The board answers a WiFi change by its id, once, whichever way it
         # went. Matching the id (not the name) means a change to the password
@@ -817,6 +823,14 @@ def _note_valve_watch(segments):
         Segment.objects.filter(id__in=stale).update(valve_watch_until=until)
 
 
+def _device_boot(device):
+    """One short phrase: why the board last started, and when."""
+    if not device.last_boot_reason:
+        return ""
+    when = timezone.localtime(device.last_boot_at).strftime("%b %d %H:%M") if device.last_boot_at else ""
+    return f"{device.last_boot_reason}, {when}" if when else device.last_boot_reason
+
+
 def _segment_payload(segment):
     latest = getattr(segment, "latest", None)
     household = getattr(segment, "household", None)
@@ -844,6 +858,8 @@ def _segment_payload(segment):
         "device_id": segment.device.device_id if segment.device_id else None,
         "device_online": segment.device.is_online if segment.device_id else False,
         "device_ip": segment.device.last_ip if segment.device_id else None,
+        # "brownout, Nov 14 12:11" - why and when the board last started.
+        "device_boot": _device_boot(segment.device) if segment.device_id else "",
         "maintenance_note": segment.maintenance_note,
         "pressure_bar": round(latest.pressure_bar, 2) if latest else None,
         "pressure_psi": latest.pressure_psi if latest else None,

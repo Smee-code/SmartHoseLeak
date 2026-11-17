@@ -142,3 +142,24 @@ class WifiChangeTests(_Portal):
         self.client.post(reverse("owner_device_wifi"), {"ssid": "OpenNet", "password": ""})
         self.device.refresh_from_db()
         self.assertEqual(self.device.pending_wifi_ssid, "OpenNet")        # open network allowed
+
+
+class BootReasonTests(_Portal):
+    """The board says why it last started, once per boot, and the screens repeat it."""
+
+    def test_the_first_upload_after_a_boot_records_the_reason(self):
+        self.assertEqual(self._ingest(boot_reason="brownout").status_code, 200)
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.last_boot_reason, "brownout")
+        self.assertIsNotNone(self.device.last_boot_at)
+        # Later uploads carry no reason and leave it alone.
+        self._ingest()
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.last_boot_reason, "brownout")
+        live = self.client.get(reverse("api_live")).json()["segments"][0]
+        self.assertTrue(live["device_boot"].startswith("brownout, "))
+
+    def test_nonsense_is_cut_short_not_fatal(self):
+        self.assertEqual(self._ingest(boot_reason="x" * 500).status_code, 200)
+        self.device.refresh_from_db()
+        self.assertEqual(len(self.device.last_boot_reason), 40)

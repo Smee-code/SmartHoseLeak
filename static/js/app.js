@@ -1400,6 +1400,8 @@ if (typeof window.gettext !== 'function') {
           ipLink.hidden = true;
         }
       }
+      // Why and when the board last started ("brownout, Nov 14 12:11").
+      setText('device_boot', segment.device_boot ? gettext('Last restart:') + ' ' + segment.device_boot : '');
 
       // The valve controls stay hidden until a board actually reports a
       // valve. The hardware is on order, and a button that silently does
