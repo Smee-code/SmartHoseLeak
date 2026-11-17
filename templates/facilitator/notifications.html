@@ -136,6 +136,8 @@
         {% endcomment %}
         <fieldset class="channel-box">
           <legend class="small">{% trans "How to send it" %}</legend>
+          {# One row, three channels. "Show in the app" was rendered twice (once #}
+          {# beside SMS, once beside email): two boxes with one id and one name. #}
           <div class="channel-row">
             <span class="check-row">
               {{ form.in_app }}
@@ -144,12 +146,6 @@
             <span class="check-row">
               {{ form.by_sms }}
               <label for="{{ form.by_sms.id_for_label }}">{{ form.by_sms.label }}</label>
-            </span>
-          </div>
-          <div class="channel-row">
-            <span class="check-row">
-              {{ form.in_app }}
-              <label for="{{ form.in_app.id_for_label }}">{{ form.in_app.label }}</label>
             </span>
             <span class="check-row">
               {{ form.by_email }}
@@ -277,7 +273,7 @@
       </p>
     {% else %}
     <div class="table-wrap">
-      <table class="table">
+      <table class="table table-stack">
         <thead>
           <tr>
             <th>{% trans "When" %}</th><th>{% trans "To" %}</th><th>{% trans "Message" %}</th><th>{% trans "Type" %}</th><th>{% trans "Status" %}</th><th class="right"></th>

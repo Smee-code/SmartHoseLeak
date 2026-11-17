@@ -74,7 +74,7 @@
   {% endif %}
 
   <div class="table-wrap">
-    <table>
+    <table class="table-stack">
       <thead>
         <tr>
           <th>{% trans "Colour" %}</th><th>{% trans "Household" %}</th><th>{% trans "Line name" %}</th><th>{% trans "Device" %}</th>
@@ -136,7 +136,7 @@
                 from these attributes, rather than a pair rendered per row.
                 The Edit href still works if JavaScript does not load.
               {% endcomment %}
-              <div class="btn-row" style="justify-content:flex-end">
+              <div class="row-actions">
                 <a class="btn btn-sm" href="{% url 'segment_edit' segment.pk %}"
                    data-edit-segment
                    data-action="{% url 'segment_edit' segment.pk %}"
@@ -151,6 +151,9 @@
                    data-endlng="{{ segment.end_lng|default_if_none:'' }}"
                    data-note="{{ segment.maintenance_note }}"
                    data-active="{{ segment.is_active|yesno:'1,0' }}">{% trans "Edit" %}</a>
+                <details class="rowmenu">
+                  <summary class="btn btn-sm" aria-label="{% trans 'More' %}" title="{% trans 'More' %}"><svg class="ico" aria-hidden="true"><use href="#i-more"></use></svg></summary>
+                  <div class="rowmenu-panel">
                 <form method="post" action="{% url 'segment_maintenance' segment.pk %}">
                   {% csrf_token %}
                   <input type="hidden" name="next" value="{% url 'segment_list' %}">
@@ -171,6 +174,8 @@
                         data-rollups="{{ segment.rollup_count }}"
                         data-events="{{ segment.event_count }}"
                         data-household="{% if segment.household %}{{ segment.household.household_id }}{% endif %}">{% trans "Delete" %}</button>
+                  </div>
+                </details>
               </div>
             </td>
           </tr>
@@ -203,7 +208,7 @@
       </form>
     </div>
     <div class="table-wrap">
-      <table class="table devices-table">
+      <table class="table devices-table table-stack">
         <thead>
           <tr>
             <th>{% trans "Device ID" %}</th><th>{% trans "Fitted to" %}</th><th>{% trans "Claim code" %}</th><th>{% trans "API key" %}</th>
@@ -264,8 +269,8 @@
                         data-copy="{{ device.api_key }}">{% trans "Copy" %}</button>
               </td>
               <td>
-                {% if device.is_online %}<span class="pill pill-ok">{% trans "online" %}</span>
-                {% else %}<span class="pill pill-OFFLINE">{% trans "offline" %}</span>{% endif %}
+                {% if device.is_online %}<span class="pill pill-ok">{% trans "Online" %}</span>
+                {% else %}<span class="pill pill-OFFLINE">{% trans "Offline" %}</span>{% endif %}
               </td>
               <td class="small">
                 {% if device.last_seen %}<span data-ago="{{ device.last_seen|date:'c' }}"></span>
@@ -276,7 +281,7 @@
                 {% endif %}
               </td>
               <td class="right">
-                <div class="btn-row" style="justify-content:flex-end">
+                <div class="row-actions">
                   <button type="button" class="btn btn-sm"
                           data-newkey-device="{{ device.pk }}"
                           data-action="{% url 'device_regenerate_key' device.pk %}"
@@ -285,7 +290,8 @@
                   {% if not device.line %}
                     <form method="post" action="{% url 'device_delete' device.pk %}">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-danger">{% trans "Remove" %}</button>
+                      {# Quiet: a filled red button on every spare board made the table a column of alarms. #}
+                      <button type="submit" class="btn btn-sm btn-quiet-danger">{% trans "Remove" %}</button>
                     </form>
                   {% endif %}
                 </div>

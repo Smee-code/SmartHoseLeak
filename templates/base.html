@@ -213,6 +213,32 @@
     </aside>
 
     <div class="sidenav-scrim" id="sidenav-scrim" hidden></div>
+
+    {% comment %}
+      The owner's five places along the bottom of a phone (CSS shows it only
+      below the width where the sidebar becomes a drawer). Before .appmain on
+      purpose: the stylesheet pads the page and hides the menu button with a
+      sibling selector, so there is nothing to switch on in script.
+    {% endcomment %}
+    {% if not is_admin and not is_facilitator %}
+    <nav class="tabbar" aria-label="{% trans 'Sections' %}">
+      <a href="{% url 'owner_home' %}" {% if request.resolver_match.url_name == 'owner_home' %}aria-current="page"{% endif %}>
+        <svg class="ico" aria-hidden="true"><use href="#i-home"></use></svg><span>{% trans "Home" %}</span>
+      </a>
+      <a href="{% url 'owner_pressure' %}" {% if request.resolver_match.url_name == 'owner_pressure' %}aria-current="page"{% endif %}>
+        <svg class="ico" aria-hidden="true"><use href="#i-gauge"></use></svg><span>{% trans "Pressure" %}</span>
+      </a>
+      <a href="{% url 'owner_notifications' %}" {% if request.resolver_match.url_name == 'owner_notifications' %}aria-current="page"{% endif %}>
+        <svg class="ico" aria-hidden="true"><use href="#i-bell"></use></svg><span>{% trans "Notices" %}</span>{% if unread_count %}<span class="badge">{{ unread_count }}</span>{% endif %}
+      </a>
+      <a href="{% url 'owner_complaints' %}" {% if 'owner_complaint' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+        <svg class="ico" aria-hidden="true"><use href="#i-chat"></use></svg><span>{% trans "Complaints" %}</span>
+      </a>
+      <a href="{% url 'owner_settings' %}" {% if 'owner_settings' in request.resolver_match.url_name or 'owner_contact' in request.resolver_match.url_name or 'owner_device' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+        <svg class="ico" aria-hidden="true"><use href="#i-cog"></use></svg><span>{% trans "Settings" %}</span>
+      </a>
+    </nav>
+    {% endif %}
   {% endif %}
 
   <div class="appmain">

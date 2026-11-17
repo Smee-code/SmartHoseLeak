@@ -17,7 +17,7 @@
 {% endcomment %}
 
 {% block content %}
-<div class="wrap-narrow owner-page">
+<div class="wrap-narrow owner-page owner-settings">
 
   <h1 class="owner-h1">{% trans "Settings" %}</h1>
 
@@ -28,7 +28,7 @@
     yard. Every state carries what to do about it.
   {% endcomment %}
   <section class="owner-section" id="device-section" data-device-poll="{% url 'owner_device_status' %}">
-    <h2>{% trans "My device" %}</h2>
+    <h2><span class="sec-ico" aria-hidden="true"><svg class="ico"><use href="#i-gauge"></use></svg></span>{% trans "My device" %}</h2>
     <p class="set-lede">
       {% trans "The small board on your water line. It sends readings to the system once it is on your WiFi." %}
     </p>
@@ -79,12 +79,14 @@
       it until it says Connected.
     {% endcomment %}
     <div style="margin-top:.75rem">
-      <button type="button" class="owner-action" data-device="open" data-modal-open="device-modal"
+      {# Outlined: these two open something to read. The filled button on this #}
+      {# page is kept for the actions that change something.                 #}
+      <button type="button" class="owner-action owner-action-quiet" data-device="open" data-modal-open="device-modal"
               {% if device.key == 'connected' or device.key == 'no_board' or device.key == 'awaiting_activation' %}hidden{% endif %}>
         {% if device.key == 'lost' %}{% trans "What to check" %}{% elif device.key == 'claimed_silent' %}{% trans "Set up again" %}{% elif device.key == 'connecting' %}{% trans "Setup steps" %}{% else %}{% trans "Set up my board" %}{% endif %}
       </button>
       {# The board's own page: its hotspot address, or its home-WiFi address once it is online. #}
-      <a class="owner-action" style="margin-top:.5rem" data-device="board-link" href="{{ device.board_url }}" target="_blank" rel="noopener">{% trans "Open the board's page" %}</a>
+      <a class="owner-action owner-action-quiet" style="margin-top:.5rem" data-device="board-link" href="{{ device.board_url }}" target="_blank" rel="noopener">{% trans "Open the board's page" %}</a>
       <p class="set-note small" data-device="board-link-note">{{ device.board_url_note }}</p>
     </div>
   </section>
@@ -178,7 +180,7 @@
     number comes back; the confirm page is the next step.
   {% endcomment %}
   <section class="owner-section" id="contact-section">
-    <h2>{% trans "My contact details" %}</h2>
+    <h2><span class="sec-ico" aria-hidden="true"><svg class="ico"><use href="#i-user"></use></svg></span>{% trans "My contact details" %}</h2>
     <p class="set-lede">
       {% blocktrans trimmed %}
       Where leak alerts are texted and sign-in codes are sent. Changed your
@@ -219,7 +221,7 @@
     the instructions rather than an empty card.
   {% endcomment %}
   <section class="owner-section" id="install-section">
-    <h2>{% trans "Install the app" %}</h2>
+    <h2><span class="sec-ico" aria-hidden="true"><svg class="ico"><use href="#i-grid"></use></svg></span>{% trans "Install the app" %}</h2>
     <p class="set-lede">
       {% blocktrans trimmed %}
       Put this portal on your home screen. It opens full screen like a normal
@@ -277,7 +279,7 @@
     refused permission or never been asked.
   {% endcomment %}
   <section class="owner-section">
-    <h2>{% trans "Alerts on this phone" %}</h2>
+    <h2><span class="sec-ico" aria-hidden="true"><svg class="ico"><use href="#i-bell"></use></svg></span>{% trans "Alerts on this phone" %}</h2>
     <p class="set-lede">
       {% blocktrans trimmed %}
       Get a notification the moment something is wrong with your water, even
@@ -334,7 +336,7 @@
   {% endcomment %}
   {% if subscriptions|length > 1 %}
     <section class="owner-section">
-      <h2>{% trans "Phones getting alerts" %}</h2>
+      <h2><span class="sec-ico" aria-hidden="true"><svg class="ico"><use href="#i-users"></use></svg></span>{% trans "Phones getting alerts" %}</h2>
       <p class="set-lede">
         {% blocktrans trimmed with count=subscriptions|length %}
         {{ count }} phones in your household are set up for

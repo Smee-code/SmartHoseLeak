@@ -19,7 +19,7 @@
   <div class="card">
     <div class="card-head"><h2>{% trans "Per supply line" %}</h2></div>
     <div class="table-wrap">
-      <table>
+      <table class="table-stack table-plain">
         <thead>
           <tr>
             <th>{% trans "Supply line" %}</th><th>{% trans "Markers" %}</th>
@@ -62,11 +62,12 @@
   <div class="card" style="margin-top:1.6rem">
     <div class="card-head"><h2>{% trans "Complaints by status" %}</h2></div>
     <div class="table-wrap">
-      <table>
+      <table class="table-stack table-plain">
         <thead><tr><th>{% trans "Status" %}</th><th class="num">{% trans "Count" %}</th></tr></thead>
         <tbody>
           {% for row in complaint_counts %}
-            <tr><td>{{ row.status }}</td><td class="num">{{ row.n }}</td></tr>
+            {# The label a person reads, not the stored code ("in_progress"). #}
+            <tr><td>{% if row.status == "pending" %}{% trans "Pending" %}{% elif row.status == "in_progress" %}{% trans "In Progress" %}{% elif row.status == "resolved" %}{% trans "Resolved" %}{% elif row.status == "rejected" %}{% trans "Rejected" %}{% else %}{{ row.status }}{% endif %}</td><td class="num">{{ row.n }}</td></tr>
           {% empty %}
             <tr><td colspan="2" class="empty">{% trans "No complaints filed yet." %}</td></tr>
           {% endfor %}

@@ -3122,3 +3122,132 @@ th {
 .attention li[data-level="warn"] { border-left-color: var(--accent); background: var(--accent-soft); }
 .attention li[data-level="warn"] .attention-count { color: var(--accent); }
 .attention li[data-level="danger"] { background: var(--danger-soft); }
+
+/* ==========================================================================
+   FACILITATOR PAGES  (17 Nov 2026 review)
+   ========================================================================== */
+
+/* A small button's label stays on one line. "Test valve" and "Close valve"
+   were breaking into two lines each in the dashboard's live table, which
+   doubled the height of every row. */
+.btn-sm { white-space: nowrap; }
+/* A number and its unit stay together too ("0.00 bar"). */
+td.num { white-space: nowrap; }
+
+/* ---- Statuses that had no colour at all ----------------------------------
+   WATER_RUNNING (the warning before a leak is called) had no pill, tile or
+   row style, so it printed as plain text between coloured neighbours. Amber:
+   it is the degraded state, one step short of the red of a leak. */
+.pill-WATER_RUNNING { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+.tile[data-status="WATER_RUNNING"] { border-left-color: var(--warn); }
+.live-table tr[data-status="WATER_RUNNING"] { background: var(--warn-soft); }
+/* Complaint states, on the thread list and wherever else they are printed.
+   Waiting on the facilitator is the accent; being worked on is teal. */
+.pill-pending { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.pill-in_progress { background: var(--info-soft); color: var(--info); border-color: var(--info); }
+.pill-resolved { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+.pill-rejected { background: var(--surface-2); color: var(--text-muted); border-color: var(--border); }
+
+/* ---- The dashboard's live table ------------------------------------------
+   A line that has stopped reporting was drawn at 65% opacity: every figure
+   and both valve buttons fell under the contrast minimum, on exactly the
+   rows a facilitator has to act on. Now the row is full strength and only
+   its stale figures are greyed. */
+.live-table tr[data-status="OFFLINE"] td { opacity: 1; }
+.live-table tr[data-status="OFFLINE"] td.num,
+.live-table tr[data-status="OFFLINE"] [data-field="valve"] { color: var(--text-muted); }
+/* The household: id and name stay whole instead of breaking mid-name. */
+.live-table td:first-child { min-width: 11rem; }
+.live-table td:first-child strong { white-space: nowrap; }
+.live-table [data-field="device"] { white-space: nowrap; }
+
+/* ---- Reports ---------------------------------------------------------------
+   A rule written for another card greys and shrinks every third column of
+   any table in a card; on Reports that column is "Avg pressure (bar)", the
+   figure the page exists to show. */
+.wrap > .card table.table-plain td:nth-child(3) { color: inherit; font-size: inherit; }
+
+/* ---- Household record: an empty value says so ----------------------------- */
+.definition dd:empty::before { content: "\2014"; color: var(--text-muted); font-weight: 400; }
+
+/* ==========================================================================
+   OWNER PORTAL  (17 Nov 2026 review)
+   A household uses this on a phone, with one thumb, often on a weak signal.
+   ========================================================================== */
+
+/* ---- Bottom tab bar (phones and tablets) ----------------------------------
+   The portal has exactly five places. They were behind the menu button at
+   the top-left - the hardest corner of a phone to reach, and two taps for
+   every move. Below the width where the sidebar becomes a drawer, the five
+   sit along the bottom edge instead, always visible, each 56px tall. The
+   sidebar still carries them on a wide screen, so the bar is hidden there. */
+.tabbar { display: none; }
+@media (max-width: 1024px) {
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1100;
+    background: var(--rail); border-top: 1px solid var(--rail-rule);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .tabbar a {
+    position: relative; min-height: 56px; padding: .4rem .15rem .35rem;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem;
+    color: var(--rail-text); text-decoration: none;
+    font-size: .75rem; font-weight: 600; line-height: 1.15; text-align: center;
+  }
+  .tabbar a .ico { width: 22px; height: 22px; flex: 0 0 22px; color: var(--rail-dim); }
+  .tabbar a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabbar a[aria-current="page"] { color: #ffffff; }
+  .tabbar a[aria-current="page"] .ico { color: var(--trace-bright); }
+  /* the current place: the cyan pen along the top edge of its tab */
+  .tabbar a[aria-current="page"]::before {
+    content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 3px;
+    background: var(--trace-bright); border-radius: 0 0 3px 3px;
+  }
+  .tabbar a:focus-visible { outline: 2px solid var(--trace-bright); outline-offset: -3px; }
+  .tabbar .badge { position: absolute; top: 5px; left: calc(50% + 6px); }
+  /* Room for the bar under the page, and no menu button: the bar replaces it. */
+  .tabbar ~ .appmain { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+  .tabbar ~ .appmain .topbar .navtoggle { display: none; }
+}
+@media print { .tabbar { display: none !important; } }
+
+/* ---- The page title: the same band as the other two roles ------------------ */
+.wrap-narrow > .page-head:first-child, .owner-h1 {
+  padding: .9rem 1.05rem; margin: 0 0 1.1rem;
+  background: linear-gradient(100deg, var(--brand-soft) 0%, var(--trace-soft) 58%, var(--surface) 100%);
+  border: 1px solid var(--border); border-left: 4px solid var(--brand);
+  border-radius: var(--radius);
+}
+.wrap-narrow > .page-head:first-child h1, .owner-h1 { color: var(--brand-strong); }
+[data-theme="dark"] .wrap-narrow > .page-head:first-child, [data-theme="dark"] .owner-h1 { border-left-color: var(--trace-bright); }
+[data-theme="dark"] .wrap-narrow > .page-head:first-child h1, [data-theme="dark"] .owner-h1 { color: var(--text); }
+
+/* ---- Settings: one card per subject, one main button per card -------------
+   The page was a single column of text with five identical full-width blue
+   buttons. Each subject is now its own card under an icon heading, and only
+   the action that changes something keeps the filled button. */
+.owner-settings .owner-section {
+  margin-top: 1rem; padding: 1rem 1.05rem 1.1rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.owner-settings .owner-section h2 { font-size: 1.1rem; margin-bottom: .5rem; }
+.sec-ico {
+  width: 32px; height: 32px; flex: 0 0 32px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand);
+}
+.sec-ico .ico { width: 18px; height: 18px; flex-basis: 18px; }
+/* A second-rank action: same size and reach as the main one, outlined. */
+.owner-action-quiet {
+  background: var(--surface); color: var(--brand-strong);
+  border: 1.5px solid var(--brand); text-align: center; text-decoration: none;
+}
+.owner-action-quiet:hover { background: var(--brand-soft); }
+[data-theme="dark"] .owner-action-quiet { color: var(--brand); }
+
+/* ---- Home: the week's three numbers, told apart ---------------------------- */
+.owner-week div { border-top: 3px solid var(--border-strong); }
+.owner-week div:has(dd.is-live) { border-top-color: var(--danger); background: var(--danger-soft); }
+.owner-week div:nth-child(2) { border-top-color: var(--info); }
+.owner-week div:nth-child(3) { border-top-color: var(--accent); }

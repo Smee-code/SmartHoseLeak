@@ -40,7 +40,7 @@
   </form>
 
   <div class="table-wrap">
-    <table>
+    <table class="table-stack">
       <thead>
         <tr><th>{% trans "Household ID" %}</th><th>{% trans "Owner" %}</th><th>{% trans "Address" %}</th><th>{% trans "Contact" %}</th>
             <th>{% trans "Supply line" %}</th><th>{% trans "Status" %}</th><th>{% trans "Portal login" %}</th><th></th></tr>
@@ -72,7 +72,7 @@
               working links for the no-JavaScript case.
             {% endcomment %}
             <td class="right">
-              <div class="btn-row" style="justify-content:flex-end;flex-wrap:nowrap">
+              <div class="row-actions">
                 {% if household.is_pending %}
                   {% if household.segment and household.segment.device %}
                     <button type="button" class="btn btn-primary btn-sm"

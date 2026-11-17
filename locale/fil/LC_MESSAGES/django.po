@@ -6925,3 +6925,7 @@ msgstr "Dito itinatago ang sambahayan o facilitator na ina-archive mo, at maaari
 #: console review, 17 Nov 2026
 msgid "From"
 msgstr "Mula"
+
+#: console review, 17 Nov 2026
+msgid "Online"
+msgstr "Online"
