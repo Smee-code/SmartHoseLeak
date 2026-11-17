@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Confirm your new contact details" %} - {{ SITE_NAME }}{% endblock %}
+{% block body_class %}is-owner{% endblock %}
+
+{% comment %}
+  Step two of changing a number or email. The code went to the NEW number
+  (or new email), and nothing has changed until it comes back: the old
+  number is still the one alerts go to. Same shape as the sign-in code page,
+  written for a phone.
+{% endcomment %}
+
+{% block content %}
+<div class="wrap-narrow owner-page">
+
+  <h1 class="owner-h1">{% trans "Confirm your new contact details" %}</h1>
+
+  <section class="owner-section" id="contact-confirm">
+    <p class="set-lede">
+      {% if pending.channel == 'sms' %}
+        {% blocktrans trimmed with dest=masked %}
+        A 6-digit code was sent by text to <strong>{{ dest }}</strong>. Enter it
+        below. It expires {{ minutes }} minutes after it was sent.
+        {% endblocktrans %}
+      {% else %}
+        {% blocktrans trimmed with dest=masked %}
+        A 6-digit code was sent by email to <strong>{{ dest }}</strong>. Enter it
+        below. It expires {{ minutes }} minutes after it was sent.
+        {% endblocktrans %}
+      {% endif %}
+    </p>
+    <p class="set-note">
+      {% blocktrans trimmed with number=pending.number %}New number: <strong>{{ number }}</strong>{% endblocktrans %}
+      {% if pending.email %}
+        &middot; {% blocktrans trimmed with email=pending.email %}new email: <strong>{{ email }}</strong>{% endblocktrans %}
+      {% endif %}
+    </p>
+    <p class="set-note">{% trans "Nothing changes until the code is entered. Your current details still work meanwhile." %}</p>
+
+    {% if error %}
+      <div class="message message-error" id="code-error" role="alert" tabindex="-1">
+        <span>{{ error }}</span>
+      </div>
+    {% endif %}
+
+    <form method="post" action="{% url 'owner_contact_confirm' %}" novalidate>
+      {% csrf_token %}
+      <div class="field">
+        <label for="contact-code">{% trans "Code" %}</label>
+        <input type="text" id="contact-code" name="code" inputmode="numeric" pattern="[0-9]*"
+               maxlength="6" autocomplete="one-time-code" autofocus required
+               {% if error %}aria-invalid="true" aria-describedby="code-error"{% endif %}>
+      </div>
+      <button type="submit" class="owner-action">{% trans "Confirm" %}</button>
+    </form>
+
+    <form method="post" action="{% url 'owner_contact_resend' %}" class="login-resend" style="margin-top:1rem">
+      {% csrf_token %}
+      <span class="small muted">{% trans "Did not get it?" %}</span>
+      <button type="submit" class="btn btn-sm" {% if not can_resend %}disabled title="{% trans 'Wait a minute before asking again' %}"{% endif %}>{% trans "Send a new code" %}</button>
+    </form>
+
+    <form method="post" action="{% url 'owner_contact_cancel' %}" style="margin-top:.6rem">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm">{% trans "Cancel the change" %}</button>
+    </form>
+
+    <p class="set-note" style="margin-top:1rem">
+      {% trans "If the code does not arrive, the water system facilitator can change your details for you." %}
+    </p>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () { var box = document.getElementById('code-error'); if (box) box.focus(); })();
+</script>
+{% endblock %}

@@ -171,6 +171,44 @@
   </div>
 
   {% comment %}
+    My contact details. The number leak alerts are texted to and the login's
+    sign-in codes go to, changed by the owner themselves - until now only the
+    facilitator (household record) and the administrator (login) could, in
+    two different places. Nothing changes until a code sent to the NEW
+    number comes back; the confirm page is the next step.
+  {% endcomment %}
+  <section class="owner-section" id="contact-section">
+    <h2>{% trans "My contact details" %}</h2>
+    <p class="set-lede">
+      {% blocktrans trimmed %}
+      Where leak alerts are texted and sign-in codes are sent. Changed your
+      number? Enter the new one here. A code is sent to it first, so a
+      mistyped number cannot carry your alerts to a stranger.
+      {% endblocktrans %}
+    </p>
+    {% if contact_pending %}
+      <p class="set-warn">
+        {% trans "A change is waiting for its code." %}
+        <a href="{% url 'owner_contact_confirm' %}">{% trans "Enter the code" %}</a>
+      </p>
+    {% endif %}
+    <form method="post" action="{% url 'owner_contact_start' %}" novalidate>
+      {% csrf_token %}
+      <div class="field">
+        <label for="contact-number">{% trans "Mobile number" %}</label>
+        <input type="tel" id="contact-number" name="contact_number" value="{{ household.contact_number }}"
+               inputmode="tel" autocomplete="tel" maxlength="20" required placeholder="09171234567">
+      </div>
+      <div class="field">
+        <label for="contact-email">{% trans "Email (optional)" %}</label>
+        <input type="email" id="contact-email" name="email" value="{{ household.email }}"
+               autocomplete="email" maxlength="254">
+      </div>
+      <button type="submit" class="owner-action">{% trans "Save and send me a code" %}</button>
+    </form>
+  </section>
+
+  {% comment %}
     Install.
 
     Three states, decided in the browser because only the browser knows:

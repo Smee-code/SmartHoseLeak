@@ -887,6 +887,16 @@ SETTING IT UP  (about 5 minutes)
          Texts are going out, but credit is low - 12 left.   top up soon
          There is no SMS credit left, so no text can be sent.    AMBER
 
+  SMART / TNT NUMBERS GET NOTHING UNTIL A SENDER NAME IS APPROVED. The
+  gateway's shared sender name is accepted by Globe (0917, 0905, 0906,
+  0915, 0916, 0926, 0927, 0935, 0936, 0945, 0955, 0956, 0965, 0966, 0967,
+  0975, 0976, 0977, 0995, 0997) but refused by Smart and TNT: the text
+  FAILS with "Smart/TNT networks do not accept shared sender names. Please
+  get your own sender name approved at iprogsms.com/sender-names/new".
+  Seen 9 Nov 2026 on a 0989 number. Register a sender name there once
+  (free, a day or two) and every network works. Until then a Smart/TNT
+  owner sees the in-app notice and the push, and no text.
+
   The last one is a stop, not a warning: at zero credit the gateway refuses
   every send with "402: insufficient credit". Messages you send are still
   written down and still go out after you top up - nothing is lost, it just
@@ -1120,6 +1130,42 @@ CHANGING THE WIFI OF A BOARD THAT IS ONLINE
 
 
 ============================================================================
+9i. THE OWNER CHANGES THEIR OWN NUMBER OR EMAIL  (Settings > My contact details)
+============================================================================
+Until 15 Nov 2026 only staff could: the facilitator on the household record
+(where leak alerts are texted) and the administrator on the login (where
+sign-in codes go), in two different places, so a new SIM usually left the
+two out of step. The owner now does it themselves from Settings, and both
+records change together.
+
+HOW IT GOES
+  1. Settings > My contact details: type the new number (and/or email),
+     press "Save and send me a code".
+     Refused on the spot: a number that is not a PH mobile, a number or
+     email already on another household ("ask the facilitator"), nothing
+     changed.
+  2. A 6-digit code is texted to the NEW number (or emailed to the new
+     email when only the email changed). The old number gets nothing: the
+     point is to prove the new one is theirs and typed right. Same codes as
+     the sign-in, same 10-minute life, same one-a-minute resend, five wrong
+     guesses burn it. Nothing has changed yet.
+  3. They enter the code on the confirm page. Then, at once:
+       - household record and login both carry the new number/email;
+       - the household gets a notice in its feed ("Contact details
+         changed ... if you did not do this, tell the facilitator");
+       - the facilitator of the barangay gets a TEXT and an EMAIL (whichever
+         they have on their account) saying who changed what, old -> new;
+         the notice also appears in the facilitator's Notification center;
+       - the audit log gets "household.contact_change".
+  Cancel on the confirm page drops the change and burns the code.
+
+IF THE CODE DOES NOT ARRIVE
+  On the hosted free tier texts stay queued (section 16), so the code to a
+  new NUMBER never arrives there; the confirm page says to ask the
+  facilitator, who changes it from the household form as before. A change
+  of EMAIL only is confirmed by email and works wherever email works.
+
+============================================================================
 9f. BENCH TESTING WITHOUT THE VALVE OR THE GSM MODULE
 ============================================================================
 The sketch has two switches at the top for hardware that has not arrived:
@@ -1205,7 +1251,12 @@ THE VALVE
                                               it; the line reads POSSIBLE_LEAK
                                               until then
     "Closed automatically because water
-     ran non-stop for too long"             - reopens after 10 min (firmware)
+     ran non-stop for too long"             - STAYS SHUT until somebody opens
+                                              it (since 15 Nov 2026; it used
+                                              to reopen after 10 min); the
+                                              line reads POSSIBLE_LEAK until
+                                              then, and the close survives a
+                                              power cut
     "Closed by the household / the
      facilitator / the administrator"       - stays shut until opened
   The board sends the reason with every reading (valve_reason). A board on
@@ -1457,6 +1508,42 @@ have a corresponding value in core_segment.id" although the row exists
     have to be re-created in the console (Hose lines) and re-linked to
     their households. Happened 12 Nov 2026 - cause: WAL on PythonAnywhere.
 
+"I got no text / no email" while the SMS log says delivered
+    Seen 15 Nov 2026 on the hosted site: ten leak-alert texts to the
+    household's 0976 number marked DELIVERED by the gateway, the tester
+    holding a different phone. Check, in this order:
+      - WHOSE number is on the household record (Settings > My contact
+        details, or the household form). Texts go to that number, not to
+        whoever is testing. The facilitator's copy goes to the number on
+        the facilitator's LOGIN (Django admin -> Users).
+      - A Smart/TNT phone gets nothing until a sender name is approved
+        (section 9c); the log shows those as FAILED with the reason.
+      - A Globe phone that shows nothing although the log says delivered:
+        look in the phone's spam/blocked-messages folder - Android and
+        Globe filter alphanumeric sender names - and make sure the SIM is
+        active and has signal.
+      - Email sent FROM smarthoseleak@gmail.com TO the same address lands
+        in Gmail's Sent/All Mail, not the Inbox. Test with another inbox,
+        or put a different address on the household.
+    Quick proof of the whole path: Console -> Pressure -> Send test alert,
+    then the facilitator's Notices & SMS log a few seconds later.
+
+The owner's page (or the dashboard) shows no Open/Close valve buttons
+    The buttons appear only once the board reports a valve. A board whose
+    uploads carry no valve_state - the three-module sketch, or the October
+    "data-path build" (Code\smarthoseleak\smarthoseleak.ino, uploads
+    every 2 s, nothing but pressure/flow/status) - is stored as "Not
+    fitted", and every screen hides the buttons on purpose: that sketch
+    also ignores valve_command, so a button would do nothing. Seen 14 Nov
+    2026 on the hosted site, HH-007, board esp32-21: online, readings
+    normal, no valve row. Tell-tales of the old build on the owner's
+    Settings page: "WiFi network: ?" and "Open the board's page" saying
+    it opens only on the board's own WiFi (no wifi_ssid, no lan_ip).
+    Fix: flash firmware\water_leak_single_wifi (section 10) with "Erase
+    All Flash" DISABLED so the claim survives. The row "Water valve: open"
+    and the one button show up on the next upload, about 15 s later, with
+    no change on the server.
+
 The dashboard says the valve is "closed" but the valve did not move
     The board has no feedback from the valve: "closed" means it drove the
     close relay for a full travel, not that it measured the ball. Until 14
@@ -1465,6 +1552,14 @@ The dashboard says the valve is "closed" but the valve did not move
     stopped. Flash the current sketch - it holds each relay 18 s and prints
     "[VALVE] closing - holding the relay for 18 s" in the Serial Monitor.
     If a freshly flashed board still does not move the valve:
+      - it moves the WRONG way (CLOSE opens it, OPEN closes it - seen 15
+        Nov 2026): the valve's two wires are on each other's relay. Swap
+        the two valve wires at the relay NO terminals (or the two jumpers
+        at IN1/IN2) - or, as was done on 15 Nov 2026, swap the two pin
+        numbers RELAY_OPEN / RELAY_CLOSE at the top of the sketch and
+        reflash. Never change the server for this: it only says "open"
+        or "close" and the board picks the pin. Then type CLOSE and OPEN
+        once each so the board's idea of the position matches the ball;
       - no click from the relay: relay module power (VCC/GND), the IN wire
         on GPIO 25/26, or an active-HIGH module (flip RELAY_ON/OFF);
       - click but no motion: the valve's own 12-24 V supply is missing or
@@ -1483,6 +1578,44 @@ The map fills with yellow "Access blocked" tiles
     Ctrl+Shift+R once to clear them.
     If it ever comes back: the map is optional. Press "Switch to offline
     schematic" and carry on; the schematic needs no internet at all.
+
+The upload stops part-way: "No more data to read from the serial port"
+    esptool writes the bootloader and partition table, starts the big
+    program image, then loses the port ("Hard resetting via RTS pin" in
+    the middle of a write). Seen 15 Nov 2026 at 9%. The serial link
+    dropped: a USB cable or hub that cannot hold 921600 baud, or the 5 V
+    sagging under the relays, sensors and valve hanging off the board
+    while the flash is written. The board is now HALF-FLASHED and will
+    not run until an upload succeeds; its saved WiFi, server and claim
+    are intact (that flash area is never erased unless "Erase All Flash"
+    is on). Fix, in order:
+      1. Tools -> Upload Speed -> 115200. Slow but it finishes.
+      2. Unplug the relay board, the sensors and the valve supply from
+         the ESP32 for the upload; use a short known-good data cable
+         straight into the laptop, not a hub.
+      3. Close the Serial Monitor and anything else holding COM9.
+      4. Upload again. If "Connecting...." hangs, hold BOOT until it
+         says Connected.
+    Or from a terminal, which lets you set the speed without the IDE:
+        "%LOCALAPPDATA%\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" upload -p COM9 --fqbn esp32:esp32:esp32:UploadSpeed=115200 firmware/water_leak_single_wifi
+
+The board stays offline for hours and does not come back by itself
+    Seen 14-15 Nov 2026 (esp32-21, "connection lost" for 26 h). Physical
+    checks first: is the board powered, and is it within reach of the
+    WiFi it was told (the owner's Settings card names it)? A board
+    carried from that network to a bench cannot join it. "Change WiFi"
+    on the portal reaches only a board that is ONLINE; a cut-off board
+    needs the hotspot route (Settings -> What to check). Join
+    LeakDetect-Setup and open http://192.168.4.1/ - "Hotspot mode. Still
+    trying <name>" means it sees no such network or the password is wrong.
+    If power and range are fine and it still sits offline for hours, it
+    is the ESP32's radio: after a long outage (router rebooted, power back
+    before the router was up) the WiFi stack can stay stuck however often
+    it retries, while a fresh boot joins first time. Firmware from 15 Nov
+    2026 restarts the board by itself after 15 minutes without the
+    network, provided nobody is on its hotspot (WIFI_RESTART_AFTER_MS),
+    and turns on the stack's own auto-reconnect. Older firmware: pull the
+    power for ten seconds, then reflash to get the self-restart.
 
 The device page shows the wrong upload result
     http://<device-ip>/status shows server_url and server_upload, which is
@@ -2023,12 +2156,17 @@ WHEN A HOUSEHOLD SAYS THEY GET NOTHING
   Upload interval     every 15 seconds (Console -> Detection settings;
                       a change of status or valve uploads at once)
   Offline after       3 missed uploads + 5 s (50 s at the default)
+  WiFi recovery       retry every 10 s; hotspot beside it after 6 misses;
+                      the board restarts itself after 15 min without the
+                      network if nobody is on the hotspot (firmware)
   Dashboard refresh   every 5 seconds; 2 s while a valve screen is open
 
   Sensor pins         Pressure  GPIO 34   (must stay ADC1: 32-39)
                       Flow      GPIO 27
-                      Valve relay OPEN  GPIO 25
-                      Valve relay CLOSE GPIO 26
+                      Valve relay OPEN  GPIO 26
+                      Valve relay CLOSE GPIO 25
+                      (swapped 15 Nov 2026 to match the wiring in place;
+                      RELAY_OPEN / RELAY_CLOSE at the top of the sketch)
   Valve               ACARPS motorised ball valve, DC 12-24 V, 3 wires
                       (N common, CLOSE, OPEN), running time 15 s. Each
                       relay is HELD for 18 s per move (VALVE_TRAVEL_MS in
@@ -2045,6 +2183,11 @@ WHEN A HOUSEHOLD SAYS THEY GET NOTHING
 14. STILL TO DO
 ============================================================================
   [ ] Flash the new per-household firmware and claim the board (section 9d)
+  [ ] PARKED, decide later: "the system is the basis" for the valve - the
+      server holds the status and the board follows it, every screen says
+      whether the board has confirmed it. Built and tested 15 Nov 2026,
+      not deployed because the firmware in the field works. Complete in
+      tools/parked/valve-system-basis/ (README there).
   [ ] Wire the motorised valve to GPIO 25 / 26 through a 2-channel relay
   [ ] Zero the pressure sensors. Empty the line, then type Z in the Serial
       Monitor. Until this is done all three read about 0.45 bar with no
@@ -2157,6 +2300,18 @@ THE ONE THING THAT DOES NOT SCALE YET
        when it sees PythonAnywhere's environment, so the line is a belt to
        those braces.
 
+       FOR TEXTS, EMAIL AND PUSH TO LEAVE THE HOSTED SITE, the same .env
+       also needs the lines the laptop's .env has (copy the values):
+           IPROGSMS_API_TOKEN=...        texts (section 9c)
+           EMAIL_HOST_USER=...           a Gmail address
+           EMAIL_HOST_PASSWORD=...       its app password
+           VAPID_PUBLIC_KEY=... / VAPID_PRIVATE_KEY=... / VAPID_SUBJECT=...
+       Without the email pair the site "sends" email to its own log and
+       nothing arrives; without the token every text fails at once; and
+       texts also need the worker task (paid tier, below). Checked 15 Nov
+       2026 after a test produced no text and no email: none of this was
+       written here, so a .env made from this page had none of it.
+
        Generate the key in the same console:
            python -c "from django.core.management.utils import get_random_secret_key as g; print(g())"
 
@@ -2225,6 +2380,13 @@ THE ONE THING THAT DOES NOT SCALE YET
   ON THE PAID TIER (the account was upgraded 11 Nov 2026)
     - Outbound internet is open: iprogSMS and the push services are
       reachable. Add the Always-on task  python manage.py send_sms --watch
+      - written with FULL PATHS, because a task (and a fresh console) starts
+      in /home/<you>, where there is no manage.py:
+          /home/<you>/.virtualenvs/shl/bin/python /home/<you>/SmartHoseLeak/manage.py send_sms --watch
+      To try it by hand in a Bash console first:
+          cd ~/SmartHoseLeak && workon shl && python manage.py send_sms --watch
+      (it keeps running until the console is closed; the Always-on task is
+      the one that survives.)
       or texts sit in the queue.
     - CPU allowance. Every request costs CPU seconds from a daily allowance
       (a few thousand on the paid plans); past it the site is throttled
@@ -2244,6 +2406,57 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+15 Nov 2026  Firmware: a continuous-flow leak now holds the valve shut until
+             somebody presses Open, like a leak the night test found; it
+             used to reopen by itself after 10 minutes and the line went
+             back to NORMAL with water still running. The close survives a
+             power cut. Wording of the valve sentence changed to match
+             ("Check your taps and hose, then open it here once fixed").
+             The auto-close itself is Console -> System -> Detection
+             settings -> "Auto-close valve on a continuous-flow leak".
+
+15 Nov 2026  Section 16, step 3: the hosted .env also needs the iprogSMS
+             token, the Gmail pair and the VAPID keys, or no text, email or
+             push ever leaves the hosted site; section 9c gained the
+             Smart/TNT sender-name refusal. Both found while chasing "no
+             notifications during testing".
+
+15 Nov 2026  The owner changes their own number or email (Settings > My
+             contact details, section 9i). A code goes to the NEW number
+             (or new email) first; on confirmation the household record and
+             the login change together, the household gets a notice, the
+             barangay's facilitator a text and an email, the audit log an
+             entry. core/tests_owner_contact.py.
+
+15 Nov 2026  Parked, not deployed: "the system is the basis" for the valve
+             (server holds the status, board follows, screens say whether
+             the board confirmed). Built, 267 tests passing, then set
+             aside at the owner's request because the current firmware
+             works. Everything is in tools/parked/valve-system-basis/;
+             section 14 has the reminder.
+
+15 Nov 2026  Firmware: RELAY_OPEN is GPIO 26 and RELAY_CLOSE GPIO 25 now
+             (they were the other way round), matching the board as wired
+             - CLOSE was opening the valve. Section 13 pin table.
+
+15 Nov 2026  Section 12: an upload that dies part-way ("No more data to
+             read from the serial port") - cable/power; drop the upload
+             speed to 115200 and flash with nothing hanging off the board.
+
+15 Nov 2026  Firmware: a board without its WiFi for 15 min, with nobody on
+             its hotspot, restarts itself (the ESP32 radio can stay stuck
+             after a long outage; a fresh boot joins), and the stack's
+             auto-reconnect is on. The valve is now really driven open on
+             boot unless a manual or leak-found close is being restored -
+             section 9e promised this, but the sketch only released the
+             relays, so a power cut during the night test left the house
+             shut while the board said "open". Section 12: "stays offline
+             for hours"; section 13 cadence table.
+
+14 Nov 2026  Section 12: why the valve buttons are missing on a household
+             whose board is online (the board's firmware reports no valve;
+             reflash water_leak_single_wifi). Seen on HH-007 / esp32-21.
+
 14 Nov 2026  Firmware: the valve relays are now held for the valve's full
              travel (VALVE_TRAVEL_MS = 18 s; ACARPS valve rated 15 s)
              instead of 0.6 s, which only nudged the ball while the board

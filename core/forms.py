@@ -939,3 +939,52 @@ class DetectionSettingsForm(forms.ModelForm):
                 _("The leak time must be longer than the water-running warning time."),
             )
         return cleaned
+
+
+class OwnerContactForm(forms.Form):
+    """
+    The household owner changing their own number or email, from Settings.
+
+    The staff forms validate the same way; this one also refuses a number or
+    email that is already on another household, and "nothing changed". The
+    change does not take effect here: the view sends a code to the NEW
+    number (or new email) and applies it only once that code comes back, so
+    a mistyped number cannot carry the household's alerts to a stranger.
+    """
+
+    contact_number = forms.CharField(max_length=20, label=_("Mobile number"))
+    email = forms.EmailField(required=False, label=_("Email (optional)"))
+
+    def __init__(self, *args, household, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.household = household
+
+    def clean_contact_number(self):
+        value = clean_mobile_number(self.cleaned_data.get("contact_number"))
+        if not value:
+            raise forms.ValidationError(_("Enter your mobile number."))
+        return value
+
+    def clean_email(self):
+        return (self.cleaned_data.get("email") or "").strip().lower()
+
+    def clean(self):
+        from .sms import normalise_number
+        data = super().clean()
+        number = data.get("contact_number")
+        email = data.get("email", "")
+        if not number:
+            return data
+        same_number = normalise_number(number) == normalise_number(self.household.contact_number or "")
+        same_email = email == (self.household.email or "").strip().lower()
+        if same_number and same_email:
+            raise forms.ValidationError(_("Nothing changed."))
+        others = Household.objects.exclude(pk=self.household.pk).only("contact_number", "email")
+        for row in others:
+            if normalise_number(row.contact_number) == normalise_number(number) or (
+                email and (row.email or "").strip().lower() == email
+            ):
+                raise forms.ValidationError(
+                    _("That number or email is already on another household. Ask the water system facilitator.")
+                )
+        return data

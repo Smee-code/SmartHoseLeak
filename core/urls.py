@@ -168,6 +168,10 @@ urlpatterns = [
     path("portal/device/new-code/", views.owner_device_reissue, name="owner_device_reissue"),
     path("portal/device/resend/", views.owner_device_resend, name="owner_device_resend"),
     path("portal/device/wifi/", views.owner_device_wifi, name="owner_device_wifi"),
+    path("portal/settings/contact/", views.owner_contact_start, name="owner_contact_start"),
+    path("portal/settings/contact/confirm/", views.owner_contact_confirm, name="owner_contact_confirm"),
+    path("portal/settings/contact/resend/", views.owner_contact_resend, name="owner_contact_resend"),
+    path("portal/settings/contact/cancel/", views.owner_contact_cancel, name="owner_contact_cancel"),
 
     # JSON API
     path("api/ingest/", api.ingest, name="api_ingest"),

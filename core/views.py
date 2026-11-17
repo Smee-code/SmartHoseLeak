@@ -29,6 +29,7 @@ from django.utils import translation
 from django.utils.translation import gettext as _
 
 from .forms import (
+    OwnerContactForm,
     AccountContactForm,
     AdminHouseholdForm,
     AnnouncementForm,
@@ -2010,8 +2011,218 @@ def owner_settings(request, household):
             "push_note": push_note,
             "vapid_public_key": settings.VAPID_PUBLIC_KEY,
             "subscriptions": household.push_subscriptions.all(),
+            # A number/email change that is waiting for its code.
+            "contact_pending": _contact_pending(request) is not None,
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Owner: my contact details
+#
+# The owner changes their own number or email from Settings. Two records
+# hold them - the household (where leak alerts are texted) and the login
+# (where sign-in codes go) - and both are changed together, which is what
+# the staff screens never did. The change takes effect only after a code
+# sent to the NEW number (or new email, when only that changed) comes back,
+# so a mistyped number cannot carry the household's alerts to a stranger and
+# an unlocked phone cannot quietly move an account to another number. The
+# facilitator of the barangay is told, by text and email, and the household
+# gets a notice in its own feed.
+# ---------------------------------------------------------------------------
+
+CONTACT_CHANGE_SESSION = "contact_change"
+
+
+def _contact_pending(request):
+    pending = request.session.get(CONTACT_CHANGE_SESSION)
+    if not pending or pending.get("channel") not in (LoginCode.Channel.SMS, LoginCode.Channel.EMAIL):
+        return None
+    return pending
+
+
+def _contact_destination(pending):
+    return pending["number"] if pending["channel"] == LoginCode.Channel.SMS else pending["email"]
+
+
+def _send_contact_code(request, household, pending):
+    """Issue a code and deliver it to the new number or email. Returns (ok, error)."""
+    destination = _contact_destination(pending)
+    code = LoginCode.issue(request.user, pending["channel"], sent_to=destination)
+    minutes = settings.OTP_VALIDITY_MINUTES
+    with translation.override(household.language or settings.LANGUAGE_CODE):
+        if pending["channel"] == LoginCode.Channel.SMS:
+            SmsMessage.queue_to_number(
+                destination,
+                _("Smart Hose Leak: {code} is your code to confirm your new contact details. "
+                  "It expires in {minutes} minutes. If you did not ask for this, ignore it.").format(
+                    code=code.code, minutes=minutes),
+                name=household.owner_name,
+                kind=SmsMessage.Kind.AUTOMATIC,
+            )
+            return True, ""
+        delivered = mail.send_email(
+            destination,
+            _("Confirm your new contact details"),
+            _("Your code is {code}. Enter it in the Smart Hose Leak portal to confirm your new "
+              "contact details. It expires in {minutes} minutes.\n\nIf you did not ask for this, "
+              "ignore this email.").format(code=code.code, minutes=minutes),
+        )
+    if not delivered:
+        code.delete()
+        return False, _("The code could not be emailed right now. Ask the water system facilitator to change it for you.")
+    return True, ""
+
+
+@owner_required
+@require_POST
+def owner_contact_start(request, household):
+    form = OwnerContactForm(request.POST, household=household)
+    if not form.is_valid():
+        for errors in form.errors.values():
+            for error in errors:
+                messages.error(request, error)
+        return redirect("owner_settings")
+    number = form.cleaned_data["contact_number"]
+    email = form.cleaned_data["email"]
+    number_changed = sms.normalise_number(number) != sms.normalise_number(household.contact_number or "")
+    pending = {
+        "number": number,
+        "email": email,
+        # The code goes wherever the change is: the new number, or the new
+        # email when only the email changed.
+        "channel": LoginCode.Channel.SMS if number_changed else LoginCode.Channel.EMAIL,
+    }
+    ok, error = _send_contact_code(request, household, pending)
+    if not ok:
+        messages.error(request, error)
+        return redirect("owner_settings")
+    request.session[CONTACT_CHANGE_SESSION] = pending
+    return redirect("owner_contact_confirm")
+
+
+@owner_required
+def owner_contact_confirm(request, household):
+    pending = _contact_pending(request)
+    if pending is None:
+        messages.info(request, _("No contact change is waiting."))
+        return redirect("owner_settings")
+    destination = _contact_destination(pending)
+    code = request.user.login_codes.filter(used_at__isnull=True).order_by("-created_at").first()
+    error = ""
+    if request.method == "POST":
+        # The live code must be the one sent for THIS change, not a sign-in
+        # code that happened to be waiting.
+        if code is None or code.sent_to != destination[:120]:
+            error = _("No code is waiting. Request a new one.")
+        else:
+            ok, error = otp.verify(request.user, request.POST.get("code"))
+            if ok:
+                _apply_contact_change(request, household, pending)
+                request.session.pop(CONTACT_CHANGE_SESSION, None)
+                messages.success(request, _("Saved. Leak alerts and sign-in codes now go to your new contact details."))
+                return redirect("owner_settings")
+    return render(
+        request,
+        "owner/contact_confirm.html",
+        {
+            "household": household,
+            "pending": pending,
+            "code": code,
+            "error": error,
+            "masked": LoginCode(sent_to=destination).masked_destination,
+            "minutes": settings.OTP_VALIDITY_MINUTES,
+            "can_resend": otp.can_resend(request.user),
+        },
+    )
+
+
+@owner_required
+@require_POST
+def owner_contact_resend(request, household):
+    pending = _contact_pending(request)
+    if pending is None:
+        return redirect("owner_settings")
+    if not otp.can_resend(request.user):
+        messages.warning(request, _("A code was sent less than a minute ago. Give it a moment to arrive."))
+        return redirect("owner_contact_confirm")
+    ok, error = _send_contact_code(request, household, pending)
+    if ok:
+        messages.success(request, _("A new code is on its way."))
+    else:
+        messages.error(request, error)
+    return redirect("owner_contact_confirm")
+
+
+@owner_required
+@require_POST
+def owner_contact_cancel(request, household):
+    request.session.pop(CONTACT_CHANGE_SESSION, None)
+    request.user.login_codes.filter(used_at__isnull=True).update(used_at=timezone.now())
+    messages.info(request, _("Cancelled. Your contact details are unchanged."))
+    return redirect("owner_settings")
+
+
+def _apply_contact_change(request, household, pending):
+    """Both records at once, the audit trail, the household's notice, the facilitator's text."""
+    old_number, old_email = household.contact_number, household.email
+    number, email = pending["number"], pending["email"]
+    household.contact_number = number
+    household.email = email
+    household.save(update_fields=["contact_number", "email"])
+    user = request.user
+    user.contact_number = number
+    user.email = email
+    user.save(update_fields=["contact_number", "email"])
+    AuditLog.record(
+        user,
+        "household.contact_change",
+        f"{household.household_id} changed their own contact details: "
+        f"{old_number or '-'} -> {number}; {old_email or '-'} -> {email or '-'}",
+        target=household.household_id,
+    )
+    with translation.override(household.language or settings.LANGUAGE_CODE):
+        body = _("Your contact number is now {number}.").format(number=number)
+        if email:
+            body += " " + _("Your email is now {email}.").format(email=email)
+        body += " " + _("Leak alerts and sign-in codes go there from now on. "
+                        "If you did not do this, tell the water system facilitator at once.")
+        Notification.objects.create(
+            kind=Notification.Kind.TARGETED,
+            title=_("Contact details changed"),
+            body=body,
+            sent_by=user,
+            recipient=household,
+            segment=household.segment,
+        )
+    _tell_facilitators_contact_change(household, old_number, number, old_email, email)
+
+
+def _tell_facilitators_contact_change(household, old_number, number, old_email, email):
+    """The barangay's facilitator keeps the household list; a self-made change must reach them."""
+    User = get_user_model()
+    facilitators = User.objects.filter(role=User.Role.FACILITATOR, is_active=True)
+    if household.barangay_id:
+        facilitators = facilitators.filter(barangay_id=household.barangay_id)
+    with translation.override(settings.LANGUAGE_CODE):
+        # Kept inside one text (160 characters) for the usual case.
+        text = _("Smart Hose Leak: {household_id} ({owner}) changed their contact details in the portal. "
+                 "Number {old_number} -> {number}.").format(
+            household_id=household.household_id, owner=household.owner_name,
+            old_number=old_number or "-", number=number,
+        )
+        if (email or "") != (old_email or ""):
+            text += " " + _("Email {old_email} -> {email}.").format(old_email=old_email or "-", email=email or "-")
+        subject = _("A household changed its contact details")
+    for facilitator in facilitators:
+        if facilitator.contact_number:
+            SmsMessage.queue_to_number(
+                facilitator.contact_number, text,
+                name=facilitator.get_full_name() or facilitator.username,
+                kind=SmsMessage.Kind.AUTOMATIC,
+            )
+        if facilitator.email:
+            mail.send_email(facilitator.email, subject, text)
 
 
 # ---------------------------------------------------------------------------
