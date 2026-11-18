@@ -416,11 +416,11 @@ def _notify_facilitators(segment, event):
     if f["cause"] == "decay":
         text = _("LEAK {who}{owner}: night test {test_hour}, pressure fell{drop} in {grace_min} min, "
                  "taps shut. Valve held closed. Owner asked to check the hose.").format(
-            who=who, owner=owner, drop=_drop_phrase(f), **f)
+            **dict(f, who=who, owner=owner, drop=_drop_phrase(f)))
     else:
         text = _("LEAK {who}{owner}: water ran {leak_min} min non-stop, {flow} L/min, {pressure} bar. "
                  "Valve {valve}. Owner asked to check taps.").format(
-            who=who, owner=owner, valve=_("closed") if f["valve_closed"] else _("left open"), **f)
+            **dict(f, who=who, owner=owner, valve=_("closed") if f["valve_closed"] else _("left open")))
 
     for facilitator in facilitators:
         SmsMessage.queue_to_number(
