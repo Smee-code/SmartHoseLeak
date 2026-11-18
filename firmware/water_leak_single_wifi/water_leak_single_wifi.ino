@@ -254,6 +254,7 @@ unsigned long testEndMs       = 0;
 float         testBaselineBar = 0.0f;
 int           lastTestDay     = -1;    // tm_yday the test last ran, so once/day
 bool          pressureTestLeak = false; // latched until the next test
+float         lastTestDropBar  = 0.0f;  // how far the last test saw the pressure fall
 
 void IRAM_ATTR onFlowPulse() { flowPulses++; }
 
@@ -629,6 +630,7 @@ void updatePressureTest() {
   } else { // TEST_RUNNING
     if (now >= testEndMs) {
       float drop = testBaselineBar - lastPressureBar;
+      lastTestDropBar = drop;
       pressureTestLeak = (drop > dsTestDropBar);
       Serial.printf("[TEST] drop %.3f bar -> %s\n",
                     drop, pressureTestLeak ? "LEAK" : "ok");
@@ -719,7 +721,12 @@ void uploadReadings() {
     // Why it is closed - "flow", "test", "decay", "manual" or empty. The owner's and
     // the facilitator's screens say it in words, so a closed valve at night
     // reads as the leak test and not as a fault.
-    "\"valve_reason\":\"" + valveReason + "\""
+    "\"valve_reason\":\"" + valveReason + "\","
+    // Which test tripped the status, so the alert can say so: "decay" is the
+    // night pressure test, "sustained" is water that never stopped. With it,
+    // how far the pressure fell in the last test - the alert quotes it.
+    "\"trigger\":\"" + String(pressureTestLeak ? "decay" : (reportStatus == "NORMAL" ? "none" : "sustained")) + "\","
+    "\"test_drop_bar\":" + String(lastTestDropBar, 3) +
     "}],"
     "\"wifi_ssid\":\"" + jsonEscape(cfgSSID) + "\"," +
     "\"lan_ip\":\"" + WiFi.localIP().toString() + "\"" +

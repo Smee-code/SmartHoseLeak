@@ -928,24 +928,46 @@ SENDING ONE BY HAND
   A counter shows how many texts it will cost. Over 160 characters it is
   split into numbered parts.
 
-AUTOMATIC LEAK ALERTS
-  When a line is flagged, TWO texts go out:
+AUTOMATIC ALERTS  (reworded 18 Nov 2026 to be specific: which test, the
+numbers, what the valve did, what to do - each still one text)
 
-    To the household owner:
-      LEAK ALERT HH-001: possible leak Sep 16 1:08PM, moderate. Please check
-      all your faucets are closed. If they are and water still runs, tell the
+    Water running (owner only):
+      WATER RUNNING HH-001: non-stop for 30 min (5.2 L/min) since Nov 17
+      5:08PM. Turn off any tap or hose. Still running with all closed? Tell
+      the facilitator.
+
+    Leak, water never stopped, valve auto-closed (owner):
+      LEAK HH-001: water ran non-stop 60 min (5.2 L/min). Valve CLOSED; open
+      it in the portal once all taps are off. Still runs? Tell the
       facilitator.
+    ...with auto-close off:
+      LEAK HH-001: water ran non-stop 60 min (5.2 L/min). Valve left open.
+      Close every tap; if it still runs, tell the facilitator.
 
-    To the facilitator:
-      LEAK: HH-001 (Maria Santos), moderate. 0.20 bar, 1.40 L/min. Detected
-      by night flow. The owner has been asked to check their faucets.
+    Leak found by the night test (owner):
+      LEAK HH-001: night test 2AM: pressure fell by 0.25 bar in 60 min with
+      all taps shut. Valve held CLOSED; check the hose, then open it in the
+      portal.
 
-  They are worded differently on purpose. The owner is asked to check their
-  own taps first - a small leak and a tap left slightly open are identical to
-  the sensors, and the tap is far more common. The facilitator needs to know
-  which house and how bad, to decide whether to go.
+    To the facilitator (leaks only):
+      LEAK HH-001 (Maria Santos): water ran 60 min non-stop, 5.2 L/min,
+      0.18 bar. Valve closed. Owner asked to check taps.
+      LEAK HH-001 (Maria Santos): night test 2AM, pressure fell by 0.25 bar
+      in 60 min, taps shut. Valve held closed. Owner asked to check the hose.
 
-  Both fit in one message. An all-clear is sent in the app only.
+  The minutes are the thresholds in force (Leak detection settings), the
+  flow and pressure are the reading that tripped it, and the valve state is
+  what the board reported with that same upload. The pressure drop comes
+  from the board (test_drop_bar on the upload; firmware from 18 Nov 2026);
+  older firmware sends none and the sentence just says "pressure fell". The
+  board also says which test tripped (trigger); without it the server reads
+  the valve reason instead. The in-app notice and the email carry the same
+  facts in full sentences; the push notification a one-line version.
+
+  The owner is always asked to check their own taps first - a small leak
+  and a tap left slightly open are identical to the sensors, and the tap is
+  far more common. Every text fits one message in English and in Filipino
+  (core.tests.LeakSmsTextTests). An all-clear is sent in the app only.
 
   Switch either off in .env:
       SMS_AUTO_ON_LEAK=False
@@ -2451,6 +2473,16 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+18 Nov 2026  Automatic alerts reworded to be specific: which test caught it
+             (water that never stopped, or the night pressure test), the
+             numbers (minutes, L/min, bar, the measured drop), what the
+             valve did (closed and held / left open) and what to do - in the
+             text, the email/in-app notice and the push, English and
+             Filipino, each text still one message. Facilitator's leak text
+             likewise. Firmware sends trigger and test_drop_bar on every
+             upload; LeakEvent.pressure_drop_bar (migration 0048). Section
+             9c "AUTOMATIC ALERTS" has the wording.
+
 17 Nov 2026  Live-demo cadence from the console: "Dashboard refresh
              (seconds)" joins the Leak detection settings (migration 0047),
              so upload 2 s + refresh 1 s makes every screen move with the

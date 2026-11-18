@@ -1080,6 +1080,10 @@ class LeakEvent(models.Model):
     severity = models.CharField(max_length=10, choices=Severity.choices, default=Severity.INFO)
     pressure_bar = models.FloatField(default=0)
     flow_lpm = models.FloatField(default=0)
+    # For a leak the night test found: how far the pressure fell over the
+    # grace period with every tap shut, as the board measured it. The alert
+    # quotes it; older firmware sends none and the sentence leaves it out.
+    pressure_drop_bar = models.FloatField(null=True, blank=True)
 
     # Which test fired and how bad the device judged it. Stored on the event
     # rather than looked up later, because the live reading has moved on by

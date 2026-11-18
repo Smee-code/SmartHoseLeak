@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Smart Hose Leak\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-17 10:40+0800\n"
+"POT-Creation-Date: 2026-11-18 14:37+0800\n"
 "PO-Revision-Date: 2026-10-28 19:30+0800\n"
 "Last-Translator: \n"
 "Language-Team: Filipino\n"
@@ -16,76 +16,115 @@ msgstr ""
 msgid "..."
 msgstr "..."
 
-#: .\core\api.py:113
-msgid ""
-"Check that your faucets are fully closed. If they are and water is still "
-"running, tell the facilitator."
-msgstr ""
-"Tingnan kung sarado nang husto ang mga gripo mo. Kung sarado na pero tuloy-"
-"tuloy pa ring umaagos ang tubig, sabihin sa facilitator."
+#: .\core\api.py:143
+#, python-brace-format
+msgid " by {drop} bar"
+msgstr " ng {drop} bar"
 
-#: .\core\api.py:118
+#: .\core\api.py:158
+#, python-brace-format
 msgid ""
-"Water has been running non-stop on your line. Turn off any tap or hose; if "
-"all are closed, tell the facilitator."
-msgstr ""
-"Tuloy-tuloy na umaagos ang tubig sa linya mo. Isara ang anumang gripo o "
-"hose; kung sarado na lahat, sabihin sa facilitator."
+"Night test: pressure fell{drop} with every tap shut. Valve held closed. "
+"Check your hose, then open it in the portal."
+msgstr "Night test: bumaba ang pressure{drop} kahit sarado ang lahat ng gripo. Nakasara ang valve. Suriin ang hose, saka buksan sa portal."
 
-#: .\core\api.py:122
+#: .\core\api.py:161
+#, python-brace-format
+msgid ""
+"Water ran {leak_min} min non-stop. Valve closed. Check every tap, then open "
+"it in the portal."
+msgstr "{leak_min} min tuloy-tuloy ang tubig. Sarado ang valve. Suriin ang mga gripo, saka buksan sa portal."
+
+#: .\core\api.py:163
+#| msgid ""
+#| "Water has been running non-stop on your line. Turn off any tap or hose; "
+#| "if all are closed, tell the facilitator."
+msgid ""
+"Water ran {leak_min} min non-stop. Close every tap; if it still runs, tell "
+"the facilitator."
+msgstr "{leak_min} min tuloy-tuloy ang tubig. Isara ang lahat ng gripo; kung umaagos pa, sabihin sa facilitator."
+
+#: .\core\api.py:167
+#| msgid ""
+#| "Water has been running non-stop on your line. Turn off any tap or hose; "
+#| "if all are closed, tell the facilitator."
+msgid ""
+"Water has run non-stop for {warn_min} min ({flow} L/min). Turn off any tap "
+"or hose; if all are closed, tell the facilitator."
+msgstr "{warn_min} min nang tuloy-tuloy ang tubig ({flow} L/min). Isara ang mga gripo at hose; kung sarado na lahat, sabihin sa facilitator."
+
+#: .\core\api.py:170
 msgid "Water may be slow at your tap. The source is probably low."
 msgstr ""
 "Baka mahina ang tubig sa gripo mo. Malamang mababa ang supply sa source."
 
-#: .\core\api.py:124
+#: .\core\api.py:172
 msgid "The alert on your line has been cleared."
 msgstr "Na-clear na ang alerto sa linya mo."
 
-#: .\core\api.py:142
+#: .\core\api.py:193
+#, python-brace-format
+msgid ""
+"At {test_hour} the board closed your valve and watched the pressure for "
+"{grace_min} minutes with every tap shut. It fell{drop}, which means water is "
+"escaping somewhere on your line. The valve is held closed to save water. "
+"Check your hose and fittings; once fixed, open the valve from this portal. "
+"If you cannot find the leak, tell the water system facilitator."
+msgstr "Noong {test_hour} isinara ng board ang valve mo at binantayan ang pressure sa loob ng {grace_min} minuto habang sarado ang lahat ng gripo. Bumaba ito{drop}, ibig sabihin may tumutulong tubig sa linya mo. Nakasara ang valve para makatipid ng tubig. Suriin ang hose at mga kabit; kapag naayos na, buksan ang valve mula sa portal na ito. Kung hindi mo mahanap ang tagas, sabihin sa facilitator ng sistema ng tubig."
+
+#: .\core\api.py:201
+msgid ""
+"The valve was closed automatically to save water; once every tap is off, "
+"open it from this portal."
+msgstr "Kusang isinara ang valve para makatipid ng tubig; kapag sarado na ang lahat ng gripo, buksan ito mula sa portal na ito."
+
+#: .\core\api.py:203
+#| msgid "The valve is turning."
+msgid "The valve was left open."
+msgstr "Iniwang bukas ang valve."
+
+#: .\core\api.py:206
+#, python-brace-format
+msgid ""
+"Water has run without stopping for {leak_min} minutes, at about {flow} L/min "
+"- longer than any normal use. {valve} Please check that every tap and hose "
+"is closed. If they are and water still runs, there is a leak between the "
+"valve and your taps - tell the water system facilitator."
+msgstr "{leak_min} minuto nang tuloy-tuloy ang pag-agos ng tubig, mga {flow} L/min - mas matagal kaysa karaniwang gamit. {valve} Pakitiyak na sarado ang bawat gripo at hose. Kung sarado na at umaagos pa rin, may tagas sa pagitan ng valve at ng mga gripo mo - sabihin sa facilitator ng sistema ng tubig."
+
+#: .\core\api.py:211 .\core\api.py:221
+#, python-brace-format
+msgid "Reading at the time: {pressure} bar, {flow} L/min."
+msgstr "Reading noon: {pressure} bar, {flow} L/min."
+
+#: .\core\api.py:212
 msgid "Possible leak on your water line"
 msgstr "Posibleng tagas sa linya ng tubig mo"
 
-#: .\core\api.py:143
-#, python-brace-format
+#: .\core\api.py:216
+#| msgid ""
+#| "Water has been flowing without stopping on your line since before {when}. "
+#| "If you left a tap or hose on, please turn it off. If everything is closed "
+#| "and water is still running, you may have a leak - tell the water system "
+#| "facilitator.\n"
+#| "\n"
+#| "Reading at the time: {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min."
 msgid ""
-"A possible leak was detected on your line on {when}. Please check that all "
-"your faucets are fully closed. If they are and water is still running, tell "
-"the water system facilitator.\n"
-"\n"
-"Reading at the time: {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min."
-msgstr ""
-"May na-detect na posibleng tagas sa linya mo noong {when}. Pakitingnan kung "
-"sarado nang husto ang lahat ng gripo mo. Kung sarado na pero tuloy-tuloy pa "
-"ring umaagos ang tubig, sabihin sa facilitator ng water system.\n"
-"\n"
-"Reading noong oras na iyon: {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min."
+"Water has been flowing without stopping on your line for {warn_min} minutes, "
+"since before {when}, at about {flow} L/min. If you left a tap or hose on, "
+"please turn it off. If everything is closed and water is still running, you "
+"may have a leak - tell the water system facilitator."
+msgstr "{warn_min} minuto nang tuloy-tuloy ang pag-agos ng tubig sa linya mo, mula bago mag-{when}, mga {flow} L/min. Kung may naiwan kang bukas na gripo o hose, pakisara. Kung sarado na ang lahat at umaagos pa rin, maaaring may tagas - sabihin sa facilitator ng sistema ng tubig."
 
-#: .\core\api.py:151
+#: .\core\api.py:222
 msgid "Water has been running on your line"
 msgstr "Tuloy-tuloy na umaagos ang tubig sa linya mo"
 
-#: .\core\api.py:152
-#, python-brace-format
-msgid ""
-"Water has been flowing without stopping on your line since before {when}. If "
-"you left a tap or hose on, please turn it off. If everything is closed and "
-"water is still running, you may have a leak - tell the water system "
-"facilitator.\n"
-"\n"
-"Reading at the time: {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min."
-msgstr ""
-"Tuloy-tuloy na umaagos ang tubig sa linya mo mula pa bago mag-{when}. Kung "
-"may naiwan kang bukas na gripo o hose, pakisara ito. Kung sarado na lahat "
-"pero umaagos pa rin ang tubig, baka may tagas - sabihin sa facilitator ng "
-"water system.\n"
-"\n"
-"Reading noong oras na iyon: {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min."
-
-#: .\core\api.py:161
+#: .\core\api.py:225
 msgid "Your water is weaker than usual"
 msgstr "Mas mahina kaysa dati ang tubig mo"
 
-#: .\core\api.py:162
+#: .\core\api.py:226
 #, python-brace-format
 msgid ""
 "Low pressure was detected on your line on {when}. Water may be slow at your "
@@ -100,11 +139,11 @@ msgstr ""
 "\n"
 "Reading noong oras na iyon: {pressure_bar:.2f} bar."
 
-#: .\core\api.py:178
+#: .\core\api.py:242
 msgid "Your water is back to normal"
 msgstr "Normal na ulit ang tubig mo"
 
-#: .\core\api.py:179
+#: .\core\api.py:243
 #, python-brace-format
 msgid ""
 "The alert on your line was cleared on {when}. Readings are normal again."
@@ -112,63 +151,95 @@ msgstr ""
 "Na-clear na ang alerto sa linya mo noong {when}. Normal na ulit ang mga "
 "reading."
 
-#: .\core\api.py:355
+#: .\core\api.py:417
 #, python-brace-format
 msgid ""
-"LEAK: {who}{owner}{severity}. {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min. "
-"Detected by {get_trigger_display}. The owner has been asked to check their "
-"faucets."
-msgstr ""
-"TAGAS: {who}{owner}{severity}. {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min. "
-"Na-detect ng {get_trigger_display}. Pinasabihan na ang may-ari na tingnan "
-"ang mga gripo niya."
+"LEAK {who}{owner}: night test {test_hour}, pressure fell{drop} in "
+"{grace_min} min, taps shut. Valve held closed. Owner asked to check the hose."
+msgstr "LEAK {who}{owner}: night test {test_hour}, bumaba ang pressure{drop} sa {grace_min} min, sarado ang mga gripo. Nakasara ang valve. Pinasuri sa may-ari ang hose."
 
-#: .\core\api.py:375
+#: .\core\api.py:421
 #, python-brace-format
 msgid ""
-"WATER RUNNING {household_id}: water has run non-stop since {when}. Turn off "
-"any tap or hose. If all are closed and it still runs, tell the facilitator."
-msgstr ""
-"TULOY-TULOY ANG TUBIG {household_id}: tuloy-tuloy na umaagos ang tubig mula "
-"{when}. Isara ang anumang gripo o hose. Kung sarado na lahat pero umaagos pa "
-"rin, sabihin sa facilitator."
+"LEAK {who}{owner}: water ran {leak_min} min non-stop, {flow} L/min, "
+"{pressure} bar. Valve {valve}. Owner asked to check taps."
+msgstr "LEAK {who}{owner}: {leak_min} min tuloy-tuloy ang tubig, {flow} L/min, {pressure} bar. Valve: {valve}. Pinasuri sa may-ari ang mga gripo."
 
-#: .\core\api.py:401
+#: .\core\api.py:423
+#| msgid "Closed"
+msgid "closed"
+msgstr "sarado"
+
+#: .\core\api.py:423
+#| msgid "Valve opened"
+msgid "left open"
+msgstr "nakabukas"
+
+#: .\core\api.py:439
+#| msgid ""
+#| "WATER RUNNING {household_id}: water has run non-stop since {when}. Turn "
+#| "off any tap or hose. If all are closed and it still runs, tell the "
+#| "facilitator."
+msgid ""
+"WATER RUNNING {household_id}: non-stop for {warn_min} min ({flow} L/min) "
+"since {when}. Turn off any tap or hose. Still running with all closed? Tell "
+"the facilitator."
+msgstr "WATER RUNNING {household_id}: tuloy-tuloy {warn_min} min ({flow} L/min) mula {when}. Isara ang mga gripo at hose. Umaagos pa kahit sarado? Sabihin sa facilitator."
+
+#: .\core\api.py:456
 #, python-brace-format
 msgid ""
-"LEAK ALERT {household_id}: possible leak {when}{severity}. Please check all "
-"your faucets are closed. If they are and water still runs, tell the "
+"LEAK {household_id}: night test {test_hour}: pressure fell{drop} in "
+"{grace_min} min with all taps shut. Valve held CLOSED; check the hose, then "
+"open it in the portal."
+msgstr "LEAK {household_id}: night test {test_hour}: bumaba ang pressure{drop} sa {grace_min} min, sarado ang lahat ng gripo. SARADO ang valve; suriin ang hose, saka buksan sa portal."
+
+#: .\core\api.py:460
+#| msgid ""
+#| "WATER RUNNING {household_id}: water has run non-stop since {when}. Turn "
+#| "off any tap or hose. If all are closed and it still runs, tell the "
+#| "facilitator."
+msgid ""
+"LEAK {household_id}: water ran non-stop {leak_min} min ({flow} L/min). Valve "
+"CLOSED; open it in the portal once all taps are off. Still runs? Tell the "
 "facilitator."
-msgstr ""
-"ALERTO SA TAGAS {household_id}: posibleng tagas {when}{severity}. "
-"Pakitingnan kung sarado ang lahat ng gripo mo. Kung sarado na pero umaagos "
-"pa rin ang tubig, sabihin sa facilitator."
+msgstr "LEAK {household_id}: {leak_min} min tuloy-tuloy ang tubig ({flow} L/min). SARADO ang valve; isara ang mga gripo, saka buksan sa portal. Umaagos pa? Sabihin sa facilitator."
 
-#: .\core\api.py:699
+#: .\core\api.py:463
+#| msgid ""
+#| "WATER RUNNING {household_id}: water has run non-stop since {when}. Turn "
+#| "off any tap or hose. If all are closed and it still runs, tell the "
+#| "facilitator."
+msgid ""
+"LEAK {household_id}: water ran non-stop {leak_min} min ({flow} L/min). Valve "
+"left open. Close every tap; if it still runs, tell the facilitator."
+msgstr "LEAK {household_id}: {leak_min} min tuloy-tuloy ang tubig ({flow} L/min). Nakabukas ang valve. Isara ang lahat ng gripo; kung umaagos pa, sabihin sa facilitator."
+
+#: .\core\api.py:772
 #, python-brace-format
 msgid "Connected to {ssid}."
 msgstr "Nakakonekta sa {ssid}."
 
-#: .\core\api.py:701
+#: .\core\api.py:774
 #, python-brace-format
 msgid "Could not join {ssid}; still on {old}."
 msgstr "Hindi makasali sa {ssid}; nasa {old} pa rin."
 
-#: .\core\api.py:712
+#: .\core\api.py:785
 msgid "Your board is on the new WiFi"
 msgstr "Nasa bagong WiFi na ang board mo"
 
-#: .\core\api.py:713
+#: .\core\api.py:786
 #, python-brace-format
 msgid "The monitoring board joined {ssid} and is sending readings again."
 msgstr ""
 "Sumali na ang monitoring board sa {ssid} at nagpapadala na ulit ng reading."
 
-#: .\core\api.py:715
+#: .\core\api.py:788
 msgid "Your board could not join the new WiFi"
 msgstr "Hindi makasali ang board mo sa bagong WiFi"
 
-#: .\core\api.py:716
+#: .\core\api.py:789
 #, python-brace-format
 msgid ""
 "The board tried {ssid} and could not connect, so it went back to {old}. "
@@ -178,26 +249,26 @@ msgstr ""
 "{old}. Suriin ang pangalan ng network at password at subukan ulit sa "
 "Settings."
 
-#: .\core\api.py:718
+#: .\core\api.py:791
 msgid "its previous network"
 msgstr "ang dati nitong network"
 
-#: .\core\api.py:1166
+#: .\core\api.py:1239
 msgid "Notifications are working"
 msgstr "Gumagana ang mga notification"
 
-#: .\core\api.py:1167
+#: .\core\api.py:1240
 msgid "This is a test. Alerts about your water will look like this."
 msgstr "Test lang ito. Ganito ang itsura ng mga alerto tungkol sa tubig mo."
 
-#: .\core\api.py:1174
+#: .\core\api.py:1247
 msgid ""
 "This phone is not registered for notifications. Turn them off and on again."
 msgstr ""
 "Hindi naka-register ang phone na ito para sa mga notification. I-off at i-on "
 "ulit ang mga ito."
 
-#: .\core\api.py:1176
+#: .\core\api.py:1249
 msgid "No phone is registered for notifications yet."
 msgstr "Wala pang phone na naka-register para sa mga notification."
 
@@ -350,11 +421,11 @@ msgid "The barangay, municipality and province are added automatically."
 msgstr "Awtomatikong idadagdag ang barangay, munisipyo at probinsya."
 
 #: .\core\forms.py:481 .\templates\404.html:48
-#: .\templates\admin\analytics.html:15 .\templates\admin\archive.html:15
-#: .\templates\admin\barangays.html:21 .\templates\admin\dashboard.html:44
+#: .\templates\admin\analytics.html:15 .\templates\admin\archive.html:25
+#: .\templates\admin\barangays.html:21 .\templates\admin\dashboard.html:47
 #: .\templates\admin\data.html:19 .\templates\admin\households.html:3
-#: .\templates\admin\households.html:15 .\templates\base.html:124
-#: .\templates\base.html:171 .\templates\facilitator\dashboard.html:220
+#: .\templates\admin\households.html:15 .\templates\base.html:130
+#: .\templates\base.html:177 .\templates\facilitator\dashboard.html:220
 #: .\templates\facilitator\households.html:3
 #: .\templates\facilitator\households.html:15 .\templates\home.html:155
 msgid "Households"
@@ -423,7 +494,7 @@ msgstr "hal. Pagbisita para sa application - tingnan ang gripo at ang hose"
 msgid "Visit date"
 msgstr "Petsa ng pagbisita"
 
-#: .\core\forms.py:578 .\templates\admin\dashboard.html:95
+#: .\core\forms.py:578 .\templates\admin\dashboard.html:101
 #: .\templates\admin\workorders.html:36 .\templates\owner\complaints.html:92
 msgid "Facilitator"
 msgstr "Facilitator"
@@ -460,7 +531,7 @@ msgstr "Kailan ito nagsimula? Ano ba talaga ang nakikita mo?"
 msgid "Write a message..."
 msgstr "Sumulat ng mensahe..."
 
-#: .\core\forms.py:629 .\core\views.py:1454
+#: .\core\forms.py:629 .\core\views.py:1455
 msgid "Write something before sending."
 msgstr "Sumulat muna bago ipadala."
 
@@ -472,7 +543,7 @@ msgstr "Isulat ang sagot mo sa may-ari ng sambahayan..."
 msgid "Send to"
 msgstr "Ipadala sa"
 
-#: .\core\forms.py:703 .\core\models.py:1661
+#: .\core\forms.py:703 .\core\models.py:1665
 msgid "All active households"
 msgstr "Lahat ng aktibong sambahayan"
 
@@ -555,29 +626,29 @@ msgstr ""
 msgid "e.g. Replacing coupling at the 22 m marker"
 msgstr "hal. Pinapalitan ang coupling sa 22 m marker"
 
-#: .\core\forms.py:940
+#: .\core\forms.py:943
 msgid "The leak time must be longer than the water-running warning time."
 msgstr ""
 "Dapat mas matagal ang oras para sa tagas kaysa sa oras ng babala na tuloy-"
 "tuloy ang tubig."
 
-#: .\core\forms.py:956 .\templates\owner\settings.html:201
+#: .\core\forms.py:962 .\templates\owner\settings.html:203
 msgid "Mobile number"
 msgstr "Numero ng mobile"
 
-#: .\core\forms.py:957 .\templates\owner\settings.html:206
+#: .\core\forms.py:963 .\templates\owner\settings.html:208
 msgid "Email (optional)"
 msgstr "Email (opsyonal)"
 
-#: .\core\forms.py:966
+#: .\core\forms.py:972
 msgid "Enter your mobile number."
 msgstr "Ilagay ang numero ng mobile mo."
 
-#: .\core\forms.py:982
+#: .\core\forms.py:988
 msgid "Nothing changed."
 msgstr "Walang nabago."
 
-#: .\core\forms.py:989
+#: .\core\forms.py:995
 msgid ""
 "That number or email is already on another household. Ask the water system "
 "facilitator."
@@ -610,9 +681,9 @@ msgstr ""
 msgid "Emails are sent from {default_from_email}."
 msgstr "Ipinapadala ang mga email mula sa {default_from_email}."
 
-#: .\core\models.py:53 .\core\views.py:2664 .\templates\admin\archive.html:64
+#: .\core\models.py:53 .\core\views.py:2665 .\templates\admin\archive.html:76
 #: .\templates\admin\household_form.html:46
-#: .\templates\admin\households.html:179 .\templates\admin\households.html:271
+#: .\templates\admin\households.html:185 .\templates\admin\households.html:277
 #: .\templates\admin\workorder_detail.html:24
 msgid "Barangay"
 msgstr "Barangay"
@@ -681,7 +752,8 @@ msgstr "Posibleng Tagas"
 
 #: .\core\models.py:405 .\core\models.py:406
 #: .\templates\facilitator\dashboard.html:435
-#: .\templates\facilitator\pressure.html:47 .\templates\offline.html:3
+#: .\templates\facilitator\pressure.html:47
+#: .\templates\facilitator\segments.html:281 .\templates\offline.html:3
 msgid "Offline"
 msgstr "Offline"
 
@@ -790,7 +862,7 @@ msgstr "sa linya ng {household_id} ({owner_name})"
 msgid "Not fitted"
 msgstr "Hindi nakakabit"
 
-#: .\core\models.py:622
+#: .\core\models.py:622 .\templates\facilitator\events.html:56
 msgid "Open"
 msgstr "Bukas"
 
@@ -917,7 +989,8 @@ msgstr "Pagbaba ng pressure habang sarado ang valve"
 msgid "Low supply"
 msgstr "Mahina ang supply"
 
-#: .\core\models.py:816
+#: .\core\models.py:816 .\templates\admin\accounts.html:47
+#: .\templates\admin\facilitators.html:32
 msgid "Active"
 msgstr "Aktibo"
 
@@ -982,204 +1055,205 @@ msgstr "Babala"
 msgid "Critical"
 msgstr "Kritikal"
 
-#: .\core\models.py:1134
+#: .\core\models.py:1138
 msgid "Automatic Alert"
 msgstr "Awtomatikong Alerto"
 
-#: .\core\models.py:1135
+#: .\core\models.py:1139
 msgid "Targeted Notice"
 msgstr "Abiso sa Piling Sambahayan"
 
-#: .\core\models.py:1136
+#: .\core\models.py:1140
 msgid "Broadcast"
 msgstr "Broadcast"
 
-#: .\core\models.py:1137
+#: .\core\models.py:1141
 msgid "Valve action"
 msgstr "Aksyon sa valve"
 
-#: .\core\models.py:1148
+#: .\core\models.py:1152
 msgid "Blank means every active household (broadcast)."
 msgstr "Kung blangko, lahat ng aktibong sambahayan (broadcast)."
 
-#: .\core\models.py:1195
+#: .\core\models.py:1199
 msgid "Sent by facilitator"
 msgstr "Ipinadala ng facilitator"
 
-#: .\core\models.py:1196
+#: .\core\models.py:1200
 msgid "Automatic alert"
 msgstr "Awtomatikong alerto"
 
-#: .\core\models.py:1208 .\templates\facilitator\notifications.html:336
+#: .\core\models.py:1212 .\templates\facilitator\notifications.html:332
 msgid "Queued"
 msgstr "Nakapila"
 
-#: .\core\models.py:1209 .\templates\facilitator\notifications.html:325
+#: .\core\models.py:1213 .\templates\facilitator\notifications.html:321
 msgid "Sent to network"
 msgstr "Naipadala sa network"
 
-#: .\core\models.py:1210 .\templates\facilitator\notifications.html:322
+#: .\core\models.py:1214 .\templates\facilitator\notifications.html:318
 msgid "Delivered"
 msgstr "Na-deliver"
 
-#: .\core\models.py:1211 .\templates\facilitator\notifications.html:330
+#: .\core\models.py:1215 .\templates\facilitator\notifications.html:326
 msgid "Not delivered"
 msgstr "Hindi na-deliver"
 
-#: .\core\models.py:1212 .\templates\facilitator\notifications.html:333
+#: .\core\models.py:1216 .\templates\facilitator\notifications.html:329
 msgid "Failed"
 msgstr "Nabigo"
 
-#: .\core\models.py:1232
+#: .\core\models.py:1236
 msgid "The gateway's own word for it, kept verbatim for diagnosis."
 msgstr ""
 "Ang mismong salita ng gateway para dito, iniingatan nang eksakto para sa "
 "diagnosis."
 
-#: .\core\models.py:1248
+#: .\core\models.py:1252
 msgid "The in-app notice this text accompanied, when there was one."
 msgstr "Ang in-app na abiso na kasama ng text na ito, kung mayroon."
 
-#: .\core\models.py:1373
+#: .\core\models.py:1377 .\templates\facilitator\reports.html:70
 msgid "Pending"
 msgstr "Pending"
 
-#: .\core\models.py:1374
+#: .\core\models.py:1378 .\templates\facilitator\reports.html:70
 msgid "In Progress"
 msgstr "Inaasikaso"
 
-#: .\core\models.py:1375
+#: .\core\models.py:1379 .\templates\facilitator\reports.html:70
 msgid "Resolved"
 msgstr "Naresolba na"
 
-#: .\core\models.py:1376 .\core\models.py:1544
+#: .\core\models.py:1380 .\core\models.py:1548
+#: .\templates\facilitator\reports.html:70
 msgid "Rejected"
 msgstr "Tinanggihan"
 
-#: .\core\models.py:1379
+#: .\core\models.py:1383
 msgid "No Water Supply"
 msgstr "Walang Supply ng Tubig"
 
-#: .\core\models.py:1380
+#: .\core\models.py:1384
 msgid "Low Water Pressure"
 msgstr "Mahina ang Pressure ng Tubig"
 
-#: .\core\models.py:1381
+#: .\core\models.py:1385
 msgid "Visible Leak"
 msgstr "May Nakikitang Tagas"
 
-#: .\core\models.py:1382
+#: .\core\models.py:1386
 msgid "Water Quality"
 msgstr "Kalidad ng Tubig"
 
-#: .\core\models.py:1383
+#: .\core\models.py:1387
 msgid "Other"
 msgstr "Iba pa"
 
-#: .\core\models.py:1444
+#: .\core\models.py:1448
 msgid "True if written by the household, False if by the facilitator."
 msgstr "True kung isinulat ng sambahayan, False kung ng facilitator."
 
-#: .\core\models.py:1535
+#: .\core\models.py:1539
 msgid "Household visit"
 msgstr "Pagbisita sa sambahayan"
 
-#: .\core\models.py:1536
+#: .\core\models.py:1540
 msgid "Repair"
 msgstr "Pag-aayos"
 
-#: .\core\models.py:1537 .\templates\facilitator\dashboard.html:384
-#: .\templates\facilitator\segments.html:163 .\templates\maintenance.html:6
+#: .\core\models.py:1541 .\templates\facilitator\dashboard.html:384
+#: .\templates\facilitator\segments.html:166 .\templates\maintenance.html:6
 msgid "Maintenance"
 msgstr "Maintenance"
 
-#: .\core\models.py:1540
+#: .\core\models.py:1544
 msgid "Requested"
 msgstr "Hiniling"
 
-#: .\core\models.py:1541
+#: .\core\models.py:1545
 msgid "Scheduled"
 msgstr "Nakaiskedyul"
 
-#: .\core\models.py:1542
+#: .\core\models.py:1546
 msgid "In progress"
 msgstr "Inaasikaso"
 
-#: .\core\models.py:1543
+#: .\core\models.py:1547
 msgid "Done"
 msgstr "Tapos na"
 
-#: .\core\models.py:1545
+#: .\core\models.py:1549
 msgid "Cancelled"
 msgstr "Kinansela"
 
-#: .\core\models.py:1577
+#: .\core\models.py:1581
 msgid "The facilitator who will carry out this work."
 msgstr "Ang facilitator na gagawa ng trabahong ito."
 
-#: .\core\models.py:1580
+#: .\core\models.py:1584
 msgid "The day the visit or repair is planned for."
 msgstr "Ang araw na nakaplano ang pagbisita o pag-aayos."
 
-#: .\core\models.py:1587
+#: .\core\models.py:1591
 msgid "The facilitator who reported this, when it did not come from the admin."
 msgstr "Ang facilitator na nag-report nito, kung hindi galing sa admin."
 
-#: .\core\models.py:1662
+#: .\core\models.py:1666
 msgid "One barangay"
 msgstr "Isang barangay"
 
-#: .\core\models.py:1663
+#: .\core\models.py:1667
 msgid "Selected households"
 msgstr "Mga piniling sambahayan"
 
-#: .\core\models.py:1766
+#: .\core\models.py:1770
 msgid "Water-running warning after (minutes)"
 msgstr "Babala na tuloy-tuloy ang tubig pagkatapos ng (minuto)"
 
-#: .\core\models.py:1767
+#: .\core\models.py:1771
 msgid "Continuous flow for this many minutes raises a 'water running' warning."
 msgstr ""
 "Kapag tuloy-tuloy ang flow sa ganitong bilang ng minuto, magbibigay ng "
 "babalang 'tuloy-tuloy ang tubig'."
 
-#: .\core\models.py:1771
+#: .\core\models.py:1775
 msgid "Treat as leak after (minutes)"
 msgstr "Ituring na tagas pagkatapos ng (minuto)"
 
-#: .\core\models.py:1772
+#: .\core\models.py:1776
 msgid "Continuous flow for this many minutes is treated as a leak."
 msgstr ""
 "Kapag tuloy-tuloy ang flow sa ganitong bilang ng minuto, ituturing itong "
 "tagas."
 
-#: .\core\models.py:1776
+#: .\core\models.py:1780
 msgid "Nightly test hour"
 msgstr "Oras ng gabi-gabing test"
 
-#: .\core\models.py:1777
+#: .\core\models.py:1781
 msgid ""
 "The board closes the valve at this hour for its sealed-line pressure test."
 msgstr ""
 "Isinasara ng board ang valve sa oras na ito para sa pressure test ng "
 "selyadong linya."
 
-#: .\core\models.py:1781
+#: .\core\models.py:1785
 msgid "Test grace period (minutes)"
 msgstr "Grace period ng test (minuto)"
 
-#: .\core\models.py:1782
+#: .\core\models.py:1786
 msgid ""
 "How long the valve stays closed while the board watches for a pressure drop."
 msgstr ""
 "Gaano katagal nakasara ang valve habang binabantayan ng board kung may "
 "pagbaba ng pressure."
 
-#: .\core\models.py:1786
+#: .\core\models.py:1790
 msgid "Leak if pressure drops more than (bar)"
 msgstr "Tagas kung bumaba ang pressure nang higit sa (bar)"
 
-#: .\core\models.py:1787
+#: .\core\models.py:1791
 msgid ""
 "A pressure drop larger than this during the sealed-line test is treated as a "
 "leak."
@@ -1187,11 +1261,11 @@ msgstr ""
 "Kapag mas malaki pa dito ang pagbaba ng pressure habang nag-test sa "
 "selyadong linya, ituturing itong tagas."
 
-#: .\core\models.py:1791
+#: .\core\models.py:1795
 msgid "Auto-close valve on a continuous-flow leak"
 msgstr "Awtomatikong isara ang valve kapag may tagas na tuloy-tuloy ang flow"
 
-#: .\core\models.py:1792
+#: .\core\models.py:1796
 msgid ""
 "Close the valve automatically when continuous flow has run long enough to "
 "count as a leak."
@@ -1199,11 +1273,11 @@ msgstr ""
 "Awtomatikong isara ang valve kapag sapat na ang tagal ng tuloy-tuloy na flow "
 "para ituring na tagas."
 
-#: .\core\models.py:1805
+#: .\core\models.py:1809
 msgid "Board upload interval (seconds)"
 msgstr "Gaano kadalas mag-upload ang board (segundo)"
 
-#: .\core\models.py:1807
+#: .\core\models.py:1811
 msgid ""
 "How often each board posts a routine reading. A leak, a warning or a valve "
 "change is posted at once regardless. A board is shown Offline after missing "
@@ -1213,29 +1287,32 @@ msgstr ""
 "babala, o pagbabago sa valve ay ipinapadala agad anuman ito. Lalabas na "
 "Offline ang board kapag tatlong upload na sunod-sunod ang hindi dumating."
 
-#: .\core\models.py:1820
+#: .\core\models.py:1824
 msgid "Dashboard refresh (seconds)"
 msgstr "Pag-refresh ng dashboard (segundo)"
 
-#: .\core\models.py:1822
+#: .\core\models.py:1826
 msgid ""
 "How often the dashboards and the owner's page fetch fresh figures. 1 second "
 "with a 2-second board interval is the live-demo setting; 5 and 15 are the "
 "everyday ones."
-msgstr "Gaano kadalas kumuha ng bagong datos ang mga dashboard at ang pahina ng may-ari. 1 segundo kasama ang 2-segundong pag-upload ng board ang setting para sa live demo; 5 at 15 ang pang-araw-araw."
+msgstr ""
+"Gaano kadalas kumuha ng bagong datos ang mga dashboard at ang pahina ng may-"
+"ari. 1 segundo kasama ang 2-segundong pag-upload ng board ang setting para "
+"sa live demo; 5 at 15 ang pang-araw-araw."
 
-#: .\core\models.py:1969
+#: .\core\models.py:1973
 msgid "Text message"
 msgstr "Text message"
 
-#: .\core\models.py:1970 .\templates\_login_modal.html:108
-#: .\templates\admin\facilitators.html:21 .\templates\admin\households.html:38
+#: .\core\models.py:1974 .\templates\_login_modal.html:108
+#: .\templates\admin\facilitators.html:21
 #: .\templates\facilitator\household_detail.html:23
 #: .\templates\facilitator\households.html:178
 msgid "Email"
 msgstr "Email"
 
-#: .\core\models.py:2025
+#: .\core\models.py:2029
 msgid "your number"
 msgstr "numero mo"
 
@@ -1272,7 +1349,7 @@ msgstr ""
 "Hindi ma-email ang sign-in code sa ngayon. Subukang ipa-text na lang ito, o "
 "sabihan ang administrator na i-check ang email setup."
 
-#: .\core\otp.py:120 .\core\views.py:2117
+#: .\core\otp.py:120 .\core\views.py:2118
 msgid "No code is waiting. Request a new one."
 msgstr "Walang code na naka-pending. Humingi ng bago."
 
@@ -1535,15 +1612,15 @@ msgstr ""
 "Nakakonekta na ang board {device_id} para sa {who}{owner}. Dumadating na ang "
 "readings."
 
-#: .\core\views.py:88
+#: .\core\views.py:89
 msgid "This page is limited to the water system facilitator."
 msgstr "Para lang sa facilitator ng water system ang page na ito."
 
-#: .\core\views.py:99
+#: .\core\views.py:100
 msgid "This page is limited to the system administrator."
 msgstr "Para lang sa system administrator ang page na ito."
 
-#: .\core\views.py:189
+#: .\core\views.py:190
 msgid ""
 "This account is not linked to a registered household. Ask the water system "
 "facilitator to link it."
@@ -1551,7 +1628,7 @@ msgstr ""
 "Hindi naka-link ang account na ito sa rehistradong sambahayan. Sabihan ang "
 "facilitator ng water system na i-link ito."
 
-#: .\core\views.py:322
+#: .\core\views.py:323
 msgid ""
 "Signed in without a code: this account has no contact number or email on "
 "file. Ask the administrator to add one."
@@ -1559,21 +1636,21 @@ msgstr ""
 "Naka-sign in nang walang code: walang nakatalang contact number o email ang "
 "account na ito. Sabihan ang administrator na maglagay."
 
-#: .\core\views.py:332 .\core\views.py:3654
+#: .\core\views.py:333 .\core\views.py:3672
 #, python-brace-format
 msgid "DEBUG only: your sign-in code is {code}."
 msgstr "DEBUG lang: ang sign-in code mo ay {code}."
 
-#: .\core\views.py:624
+#: .\core\views.py:625
 msgid "Household record saved."
 msgstr "Na-save ang record ng sambahayan."
 
-#: .\core\views.py:655
+#: .\core\views.py:656
 #, python-brace-format
 msgid "{household_id} already has an Owner Portal login."
 msgstr "May Owner Portal login na ang {household_id}."
 
-#: .\core\views.py:663
+#: .\core\views.py:664
 #, python-brace-format
 msgid ""
 "{household_id} has no monitoring board yet. Register one for it first (the "
@@ -1582,12 +1659,12 @@ msgstr ""
 "Wala pang monitoring board ang {household_id}. I-register muna ang board "
 "para dito (ang Register board button sa row nito), saka i-activate."
 
-#: .\core\views.py:743
+#: .\core\views.py:744
 #, python-brace-format
 msgid "{household_id} already has board {device_id}."
 msgstr "May board {device_id} na ang {household_id}."
 
-#: .\core\views.py:751
+#: .\core\views.py:752
 #, python-brace-format
 msgid ""
 "Board {device_id} registered for {household_id}. Its setup code is sent to "
@@ -1596,35 +1673,35 @@ msgstr ""
 "Na-register ang board {device_id} para sa {household_id}. Ipapadala ang "
 "setup code nito sa may-ari kapag in-activate mo ang sambahayan."
 
-#: .\core\views.py:805
+#: .\core\views.py:806
 #, python-brace-format
 msgid "Deleted {label}, along with {removed}."
 msgstr "Tinanggal ang {label}, kasama ang {removed}."
 
-#: .\core\views.py:829
+#: .\core\views.py:830
 #, python-brace-format
 msgid "{n} complaint(s)"
 msgstr "{n} reklamo"
 
-#: .\core\views.py:830
+#: .\core\views.py:831
 #, python-brace-format
 msgid "{n} notice(s)"
 msgstr "{n} abiso"
 
-#: .\core\views.py:833
+#: .\core\views.py:834
 msgid "its hose line and readings"
 msgstr "ang hose line at mga reading nito"
 
-#: .\core\views.py:835
+#: .\core\views.py:836
 #, python-brace-format
 msgid "the login '{username}'"
 msgstr "ang login na '{username}'"
 
-#: .\core\views.py:845 .\core\views.py:3519
+#: .\core\views.py:846 .\core\views.py:3537
 msgid "This household has no Owner Portal account yet."
 msgstr "Wala pang Owner Portal account ang sambahayang ito."
 
-#: .\core\views.py:856
+#: .\core\views.py:857
 #, python-brace-format
 msgid ""
 "New temporary password for {username}: {password} - give this to the owner; "
@@ -1633,11 +1710,11 @@ msgstr ""
 "Bagong temporary password para kay {username}: {password} - ibigay ito sa "
 "may-ari; hindi na ito ipapakita ulit."
 
-#: .\core\views.py:895
+#: .\core\views.py:896
 msgid "Water source location saved."
 msgstr "Na-save ang lokasyon ng pinagkukunan ng tubig."
 
-#: .\core\views.py:947
+#: .\core\views.py:948
 #, python-brace-format
 msgid ""
 "Board {device_id} registered. Claim code: {code} - enter it on the board's "
@@ -1647,7 +1724,7 @@ msgstr ""
 "page ng board kasama ng WiFi. Isang beses lang ito gumagana at mananatili sa "
 "page na ito."
 
-#: .\core\views.py:971
+#: .\core\views.py:972
 #, python-brace-format
 msgid ""
 "New key issued for {device_id}.{where} until you enter it on the board's "
@@ -1656,7 +1733,7 @@ msgstr ""
 "May bagong key para sa {device_id}.{where} hangga't hindi mo ito nailalagay "
 "sa setup page ng board. Bagong key: {api_key}"
 
-#: .\core\views.py:992
+#: .\core\views.py:993
 #, python-brace-format
 msgid ""
 "New claim code for {device_id}: {code}. It works once, and expires in "
@@ -1665,7 +1742,7 @@ msgstr ""
 "Bagong claim code para sa {device_id}: {code}. Isang beses lang ito "
 "gumagana, at mag-e-expire sa loob ng {valid_days} araw."
 
-#: .\core\views.py:1013
+#: .\core\views.py:1014
 #, python-brace-format
 msgid ""
 "{device_id} is fitted to {name}. Detach it there first, so that household "
@@ -1674,12 +1751,12 @@ msgstr ""
 "Nakakabit ang {device_id} sa {name}. Tanggalin muna ito doon, para hindi "
 "basta mawala ang board ng sambahayang iyon nang walang paalam."
 
-#: .\core\views.py:1020
+#: .\core\views.py:1021
 #, python-brace-format
 msgid "Board {device_id} removed."
 msgstr "Tinanggal ang board {device_id}."
 
-#: .\core\views.py:1042
+#: .\core\views.py:1043
 #, python-brace-format
 msgid ""
 "{name} added as module M{module_index}. It will read OFFLINE until the ESP32 "
@@ -1688,23 +1765,23 @@ msgstr ""
 "Naidagdag ang {name} bilang module M{module_index}. Magbabasa itong OFFLINE "
 "hangga't hindi nagre-report ang ESP32 ng module {module_index2}."
 
-#: .\core\views.py:1062
+#: .\core\views.py:1063
 #, python-brace-format
 msgid "{name} updated."
 msgstr "Na-update ang {name}."
 
-#: .\core\views.py:1098
+#: .\core\views.py:1099
 #, python-brace-format
 msgid "Deleted {label}. {detail}."
 msgstr "Tinanggal ang {label}. {detail}."
 
-#: .\core\views.py:1121
+#: .\core\views.py:1122
 #, python-brace-format
 msgid "{name} has no device fitted, so there is no valve to test."
 msgstr ""
 "Walang nakakabit na device ang {name}, kaya walang valve na pwedeng i-test."
 
-#: .\core\views.py:1129
+#: .\core\views.py:1130
 #, python-brace-format
 msgid ""
 "Valve test requested for {name}. The device will close the line briefly, "
@@ -1713,23 +1790,23 @@ msgstr ""
 "Hiniling ang valve test para sa {name}. Isasara ng device ang linya nang "
 "saglit, tapos kusa itong bubuksan ulit."
 
-#: .\core\views.py:1181
+#: .\core\views.py:1182
 msgid "your line"
 msgstr "linya mo"
 
-#: .\core\views.py:1185
+#: .\core\views.py:1186
 #, python-brace-format
 msgid "{name} has no device fitted, so there is no valve to control."
 msgstr ""
 "Walang nakakabit na device ang {name}, kaya walang valve na pwedeng "
 "kontrolin."
 
-#: .\core\views.py:1197
+#: .\core\views.py:1198
 msgid "Closing your valve. Your water is off until you open it again."
 msgstr ""
 "Isinasara ang valve mo. Walang tubig hangga't hindi mo ito binubuksan ulit."
 
-#: .\core\views.py:1202
+#: .\core\views.py:1203
 #, python-brace-format
 msgid ""
 "Closing the valve on {line}. The household has been told, and the line stays "
@@ -1738,34 +1815,34 @@ msgstr ""
 "Isinasara ang valve sa {line}. Naabisuhan na ang sambahayan, at mananatiling "
 "sarado ang linya hangga't walang nagbubukas ulit."
 
-#: .\core\views.py:1209
+#: .\core\views.py:1210
 msgid ""
 "The administrator closed this line. Only the administrator can open it again."
 msgstr ""
 "Isinara ng administrator ang linyang ito. Administrator lang ang pwedeng "
 "magbukas ulit."
 
-#: .\core\views.py:1218
+#: .\core\views.py:1219
 #, python-brace-format
 msgid "Opening the valve on {line}. Water will be restored within seconds."
 msgstr ""
 "Binubuksan ang valve sa {line}. Babalik ang tubig sa loob ng ilang segundo."
 
-#: .\core\views.py:1221
+#: .\core\views.py:1222
 msgid "Unknown valve command."
 msgstr "Hindi kilalang valve command."
 
-#: .\core\views.py:1251
+#: .\core\views.py:1252
 msgid "You closed your water valve. Your water is off until you open it again."
 msgstr ""
 "Isinara mo ang valve ng tubig mo. Walang tubig hangga't hindi mo ito "
 "binubuksan ulit."
 
-#: .\core\views.py:1252
+#: .\core\views.py:1253
 msgid "You opened your water valve. Water is back."
 msgstr "Binuksan mo ang valve ng tubig mo. Bumalik na ang tubig."
 
-#: .\core\views.py:1255
+#: .\core\views.py:1256
 #, python-brace-format
 msgid ""
 "Your water valve was closed by {who}. Your water is off until it is opened "
@@ -1774,29 +1851,29 @@ msgstr ""
 "Isinara ng {who} ang valve ng tubig mo. Walang tubig hangga't hindi ito "
 "nabubuksan ulit."
 
-#: .\core\views.py:1258
+#: .\core\views.py:1259
 #, python-brace-format
 msgid "Your water valve was opened by {who}. Water is back."
 msgstr "Binuksan ng {who} ang valve ng tubig mo. Bumalik na ang tubig."
 
-#: .\core\views.py:1261
+#: .\core\views.py:1262
 msgid "Valve closed"
 msgstr "Sarado ang valve"
 
-#: .\core\views.py:1261
+#: .\core\views.py:1262
 msgid "Valve opened"
 msgstr "Bukas ang valve"
 
-#: .\core\views.py:1286
+#: .\core\views.py:1287
 #, python-brace-format
 msgid "{household_id} has no hose line to alert on."
 msgstr "Walang linya ang {household_id} na pwedeng padalhan ng alerto."
 
-#: .\core\views.py:1297
+#: .\core\views.py:1298
 msgid "Choose which condition to test."
 msgstr "Piliin kung aling kondisyon ang ite-test."
 
-#: .\core\views.py:1308
+#: .\core\views.py:1309
 #, python-brace-format
 msgid ""
 "Test alert sent to {household_id} ({owner_name}). Check the household's "
@@ -1805,84 +1882,84 @@ msgstr ""
 "Naipadala ang test alert sa {household_id} ({owner_name}). I-check ang "
 "notifications, email at text ng sambahayan."
 
-#: .\core\views.py:1331
+#: .\core\views.py:1332
 #, python-brace-format
 msgid "{name} returned to live monitoring."
 msgstr "Bumalik na sa live monitoring ang {name}."
 
-#: .\core\views.py:1335
+#: .\core\views.py:1336
 #, python-brace-format
 msgid "{name} marked as under maintenance."
 msgstr "Minarkahan ang {name} bilang under maintenance."
 
-#: .\core\views.py:1368
+#: .\core\views.py:1369
 #, python-brace-format
 msgid "Alert on {name} acknowledged."
 msgstr "Na-acknowledge ang alerto sa {name}."
 
-#: .\core\views.py:1468
+#: .\core\views.py:1469
 #, python-brace-format
 msgid "Reply to your complaint {reference}"
 msgstr "Sagot sa reklamo mong {reference}"
 
-#: .\core\views.py:1479
+#: .\core\views.py:1480
 msgid "Reply sent. The owner has been notified."
 msgstr "Naipadala ang sagot. Naabisuhan na ang may-ari."
 
-#: .\core\views.py:1491
+#: .\core\views.py:1492
 #, python-brace-format
 msgid "Marked as {get_status_display}."
 msgstr "Minarkahan bilang {get_status_display}."
 
-#: .\core\views.py:1511 .\core\views.py:2981
+#: .\core\views.py:1512 .\core\views.py:2982
 msgid "No active households match that audience."
 msgstr "Walang aktibong sambahayan na tumutugma sa audience na iyon."
 
-#: .\core\views.py:1565 .\core\views.py:3035
+#: .\core\views.py:1566 .\core\views.py:3036
 #, python-brace-format
 msgid "shown in the app to {n} household(s)"
 msgstr "ipinakita sa app sa {n} sambahayan"
 
-#: .\core\views.py:1567 .\core\views.py:3037
+#: .\core\views.py:1568 .\core\views.py:3038
 #, python-brace-format
 msgid "{n} text message(s) queued"
 msgstr "{n} text message ang naka-queue"
 
-#: .\core\views.py:1569 .\core\views.py:3039
+#: .\core\views.py:1570 .\core\views.py:3040
 #, python-brace-format
 msgid "{n} email(s) sent"
 msgstr "{n} email ang naipadala"
 
-#: .\core\views.py:1570
+#: .\core\views.py:1571
 #, python-brace-format
 msgid "Notice {done}."
 msgstr "Abiso: {done}."
 
-#: .\core\views.py:1570 .\core\views.py:3040 .\core\views.py:3937
+#: .\core\views.py:1571 .\core\views.py:3041 .\core\views.py:3955
 msgid " and "
 msgstr " at "
 
-#: .\core\views.py:1578
+#: .\core\views.py:1579
 #, python-brace-format
 msgid "No contact number on file, so no text was sent to: {names}."
 msgstr ""
 "Walang nakatalang contact number, kaya walang naipadalang text sa: {names}."
 
-#: .\core\views.py:1682
+#: .\core\views.py:1683
 #, python-brace-format
 msgid "Queued again for {recipient_label}."
 msgstr "Inilagay ulit sa queue para sa {recipient_label}."
 
-#: .\core\views.py:1932
+#: .\core\views.py:1933
 msgid "Message sent to the facilitator."
 msgstr "Naipadala ang mensahe sa facilitator."
 
-#: .\core\views.py:1951
+#: .\core\views.py:1952
 #, python-brace-format
 msgid "Complaint {reference} submitted. The facilitator has been notified."
 msgstr "Naisumite ang reklamo {reference}. Naabisuhan na ang facilitator."
 
-#: .\core\views.py:2057
+#: .\core\views.py:2058
 #, python-brace-format
 msgid ""
 "Smart Hose Leak: {code} is your code to confirm your new contact details. It "
@@ -1892,12 +1969,12 @@ msgstr ""
 "details. Mag-e-expire ito sa loob ng {minutes} minuto. Kung hindi ikaw ang "
 "humiling nito, huwag pansinin."
 
-#: .\core\views.py:2066 .\templates\owner\contact_confirm.html:3
+#: .\core\views.py:2067 .\templates\owner\contact_confirm.html:3
 #: .\templates\owner\contact_confirm.html:16
 msgid "Confirm your new contact details"
 msgstr "Kumpirmahin ang bago mong contact details"
 
-#: .\core\views.py:2067
+#: .\core\views.py:2068
 #, python-brace-format
 msgid ""
 "Your code is {code}. Enter it in the Smart Hose Leak portal to confirm your "
@@ -1911,7 +1988,7 @@ msgstr ""
 "\n"
 "Kung hindi ikaw ang humiling nito, huwag pansinin ang email na ito."
 
-#: .\core\views.py:2073
+#: .\core\views.py:2074
 msgid ""
 "The code could not be emailed right now. Ask the water system facilitator to "
 "change it for you."
@@ -1919,42 +1996,42 @@ msgstr ""
 "Hindi ma-email ang code ngayon. Pakiusap sa facilitator ng sistema ng tubig "
 "na palitan ito para sa iyo."
 
-#: .\core\views.py:2108
+#: .\core\views.py:2109
 msgid "No contact change is waiting."
 msgstr "Walang naghihintay na pagbabago ng contact details."
 
-#: .\core\views.py:2123
+#: .\core\views.py:2124
 msgid ""
 "Saved. Leak alerts and sign-in codes now go to your new contact details."
 msgstr ""
 "Naitala. Doon na pupunta ang mga alerto sa tagas at sign-in code sa bago "
 "mong contact details."
 
-#: .\core\views.py:2147 .\core\views.py:3639
+#: .\core\views.py:2148 .\core\views.py:3657
 msgid "A code was sent less than a minute ago. Give it a moment to arrive."
 msgstr ""
 "May code nang ipinadala wala pang isang minuto ang nakalipas. Hintayin lang "
 "itong dumating."
 
-#: .\core\views.py:2151
+#: .\core\views.py:2152
 msgid "A new code is on its way."
 msgstr "Padala na ang bagong code."
 
-#: .\core\views.py:2162
+#: .\core\views.py:2163
 msgid "Cancelled. Your contact details are unchanged."
 msgstr "Kinansela. Hindi nabago ang contact details mo."
 
-#: .\core\views.py:2185
+#: .\core\views.py:2186
 #, python-brace-format
 msgid "Your contact number is now {number}."
 msgstr "Ang contact number mo ngayon ay {number}."
 
-#: .\core\views.py:2187
+#: .\core\views.py:2188
 #, python-brace-format
 msgid "Your email is now {email}."
 msgstr "Ang email mo ngayon ay {email}."
 
-#: .\core\views.py:2188
+#: .\core\views.py:2189
 msgid ""
 "Leak alerts and sign-in codes go there from now on. If you did not do this, "
 "tell the water system facilitator at once."
@@ -1962,11 +2039,11 @@ msgstr ""
 "Doon na pupunta ang mga alerto sa tagas at sign-in code mula ngayon. Kung "
 "hindi ikaw ang gumawa nito, sabihin agad sa facilitator ng sistema ng tubig."
 
-#: .\core\views.py:2192
+#: .\core\views.py:2193
 msgid "Contact details changed"
 msgstr "Nabago ang contact details"
 
-#: .\core\views.py:2209
+#: .\core\views.py:2210
 #, python-brace-format
 msgid ""
 "Smart Hose Leak: {household_id} ({owner}) changed their contact details in "
@@ -1975,40 +2052,39 @@ msgstr ""
 "Smart Hose Leak: {household_id} ({owner}) ay nagpalit ng contact details sa "
 "portal. Numero {old_number} -> {number}."
 
-#: .\core\views.py:2215
+#: .\core\views.py:2216
 #, python-brace-format
 msgid "Email {old_email} -> {email}."
 msgstr "Email {old_email} -> {email}."
 
-#: .\core\views.py:2216
+#: .\core\views.py:2217
 msgid "A household changed its contact details"
 msgstr "May sambahayang nagpalit ng contact details"
 
-#: .\core\views.py:2396
+#: .\core\views.py:2397
 #, python-brace-format
 msgid "Barangay updated: {name}."
 msgstr "Na-update ang barangay: {name}."
 
-#: .\core\views.py:2396
+#: .\core\views.py:2397
 #, python-brace-format
 msgid "Barangay added: {name}."
 msgstr "Naidagdag ang barangay: {name}."
 
-#: .\core\views.py:2409 .\templates\admin\accounts.html:47
-#: .\templates\admin\barangays.html:32 .\templates\admin\facilitators.html:32
+#: .\core\views.py:2410 .\templates\admin\barangays.html:32
 msgid "active"
 msgstr "aktibo"
 
-#: .\core\views.py:2409 .\templates\admin\barangays.html:33
+#: .\core\views.py:2410 .\templates\admin\barangays.html:33
 msgid "inactive"
 msgstr "hindi aktibo"
 
-#: .\core\views.py:2410
+#: .\core\views.py:2411
 #, python-brace-format
 msgid "{name} is now {state}."
 msgstr "{state} na ang {name}."
 
-#: .\core\views.py:2464
+#: .\core\views.py:2465
 #, python-brace-format
 msgid ""
 "Hello {get_full_name},\n"
@@ -2039,11 +2115,11 @@ msgstr ""
 "\n"
 "— Smart Hose Leak System"
 
-#: .\core\views.py:2470
+#: .\core\views.py:2471
 msgid "Your facilitator account"
 msgstr "Ang facilitator account mo"
 
-#: .\core\views.py:2474
+#: .\core\views.py:2475
 #, python-brace-format
 msgid ""
 "Facilitator account created for {get_full_name} ({name}). Credentials sent "
@@ -2052,7 +2128,7 @@ msgstr ""
 "Nagawa ang facilitator account para kay {get_full_name} ({name}). Naipadala "
 "ang login details sa {email}."
 
-#: .\core\views.py:2480
+#: .\core\views.py:2481
 #, python-brace-format
 msgid ""
 "Facilitator account created for {name} ({barangay}) — username: {uname} / "
@@ -2061,38 +2137,38 @@ msgstr ""
 "Nagawa ang facilitator account para kay {name} ({barangay}) — username: "
 "{uname} / temporary password: {pw}. "
 
-#: .\core\views.py:2483
+#: .\core\views.py:2484
 msgid "Email could not be sent — write this down now."
 msgstr "Hindi naipadala ang email — isulat ito ngayon."
 
-#: .\core\views.py:2484
+#: .\core\views.py:2485
 msgid "No email address on file — write this down now."
 msgstr "Walang nakatalang email address — isulat ito ngayon."
 
-#: .\core\views.py:2556
+#: .\core\views.py:2557
 msgid "That account cannot be suspended from here."
 msgstr "Hindi pwedeng i-suspend ang account na iyon mula dito."
 
-#: .\core\views.py:2562
+#: .\core\views.py:2563
 #, python-brace-format
 msgid "Restored the login '{username}'."
 msgstr "Naibalik ang login na '{username}'."
 
-#: .\core\views.py:2565
+#: .\core\views.py:2566
 #, python-brace-format
 msgid "Suspended the login '{username}'. They can no longer sign in."
 msgstr "Na-suspend ang login na '{username}'. Hindi na siya makaka-sign in."
 
-#: .\core\views.py:2583
+#: .\core\views.py:2584
 msgid "That account cannot be deleted from here."
 msgstr "Hindi pwedeng tanggalin ang account na iyon mula dito."
 
-#: .\core\views.py:2588
+#: .\core\views.py:2589
 #, python-brace-format
 msgid "Deleted the login '{username}'."
 msgstr "Tinanggal ang login na '{username}'."
 
-#: .\core\views.py:2621
+#: .\core\views.py:2622
 #, python-brace-format
 msgid ""
 "Household {household_id} registered with board {device_id}. It is pending "
@@ -2104,7 +2180,7 @@ msgstr ""
 "gagawa ng login para sa may-ari, saka ipapadala sa may-ari ang setup code ng "
 "board."
 
-#: .\core\views.py:2629
+#: .\core\views.py:2630
 #, python-brace-format
 msgid ""
 "Household {household_id} registered, with no board yet. It is pending "
@@ -2115,11 +2191,11 @@ msgstr ""
 "ang activation: kukumpirmahin ng facilitator ang lokasyon nito at gagawa ng "
 "login para sa may-ari."
 
-#: .\core\views.py:2662 .\core\views.py:2672
+#: .\core\views.py:2663 .\core\views.py:2673
 msgid "soon"
 msgstr "malapit na"
 
-#: .\core\views.py:2667
+#: .\core\views.py:2668
 #, python-brace-format
 msgid ""
 "{brgy} water system: a {kind} is scheduled for your household on {when}. "
@@ -2128,7 +2204,7 @@ msgstr ""
 "{brgy} water system: may {kind} na naka-iskedyul para sa sambahayan mo, "
 "{when}. {title}"
 
-#: .\core\views.py:2678
+#: .\core\views.py:2679
 #, python-brace-format
 msgid ""
 "Assignment ({get_kind_display}): {title}. Scheduled {when}. Where: "
@@ -2137,24 +2213,24 @@ msgstr ""
 "Nakatalagang trabaho ({get_kind_display}): {title}. Iskedyul: {when}. Saan: "
 "{where_label}."
 
-#: .\core\views.py:2738
+#: .\core\views.py:2739
 #, python-brace-format
 msgid "Work order created and assigned to {get_full_name}."
 msgstr "Nagawa ang trabaho at naitalaga kay {get_full_name}."
 
-#: .\core\views.py:2740
+#: .\core\views.py:2741
 msgid "Work order created. Assign a facilitator to schedule it."
 msgstr "Nagawa ang trabaho. Magtalaga ng facilitator para ma-iskedyul ito."
 
-#: .\core\views.py:2755
+#: .\core\views.py:2756
 msgid "Work order updated."
 msgstr "Na-update ang trabaho."
 
-#: .\core\views.py:2801
+#: .\core\views.py:2802
 msgid "Choose a facilitator to assign this to before approving."
 msgstr "Pumili muna ng facilitator na tatalagahan dito bago i-approve."
 
-#: .\core\views.py:2820
+#: .\core\views.py:2821
 #, python-brace-format
 msgid ""
 "Scheduled and assigned to {username}. The household and the facilitator have "
@@ -2163,96 +2239,96 @@ msgstr ""
 "Na-iskedyul at naitalaga kay {username}. Na-text na ang sambahayan at ang "
 "facilitator."
 
-#: .\core\views.py:2836
+#: .\core\views.py:2837
 msgid "Marked as rejected."
 msgstr "Minarkahan bilang tinanggihan."
 
-#: .\core\views.py:2849
+#: .\core\views.py:2850
 msgid "Not a status this order can be moved to."
 msgstr "Hindi pwedeng ilipat ang trabahong ito sa status na iyon."
 
-#: .\core\views.py:2857
+#: .\core\views.py:2858
 #, python-brace-format
 msgid "Work order marked {get_status_display}."
 msgstr "Minarkahan ang trabaho bilang {get_status_display}."
 
-#: .\core\views.py:2904
+#: .\core\views.py:2905
 msgid "Overdue"
 msgstr "Lampas na sa iskedyul"
 
-#: .\core\views.py:2904
+#: .\core\views.py:2905
 msgid "These were due before today."
 msgstr "Dapat natapos na ang mga ito bago ngayong araw."
 
-#: .\core\views.py:2905
+#: .\core\views.py:2906
 msgid "Today"
 msgstr "Ngayong araw"
 
-#: .\core\views.py:2906
+#: .\core\views.py:2907
 msgid "Tomorrow"
 msgstr "Bukas"
 
-#: .\core\views.py:2907
+#: .\core\views.py:2908
 msgid "Later this week"
 msgstr "Mga susunod na araw ngayong linggo"
 
-#: .\core\views.py:2908
+#: .\core\views.py:2909
 msgid "Later"
 msgstr "Sa susunod pa"
 
-#: .\core\views.py:2909
+#: .\core\views.py:2910
 msgid "Not yet scheduled"
 msgstr "Wala pang iskedyul"
 
-#: .\core\views.py:2910
+#: .\core\views.py:2911
 msgid "Assigned to you, but the administrator has not set a day yet."
 msgstr "Naitalaga sa iyo, pero wala pang itinakdang araw ang administrator."
 
-#: .\core\views.py:2931
+#: .\core\views.py:2932
 msgid "This assignment is not yours."
 msgstr "Hindi sa iyo nakatalaga ang trabahong ito."
 
-#: .\core\views.py:2935
+#: .\core\views.py:2936
 msgid "Not a status you can set."
 msgstr "Hindi mo pwedeng i-set ang status na iyon."
 
-#: .\core\views.py:2943
+#: .\core\views.py:2944
 #, python-brace-format
 msgid "Marked {get_status_display}."
 msgstr "Minarkahan bilang {get_status_display}."
 
-#: .\core\views.py:3040
+#: .\core\views.py:3041
 #, python-brace-format
 msgid "Announcement {done}."
 msgstr "Anunsyo: {done}."
 
-#: .\core\views.py:3273
+#: .\core\views.py:3280
 msgid ""
 "That file is not readable as UTF-8 text. Export it as CSV and try again."
 msgstr ""
 "Hindi mabasa ang file na iyon bilang UTF-8 text. I-export ito bilang CSV at "
 "subukan ulit."
 
-#: .\core\views.py:3278
+#: .\core\views.py:3285
 msgid "The CSV needs a header row with at least an 'owner_name' column."
 msgstr ""
 "Kailangan ng CSV ng header row na may kahit 'owner_name' column man lang."
 
-#: .\core\views.py:3310
+#: .\core\views.py:3317
 #, python-brace-format
 msgid "Imported {created} household(s)."
 msgstr "Na-import ang {created} sambahayan."
 
-#: .\core\views.py:3364
+#: .\core\views.py:3371
 #, python-brace-format
 msgid "Restore failed - nothing was changed: {exc}"
 msgstr "Hindi natuloy ang restore - walang nabago: {exc}"
 
-#: .\core\views.py:3378
+#: .\core\views.py:3385
 msgid "Database restored from the backup."
 msgstr "Naibalik ang database mula sa backup."
 
-#: .\core\views.py:3431
+#: .\core\views.py:3449
 msgid ""
 "Detection settings saved. Boards pick up the new values on their next "
 "reading."
@@ -2260,7 +2336,7 @@ msgstr ""
 "Na-save ang detection settings. Kukunin ng mga board ang bagong values sa "
 "susunod nilang reading."
 
-#: .\core\views.py:3450
+#: .\core\views.py:3468
 msgid ""
 "Maintenance mode is on. Households and facilitators now see the maintenance "
 "notice."
@@ -2268,11 +2344,11 @@ msgstr ""
 "Naka-on ang maintenance mode. Nakikita na ngayon ng mga sambahayan at "
 "facilitator ang maintenance notice."
 
-#: .\core\views.py:3451
+#: .\core\views.py:3469
 msgid "Maintenance mode is off."
 msgstr "Naka-off ang maintenance mode."
 
-#: .\core\views.py:3481
+#: .\core\views.py:3499
 #, python-brace-format
 msgid ""
 "Smart Hose Leak portal login - username: {username}, temporary password: "
@@ -2281,11 +2357,11 @@ msgstr ""
 "Smart Hose Leak portal login - username: {username}, temporary password: "
 "{password}. Mag-sign in sa {site} at palitan ito."
 
-#: .\core\views.py:3497
+#: .\core\views.py:3515
 msgid "Your Smart Hose Leak portal login"
 msgstr "Ang iyong Smart Hose Leak portal login"
 
-#: .\core\views.py:3498
+#: .\core\views.py:3516
 #, python-brace-format
 msgid ""
 "Your household ({household_id}) is now active on the Smart Hose Leak "
@@ -2303,14 +2379,14 @@ msgstr ""
 "\n"
 "Mag-sign in sa {site} at hihilingin sa iyong pumili ng bagong password."
 
-#: .\core\views.py:3523
+#: .\core\views.py:3541
 msgid ""
 "No contact number on file for this household, so there is nowhere to text it."
 msgstr ""
 "Walang nakatalang contact number ang sambahayang ito, kaya walang "
 "mapapadalhan ng text."
 
-#: .\core\views.py:3534
+#: .\core\views.py:3552
 #, python-brace-format
 msgid ""
 "Login details texted to {contact_number}: username {username}, temporary "
@@ -2319,12 +2395,12 @@ msgstr ""
 "Na-text ang login details sa {contact_number}: username {username}, "
 "temporary password {password}. Hindi na ito ipapakita ulit."
 
-#: .\core\views.py:3552
+#: .\core\views.py:3570
 msgid "This household has no coordinates yet, so there is nothing to route to."
 msgstr ""
 "Wala pang coordinates ang sambahayang ito, kaya walang mapupuntahang ruta."
 
-#: .\core\views.py:3558
+#: .\core\views.py:3576
 #, python-brace-format
 msgid ""
 "Route fetched: {visit_route_label} by road. It is drawn on the dashboard map."
@@ -2332,91 +2408,91 @@ msgstr ""
 "Nakuha ang ruta: {visit_route_label} sa kalsada. Nakaguhit ito sa mapa ng "
 "dashboard."
 
-#: .\core\views.py:3562
+#: .\core\views.py:3580
 #, python-brace-format
 msgid "No route fetched: {reason}."
 msgstr "Walang nakuhang ruta: {reason}."
 
-#: .\core\views.py:3563
+#: .\core\views.py:3581
 msgid "nothing to route between"
 msgstr "walang mga lugar na pag-uugnayin"
 
-#: .\core\views.py:3595
+#: .\core\views.py:3613
 msgid "Sign in with your password first."
 msgstr "Mag-sign in muna gamit ang password mo."
 
-#: .\core\views.py:3649
+#: .\core\views.py:3667
 msgid "This account has no contact number or email to send a code to."
 msgstr ""
 "Walang contact number o email ang account na ito na mapapadalhan ng code."
 
-#: .\core\views.py:3652
+#: .\core\views.py:3670
 #, python-brace-format
 msgid "A new code was sent by {sent_by} to {masked_destination}."
 msgstr ""
 "Ipinadala ang bagong code sa pamamagitan ng {sent_by} sa "
 "{masked_destination}."
 
-#: .\core\views.py:3670
+#: .\core\views.py:3688
 msgid "That account cannot be edited from here."
 msgstr "Hindi pwedeng i-edit ang account na iyon mula dito."
 
-#: .\core\views.py:3679
+#: .\core\views.py:3697
 #, python-brace-format
 msgid "Saved contact details for {username}."
 msgstr "Na-save ang contact details ni {username}."
 
-#: .\core\views.py:3741
+#: .\core\views.py:3759
 #, python-brace-format
 msgid "{household_id} updated."
 msgstr "Na-update ang {household_id}."
 
-#: .\core\views.py:3774 .\core\views.py:3844
+#: .\core\views.py:3792 .\core\views.py:3862
 #, python-brace-format
 msgid "Archived {label}. You can restore it from the archive page."
 msgstr "Na-archive ang {label}. Pwede mo itong ibalik mula sa archive page."
 
-#: .\core\views.py:3796
+#: .\core\views.py:3814
 #, python-brace-format
 msgid "Not deleted: type the household ID {household_id} exactly to confirm."
 msgstr ""
 "Hindi na-delete: i-type nang eksakto ang household ID {household_id} para "
 "kumpirmahin."
 
-#: .\core\views.py:3805
+#: .\core\views.py:3823
 #, python-brace-format
 msgid "Deleted {label} permanently, along with {removed}."
 msgstr "Permanenteng na-delete ang {label}, kasama ang {removed}."
 
-#: .\core\views.py:3821
+#: .\core\views.py:3839
 #, python-brace-format
 msgid "{facilitator_id} updated."
 msgstr "Na-update ang {facilitator_id}."
 
-#: .\core\views.py:3838
+#: .\core\views.py:3856
 msgid "That account cannot be archived from here."
 msgstr "Hindi pwedeng i-archive ang account na iyon mula dito."
 
-#: .\core\views.py:3882 .\core\views.py:3896
+#: .\core\views.py:3900 .\core\views.py:3914
 #, python-brace-format
 msgid "Restored {label}."
 msgstr "Naibalik ang {label}."
 
-#: .\core\views.py:3929
+#: .\core\views.py:3947
 msgid "A new setup code is not available for your board right now."
 msgstr "Walang bagong setup code na available para sa board mo sa ngayon."
 
-#: .\core\views.py:3936
+#: .\core\views.py:3954
 #, python-brace-format
 msgid "Your new setup code is {code}."
 msgstr "Ang bagong setup code mo ay {code}."
 
-#: .\core\views.py:3937
+#: .\core\views.py:3955
 #, python-brace-format
 msgid " It was also sent by {channels}."
 msgstr " Ipinadala rin ito sa pamamagitan ng {channels}."
 
-#: .\core\views.py:3957
+#: .\core\views.py:3975
 msgid ""
 "Your board has not connected yet, so a WiFi change cannot reach it. Use the "
 "setup steps instead."
@@ -2424,16 +2500,16 @@ msgstr ""
 "Hindi pa nakakakonekta ang board mo, kaya hindi aabot dito ang pagpapalit ng "
 "WiFi. Gamitin na lang ang mga hakbang sa setup."
 
-#: .\core\views.py:3962
+#: .\core\views.py:3980
 msgid "Enter the WiFi name (up to 32 characters)."
 msgstr "Ilagay ang pangalan ng WiFi (hanggang 32 character)."
 
-#: .\core\views.py:3965
+#: .\core\views.py:3983
 msgid "A WiFi password is 8 to 63 characters, or blank for an open network."
 msgstr ""
 "Ang WiFi password ay 8 hanggang 63 character, o blangko kung open network."
 
-#: .\core\views.py:3971
+#: .\core\views.py:3989
 #, python-brace-format
 msgid ""
 "Sent. The board picks it up on its next check-in (within about a minute), "
@@ -2444,16 +2520,16 @@ msgstr ""
 "isang minuto), susubukan ang {ssid}, at babalik sa kasalukuyang network "
 "kapag hindi ito gumana. Makikita rito ang resulta."
 
-#: .\core\views.py:3984
+#: .\core\views.py:4002
 msgid "There is no current setup code to send. Get a new one instead."
 msgstr "Walang kasalukuyang setup code na maipapadala. Kumuha na lang ng bago."
 
-#: .\core\views.py:3988
+#: .\core\views.py:4006
 #, python-brace-format
 msgid "Setup code {code} sent by {sent}."
 msgstr "Naipadala ang setup code {code} sa pamamagitan ng {sent}."
 
-#: .\core\views.py:3990
+#: .\core\views.py:4008
 msgid ""
 "There is no number or email on your record to send it to. The code is shown "
 "below."
@@ -2486,7 +2562,7 @@ msgid "Where to go instead"
 msgstr "Saan pwedeng pumunta"
 
 #: .\templates\400.html:30 .\templates\403.html:36 .\templates\404.html:47
-#: .\templates\base.html:156 .\templates\facilitator\dashboard.html:4
+#: .\templates\base.html:162 .\templates\facilitator\dashboard.html:4
 msgid "Dashboard"
 msgstr "Dashboard"
 
@@ -2527,7 +2603,7 @@ msgstr "Kailangang naka-sign in ka para mabuksan ang page na iyon."
 
 #: .\templates\403.html:41 .\templates\404.html:57
 #: .\templates\_login_modal.html:29 .\templates\_login_modal.html:124
-#: .\templates\base.html:276 .\templates\home.html:41
+#: .\templates\base.html:309 .\templates\home.html:41
 #: .\templates\home.html:288 .\templates\registration\login.html:3
 #: .\templates\registration\login_code.html:60
 msgid "Sign in"
@@ -2557,8 +2633,8 @@ msgstr ""
 "Hindi bahagi ng system na ito ang address na binuksan mo. Baka may mali sa "
 "pagkaka-type, o lumang link na hindi na gumagana."
 
-#: .\templates\404.html:49 .\templates\base.html:177 .\templates\base.html:198
-#: .\templates\facilitator\complaints.html:3
+#: .\templates\404.html:49 .\templates\base.html:183 .\templates\base.html:204
+#: .\templates\base.html:245 .\templates\facilitator\complaints.html:3
 #: .\templates\facilitator\complaints.html:9
 #: .\templates\facilitator\household_detail.html:140
 msgid "Complaints"
@@ -2637,24 +2713,24 @@ msgstr "Bumalik sa unang pahina"
 
 #: .\templates\_login_modal.html:38
 #: .\templates\admin\_household_destroy_dialog.html:18
-#: .\templates\admin\accounts.html:118 .\templates\admin\announcements.html:69
+#: .\templates\admin\accounts.html:123 .\templates\admin\announcements.html:69
 #: .\templates\admin\facilitators.html:90
 #: .\templates\admin\facilitators.html:141
 #: .\templates\admin\facilitators.html:181
-#: .\templates\admin\households.html:144 .\templates\admin\households.html:244
-#: .\templates\admin\households.html:305
+#: .\templates\admin\households.html:150 .\templates\admin\households.html:250
+#: .\templates\admin\households.html:311
 #: .\templates\admin\workorder_detail.html:114
 #: .\templates\admin\workorders.html:80
 #: .\templates\facilitator\household_detail.html:211
 #: .\templates\facilitator\households.html:164
 #: .\templates\facilitator\households.html:224
 #: .\templates\facilitator\households.html:273
-#: .\templates\facilitator\segments.html:340
-#: .\templates\facilitator\segments.html:399
-#: .\templates\facilitator\segments.html:463
-#: .\templates\facilitator\segments.html:504
-#: .\templates\owner\complaints.html:124 .\templates\owner\settings.html:105
-#: .\templates\owner\settings.html:169
+#: .\templates\facilitator\segments.html:346
+#: .\templates\facilitator\segments.html:405
+#: .\templates\facilitator\segments.html:469
+#: .\templates\facilitator\segments.html:510
+#: .\templates\owner\complaints.html:124 .\templates\owner\settings.html:107
+#: .\templates\owner\settings.html:171
 msgid "Close"
 msgstr "Isara"
 
@@ -2727,7 +2803,7 @@ msgstr ""
 "kumpirmahin"
 
 #: .\templates\admin\_household_destroy_dialog.html:32
-#: .\templates\admin\account_form.html:38 .\templates\admin\accounts.html:135
+#: .\templates\admin\account_form.html:38 .\templates\admin\accounts.html:140
 #: .\templates\admin\announcement_form.html:51
 #: .\templates\admin\announcements.html:107
 #: .\templates\admin\barangay_form.html:23
@@ -2736,9 +2812,8 @@ msgstr ""
 #: .\templates\admin\facilitators.html:160
 #: .\templates\admin\facilitators.html:189
 #: .\templates\admin\household_form.html:86
-#: .\templates\admin\households.html:222 .\templates\admin\households.html:284
-#: .\templates\admin\households.html:313
-#: .\templates\admin\workorder_detail.html:89
+#: .\templates\admin\households.html:228 .\templates\admin\households.html:290
+#: .\templates\admin\households.html:319
 #: .\templates\admin\workorder_detail.html:131
 #: .\templates\admin\workorder_form.html:29
 #: .\templates\admin\workorders.html:97
@@ -2748,10 +2823,10 @@ msgstr ""
 #: .\templates\facilitator\households.html:251
 #: .\templates\facilitator\households.html:290
 #: .\templates\facilitator\segment_form.html:31
-#: .\templates\facilitator\segments.html:377
-#: .\templates\facilitator\segments.html:442
-#: .\templates\facilitator\segments.html:481
-#: .\templates\facilitator\segments.html:519
+#: .\templates\facilitator\segments.html:383
+#: .\templates\facilitator\segments.html:448
+#: .\templates\facilitator\segments.html:487
+#: .\templates\facilitator\segments.html:525
 #: .\templates\owner\complaints.html:139
 msgid "Cancel"
 msgstr "Kanselahin"
@@ -2791,12 +2866,12 @@ msgstr ""
 "Ito ang sariling contact ng login. May sarili ring numero at email ang "
 "record ng sambahayan para sa %(hid)s, na hawak ng facilitator."
 
-#: .\templates\admin\account_form.html:37 .\templates\admin\accounts.html:136
+#: .\templates\admin\account_form.html:37 .\templates\admin\accounts.html:141
 msgid "Save contact details"
 msgstr "I-save ang contact details"
 
 #: .\templates\admin\accounts.html:3 .\templates\admin\accounts.html:9
-#: .\templates\base.html:127
+#: .\templates\base.html:133
 msgid "Accounts"
 msgstr "Mga Account"
 
@@ -2816,7 +2891,7 @@ msgid "Login, name or contact"
 msgstr "Login, pangalan o contact"
 
 #: .\templates\admin\accounts.html:20 .\templates\admin\accounts.html:35
-#: .\templates\admin\dashboard.html:127
+#: .\templates\admin\dashboard.html:133
 msgid "Role"
 msgstr "Role"
 
@@ -2824,112 +2899,117 @@ msgstr "Role"
 msgid "All roles"
 msgstr "Lahat ng role"
 
-#: .\templates\admin\accounts.html:28 .\templates\admin\audit.html:27
+#: .\templates\admin\accounts.html:28 .\templates\admin\audit.html:35
 #: .\templates\admin\households.html:30 .\templates\admin\workorders.html:28
 #: .\templates\facilitator\events.html:16
 #: .\templates\facilitator\households.html:39
 msgid "Filter"
 msgstr "I-filter"
 
-#: .\templates\admin\accounts.html:29 .\templates\admin\audit.html:28
+#: .\templates\admin\accounts.html:29 .\templates\admin\audit.html:36
 #: .\templates\admin\households.html:31 .\templates\admin\workorders.html:29
 #: .\templates\facilitator\events.html:26
 #: .\templates\facilitator\households.html:40
 msgid "Clear"
 msgstr "I-clear"
 
-#: .\templates\admin\accounts.html:35 .\templates\admin\dashboard.html:127
+#: .\templates\admin\accounts.html:35 .\templates\admin\dashboard.html:133
 #: .\templates\admin\facilitator_form.html:11
 #: .\templates\admin\facilitators.html:21
 msgid "Login"
 msgstr "Login"
 
-#: .\templates\admin\accounts.html:35 .\templates\admin\archive.html:64
-#: .\templates\admin\barangays.html:20 .\templates\admin\dashboard.html:127
+#: .\templates\admin\accounts.html:35 .\templates\admin\archive.html:76
+#: .\templates\admin\barangays.html:20 .\templates\admin\dashboard.html:133
 #: .\templates\admin\facilitators.html:21
 msgid "Name"
 msgstr "Pangalan"
 
 #: .\templates\admin\accounts.html:35 .\templates\admin\barangays.html:21
-#: .\templates\admin\dashboard.html:95 .\templates\admin\facilitators.html:21
-#: .\templates\admin\households.html:38 .\templates\admin\pressure.html:138
+#: .\templates\admin\dashboard.html:101 .\templates\admin\facilitators.html:21
+#: .\templates\admin\households.html:38 .\templates\admin\pressure.html:101
 #: .\templates\admin\workorders.html:20 .\templates\admin\workorders.html:36
 #: .\templates\facilitator\assignments.html:72
 #: .\templates\facilitator\dashboard.html:268
 #: .\templates\facilitator\dashboard.html:527
 #: .\templates\facilitator\events.html:33
 #: .\templates\facilitator\households.html:47
-#: .\templates\facilitator\notifications.html:296
+#: .\templates\facilitator\notifications.html:292
 #: .\templates\facilitator\pressure.html:78
 #: .\templates\facilitator\reports.html:66
 #: .\templates\facilitator\segments.html:83
-#: .\templates\facilitator\segments.html:217
+#: .\templates\facilitator\segments.html:222
 msgid "Status"
 msgstr "Status"
 
-#: .\templates\admin\accounts.html:48 .\templates\admin\dashboard.html:133
+#: .\templates\admin\accounts.html:48 .\templates\admin\dashboard.html:139
 #: .\templates\admin\facilitators.html:33
-msgid "suspended"
-msgstr "suspendido"
+msgid "Suspended"
+msgstr "Suspendido"
 
 #: .\templates\admin\accounts.html:61 .\templates\admin\barangays.html:37
-#: .\templates\admin\facilitators.html:51 .\templates\admin\households.html:92
+#: .\templates\admin\facilitators.html:51 .\templates\admin\households.html:93
 #: .\templates\facilitator\household_detail.html:13
 #: .\templates\facilitator\households.html:112
 #: .\templates\facilitator\segments.html:158
 msgid "Edit"
 msgstr "I-edit"
 
-#: .\templates\admin\accounts.html:66
+#: .\templates\admin\accounts.html:64 .\templates\admin\households.html:95
+#: .\templates\facilitator\segments.html:160 .\templates\owner\home.html:148
+msgid "More"
+msgstr "Iba pa"
+
+#: .\templates\admin\accounts.html:69
 msgid "Suspend"
 msgstr "I-suspend"
 
-#: .\templates\admin\accounts.html:66 .\templates\admin\archive.html:35
-#: .\templates\admin\archive.html:77 .\templates\admin\data.html:57
+#: .\templates\admin\accounts.html:69 .\templates\admin\archive.html:45
+#: .\templates\admin\archive.html:89 .\templates\admin\data.html:61
 msgid "Restore"
 msgstr "Ibalik"
 
-#: .\templates\admin\accounts.html:72 .\templates\admin\archive.html:45
+#: .\templates\admin\accounts.html:75 .\templates\admin\archive.html:55
 #: .\templates\admin\facilitators.html:59
-#: .\templates\admin\households.html:106
+#: .\templates\admin\households.html:110
 #: .\templates\facilitator\households.html:120
-#: .\templates\facilitator\segments.html:179
+#: .\templates\facilitator\segments.html:182
 msgid "Delete"
 msgstr "Tanggalin"
 
-#: .\templates\admin\accounts.html:82
+#: .\templates\admin\accounts.html:87
 msgid "No accounts match this filter."
 msgstr "Walang account na tumugma sa filter na ito."
 
-#: .\templates\admin\accounts.html:91 .\templates\admin\announcements.html:46
-#: .\templates\admin\audit.html:52 .\templates\admin\households.html:121
+#: .\templates\admin\accounts.html:96 .\templates\admin\announcements.html:46
+#: .\templates\admin\audit.html:61 .\templates\admin\households.html:127
 #: .\templates\admin\workorders.html:56 .\templates\facilitator\events.html:85
 #: .\templates\facilitator\households.html:137
 #: .\templates\owner\notifications.html:88
 msgid "Previous"
 msgstr "Nakaraan"
 
-#: .\templates\admin\accounts.html:93 .\templates\admin\announcements.html:47
-#: .\templates\admin\audit.html:53 .\templates\admin\households.html:122
+#: .\templates\admin\accounts.html:98 .\templates\admin\announcements.html:47
+#: .\templates\admin\audit.html:62 .\templates\admin\households.html:128
 #: .\templates\admin\workorders.html:57 .\templates\facilitator\events.html:87
 #: .\templates\facilitator\households.html:139
 #, python-format
 msgid "Page %(n)s of %(total)s"
 msgstr "Page %(n)s ng %(total)s"
 
-#: .\templates\admin\accounts.html:95 .\templates\admin\announcements.html:48
-#: .\templates\admin\audit.html:54 .\templates\admin\households.html:123
+#: .\templates\admin\accounts.html:100 .\templates\admin\announcements.html:48
+#: .\templates\admin\audit.html:63 .\templates\admin\households.html:129
 #: .\templates\admin\workorders.html:58 .\templates\facilitator\events.html:89
 #: .\templates\facilitator\households.html:141
 #: .\templates\owner\notifications.html:92
 msgid "Next"
 msgstr "Susunod"
 
-#: .\templates\admin\accounts.html:115
+#: .\templates\admin\accounts.html:120
 msgid "Edit contact details"
 msgstr "I-edit ang contact details"
 
-#: .\templates\admin\accounts.html:132
+#: .\templates\admin\accounts.html:137
 msgid ""
 "Where sign-in codes, alerts and notices for this login go. A household "
 "record keeps its own number and email, on the facilitator side."
@@ -2939,7 +3019,7 @@ msgstr ""
 "facilitator."
 
 #: .\templates\admin\analytics.html:3 .\templates\admin\analytics.html:9
-#: .\templates\admin\dashboard.html:15 .\templates\base.html:118
+#: .\templates\base.html:124
 msgid "Analytics"
 msgstr "Analytics"
 
@@ -2953,7 +3033,7 @@ msgstr ""
 msgid "Headline figures"
 msgstr "Pangunahing bilang"
 
-#: .\templates\admin\analytics.html:16 .\templates\admin\dashboard.html:51
+#: .\templates\admin\analytics.html:16 .\templates\admin\dashboard.html:55
 msgid "Active hose lines"
 msgstr "Aktibong mga linya"
 
@@ -2961,7 +3041,7 @@ msgstr "Aktibong mga linya"
 msgid "Boards online"
 msgstr "Mga board na online"
 
-#: .\templates\admin\analytics.html:18 .\templates\admin\dashboard.html:32
+#: .\templates\admin\analytics.html:18 .\templates\admin\dashboard.html:33
 msgid "Open leak alerts"
 msgstr "Nakabinbing mga alerto sa tagas"
 
@@ -3043,7 +3123,7 @@ msgid "Send announcement"
 msgstr "Ipadala ang anunsyo"
 
 #: .\templates\admin\announcements.html:3
-#: .\templates\admin\announcements.html:9 .\templates\base.html:137
+#: .\templates\admin\announcements.html:9 .\templates\base.html:143
 msgid "Announcements"
 msgstr "Mga Anunsyo"
 
@@ -3124,7 +3204,7 @@ msgstr ""
 "Iisang mensahe ang lalabas sa bawat isa."
 
 #: .\templates\admin\archive.html:3 .\templates\admin\archive.html:9
-#: .\templates\admin\households.html:97 .\templates\base.html:151
+#: .\templates\admin\households.html:101 .\templates\base.html:157
 msgid "Archive"
 msgstr "Archive"
 
@@ -3136,25 +3216,36 @@ msgstr ""
 "Mga na-archive na sambahayan at facilitator. I-restore para ibalik sa "
 "listahan ng mga aktibo."
 
-#: .\templates\admin\archive.html:20 .\templates\admin\archive.html:64
+#: .\templates\admin\archive.html:18
+msgid "Nothing is archived."
+msgstr "Walang naka-archive."
+
+#: .\templates\admin\archive.html:19
+msgid ""
+"A household or facilitator you archive is kept here, and can be restored."
+msgstr ""
+"Dito itinatago ang sambahayan o facilitator na ina-archive mo, at maaari "
+"itong ibalik."
+
+#: .\templates\admin\archive.html:30 .\templates\admin\archive.html:76
 msgid "ID"
 msgstr "ID"
 
-#: .\templates\admin\archive.html:20 .\templates\admin\households.html:37
-#: .\templates\admin\pressure.html:136
+#: .\templates\admin\archive.html:30 .\templates\admin\households.html:37
+#: .\templates\admin\pressure.html:99
 #: .\templates\facilitator\households.html:46
 #: .\templates\facilitator\households.html:175
 #: .\templates\facilitator\pressure.html:76
 msgid "Owner"
 msgstr "May-ari"
 
-#: .\templates\admin\archive.html:20 .\templates\admin\households.html:37
+#: .\templates\admin\archive.html:30 .\templates\admin\households.html:37
 #: .\templates\facilitator\households.html:46
 #: .\templates\facilitator\households.html:176
 msgid "Address"
 msgstr "Tirahan"
 
-#: .\templates\admin\archive.html:20 .\templates\admin\facilitators.html:21
+#: .\templates\admin\archive.html:30 .\templates\admin\facilitators.html:21
 #: .\templates\admin\households.html:37
 #: .\templates\facilitator\household_detail.html:22
 #: .\templates\facilitator\households.html:46
@@ -3162,31 +3253,31 @@ msgstr "Tirahan"
 msgid "Contact"
 msgstr "Contact"
 
-#: .\templates\admin\archive.html:20
+#: .\templates\admin\archive.html:30
 msgid "Archived"
 msgstr "Na-archive"
 
-#: .\templates\admin\archive.html:50
+#: .\templates\admin\archive.html:60
 msgid "No archived households."
 msgstr "Walang na-archive na sambahayan."
 
-#: .\templates\admin\archive.html:59 .\templates\admin\barangays.html:20
-#: .\templates\admin\dashboard.html:63 .\templates\admin\facilitators.html:3
-#: .\templates\admin\facilitators.html:9 .\templates\base.html:121
+#: .\templates\admin\archive.html:71 .\templates\admin\barangays.html:20
+#: .\templates\admin\dashboard.html:69 .\templates\admin\facilitators.html:3
+#: .\templates\admin\facilitators.html:9 .\templates\base.html:127
 msgid "Facilitators"
 msgstr "Mga Facilitator"
 
-#: .\templates\admin\archive.html:64
+#: .\templates\admin\archive.html:76
 msgid "Username"
 msgstr "Username"
 
-#: .\templates\admin\archive.html:82
+#: .\templates\admin\archive.html:94
 msgid "No archived facilitators."
 msgstr "Walang na-archive na facilitator."
 
 #: .\templates\admin\audit.html:3 .\templates\admin\audit.html:9
-#: .\templates\admin\dashboard.html:155 .\templates\admin\data.html:22
-#: .\templates\base.html:145
+#: .\templates\admin\dashboard.html:162 .\templates\admin\data.html:22
+#: .\templates\base.html:151
 msgid "Audit log"
 msgstr "Audit log"
 
@@ -3204,7 +3295,7 @@ msgstr ""
 msgid "Export CSV"
 msgstr "I-export ang CSV"
 
-#: .\templates\admin\audit.html:19 .\templates\admin\audit.html:33
+#: .\templates\admin\audit.html:19 .\templates\admin\audit.html:41
 msgid "Action"
 msgstr "Aksyon"
 
@@ -3212,29 +3303,39 @@ msgstr "Aksyon"
 msgid "All actions"
 msgstr "Lahat ng aksyon"
 
-#: .\templates\admin\audit.html:33 .\templates\admin\dashboard.html:95
-#: .\templates\admin\system.html:89 .\templates\facilitator\dashboard.html:527
-#: .\templates\facilitator\notifications.html:296
+#: .\templates\admin\audit.html:28
+msgid "From"
+msgstr "Mula"
+
+#: .\templates\admin\audit.html:32
+#: .\templates\facilitator\notifications.html:292
+msgid "To"
+msgstr "Para sa"
+
+#: .\templates\admin\audit.html:41 .\templates\admin\dashboard.html:101
+#: .\templates\admin\system.html:112
+#: .\templates\facilitator\dashboard.html:527
+#: .\templates\facilitator\notifications.html:292
 msgid "When"
 msgstr "Kailan"
 
-#: .\templates\admin\audit.html:33
+#: .\templates\admin\audit.html:41
 msgid "Who"
 msgstr "Sino"
 
-#: .\templates\admin\audit.html:33
+#: .\templates\admin\audit.html:41
 msgid "Summary"
 msgstr "Buod"
 
-#: .\templates\admin\audit.html:33
+#: .\templates\admin\audit.html:41
 msgid "Target"
 msgstr "Target"
 
-#: .\templates\admin\audit.html:38 .\templates\admin\dashboard.html:164
+#: .\templates\admin\audit.html:46 .\templates\admin\dashboard.html:171
 msgid "system"
 msgstr "sistema"
 
-#: .\templates\admin\audit.html:44
+#: .\templates\admin\audit.html:53
 msgid "No audit entries yet."
 msgstr "Wala pang audit entry."
 
@@ -3274,13 +3375,13 @@ msgstr ""
 
 #: .\templates\admin\barangays.html:20
 #: .\templates\admin\household_form.html:41
-#: .\templates\admin\households.html:174 .\templates\admin\households.html:266
+#: .\templates\admin\households.html:180 .\templates\admin\households.html:272
 msgid "Municipality"
 msgstr "Munisipalidad"
 
 #: .\templates\admin\barangays.html:20
 #: .\templates\admin\household_form.html:37
-#: .\templates\admin\households.html:170 .\templates\admin\households.html:262
+#: .\templates\admin\households.html:176 .\templates\admin\households.html:268
 msgid "Province"
 msgstr "Probinsya"
 
@@ -3301,17 +3402,13 @@ msgid "Add the first one"
 msgstr "Idagdag ang una"
 
 #: .\templates\admin\dashboard.html:3 .\templates\admin\dashboard.html:10
-#: .\templates\base.html:110
+#: .\templates\base.html:116
 msgid "Administration"
 msgstr "Administrasyon"
 
 #: .\templates\admin\dashboard.html:11
 msgid "the whole system, and the people who run it."
 msgstr "ang buong sistema, at ang mga taong nagpapatakbo nito."
-
-#: .\templates\admin\dashboard.html:14 .\templates\base.html:115
-msgid "Pressure &amp; flow"
-msgstr "Pressure &amp; flow"
 
 #: .\templates\admin\dashboard.html:16
 msgid "Announcement"
@@ -3325,7 +3422,7 @@ msgstr "Magdagdag ng facilitator"
 
 #: .\templates\admin\dashboard.html:18 .\templates\admin\household_form.html:3
 #: .\templates\admin\household_form.html:85
-#: .\templates\admin\households.html:21 .\templates\admin\households.html:223
+#: .\templates\admin\households.html:21 .\templates\admin\households.html:229
 msgid "Register household"
 msgstr "Irehistro ang sambahayan"
 
@@ -3333,73 +3430,73 @@ msgstr "Irehistro ang sambahayan"
 msgid "System totals"
 msgstr "Kabuuan ng sistema"
 
-#: .\templates\admin\dashboard.html:33
+#: .\templates\admin\dashboard.html:34
 msgid "facilitator texted"
 msgstr "na-text ang facilitator"
 
-#: .\templates\admin\dashboard.html:33
+#: .\templates\admin\dashboard.html:34
 msgid "none open"
 msgstr "walang nakabinbin"
 
-#: .\templates\admin\dashboard.html:37
+#: .\templates\admin\dashboard.html:39
 msgid "Visits scheduled"
 msgstr "Nakaiskedyul na pagbisita"
 
-#: .\templates\admin\dashboard.html:39
+#: .\templates\admin\dashboard.html:41
 #, python-format
 msgid "%(n)s done this week"
 msgstr "%(n)s ang tapos ngayong linggo"
 
-#: .\templates\admin\dashboard.html:39
+#: .\templates\admin\dashboard.html:41
 msgid "none done this week"
 msgstr "wala pang tapos ngayong linggo"
 
-#: .\templates\admin\dashboard.html:46 .\templates\admin\dashboard.html:58
+#: .\templates\admin\dashboard.html:49 .\templates\admin\dashboard.html:63
 #, python-format
 msgid "+%(n)s this week"
 msgstr "+%(n)s ngayong linggo"
 
-#: .\templates\admin\dashboard.html:46 .\templates\admin\dashboard.html:58
+#: .\templates\admin\dashboard.html:49 .\templates\admin\dashboard.html:63
 msgid "no change this week"
 msgstr "walang pagbabago ngayong linggo"
 
-#: .\templates\admin\dashboard.html:52
+#: .\templates\admin\dashboard.html:56
 #, python-format
 msgid "%(n)s board registered"
 msgid_plural "%(n)s boards registered"
 msgstr[0] "%(n)s board ang nakarehistro"
 msgstr[1] "%(n)s board ang nakarehistro"
 
-#: .\templates\admin\dashboard.html:56
+#: .\templates\admin\dashboard.html:61
 msgid "Owner logins"
 msgstr "Mga login ng may-ari"
 
-#: .\templates\admin\dashboard.html:64
+#: .\templates\admin\dashboard.html:70
 #, python-format
 msgid "%(n)s login suspended"
 msgid_plural "%(n)s logins suspended"
 msgstr[0] "%(n)s login ang suspendido"
 msgstr[1] "%(n)s login ang suspendido"
 
-#: .\templates\admin\dashboard.html:74
+#: .\templates\admin\dashboard.html:80
 msgid "Needs attention"
 msgstr "Kailangan ng atensyon"
 
-#: .\templates\admin\dashboard.html:87
+#: .\templates\admin\dashboard.html:93
 msgid "Upcoming visits"
 msgstr "Mga paparating na pagbisita"
 
-#: .\templates\admin\dashboard.html:89 .\templates\admin\dashboard.html:115
+#: .\templates\admin\dashboard.html:95 .\templates\admin\dashboard.html:121
 msgid "All visits"
 msgstr "Lahat ng pagbisita"
 
-#: .\templates\admin\dashboard.html:90 .\templates\admin\workorder_form.html:3
+#: .\templates\admin\dashboard.html:96 .\templates\admin\workorder_form.html:3
 #: .\templates\admin\workorders.html:14
 msgid "Schedule a visit"
 msgstr "Mag-iskedyul ng pagbisita"
 
-#: .\templates\admin\dashboard.html:95 .\templates\admin\pressure.html:106
-#: .\templates\admin\pressure.html:136 .\templates\admin\workorders.html:35
+#: .\templates\admin\dashboard.html:101 .\templates\admin\pressure.html:99
+#: .\templates\admin\pressure.html:172 .\templates\admin\workorders.html:35
 #: .\templates\facilitator\dashboard.html:263
 #: .\templates\facilitator\dashboard.html:527
 #: .\templates\facilitator\pressure.html:76
@@ -3407,12 +3504,12 @@ msgstr "Mag-iskedyul ng pagbisita"
 msgid "Household"
 msgstr "Sambahayan"
 
-#: .\templates\admin\dashboard.html:95 .\templates\admin\workorders.html:35
+#: .\templates\admin\dashboard.html:101 .\templates\admin\workorders.html:35
 msgid "Visit"
 msgstr "Pagbisita"
 
-#: .\templates\admin\dashboard.html:105 .\templates\admin\households.html:51
-#: .\templates\admin\pressure.html:148
+#: .\templates\admin\dashboard.html:111 .\templates\admin\households.html:52
+#: .\templates\admin\pressure.html:111
 #: .\templates\admin\workorder_detail.html:25
 #: .\templates\admin\workorders.html:43
 #: .\templates\facilitator\household_detail.html:32
@@ -3422,69 +3519,64 @@ msgstr "Pagbisita"
 msgid "Unassigned"
 msgstr "Walang naka-assign"
 
-#: .\templates\admin\dashboard.html:109
+#: .\templates\admin\dashboard.html:115
 msgid "No visits scheduled."
 msgstr "Walang nakaiskedyul na pagbisita."
 
-#: .\templates\admin\dashboard.html:109 .\templates\admin\workorders.html:48
+#: .\templates\admin\dashboard.html:115 .\templates\admin\workorders.html:48
 msgid "Schedule one"
 msgstr "Mag-iskedyul"
 
-#: .\templates\admin\dashboard.html:109
+#: .\templates\admin\dashboard.html:115
 msgid "the household and the facilitator are texted."
 msgstr "mate-text ang sambahayan at ang facilitator."
 
-#: .\templates\admin\dashboard.html:115
+#: .\templates\admin\dashboard.html:121
 #, python-format
 msgid "Showing the next 5 of %(total)s."
 msgstr "Ipinapakita ang susunod na 5 sa %(total)s."
 
-#: .\templates\admin\dashboard.html:122
+#: .\templates\admin\dashboard.html:128
 msgid "Newest accounts"
 msgstr "Pinakabagong mga account"
 
-#: .\templates\admin\dashboard.html:123
+#: .\templates\admin\dashboard.html:129
 msgid "All accounts"
 msgstr "Lahat ng account"
 
-#: .\templates\admin\dashboard.html:127
+#: .\templates\admin\dashboard.html:133
 msgid "Joined"
 msgstr "Sumali"
 
-#: .\templates\admin\dashboard.html:137
-#, python-format
-msgid "%(since)s ago"
-msgstr "%(since)s na ang nakalipas"
-
-#: .\templates\admin\dashboard.html:140
+#: .\templates\admin\dashboard.html:147
 msgid "No accounts yet."
 msgstr "Wala pang account."
 
-#: .\templates\admin\dashboard.html:140
+#: .\templates\admin\dashboard.html:147
 #: .\templates\admin\facilitator_form.html:13
 #: .\templates\admin\facilitators.html:87
 msgid "Add a facilitator"
 msgstr "Magdagdag ng facilitator"
 
-#: .\templates\admin\dashboard.html:140
+#: .\templates\admin\dashboard.html:147
 msgid "or"
 msgstr "o"
 
-#: .\templates\admin\dashboard.html:140
+#: .\templates\admin\dashboard.html:147
 msgid "register a household"
 msgstr "irehistro ang isang sambahayan"
 
-#: .\templates\admin\dashboard.html:154
+#: .\templates\admin\dashboard.html:161
 #: .\templates\facilitator\dashboard.html:521
 msgid "Recent activity"
 msgstr "Kamakailang aktibidad"
 
-#: .\templates\admin\dashboard.html:169
+#: .\templates\admin\dashboard.html:176
 msgid "Nothing recorded yet. Actions taken in the console appear here."
 msgstr "Wala pang naitala. Lalabas dito ang mga aksyong ginawa sa console."
 
 #: .\templates\admin\data.html:3 .\templates\admin\data.html:9
-#: .\templates\base.html:142
+#: .\templates\base.html:148
 msgid "Data &amp; backups"
 msgstr "Data &amp; backup"
 
@@ -3549,7 +3641,7 @@ msgstr[1] ""
 msgid "Download backup"
 msgstr "I-download ang backup"
 
-#: .\templates\admin\data.html:59
+#: .\templates\admin\data.html:63
 msgid ""
 "Loads records from a backup file. It <strong>overwrites</strong> current "
 "records that share an id with the backup and adds any it is missing; it does "
@@ -3559,7 +3651,7 @@ msgstr ""
 "nito ang mga kasalukuyang record na pareho ang id sa backup at idadagdag ang "
 "mga kulang; hindi nito tatanggalin ang mga mas bago."
 
-#: .\templates\admin\data.html:69
+#: .\templates\admin\data.html:73
 msgid "Restore database"
 msgstr "I-restore ang database"
 
@@ -3592,13 +3684,13 @@ msgstr ""
 #: .\templates\admin\facilitator_form.html:43
 #: .\templates\admin\facilitators.html:161
 #: .\templates\admin\household_form.html:85
-#: .\templates\admin\households.html:285
+#: .\templates\admin\households.html:291
 #: .\templates\admin\workorder_detail.html:132
 #: .\templates\admin\workorder_form.html:28
 #: .\templates\facilitator\household_detail.html:229
 #: .\templates\facilitator\household_form.html:26
 #: .\templates\facilitator\households.html:252
-#: .\templates\facilitator\segments.html:443
+#: .\templates\facilitator\segments.html:449
 msgid "Save changes"
 msgstr "I-save ang mga pagbabago"
 
@@ -3626,7 +3718,7 @@ msgstr "Wala pang facilitator."
 
 #: .\templates\admin\facilitators.html:103
 #: .\templates\admin\household_form.html:25
-#: .\templates\admin\households.html:158
+#: .\templates\admin\households.html:164
 msgid "Assigned automatically when you save."
 msgstr "Awtomatikong ibibigay kapag nag-save ka."
 
@@ -3678,7 +3770,7 @@ msgid "Edit %(hid)s"
 msgstr "I-edit ang %(hid)s"
 
 #: .\templates\admin\household_form.html:9
-#: .\templates\admin\households.html:141
+#: .\templates\admin\households.html:147
 msgid "Register a household"
 msgstr "Irehistro ang isang sambahayan"
 
@@ -3691,14 +3783,14 @@ msgstr ""
 "board at login ng may-ari."
 
 #: .\templates\admin\household_form.html:23
-#: .\templates\admin\households.html:37 .\templates\admin\households.html:156
+#: .\templates\admin\households.html:37 .\templates\admin\households.html:162
 #: .\templates\facilitator\household_form.html:20
 #: .\templates\facilitator\households.html:46
 msgid "Household ID"
 msgstr "Household ID"
 
 #: .\templates\admin\household_form.html:60
-#: .\templates\admin\households.html:191
+#: .\templates\admin\households.html:197
 msgid "Hardware"
 msgstr "Hardware"
 
@@ -3707,7 +3799,7 @@ msgid "A hose line is created for this household automatically."
 msgstr "Awtomatikong gagawa ng linya para sa sambahayang ito."
 
 #: .\templates\admin\household_form.html:75
-#: .\templates\admin\households.html:211
+#: .\templates\admin\households.html:217
 msgid ""
 "The Device ID and API key are generated when you save, and shown on the "
 "Lines page."
@@ -3737,34 +3829,34 @@ msgstr "Linya"
 msgid "Activated"
 msgstr "Na-activate"
 
-#: .\templates\admin\households.html:55
+#: .\templates\admin\households.html:56
 #: .\templates\facilitator\households.html:35
 #: .\templates\facilitator\households.html:62
 msgid "Pending activation"
 msgstr "Hindi pa na-activate"
 
-#: .\templates\admin\households.html:64
+#: .\templates\admin\households.html:65
 msgid "awaiting the facilitator"
 msgstr "hinihintay ang facilitator"
 
-#: .\templates\admin\households.html:68
+#: .\templates\admin\households.html:69
 #, python-format
 msgid "by %(who)s"
 msgstr "ni %(who)s"
 
-#: .\templates\admin\households.html:112
+#: .\templates\admin\households.html:118
 msgid "No households match this search."
 msgstr "Walang sambahayan na tumugma sa hinanap mo."
 
-#: .\templates\admin\households.html:112
+#: .\templates\admin\households.html:118
 msgid "No households yet."
 msgstr "Wala pang sambahayan."
 
-#: .\templates\admin\households.html:112
+#: .\templates\admin\households.html:118
 msgid "Register the first one"
 msgstr "Irehistro ang una"
 
-#: .\templates\admin\households.html:142
+#: .\templates\admin\households.html:148
 msgid ""
 "A hose line and a new board come with it. The facilitator adds the location "
 "and creates the owner's login when they activate it."
@@ -3772,7 +3864,7 @@ msgstr ""
 "Kasama nito ang isang linya at bagong board. Idadagdag ng facilitator ang "
 "lokasyon at gagawa ng login ng may-ari kapag ina-activate ito."
 
-#: .\templates\admin\households.html:193
+#: .\templates\admin\households.html:199
 msgid ""
 "A hose line is created automatically. The board's setup code is sent to the "
 "owner when the facilitator activates the household; the owner connects it to "
@@ -3782,13 +3874,13 @@ msgstr ""
 "kapag in-activate ng facilitator ang sambahayan; ikokonekta ito ng may-ari "
 "sa sarili niyang WiFi."
 
-#: .\templates\admin\households.html:241
+#: .\templates\admin\households.html:247
 #: .\templates\facilitator\household_detail.html:208
 #: .\templates\facilitator\households.html:219
 msgid "Edit household"
 msgstr "I-edit ang sambahayan"
 
-#: .\templates\admin\households.html:280
+#: .\templates\admin\households.html:286
 msgid ""
 "The location on the map is set by the facilitator at activation and kept on "
 "their side."
@@ -3796,11 +3888,11 @@ msgstr ""
 "Ang lokasyon sa mapa ay itinatakda ng facilitator sa activation at "
 "nananatili sa panig niya."
 
-#: .\templates\admin\households.html:302
+#: .\templates\admin\households.html:308
 msgid "Archive household?"
 msgstr "I-archive ang sambahayan?"
 
-#: .\templates\admin\households.html:310
+#: .\templates\admin\households.html:316
 msgid ""
 "Archiving <strong data-delete-name></strong> hides it from the active lists. "
 "The owner login will be disabled. You can restore it anytime from the "
@@ -3810,7 +3902,7 @@ msgstr ""
 "listahan ng mga aktibo. Mawawalan ng bisa ang login ng may-ari. Puwede mo "
 "itong i-restore anumang oras mula sa archive page."
 
-#: .\templates\admin\households.html:314
+#: .\templates\admin\households.html:320
 msgid "Archive household"
 msgstr "I-archive ang sambahayan"
 
@@ -3830,8 +3922,8 @@ msgstr "I-export ang pressure log (CSV)"
 msgid "No household"
 msgstr "Walang sambahayan"
 
-#: .\templates\admin\pressure.html:43 .\templates\base.html:159
-#: .\templates\facilitator\dashboard.html:264
+#: .\templates\admin\pressure.html:43 .\templates\base.html:165
+#: .\templates\base.html:239 .\templates\facilitator\dashboard.html:264
 #: .\templates\facilitator\dashboard.html:527
 #: .\templates\facilitator\events.html:34
 #: .\templates\facilitator\pressure.html:52 .\templates\owner\home.html:41
@@ -3869,52 +3961,15 @@ msgstr ""
 msgid "No hose lines registered yet."
 msgstr "Wala pang nakarehistrong linya."
 
-#: .\templates\admin\pressure.html:99
-msgid "Send a test alert"
-msgstr "Magpadala ng test alert"
-
-#: .\templates\admin\pressure.html:100
-msgid "Rehearse the household notification path."
-msgstr "Subukan ang daloy ng notification sa sambahayan."
-
-#: .\templates\admin\pressure.html:103
-msgid ""
-"Send a real test notification to this household? They will get an in-app "
-"notice, a text and an email."
-msgstr ""
-"Magpadala ng totoong test notification sa sambahayang ito? Makakatanggap "
-"sila ng abiso sa app, text at email."
-
-#: .\templates\admin\pressure.html:116
-msgid "Condition"
-msgstr "Kondisyon"
-
-#: .\templates\admin\pressure.html:118
-msgid "Water running (continuous flow)"
-msgstr "Tuloy-tuloy na umaagos ang tubig (continuous flow)"
-
-#: .\templates\admin\pressure.html:119
-msgid "Possible leak (water never stopped)"
-msgstr "Posibleng tagas (hindi humihinto ang tubig)"
-
-#: .\templates\admin\pressure.html:120
-msgid "Possible leak (pressure dropped in the night test)"
-msgstr "Posibleng tagas (bumaba ang pressure sa gabi-gabing leak test)"
-
-#: .\templates\admin\pressure.html:123
-msgid "Send test alert"
-msgstr "Ipadala ang test alert"
-
-#: .\templates\admin\pressure.html:129
-#: .\templates\facilitator\pressure.html:69
+#: .\templates\admin\pressure.html:92 .\templates\facilitator\pressure.html:69
 msgid "Per-household readings"
 msgstr "Reading kada sambahayan"
 
-#: .\templates\admin\pressure.html:130
+#: .\templates\admin\pressure.html:93
 msgid "Every household, including psi."
 msgstr "Bawat sambahayan, kasama ang psi."
 
-#: .\templates\admin\pressure.html:136 .\templates\facilitator\events.html:33
+#: .\templates\admin\pressure.html:99 .\templates\facilitator\events.html:33
 #: .\templates\facilitator\household_detail.html:24
 #: .\templates\facilitator\households.html:47
 #: .\templates\facilitator\households.html:179
@@ -3923,7 +3978,7 @@ msgstr "Bawat sambahayan, kasama ang psi."
 msgid "Supply line"
 msgstr "Linya ng supply"
 
-#: .\templates\admin\pressure.html:137 .\templates\admin\pressure.html:175
+#: .\templates\admin\pressure.html:100 .\templates\admin\pressure.html:138
 #: .\templates\facilitator\dashboard.html:503
 #: .\templates\facilitator\pressure.html:77
 #: .\templates\facilitator\pressure.html:115
@@ -3931,7 +3986,7 @@ msgstr "Linya ng supply"
 msgid "Pressure (bar)"
 msgstr "Pressure (bar)"
 
-#: .\templates\admin\pressure.html:137 .\templates\admin\pressure.html:176
+#: .\templates\admin\pressure.html:100 .\templates\admin\pressure.html:139
 #: .\templates\facilitator\dashboard.html:504
 #: .\templates\facilitator\pressure.html:77
 #: .\templates\facilitator\pressure.html:116
@@ -3939,7 +3994,7 @@ msgstr "Pressure (bar)"
 msgid "Pressure (psi)"
 msgstr "Pressure (psi)"
 
-#: .\templates\admin\pressure.html:138 .\templates\admin\pressure.html:177
+#: .\templates\admin\pressure.html:101 .\templates\admin\pressure.html:140
 #: .\templates\facilitator\dashboard.html:505
 #: .\templates\facilitator\pressure.html:78
 #: .\templates\facilitator\pressure.html:117
@@ -3947,70 +4002,106 @@ msgstr "Pressure (psi)"
 msgid "Flow (L/min)"
 msgstr "Flow (L/min)"
 
-#: .\templates\admin\pressure.html:138
+#: .\templates\admin\pressure.html:101
 #: .\templates\facilitator\pressure.html:78
 msgid "Last reading"
 msgstr "Huling reading"
 
-#: .\templates\admin\pressure.html:159
+#: .\templates\admin\pressure.html:122
 #: .\templates\facilitator\pressure.html:99
 msgid "no data"
 msgstr "walang data"
 
-#: .\templates\admin\pressure.html:163
+#: .\templates\admin\pressure.html:126
 #: .\templates\facilitator\pressure.html:103
 msgid "No active households registered yet."
 msgstr "Wala pang nakarehistrong aktibong sambahayan."
 
-#: .\templates\admin\pressure.html:172
+#: .\templates\admin\pressure.html:135
 #: .\templates\facilitator\pressure.html:112
 #: .\templates\owner\pressure.html:40
 msgid "History"
 msgstr "History"
 
-#: .\templates\admin\pressure.html:174
+#: .\templates\admin\pressure.html:137
 #: .\templates\facilitator\dashboard.html:502
 #: .\templates\facilitator\pressure.html:114
 #: .\templates\owner\pressure.html:42
 msgid "Metric"
 msgstr "Sukatan"
 
-#: .\templates\admin\pressure.html:179
+#: .\templates\admin\pressure.html:142
 #: .\templates\facilitator\dashboard.html:507
 #: .\templates\facilitator\pressure.html:119
 #: .\templates\owner\pressure.html:47
 msgid "Time range"
 msgstr "Saklaw ng oras"
 
-#: .\templates\admin\pressure.html:180
+#: .\templates\admin\pressure.html:143
 #: .\templates\facilitator\dashboard.html:508
 #: .\templates\facilitator\pressure.html:120
 msgid "Last hour"
 msgstr "Nakaraang oras"
 
-#: .\templates\admin\pressure.html:181
+#: .\templates\admin\pressure.html:144
 #: .\templates\facilitator\dashboard.html:509
 #: .\templates\facilitator\pressure.html:121
 #: .\templates\owner\pressure.html:48
 msgid "Last 6 hours"
 msgstr "Nakaraang 6 na oras"
 
-#: .\templates\admin\pressure.html:182
+#: .\templates\admin\pressure.html:145
 #: .\templates\facilitator\dashboard.html:510
 #: .\templates\facilitator\pressure.html:122
 #: .\templates\owner\pressure.html:49
 msgid "Last 24 hours"
 msgstr "Nakaraang 24 na oras"
 
-#: .\templates\admin\pressure.html:183
+#: .\templates\admin\pressure.html:146
 #: .\templates\facilitator\dashboard.html:511
 #: .\templates\facilitator\pressure.html:123
 #: .\templates\owner\pressure.html:50
 msgid "Last 7 days"
 msgstr "Nakaraang 7 araw"
 
+#: .\templates\admin\pressure.html:165
+msgid "Send a test alert"
+msgstr "Magpadala ng test alert"
+
+#: .\templates\admin\pressure.html:166
+msgid "Rehearse the household notification path."
+msgstr "Subukan ang daloy ng notification sa sambahayan."
+
+#: .\templates\admin\pressure.html:169
+msgid ""
+"Send a real test notification to this household? They will get an in-app "
+"notice, a text and an email."
+msgstr ""
+"Magpadala ng totoong test notification sa sambahayang ito? Makakatanggap "
+"sila ng abiso sa app, text at email."
+
+#: .\templates\admin\pressure.html:182
+msgid "Condition"
+msgstr "Kondisyon"
+
+#: .\templates\admin\pressure.html:184
+msgid "Water running (continuous flow)"
+msgstr "Tuloy-tuloy na umaagos ang tubig (continuous flow)"
+
+#: .\templates\admin\pressure.html:185
+msgid "Possible leak (water never stopped)"
+msgstr "Posibleng tagas (hindi humihinto ang tubig)"
+
+#: .\templates\admin\pressure.html:186
+msgid "Possible leak (pressure dropped in the night test)"
+msgstr "Posibleng tagas (bumaba ang pressure sa gabi-gabing leak test)"
+
+#: .\templates\admin\pressure.html:189
+msgid "Send test alert"
+msgstr "Ipadala ang test alert"
+
 #: .\templates\admin\system.html:3 .\templates\admin\system.html:9
-#: .\templates\base.html:148 .\templates\facilitator\dashboard.html:64
+#: .\templates\base.html:154 .\templates\facilitator\dashboard.html:64
 msgid "System status"
 msgstr "Status ng sistema"
 
@@ -4023,23 +4114,23 @@ msgstr ""
 msgid "Services"
 msgstr "Mga serbisyo"
 
-#: .\templates\admin\system.html:24
-msgid "ready"
-msgstr "handa"
+#: .\templates\admin\system.html:27
+msgid "Ready"
+msgstr "Handa"
 
-#: .\templates\admin\system.html:24
-msgid "not set up"
-msgstr "hindi pa naka-set up"
+#: .\templates\admin\system.html:27
+msgid "Not set up"
+msgstr "Hindi pa naka-set up"
 
-#: .\templates\admin\system.html:30
+#: .\templates\admin\system.html:33
 msgid "To prove email end to end:"
 msgstr "Para masiguro na gumagana ang email mula simula hanggang dulo:"
 
-#: .\templates\admin\system.html:35
+#: .\templates\admin\system.html:38
 msgid "Maintenance mode"
 msgstr "Maintenance mode"
 
-#: .\templates\admin\system.html:37
+#: .\templates\admin\system.html:40
 msgid ""
 "While on, households and facilitators see a short notice and are kept out. "
 "The admin console and the device ingest stay live, so you can still work and "
@@ -4050,35 +4141,35 @@ msgstr ""
 "at ang device ingest, kaya puwede ka pa ring magtrabaho at hindi hihinto sa "
 "pag-record ang mga board."
 
-#: .\templates\admin\system.html:43
+#: .\templates\admin\system.html:46
 msgid "Currently:"
 msgstr "Kasalukuyan:"
 
-#: .\templates\admin\system.html:44
-msgid "on"
-msgstr "naka-on"
+#: .\templates\admin\system.html:47
+msgid "On"
+msgstr "Naka-on"
 
-#: .\templates\admin\system.html:45
-msgid "off"
-msgstr "naka-off"
+#: .\templates\admin\system.html:48
+msgid "Off"
+msgstr "Naka-off"
 
-#: .\templates\admin\system.html:51
+#: .\templates\admin\system.html:54
 msgid "Notice to show (optional)"
 msgstr "Abisong ipapakita (opsyonal)"
 
-#: .\templates\admin\system.html:58
+#: .\templates\admin\system.html:61
 msgid "Turn maintenance off"
 msgstr "I-off ang maintenance"
 
-#: .\templates\admin\system.html:60
+#: .\templates\admin\system.html:64
 msgid "Turn maintenance on"
 msgstr "I-on ang maintenance"
 
-#: .\templates\admin\system.html:67
+#: .\templates\admin\system.html:71
 msgid "Leak detection"
 msgstr "Leak detection"
 
-#: .\templates\admin\system.html:69
+#: .\templates\admin\system.html:73
 msgid ""
 "Thresholds the boards detect against. They work on these figures on their "
 "own &mdash; so they keep running when the WiFi drops &mdash; and pick up any "
@@ -4089,15 +4180,27 @@ msgstr ""
 "ang WiFi &mdash; at kukunin nila ang anumang pagbabago dito sa susunod "
 "nilang reading, hindi na kailangang i-re-flash."
 
-#: .\templates\admin\system.html:79
+#: .\templates\admin\system.html:86
+msgid "Continuous flow"
+msgstr "Tuluy-tuloy na daloy"
+
+#: .\templates\admin\system.html:92
+msgid "Nightly test"
+msgstr "Pagsusuri tuwing gabi"
+
+#: .\templates\admin\system.html:98
+msgid "Timing"
+msgstr "Oras at pagitan"
+
+#: .\templates\admin\system.html:102
 msgid "Save detection settings"
 msgstr "I-save ang detection settings"
 
-#: .\templates\admin\system.html:85
+#: .\templates\admin\system.html:108
 msgid "Recent errors"
 msgstr "Mga kamakailang error"
 
-#: .\templates\admin\system.html:86
+#: .\templates\admin\system.html:109
 msgid ""
 "Unhandled server errors, newest first. The full traceback stays in the "
 "server log."
@@ -4105,33 +4208,33 @@ msgstr ""
 "Mga server error na hindi na-handle, pinakabago ang nasa itaas. Nasa server "
 "log ang buong traceback."
 
-#: .\templates\admin\system.html:89
-#: .\templates\facilitator\notifications.html:296
+#: .\templates\admin\system.html:112
+#: .\templates\facilitator\notifications.html:292
 msgid "Type"
 msgstr "Uri"
 
-#: .\templates\admin\system.html:89
+#: .\templates\admin\system.html:112
 msgid "Path"
 msgstr "Path"
 
-#: .\templates\admin\system.html:89
-#: .\templates\facilitator\notifications.html:296
+#: .\templates\admin\system.html:112
+#: .\templates\facilitator\notifications.html:292
 msgid "Message"
 msgstr "Mensahe"
 
-#: .\templates\admin\system.html:89
+#: .\templates\admin\system.html:112
 msgid "User"
 msgstr "User"
 
-#: .\templates\admin\system.html:100
+#: .\templates\admin\system.html:123
 msgid "No errors recorded. Good."
 msgstr "Walang naitalang error. Ayos."
 
-#: .\templates\admin\workorder_detail.html:14
+#: .\templates\admin\workorder_detail.html:15
 msgid "Edit details"
 msgstr "I-edit ang detalye"
 
-#: .\templates\admin\workorder_detail.html:15
+#: .\templates\admin\workorder_detail.html:16
 #: .\templates\facilitator\household_detail.html:14
 msgid "Back to list"
 msgstr "Balik sa listahan"
@@ -4156,7 +4259,7 @@ msgid "Assigned to"
 msgstr "Naka-assign kay"
 
 #: .\templates\admin\workorder_detail.html:26
-#: .\templates\admin\workorder_detail.html:54
+#: .\templates\admin\workorder_detail.html:53
 msgid "Scheduled for"
 msgstr "Naka-iskedyul sa"
 
@@ -4180,12 +4283,12 @@ msgstr "Note sa pagsuri"
 msgid "Resolution"
 msgstr "Resolusyon"
 
-#: .\templates\admin\workorder_detail.html:39
-#: .\templates\admin\workorder_detail.html:58
+#: .\templates\admin\workorder_detail.html:38
+#: .\templates\admin\workorder_detail.html:57
 msgid "Approve &amp; schedule"
 msgstr "Aprubahan &amp; i-iskedyul"
 
-#: .\templates\admin\workorder_detail.html:40
+#: .\templates\admin\workorder_detail.html:39
 msgid ""
 "Assign a facilitator and a date. Both the household and the facilitator are "
 "texted."
@@ -4193,19 +4296,19 @@ msgstr ""
 "Pumili ng facilitator at petsa. Mate-text pareho ang sambahayan at ang "
 "facilitator."
 
-#: .\templates\admin\workorder_detail.html:45
+#: .\templates\admin\workorder_detail.html:44
 msgid "Assign to"
 msgstr "I-assign kay"
 
-#: .\templates\admin\workorder_detail.html:47
+#: .\templates\admin\workorder_detail.html:46
 msgid "Choose a facilitator"
 msgstr "Pumili ng facilitator"
 
-#: .\templates\admin\workorder_detail.html:63
+#: .\templates\admin\workorder_detail.html:62
 msgid "Reject"
 msgstr "Tanggihan"
 
-#: .\templates\admin\workorder_detail.html:64
+#: .\templates\admin\workorder_detail.html:63
 msgid ""
 "Close this report without scheduling work. Say why, so the record explains "
 "itself."
@@ -4213,39 +4316,43 @@ msgstr ""
 "Isara ang report na ito nang hindi nag-iiskedyul ng trabaho. Sabihin kung "
 "bakit, para malinaw sa record."
 
-#: .\templates\admin\workorder_detail.html:68
+#: .\templates\admin\workorder_detail.html:67
 msgid "Reason"
 msgstr "Dahilan"
 
-#: .\templates\admin\workorder_detail.html:69
+#: .\templates\admin\workorder_detail.html:68
 msgid "e.g. Duplicate of an order already scheduled"
 msgstr "hal. Duplicate ng trabahong naka-iskedyul na"
 
-#: .\templates\admin\workorder_detail.html:71
+#: .\templates\admin\workorder_detail.html:70
 msgid "Reject report"
 msgstr "Tanggihan ang report"
 
-#: .\templates\admin\workorder_detail.html:77
+#: .\templates\admin\workorder_detail.html:76
 msgid "Update progress"
 msgstr "I-update ang progreso"
 
-#: .\templates\admin\workorder_detail.html:81
+#: .\templates\admin\workorder_detail.html:80
 #: .\templates\facilitator\assignments.html:49
 msgid "Note (optional)"
 msgstr "Note (opsyonal)"
 
-#: .\templates\admin\workorder_detail.html:82
+#: .\templates\admin\workorder_detail.html:81
 msgid "What was found or done"
 msgstr "Ano ang nakita o ginawa"
 
-#: .\templates\admin\workorder_detail.html:86
+#: .\templates\admin\workorder_detail.html:85
 msgid "Mark in progress"
 msgstr "Markahan na ginagawa na"
 
-#: .\templates\admin\workorder_detail.html:88
+#: .\templates\admin\workorder_detail.html:87
 #: .\templates\facilitator\assignments.html:56
 msgid "Mark done"
 msgstr "Markahan na tapos"
+
+#: .\templates\admin\workorder_detail.html:89
+msgid "Cancel visit"
+msgstr "Kanselahin ang pagbisita"
 
 #: .\templates\admin\workorder_detail.html:95
 #, python-format
@@ -4276,13 +4383,10 @@ msgstr ""
 msgid "Schedule visit"
 msgstr "I-iskedyul ang pagbisita"
 
-#: .\templates\admin\workorders.html:3 .\templates\base.html:132
+#: .\templates\admin\workorders.html:3 .\templates\admin\workorders.html:9
+#: .\templates\base.html:138
 msgid "Visit schedule"
 msgstr "Iskedyul ng pagbisita"
-
-#: .\templates\admin\workorders.html:9
-msgid "Field work"
-msgstr "Trabaho sa field"
 
 #: .\templates\admin\workorders.html:10
 msgid "Household visits: who is going, to whom, and when."
@@ -4315,129 +4419,139 @@ msgstr ""
 "Automated na pag-detect ng tagas at pagbantay sa supply ng tubig para sa "
 "%(locale)s."
 
-#: .\templates\base.html:53
+#: .\templates\base.html:59
 msgid "Skip to main content"
 msgstr "Dumiretso sa pangunahing content"
 
-#: .\templates\base.html:89
+#: .\templates\base.html:95
 msgid "Main navigation"
 msgstr "Pangunahing navigation"
 
-#: .\templates\base.html:103
+#: .\templates\base.html:109
 msgid "Close navigation"
 msgstr "Isara ang navigation"
 
-#: .\templates\base.html:108
+#: .\templates\base.html:114 .\templates\base.html:234
 msgid "Sections"
 msgstr "Mga seksyon"
 
-#: .\templates\base.html:112
+#: .\templates\base.html:118
 msgid "Overview"
 msgstr "Overview"
 
-#: .\templates\base.html:130
+#: .\templates\base.html:121
+msgid "Pressure &amp; flow"
+msgstr "Pressure &amp; flow"
+
+#: .\templates\base.html:136
 msgid "Visits"
 msgstr "Mga pagbisita"
 
-#: .\templates\base.html:135
+#: .\templates\base.html:141
 msgid "Communications"
 msgstr "Komunikasyon"
 
-#: .\templates\base.html:140
+#: .\templates\base.html:146
 msgid "System"
 msgstr "System"
 
-#: .\templates\base.html:154
+#: .\templates\base.html:160
 msgid "Monitoring"
 msgstr "Monitoring"
 
-#: .\templates\base.html:162
+#: .\templates\base.html:168
 msgid "Alerts"
 msgstr "Mga alerto"
 
-#: .\templates\base.html:165 .\templates\facilitator\assignments.html:3
+#: .\templates\base.html:171 .\templates\facilitator\assignments.html:3
 #: .\templates\facilitator\assignments.html:15
 msgid "Schedule"
 msgstr "Iskedyul"
 
-#: .\templates\base.html:169
+#: .\templates\base.html:175
 msgid "Management"
 msgstr "Pamamahala"
 
-#: .\templates\base.html:174
+#: .\templates\base.html:180
 msgid "Lines"
 msgstr "Mga linya"
 
-#: .\templates\base.html:181 .\templates\base.html:194
+#: .\templates\base.html:187 .\templates\base.html:200
 #: .\templates\facilitator\notifications.html:3
 #: .\templates\facilitator\notifications.html:14
 msgid "Notices &amp; SMS"
 msgstr "Mga abiso &amp; SMS"
 
-#: .\templates\base.html:184 .\templates\facilitator\dashboard.html:22
+#: .\templates\base.html:190 .\templates\facilitator\dashboard.html:22
 #: .\templates\facilitator\reports.html:3
 #: .\templates\facilitator\reports.html:8
 msgid "Reports"
 msgstr "Mga report"
 
-#: .\templates\base.html:188
+#: .\templates\base.html:194 .\templates\base.html:236
 msgid "Home"
 msgstr "Home"
 
-#: .\templates\base.html:191
+#: .\templates\base.html:197
 msgid "My Pressure"
 msgstr "Pressure Ko"
 
-#: .\templates\base.html:201 .\templates\owner\settings.html:3
-#: .\templates\owner\settings.html:22
+#: .\templates\base.html:207 .\templates\base.html:248
+#: .\templates\owner\settings.html:3 .\templates\owner\settings.html:22
 msgid "Settings"
 msgstr "Settings"
 
-#: .\templates\base.html:227
+#: .\templates\base.html:242 .\templates\owner\home.html:159
+#: .\templates\owner\notifications.html:3
+#: .\templates\owner\notifications.html:10
+msgid "Notices"
+msgstr "Mga Abiso"
+
+#: .\templates\base.html:260
 msgid "Open navigation"
 msgstr "Buksan ang navigation"
 
-#: .\templates\base.html:242
+#: .\templates\base.html:275
 msgid "Language"
 msgstr "Wika"
 
-#: .\templates\base.html:248
+#: .\templates\base.html:281
 msgid "Connection quality"
 msgstr "Kalidad ng koneksyon"
 
-#: .\templates\base.html:248 .\templates\facilitator\dashboard.html:313
+#: .\templates\base.html:281 .\templates\facilitator\dashboard.html:313
 msgid "checking"
 msgstr "sinusuri"
 
-#: .\templates\base.html:249
+#: .\templates\base.html:282
 msgid "Switch between light and dark mode"
 msgstr "Lumipat sa light o dark mode"
 
-#: .\templates\base.html:265 .\templates\registration\password_change.html:3
+#: .\templates\base.html:298 .\templates\registration\password_change.html:3
 msgid "Change password"
 msgstr "Palitan ang password"
 
-#: .\templates\base.html:267 .\templates\home.html:261
+#: .\templates\base.html:300 .\templates\home.html:261
 msgid "Install the app on this device"
 msgstr "I-install ang app sa device na ito"
 
-#: .\templates\base.html:268
+#: .\templates\base.html:301
 msgid "Admin"
 msgstr "Admin"
 
-#: .\templates\base.html:270
+#: .\templates\base.html:303
 msgid "Sign out"
 msgstr "Mag-sign out"
 
-#: .\templates\base.html:287
+#: .\templates\base.html:320
 msgid "Dismiss"
 msgstr "Isara"
 
-#: .\templates\base.html:302
+#: .\templates\base.html:335
 msgid "You are still using a temporary password."
 msgstr "Temporary password pa rin ang gamit mo."
 
-#: .\templates\base.html:303
+#: .\templates\base.html:336
 msgid "Change it now"
 msgstr "Palitan na ngayon"
 
@@ -4936,10 +5050,6 @@ msgstr "Na-clear"
 msgid "Acknowledged"
 msgstr "Na-acknowledge"
 
-#: .\templates\facilitator\events.html:56
-msgid "open"
-msgstr "aktibo"
-
 #: .\templates\facilitator\events.html:73
 msgid "Note:"
 msgstr "Note:"
@@ -5066,7 +5176,7 @@ msgstr[0] "+%(n)s pang reply"
 msgstr[1] "+%(n)s pang reply"
 
 #: .\templates\facilitator\household_detail.html:183
-#: .\templates\facilitator\notifications.html:247
+#: .\templates\facilitator\notifications.html:243
 msgid "read"
 msgstr "nabasa"
 
@@ -5243,7 +5353,7 @@ msgstr "I-type ang pangalan o household ID&hellip;"
 msgid "No active households yet."
 msgstr "Wala pang aktibong sambahayan."
 
-#: .\templates\facilitator\notifications.html:167
+#: .\templates\facilitator\notifications.html:163
 msgid ""
 "In the app it appears under Notices in their portal. By SMS it is texted to "
 "each household&rsquo;s contact number."
@@ -5251,11 +5361,11 @@ msgstr ""
 "Sa app, lalabas ito sa ilalim ng Mga Abiso sa portal nila. Sa SMS, ite-text "
 "ito sa contact number ng bawat sambahayan."
 
-#: .\templates\facilitator\notifications.html:175
+#: .\templates\facilitator\notifications.html:171
 msgid "Send notice"
 msgstr "Ipadala ang abiso"
 
-#: .\templates\facilitator\notifications.html:186
+#: .\templates\facilitator\notifications.html:182
 msgid ""
 "Leak alerts go out automatically, by SMS and in the app &mdash; no need to "
 "send those by hand. Before a repair that interrupts supply, mark that line "
@@ -5268,7 +5378,7 @@ msgstr ""
 "maintenance, para hindi magpadala ng alerto sa tagas ang mga sensor habang "
 "ginagawa ang trabaho."
 
-#: .\templates\facilitator\notifications.html:192
+#: .\templates\facilitator\notifications.html:188
 msgid ""
 "Leak alerts go out in the app only (automatic SMS is off) &mdash; no need to "
 "send those by hand. Before a repair that interrupts supply, mark that line "
@@ -5281,80 +5391,76 @@ msgstr ""
 "bilang under maintenance, para hindi magpadala ng alerto sa tagas ang mga "
 "sensor habang ginagawa ang trabaho."
 
-#: .\templates\facilitator\notifications.html:202
+#: .\templates\facilitator\notifications.html:198
 msgid "Recently sent"
 msgstr "Kamakailang ipinadala"
 
-#: .\templates\facilitator\notifications.html:233
+#: .\templates\facilitator\notifications.html:229
 msgid "The owner"
 msgstr "Ang may-ari"
 
-#: .\templates\facilitator\notifications.html:234
+#: .\templates\facilitator\notifications.html:230
 msgid "about"
 msgstr "tungkol sa"
 
-#: .\templates\facilitator\notifications.html:235
+#: .\templates\facilitator\notifications.html:231
 #, python-format
 msgid "+%(n)s more"
 msgstr "+%(n)s pa"
 
-#: .\templates\facilitator\notifications.html:246
+#: .\templates\facilitator\notifications.html:242
 #, python-format
 msgid "Sent to %(id)s"
 msgstr "Ipinadala sa %(id)s"
 
-#: .\templates\facilitator\notifications.html:246
+#: .\templates\facilitator\notifications.html:242
 msgid "Sent to all households"
 msgstr "Ipinadala sa lahat ng sambahayan"
 
-#: .\templates\facilitator\notifications.html:247
+#: .\templates\facilitator\notifications.html:243
 msgid "not read yet"
 msgstr "hindi pa nabasa"
 
-#: .\templates\facilitator\notifications.html:255
+#: .\templates\facilitator\notifications.html:251
 msgid "No notices sent yet."
 msgstr "Wala pang naipadalang abiso."
 
-#: .\templates\facilitator\notifications.html:276
+#: .\templates\facilitator\notifications.html:272
 msgid "Text messages"
 msgstr "Mga text message"
 
-#: .\templates\facilitator\notifications.html:277
+#: .\templates\facilitator\notifications.html:273
 msgid "Every text and what became of it. Newest first."
 msgstr "Bawat text at kung ano ang nangyari dito. Pinakabago ang nauuna."
 
-#: .\templates\facilitator\notifications.html:288
+#: .\templates\facilitator\notifications.html:284
 msgid "No text messages yet."
 msgstr "Wala pang text message."
 
-#: .\templates\facilitator\notifications.html:289
+#: .\templates\facilitator\notifications.html:285
 msgid "Tick &ldquo;Also send as SMS&rdquo; above, or wait for a leak alert."
 msgstr ""
 "I-tick ang &ldquo;Ipadala rin bilang SMS&rdquo; sa itaas, o hintayin ang "
 "alerto sa tagas."
 
-#: .\templates\facilitator\notifications.html:296
-msgid "To"
-msgstr "Para sa"
-
-#: .\templates\facilitator\notifications.html:327
+#: .\templates\facilitator\notifications.html:323
 msgid "awaiting confirmation"
 msgstr "naghihintay ng kumpirmasyon"
 
-#: .\templates\facilitator\notifications.html:331
+#: .\templates\facilitator\notifications.html:327
 msgid "the network could not deliver it"
 msgstr "hindi ito na-deliver ng network"
 
-#: .\templates\facilitator\notifications.html:334
+#: .\templates\facilitator\notifications.html:330
 msgid "no reason recorded"
 msgstr "walang naitalang dahilan"
 
-#: .\templates\facilitator\notifications.html:338
+#: .\templates\facilitator\notifications.html:334
 #, python-format
 msgid "%(n)s attempt(s)"
 msgstr "%(n)s beses sinubukan"
 
-#: .\templates\facilitator\notifications.html:346 .\templates\offline.html:14
+#: .\templates\facilitator\notifications.html:342 .\templates\offline.html:14
 msgid "Try again"
 msgstr "Subukan ulit"
 
@@ -5428,7 +5534,7 @@ msgid "Leak alerts"
 msgstr "Mga alerto sa tagas"
 
 #: .\templates\facilitator\reports.html:49
-#: .\templates\facilitator\segments.html:184
+#: .\templates\facilitator\segments.html:189
 msgid "No supply lines configured."
 msgstr "Wala pang naka-set up na linya ng supply."
 
@@ -5446,7 +5552,7 @@ msgstr ""
 msgid "Count"
 msgstr "Bilang"
 
-#: .\templates\facilitator\reports.html:71
+#: .\templates\facilitator\reports.html:72
 msgid "No complaints filed yet."
 msgstr "Wala pang naihaing reklamo."
 
@@ -5495,7 +5601,7 @@ msgstr ""
 "Isang linya kada sambahayan, mula sa main source hanggang sa gripo nila."
 
 #: .\templates\facilitator\segments.html:19
-#: .\templates\facilitator\segments.html:337
+#: .\templates\facilitator\segments.html:343
 msgid "Add hose line"
 msgstr "Magdagdag ng linya"
 
@@ -5556,90 +5662,86 @@ msgstr "naka-set"
 msgid "not set"
 msgstr "hindi naka-set"
 
-#: .\templates\facilitator\segments.html:163
+#: .\templates\facilitator\segments.html:166
 msgid "End maintenance"
 msgstr "Tapusin ang maintenance"
 
-#: .\templates\facilitator\segments.html:205
+#: .\templates\facilitator\segments.html:210
 msgid "Devices"
 msgstr "Mga device"
 
-#: .\templates\facilitator\segments.html:208
+#: .\templates\facilitator\segments.html:213
 msgid "Label (optional)"
 msgstr "Label (opsyonal)"
 
-#: .\templates\facilitator\segments.html:209
+#: .\templates\facilitator\segments.html:214
 msgid "Register a board"
 msgstr "Mag-register ng board"
 
-#: .\templates\facilitator\segments.html:216
+#: .\templates\facilitator\segments.html:221
 msgid "Device ID"
 msgstr "Device ID"
 
-#: .\templates\facilitator\segments.html:216
+#: .\templates\facilitator\segments.html:221
 msgid "Fitted to"
 msgstr "Nakakabit sa"
 
-#: .\templates\facilitator\segments.html:216
+#: .\templates\facilitator\segments.html:221
 msgid "Claim code"
 msgstr "Claim code"
 
-#: .\templates\facilitator\segments.html:216
+#: .\templates\facilitator\segments.html:221
 msgid "API key"
 msgstr "API key"
 
-#: .\templates\facilitator\segments.html:217
+#: .\templates\facilitator\segments.html:222
 msgid "Last seen"
 msgstr "Huling nakita"
 
-#: .\templates\facilitator\segments.html:226
-#: .\templates\facilitator\segments.html:253
-#: .\templates\facilitator\segments.html:272
+#: .\templates\facilitator\segments.html:231
+#: .\templates\facilitator\segments.html:258
+#: .\templates\facilitator\segments.html:277
 msgid "Copy"
 msgstr "Kopyahin"
 
-#: .\templates\facilitator\segments.html:237
+#: .\templates\facilitator\segments.html:242
 msgid "Spare"
 msgstr "Spare"
 
-#: .\templates\facilitator\segments.html:254
+#: .\templates\facilitator\segments.html:259
 #, python-format
 msgid "expires %(when)s"
 msgstr "mag-e-expire %(when)s"
 
-#: .\templates\facilitator\segments.html:259
+#: .\templates\facilitator\segments.html:264
 msgid "New code"
 msgstr "Bagong code"
 
-#: .\templates\facilitator\segments.html:264
+#: .\templates\facilitator\segments.html:269
 msgid "Issue code"
 msgstr "Mag-issue ng code"
 
-#: .\templates\facilitator\segments.html:275
-msgid "online"
-msgstr "online"
-
-#: .\templates\facilitator\segments.html:276
-msgid "offline"
-msgstr "offline"
-
 #: .\templates\facilitator\segments.html:280
+msgid "Online"
+msgstr "Online"
+
+#: .\templates\facilitator\segments.html:285
 msgid "never reported"
 msgstr "hindi pa kailanman nag-report"
 
-#: .\templates\facilitator\segments.html:292
+#: .\templates\facilitator\segments.html:297
 msgid "New key"
 msgstr "Bagong key"
 
-#: .\templates\facilitator\segments.html:296
+#: .\templates\facilitator\segments.html:302
 msgid "Remove"
 msgstr "Alisin"
 
-#: .\templates\facilitator\segments.html:306
+#: .\templates\facilitator\segments.html:312
 msgid "No boards registered."
 msgstr "Wala pang naka-register na board."
 
-#: .\templates\facilitator\segments.html:307
+#: .\templates\facilitator\segments.html:313
 msgid ""
 "A board is normally registered while adding the household that owns it. Use "
 "&ldquo;Register a board&rdquo; above for a spare."
@@ -5648,7 +5750,7 @@ msgstr ""
 "ari nito. Gamitin ang &ldquo;Mag-register ng board&rdquo; sa itaas para sa "
 "spare."
 
-#: .\templates\facilitator\segments.html:317
+#: .\templates\facilitator\segments.html:323
 msgid ""
 "To set up a board: join its <span class=\"mono\">LeakDetect-Setup</span> "
 "hotspot, enter the WiFi and the <strong>claim code</strong>. The board "
@@ -5660,32 +5762,32 @@ msgstr ""
 "Kukunin ng board ang sarili nitong ID at key mula sa server - hindi mo "
 "kailangang i-type ang key, at wala nang kailangang i-flash ulit."
 
-#: .\templates\facilitator\segments.html:338
+#: .\templates\facilitator\segments.html:344
 msgid "One hose per household, created with the household."
 msgstr "Isang linya kada sambahayan, ginagawa kasabay ng sambahayan."
 
-#: .\templates\facilitator\segments.html:360
-#: .\templates\facilitator\segments.html:412
+#: .\templates\facilitator\segments.html:366
+#: .\templates\facilitator\segments.html:418
 msgid "Map colour"
 msgstr "Kulay sa mapa"
 
-#: .\templates\facilitator\segments.html:370
+#: .\templates\facilitator\segments.html:376
 msgid "Used for this line and its households on the leak map."
 msgstr "Ginagamit para sa linyang ito at sa mga sambahayan nito sa leak map."
 
-#: .\templates\facilitator\segments.html:378
+#: .\templates\facilitator\segments.html:384
 msgid "Add line"
 msgstr "Magdagdag ng linya"
 
-#: .\templates\facilitator\segments.html:394
+#: .\templates\facilitator\segments.html:400
 msgid "Edit hose line"
 msgstr "I-edit ang linya"
 
-#: .\templates\facilitator\segments.html:460
+#: .\templates\facilitator\segments.html:466
 msgid "Delete hose line?"
 msgstr "Tanggalin ang linya?"
 
-#: .\templates\facilitator\segments.html:469
+#: .\templates\facilitator\segments.html:475
 msgid ""
 "This cannot be undone. Deleting <strong data-delete-name></strong> "
 "permanently removes:"
@@ -5693,7 +5795,7 @@ msgstr ""
 "Hindi na ito maibabalik. Kapag tinanggal ang <strong data-delete-name></"
 "strong>, permanenteng mabubura ang:"
 
-#: .\templates\facilitator\segments.html:473
+#: .\templates\facilitator\segments.html:479
 msgid ""
 "If the sensor is only being repaired, use <strong>Maintenance</strong> "
 "instead &mdash; that silences its alerts and keeps every reading."
@@ -5702,19 +5804,19 @@ msgstr ""
 "halip &mdash; pinapatahimik nito ang mga alerto at pinapanatili ang bawat "
 "reading."
 
-#: .\templates\facilitator\segments.html:482
+#: .\templates\facilitator\segments.html:488
 msgid "Delete line"
 msgstr "Tanggalin ang linya"
 
-#: .\templates\facilitator\segments.html:501
+#: .\templates\facilitator\segments.html:507
 msgid "Issue a new API key?"
 msgstr "Mag-issue ng bagong API key?"
 
-#: .\templates\facilitator\segments.html:509
+#: .\templates\facilitator\segments.html:515
 msgid "The old key stops working immediately."
 msgstr "Hindi na gagana agad ang lumang key."
 
-#: .\templates\facilitator\segments.html:512
+#: .\templates\facilitator\segments.html:518
 msgid ""
 "Only do this if the key has been shared by mistake, or the board is being "
 "replaced. To simply set up a board, copy the existing key instead."
@@ -5723,7 +5825,7 @@ msgstr ""
 "ang board. Kung i-set up lang ang board, kopyahin na lang ang kasalukuyang "
 "key."
 
-#: .\templates\facilitator\segments.html:520
+#: .\templates\facilitator\segments.html:526
 msgid "Issue new key"
 msgstr "Mag-issue ng bagong key"
 
@@ -5965,7 +6067,7 @@ msgstr ""
 msgid "Install on an Android phone"
 msgstr "I-install sa Android na telepono"
 
-#: .\templates\home.html:274 .\templates\owner\settings.html:266
+#: .\templates\home.html:274 .\templates\owner\settings.html:268
 msgid "Open this page in <strong>Chrome</strong>."
 msgstr "Buksan ang pahinang ito sa <strong>Chrome</strong>."
 
@@ -6222,10 +6324,6 @@ msgstr "Mga nakabinbing reklamo"
 msgid "Report a problem with my water"
 msgstr "I-report ang problema sa tubig ko"
 
-#: .\templates\owner\home.html:148
-msgid "More"
-msgstr "Iba pa"
-
 #: .\templates\owner\home.html:150
 msgid "See my pressure history"
 msgstr "Tingnan ang pressure history ko"
@@ -6236,11 +6334,6 @@ msgid "%(n)s open"
 msgid_plural "%(n)s open"
 msgstr[0] "%(n)s nakabinbin"
 msgstr[1] "%(n)s nakabinbin"
-
-#: .\templates\owner\home.html:159 .\templates\owner\notifications.html:3
-#: .\templates\owner\notifications.html:10
-msgid "Notices"
-msgstr "Mga Abiso"
 
 #: .\templates\owner\home.html:171
 msgid ""
@@ -6372,7 +6465,7 @@ msgstr ""
 msgid "New WiFi name"
 msgstr "Pangalan ng bagong WiFi"
 
-#: .\templates\owner\settings.html:66 .\templates\owner\settings.html:128
+#: .\templates\owner\settings.html:66 .\templates\owner\settings.html:130
 msgid "WiFi password"
 msgstr "WiFi password"
 
@@ -6380,47 +6473,47 @@ msgstr "WiFi password"
 msgid "Send to the board"
 msgstr "Ipadala sa board"
 
-#: .\templates\owner\settings.html:86 .\templates\owner\settings.html:148
+#: .\templates\owner\settings.html:88 .\templates\owner\settings.html:150
 msgid "What to check"
 msgstr "Ano ang dapat i-check"
 
-#: .\templates\owner\settings.html:86
+#: .\templates\owner\settings.html:88
 msgid "Set up again"
 msgstr "I-set up ulit"
 
-#: .\templates\owner\settings.html:86
+#: .\templates\owner\settings.html:88
 msgid "Setup steps"
 msgstr "Mga hakbang sa setup"
 
-#: .\templates\owner\settings.html:86
+#: .\templates\owner\settings.html:88
 msgid "Set up my board"
 msgstr "I-set up ang board ko"
 
-#: .\templates\owner\settings.html:89
+#: .\templates\owner\settings.html:91
 msgid "Open the board's page"
 msgstr "Buksan ang page ng board"
 
-#: .\templates\owner\settings.html:99
+#: .\templates\owner\settings.html:101
 msgid "Set up your board"
 msgstr "I-set up ang board mo"
 
-#: .\templates\owner\settings.html:114
+#: .\templates\owner\settings.html:116
 msgid "Your setup code"
 msgstr "Ang setup code mo"
 
-#: .\templates\owner\settings.html:116
+#: .\templates\owner\settings.html:118
 msgid "Works once."
 msgstr "Isang beses lang gumagana."
 
-#: .\templates\owner\settings.html:116
+#: .\templates\owner\settings.html:118
 msgid "Expires"
 msgstr "Mag-e-expire"
 
-#: .\templates\owner\settings.html:121
+#: .\templates\owner\settings.html:123
 msgid "How to connect the board"
 msgstr "Paano ikonekta ang board"
 
-#: .\templates\owner\settings.html:122
+#: .\templates\owner\settings.html:124
 msgid ""
 "Type your home WiFi here first, while your phone still has internet. It "
 "stays on your phone - it is not sent to us."
@@ -6428,15 +6521,15 @@ msgstr ""
 "I-type muna rito ang WiFi ng bahay mo habang may internet pa ang phone mo. "
 "Nananatili ito sa phone mo - hindi ito ipinapadala sa amin."
 
-#: .\templates\owner\settings.html:124
+#: .\templates\owner\settings.html:126
 msgid "Home WiFi name"
 msgstr "Pangalan ng WiFi sa bahay"
 
-#: .\templates\owner\settings.html:132
+#: .\templates\owner\settings.html:134
 msgid "Plug in the board and wait about a minute."
 msgstr "Isaksak ang board at maghintay ng mga isang minuto."
 
-#: .\templates\owner\settings.html:133
+#: .\templates\owner\settings.html:135
 #, python-format
 msgid ""
 "On your phone, join the WiFi network <strong>%(setup_ssid)s</strong> "
@@ -6448,22 +6541,22 @@ msgstr ""
 "walang internet - manatili pa rin dito. Panatilihing bukas ang page na ito; "
 "huwag i-refresh."
 
-#: .\templates\owner\settings.html:135
+#: .\templates\owner\settings.html:137
 msgid "Come back here and tap:"
 msgstr "Bumalik dito at i-tap:"
 
-#: .\templates\owner\settings.html:136
+#: .\templates\owner\settings.html:138
 msgid "Open the board's setup page"
 msgstr "Buksan ang setup page ng board"
 
-#: .\templates\owner\settings.html:137
+#: .\templates\owner\settings.html:139
 msgid ""
 "It opens already filled in. Press <strong>Save &amp; connect</strong> there."
 msgstr ""
 "Bubukas itong punuan na. Pindutin ang <strong>Save &amp; connect</strong> "
 "doon."
 
-#: .\templates\owner\settings.html:139
+#: .\templates\owner\settings.html:141
 msgid ""
 "Switch your phone back to your home WiFi. Within a minute or two the status "
 "above says Connected."
@@ -6471,11 +6564,11 @@ msgstr ""
 "Ibalik ang phone mo sa WiFi ng bahay. Sa loob ng isa o dalawang minuto, "
 "magiging Connected ang status sa itaas."
 
-#: .\templates\owner\settings.html:142
+#: .\templates\owner\settings.html:144
 msgid "If the link does not open"
 msgstr "Kung hindi bumukas ang link"
 
-#: .\templates\owner\settings.html:143
+#: .\templates\owner\settings.html:145
 #, python-format
 msgid ""
 "Open <strong>http://192.168.4.1/</strong> in your browser and type: your "
@@ -6488,7 +6581,7 @@ msgstr ""
 "device=\"code2\">%(code)s</strong>, at ang server na <strong data-setup-"
 "server-text>%(server)s</strong>."
 
-#: .\templates\owner\settings.html:150
+#: .\templates\owner\settings.html:152
 msgid ""
 "Is the board plugged in and its light on? After a power cut it reconnects by "
 "itself within a minute."
@@ -6496,7 +6589,7 @@ msgstr ""
 "Nakasaksak ba ang board at nakabukas ang ilaw nito? Pagkatapos ng brownout, "
 "kusang kokonekta ulit ito sa loob ng isang minuto."
 
-#: .\templates\owner\settings.html:151
+#: .\templates\owner\settings.html:153
 msgid ""
 "Is your home WiFi working, with internet? Try opening any website on your "
 "phone."
@@ -6504,7 +6597,7 @@ msgstr ""
 "Gumagana ba ang WiFi ng bahay mo, may internet? Subukang buksan ang kahit "
 "anong website sa phone mo."
 
-#: .\templates\owner\settings.html:152
+#: .\templates\owner\settings.html:154
 #, python-format
 msgid ""
 "Did the WiFi name or password change? The board needs to be told: unplug it, "
@@ -6516,25 +6609,25 @@ msgstr ""
 "ulit ang <strong>%(setup_ssid)s</strong> network at mailalagay mo ang bagong "
 "WiFi, nang walang code."
 
-#: .\templates\owner\settings.html:153
+#: .\templates\owner\settings.html:155
 msgid "Still nothing after that? Contact the water system facilitator."
 msgstr ""
 "Wala pa ring nangyari pagkatapos niyan? Kontakin ang facilitator ng water "
 "system."
 
-#: .\templates\owner\settings.html:162
+#: .\templates\owner\settings.html:164
 msgid "Send the code to me again"
 msgstr "Ipadala ulit sa akin ang code"
 
-#: .\templates\owner\settings.html:166
+#: .\templates\owner\settings.html:168
 msgid "Get a new setup code"
 msgstr "Kumuha ng bagong setup code"
 
-#: .\templates\owner\settings.html:184
+#: .\templates\owner\settings.html:186
 msgid "My contact details"
 msgstr "Aking contact details"
 
-#: .\templates\owner\settings.html:186
+#: .\templates\owner\settings.html:188
 msgid ""
 "Where leak alerts are texted and sign-in codes are sent. Changed your "
 "number? Enter the new one here. A code is sent to it first, so a mistyped "
@@ -6544,23 +6637,23 @@ msgstr ""
 "Nagpalit ng numero? Ilagay dito ang bago. Papadalhan muna ito ng code, para "
 "hindi mapunta sa iba ang mga alerto mo dahil sa maling numero."
 
-#: .\templates\owner\settings.html:194
+#: .\templates\owner\settings.html:196
 msgid "A change is waiting for its code."
 msgstr "May pagbabagong naghihintay ng code nito."
 
-#: .\templates\owner\settings.html:195
+#: .\templates\owner\settings.html:197
 msgid "Enter the code"
 msgstr "Ilagay ang code"
 
-#: .\templates\owner\settings.html:210
+#: .\templates\owner\settings.html:212
 msgid "Save and send me a code"
 msgstr "I-save at padalhan ako ng code"
 
-#: .\templates\owner\settings.html:226
+#: .\templates\owner\settings.html:228
 msgid "Install the app"
 msgstr "I-install ang app"
 
-#: .\templates\owner\settings.html:228
+#: .\templates\owner\settings.html:230
 msgid ""
 "Put this portal on your home screen. It opens full screen like a normal app, "
 "works when the signal is weak, and can alert you about your water. Nothing "
@@ -6571,7 +6664,7 @@ msgstr ""
 "alerto sa iyo tungkol sa tubig mo. Walang ida-download mula sa Play Store o "
 "App Store."
 
-#: .\templates\owner\settings.html:237
+#: .\templates\owner\settings.html:239
 msgid ""
 "This page is open on an address that phones will not install from. "
 "Installing needs an <strong>https://</strong> address. Ask the water system "
@@ -6581,21 +6674,21 @@ msgstr ""
 "Kailangan ng <strong>https://</strong> address para mai-install. Hingin sa "
 "facilitator ng water system ang tamang link."
 
-#: .\templates\owner\settings.html:245
+#: .\templates\owner\settings.html:247
 msgid "This portal is already installed on this phone. You are using it now."
 msgstr ""
 "Naka-install na ang portal na ito sa phone na ito. Ginagamit mo na ito "
 "ngayon."
 
-#: .\templates\owner\settings.html:249
+#: .\templates\owner\settings.html:251
 msgid "Install on this phone"
 msgstr "I-install sa phone na ito"
 
-#: .\templates\owner\settings.html:253
+#: .\templates\owner\settings.html:255
 msgid "How to install on an iPhone or iPad"
 msgstr "Paano i-install sa iPhone o iPad"
 
-#: .\templates\owner\settings.html:255
+#: .\templates\owner\settings.html:257
 msgid ""
 "Open this page in <strong>Safari</strong>. Chrome on an iPhone cannot "
 "install it."
@@ -6603,7 +6696,7 @@ msgstr ""
 "Buksan ang page na ito sa <strong>Safari</strong>. Hindi ito mai-install ng "
 "Chrome sa iPhone."
 
-#: .\templates\owner\settings.html:256
+#: .\templates\owner\settings.html:258
 msgid ""
 "Tap the <strong>Share</strong> button at the bottom of the screen &mdash; "
 "the square with an arrow pointing up."
@@ -6611,44 +6704,44 @@ msgstr ""
 "I-tap ang <strong>Share</strong> button sa ibaba ng screen &mdash; ang "
 "parisukat na may arrow paitaas."
 
-#: .\templates\owner\settings.html:257
+#: .\templates\owner\settings.html:259
 msgid "Scroll down the list and tap <strong>Add to Home Screen</strong>."
 msgstr ""
 "Mag-scroll pababa sa listahan at i-tap ang <strong>Add to Home Screen</"
 "strong>."
 
-#: .\templates\owner\settings.html:258
+#: .\templates\owner\settings.html:260
 msgid "Tap <strong>Add</strong> at the top right."
 msgstr "I-tap ang <strong>Add</strong> sa kanang itaas."
 
-#: .\templates\owner\settings.html:260
+#: .\templates\owner\settings.html:262
 msgid "The icon appears on your home screen with your other apps."
 msgstr "Lalabas ang icon sa home screen mo kasama ng iba mong app."
 
-#: .\templates\owner\settings.html:264
+#: .\templates\owner\settings.html:266
 msgid "How to install on an Android phone"
 msgstr "Paano i-install sa Android phone"
 
-#: .\templates\owner\settings.html:267
+#: .\templates\owner\settings.html:269
 msgid "Tap the <strong>three dots</strong> at the top right."
 msgstr "I-tap ang <strong>tatlong tuldok</strong> sa kanang itaas."
 
-#: .\templates\owner\settings.html:268
+#: .\templates\owner\settings.html:270
 msgid ""
 "Tap <strong>Install app</strong>, or <strong>Add to Home screen</strong>."
 msgstr ""
 "I-tap ang <strong>Install app</strong>, o <strong>Add to Home screen</"
 "strong>."
 
-#: .\templates\owner\settings.html:269
+#: .\templates\owner\settings.html:271
 msgid "Tap <strong>Install</strong>."
 msgstr "I-tap ang <strong>Install</strong>."
 
-#: .\templates\owner\settings.html:285
+#: .\templates\owner\settings.html:287
 msgid "Alerts on this phone"
 msgstr "Mga alerto sa phone na ito"
 
-#: .\templates\owner\settings.html:287
+#: .\templates\owner\settings.html:289
 msgid ""
 "Get a notification the moment something is wrong with your water, even when "
 "the app is closed. You will still get a text message either way."
@@ -6657,7 +6750,7 @@ msgstr ""
 "nakasara ang app. Makakatanggap ka pa rin ng text message kahit ano ang "
 "mangyari."
 
-#: .\templates\owner\settings.html:295
+#: .\templates\owner\settings.html:297
 msgid ""
 "Notifications are not set up on the system yet, so this cannot be switched "
 "on. Nothing is wrong with your phone."
@@ -6665,11 +6758,11 @@ msgstr ""
 "Hindi pa naka-set up ang mga notification sa system, kaya hindi pa ito "
 "mabubuksan. Walang problema sa phone mo."
 
-#: .\templates\owner\settings.html:300
+#: .\templates\owner\settings.html:302
 msgid "For the facilitator:"
 msgstr "Para sa facilitator:"
 
-#: .\templates\owner\settings.html:303
+#: .\templates\owner\settings.html:305
 msgid ""
 "This phone&rsquo;s browser cannot show notifications. On an iPhone, install "
 "the app to your home screen first, then come back here."
@@ -6677,7 +6770,7 @@ msgstr ""
 "Hindi makapagpakita ng notification ang browser ng phone na ito. Sa iPhone, "
 "i-install muna ang app sa home screen mo, saka bumalik dito."
 
-#: .\templates\owner\settings.html:310
+#: .\templates\owner\settings.html:312
 msgid ""
 "Notifications are blocked for this site in your phone&rsquo;s settings. You "
 "will need to allow them there before this can be switched on."
@@ -6685,27 +6778,27 @@ msgstr ""
 "Naka-block ang mga notification para sa site na ito sa settings ng phone mo. "
 "Kailangan mo itong payagan doon bago mabuksan ito."
 
-#: .\templates\owner\settings.html:317
+#: .\templates\owner\settings.html:319
 msgid "Turn on alerts"
 msgstr "I-on ang mga alerto"
 
-#: .\templates\owner\settings.html:321
+#: .\templates\owner\settings.html:323
 msgid "Alerts are on for this phone."
 msgstr "Naka-on ang mga alerto sa phone na ito."
 
-#: .\templates\owner\settings.html:323
+#: .\templates\owner\settings.html:325
 msgid "Send a test"
 msgstr "Magpadala ng test"
 
-#: .\templates\owner\settings.html:324
+#: .\templates\owner\settings.html:326
 msgid "Turn off"
 msgstr "I-off"
 
-#: .\templates\owner\settings.html:343
+#: .\templates\owner\settings.html:345
 msgid "Phones getting alerts"
 msgstr "Mga phone na tumatanggap ng alerto"
 
-#: .\templates\owner\settings.html:345
+#: .\templates\owner\settings.html:347
 #, python-format
 msgid ""
 "%(count)s phones in your household are set up for alerts. Turning them off "
@@ -6875,57 +6968,73 @@ msgstr "Padalhan ako ng reset link"
 msgid "Reset your Smart Hose Leak password"
 msgstr "I-reset ang Smart Hose Leak password mo"
 
+#~ msgid ""
+#~ "Check that your faucets are fully closed. If they are and water is still "
+#~ "running, tell the facilitator."
+#~ msgstr ""
+#~ "Tingnan kung sarado nang husto ang mga gripo mo. Kung sarado na pero "
+#~ "tuloy-tuloy pa ring umaagos ang tubig, sabihin sa facilitator."
+
+#~ msgid ""
+#~ "A possible leak was detected on your line on {when}. Please check that "
+#~ "all your faucets are fully closed. If they are and water is still "
+#~ "running, tell the water system facilitator.\n"
+#~ "\n"
+#~ "Reading at the time: {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min."
+#~ msgstr ""
+#~ "May na-detect na posibleng tagas sa linya mo noong {when}. Pakitingnan "
+#~ "kung sarado nang husto ang lahat ng gripo mo. Kung sarado na pero tuloy-"
+#~ "tuloy pa ring umaagos ang tubig, sabihin sa facilitator ng water system.\n"
+#~ "\n"
+#~ "Reading noong oras na iyon: {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min."
+
+#~ msgid ""
+#~ "LEAK: {who}{owner}{severity}. {pressure_bar:.2f} bar, {flow_lpm:.2f} L/"
+#~ "min. Detected by {get_trigger_display}. The owner has been asked to check "
+#~ "their faucets."
+#~ msgstr ""
+#~ "TAGAS: {who}{owner}{severity}. {pressure_bar:.2f} bar, {flow_lpm:.2f} L/"
+#~ "min. Na-detect ng {get_trigger_display}. Pinasabihan na ang may-ari na "
+#~ "tingnan ang mga gripo niya."
+
+#~ msgid ""
+#~ "LEAK ALERT {household_id}: possible leak {when}{severity}. Please check "
+#~ "all your faucets are closed. If they are and water still runs, tell the "
+#~ "facilitator."
+#~ msgstr ""
+#~ "ALERTO SA TAGAS {household_id}: posibleng tagas {when}{severity}. "
+#~ "Pakitingnan kung sarado ang lahat ng gripo mo. Kung sarado na pero "
+#~ "umaagos pa rin ang tubig, sabihin sa facilitator."
+
+#~ msgid "suspended"
+#~ msgstr "suspendido"
+
+#~ msgid "%(since)s ago"
+#~ msgstr "%(since)s na ang nakalipas"
+
+#~ msgid "ready"
+#~ msgstr "handa"
+
+#~ msgid "not set up"
+#~ msgstr "hindi pa naka-set up"
+
+#~ msgid "on"
+#~ msgstr "naka-on"
+
+#~ msgid "off"
+#~ msgstr "naka-off"
+
+#~ msgid "Field work"
+#~ msgstr "Trabaho sa field"
+
+#~ msgid "open"
+#~ msgstr "aktibo"
+
+#~ msgid "online"
+#~ msgstr "online"
+
+#~ msgid "offline"
+#~ msgstr "offline"
+
 #~ msgid "Install the app on my phone"
 #~ msgstr "I-install ang app sa aking telepono"
-
-#: console review, 17 Nov 2026
-msgid "Suspended"
-msgstr "Suspendido"
-
-#: console review, 17 Nov 2026
-msgid "Cancel visit"
-msgstr "Kanselahin ang pagbisita"
-
-#: console review, 17 Nov 2026
-msgid "Ready"
-msgstr "Handa"
-
-#: console review, 17 Nov 2026
-msgid "Not set up"
-msgstr "Hindi pa naka-set up"
-
-#: console review, 17 Nov 2026
-msgid "On"
-msgstr "Naka-on"
-
-#: console review, 17 Nov 2026
-msgid "Off"
-msgstr "Naka-off"
-
-#: console review, 17 Nov 2026
-msgid "Continuous flow"
-msgstr "Tuluy-tuloy na daloy"
-
-#: console review, 17 Nov 2026
-msgid "Nightly test"
-msgstr "Pagsusuri tuwing gabi"
-
-#: console review, 17 Nov 2026
-msgid "Timing"
-msgstr "Oras at pagitan"
-
-#: console review, 17 Nov 2026
-msgid "Nothing is archived."
-msgstr "Walang naka-archive."
-
-#: console review, 17 Nov 2026
-msgid "A household or facilitator you archive is kept here, and can be restored."
-msgstr "Dito itinatago ang sambahayan o facilitator na ina-archive mo, at maaari itong ibalik."
-
-#: console review, 17 Nov 2026
-msgid "From"
-msgstr "Mula"
-
-#: console review, 17 Nov 2026
-msgid "Online"
-msgstr "Online"

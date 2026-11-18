@@ -39,6 +39,7 @@ from .models import (
     Trigger,
     ValveReason,
     ValveState,
+    SystemSetting,
     describe_valve,
     mark_stale_offline,
     offline_after_seconds,
@@ -99,6 +100,49 @@ def _choice_or_default(raw, choices, default):
     return value if value in choices.values else default
 
 
+def _alert_facts(event):
+    """
+    Everything the alert sentences quote, gathered once.
+
+    cause is "decay" for a leak the night pressure test found and "flow" for
+    water that never stopped. The board says which (trigger); a board on
+    older firmware sends none, and then the valve reason it reported with
+    the same upload decides. The minutes are the thresholds in force, the
+    reading is the one that tripped the status, and valve_closed is what the
+    board reported with that same upload.
+    """
+    segment = event.segment
+    latest = getattr(segment, "latest", None)
+    household = getattr(segment, "household", None)
+    setting = SystemSetting.load()
+    reason = latest.valve_reason if latest else ValveReason.NONE
+    if event.trigger == Trigger.DECAY or (event.trigger == Trigger.NONE and reason == ValveReason.DECAY):
+        cause = "decay"
+    else:
+        cause = "flow"
+    hour = setting.valve_test_hour
+    local = timezone.localtime(event.detected_at)
+    return {
+        "household_id": household.household_id if household is not None else segment.name,
+        "owner": household.owner_name if household is not None else "",
+        "when": local.strftime("%b %d %I:%M%p").replace(" 0", " "),
+        "cause": cause,
+        "warn_min": setting.flow_warn_minutes,
+        "leak_min": setting.flow_leak_minutes,
+        "grace_min": setting.valve_test_grace_minutes,
+        "test_hour": f"{hour % 12 or 12}{'AM' if hour < 12 else 'PM'}",
+        "flow": f"{event.flow_lpm:.1f}",
+        "pressure": f"{event.pressure_bar:.2f}",
+        "drop_value": f"{event.pressure_drop_bar:.2f}" if event.pressure_drop_bar is not None else "",
+        "valve_closed": bool(latest is not None and latest.valve_state == ValveState.CLOSED),
+    }
+
+
+def _drop_phrase(facts):
+    """' by 0.25 bar' when the board measured the drop, '' when it did not."""
+    return _(" by {drop} bar").format(drop=facts["drop_value"]) if facts["drop_value"] else ""
+
+
 def _push_body(event, in_app_body):
     """
     The same news, cut to what fits on a lock screen.
@@ -109,15 +153,19 @@ def _push_body(event, in_app_body):
     instruction alone is the useful half, same reasoning as the SMS.
     """
     if event.status == Segment.Status.POSSIBLE_LEAK:
-        return (
-            _("Check that your faucets are fully closed. If they are and water "
-            "is still running, tell the facilitator.")
-        )
+        f = _alert_facts(event)
+        if f["cause"] == "decay":
+            return _("Night test: pressure fell{drop} with every tap shut. Valve held closed. "
+                     "Check your hose, then open it in the portal.").format(drop=_drop_phrase(f))
+        if f["valve_closed"]:
+            return _("Water ran {leak_min} min non-stop. Valve closed. Check every tap, "
+                     "then open it in the portal.").format(**f)
+        return _("Water ran {leak_min} min non-stop. Close every tap; if it still runs, "
+                 "tell the facilitator.").format(**f)
     if event.status == Segment.Status.WATER_RUNNING:
-        return (
-            _("Water has been running non-stop on your line. Turn off any tap or "
-            "hose; if all are closed, tell the facilitator.")
-        )
+        f = _alert_facts(event)
+        return _("Water has run non-stop for {warn_min} min ({flow} L/min). Turn off any tap "
+                 "or hose; if all are closed, tell the facilitator.").format(**f)
     if event.status == Segment.Status.LOW_SUPPLY:
         return _("Water may be slow at your tap. The source is probably low.")
     if event.status == Segment.Status.NORMAL:
@@ -132,30 +180,46 @@ def _household_notice(event, when):
     The in-app notice for a status change, in the active language: (title,
     body), or None when this status raises nothing.
 
-    Written to the person who lives there, not about them. Lines are named
-    after their household now, so "Possible leak on HH-001 - Maria Santos"
-    told Maria her own name twice and located the problem at the only
-    address she already knew. To her it is simply her line.
+    Written to the person who lives there, not about them, and specific:
+    which test caught it, the numbers, what the valve did, and what to do.
+    A small leak and a tap left slightly open are identical to the sensors,
+    and the tap is far more common, so the owner is always asked to check
+    their own taps before anyone is sent out.
     """
     if event.status == Segment.Status.POSSIBLE_LEAK:
-        return (
-            _("Possible leak on your water line"),
-            _("A possible leak was detected on your line on {when}. Please check "
-              "that all your faucets are fully closed. If they are and water is "
-              "still running, tell the water system facilitator.\n\nReading at the "
-              "time: {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min.").format(
-                when=when, pressure_bar=event.pressure_bar, flow_lpm=event.flow_lpm),
-        )
+        f = _alert_facts(event)
+        if f["cause"] == "decay":
+            body = _(
+                "At {test_hour} the board closed your valve and watched the pressure for "
+                "{grace_min} minutes with every tap shut. It fell{drop}, which means water is "
+                "escaping somewhere on your line. The valve is held closed to save water. Check "
+                "your hose and fittings; once fixed, open the valve from this portal. If you "
+                "cannot find the leak, tell the water system facilitator."
+            ).format(drop=_drop_phrase(f), **f)
+        else:
+            valve = (
+                _("The valve was closed automatically to save water; once every tap is off, "
+                  "open it from this portal.")
+                if f["valve_closed"] else _("The valve was left open.")
+            )
+            body = _(
+                "Water has run without stopping for {leak_min} minutes, at about {flow} L/min - "
+                "longer than any normal use. {valve} Please check that every tap and hose is "
+                "closed. If they are and water still runs, there is a leak between the valve and "
+                "your taps - tell the water system facilitator."
+            ).format(valve=valve, **f)
+        body += "\n\n" + _("Reading at the time: {pressure} bar, {flow} L/min.").format(**f)
+        return (_("Possible leak on your water line"), body)
     if event.status == Segment.Status.WATER_RUNNING:
-        return (
-            _("Water has been running on your line"),
-            _("Water has been flowing without stopping on your line since before "
-              "{when}. If you left a tap or hose on, please turn it off. If "
-              "everything is closed and water is still running, you may have a leak "
-              "- tell the water system facilitator.\n\nReading at the time: "
-              "{pressure_bar:.2f} bar, {flow_lpm:.2f} L/min.").format(
-                when=when, pressure_bar=event.pressure_bar, flow_lpm=event.flow_lpm),
-        )
+        f = _alert_facts(event)
+        body = _(
+            "Water has been flowing without stopping on your line for {warn_min} minutes, since "
+            "before {when}, at about {flow} L/min. If you left a tap or hose on, please turn it "
+            "off. If everything is closed and water is still running, you may have a leak - tell "
+            "the water system facilitator."
+        ).format(**f)
+        body += "\n\n" + _("Reading at the time: {pressure} bar, {flow} L/min.").format(**f)
+        return (_("Water has been running on your line"), body)
     if event.status == Segment.Status.LOW_SUPPLY:
         return (
             _("Your water is weaker than usual"),
@@ -314,6 +378,7 @@ def send_test_alert(segment, status, trigger=Trigger.NONE,
         detected_at=now,
         cleared_at=now,
         is_test=True,
+        pressure_drop_bar=0.25 if trigger == Trigger.DECAY else None,
     )
     _notify_households(segment, event)
     return event
@@ -347,15 +412,15 @@ def _notify_facilitators(segment, event):
     household = getattr(segment, "household", None)
     who = household.household_id if household else segment.name
     owner = f" ({household.owner_name})" if household else ""
-    severity = ""
-    if event.device_severity and event.device_severity != DeviceSeverity.NONE:
-        severity = f", {event.get_device_severity_display().lower()}"
-
-    text = (
-        _("LEAK: {who}{owner}{severity}. {pressure_bar:.2f} bar, {flow_lpm:.2f} "
-          "L/min. Detected by {get_trigger_display}. The owner has been asked to "
-          "check their faucets.").format(who=who, owner=owner, severity=severity, pressure_bar=event.pressure_bar, flow_lpm=event.flow_lpm, get_trigger_display=event.get_trigger_display().lower())
-    )
+    f = _alert_facts(event)
+    if f["cause"] == "decay":
+        text = _("LEAK {who}{owner}: night test {test_hour}, pressure fell{drop} in {grace_min} min, "
+                 "taps shut. Valve held closed. Owner asked to check the hose.").format(
+            who=who, owner=owner, drop=_drop_phrase(f), **f)
+    else:
+        text = _("LEAK {who}{owner}: water ran {leak_min} min non-stop, {flow} L/min, {pressure} bar. "
+                 "Valve {valve}. Owner asked to check taps.").format(
+            who=who, owner=owner, valve=_("closed") if f["valve_closed"] else _("left open"), **f)
 
     for facilitator in facilitators:
         SmsMessage.queue_to_number(
@@ -370,12 +435,10 @@ def _notify_facilitators(segment, event):
 def _alert_sms_text(household, event):
     """One text, chosen by what was detected: a leak, or water left running."""
     if event.status == Segment.Status.WATER_RUNNING:
-        when = timezone.localtime(event.detected_at).strftime("%b %d %I:%M%p").replace(" 0", " ")
-        return (
-            _("WATER RUNNING {household_id}: water has run non-stop since {when}. "
-              "Turn off any tap or hose. If all are closed and it still runs, tell "
-              "the facilitator.").format(household_id=household.household_id, when=when)
-        )
+        f = _alert_facts(event)
+        return _("WATER RUNNING {household_id}: non-stop for {warn_min} min ({flow} L/min) since "
+                 "{when}. Turn off any tap or hose. Still running with all closed? Tell the "
+                 "facilitator.").format(**dict(f, household_id=household.household_id))
     return _leak_sms_text(household, event)
 
 
@@ -383,29 +446,27 @@ def _leak_sms_text(household, event):
     """
     The words that arrive on somebody's phone when their line is flagged.
 
-    It asks them to check their own taps first. A small leak and a tap left
-    slightly open are identical to the sensors, and the far more common of
-    the two is the tap - so sending a crew before asking would waste most
-    trips and teach people the alerts are wrong.
+    Specific on purpose - which test, the numbers, what the valve did, what
+    to do - and still one message: two texts cost twice as much, can arrive
+    out of order, and the half that gets separated is the instruction.
+    test_leak_sms_fits_one_message guards every variant in both languages.
     """
-    when = timezone.localtime(event.detected_at).strftime("%b %d %I:%M%p").replace(" 0", " ")
-    severity = ""
-    if event.device_severity and event.device_severity != DeviceSeverity.NONE:
-        severity = f", {event.get_device_severity_display().lower()}"
-
-    # Written to fit one message. Two texts cost twice as much, can arrive out
-    # of order, and the half that gets separated is the instruction - so the
-    # wording is kept tight rather than trusting it to come out short.
-    # test_leak_sms_fits_one_message guards this.
-    return (
-        _("LEAK ALERT {household_id}: possible leak {when}{severity}. Please "
-          "check all your faucets are closed. If they are and water still runs, "
-          "tell the facilitator.").format(household_id=household.household_id, when=when, severity=severity)
-    )
+    f = dict(_alert_facts(event), household_id=household.household_id)
+    if f["cause"] == "decay":
+        return _("LEAK {household_id}: night test {test_hour}: pressure fell{drop} in {grace_min} min "
+                 "with all taps shut. Valve held CLOSED; check the hose, then open it in the "
+                 "portal.").format(drop=_drop_phrase(f), **f)
+    if f["valve_closed"]:
+        return _("LEAK {household_id}: water ran non-stop {leak_min} min ({flow} L/min). Valve CLOSED; "
+                 "open it in the portal once all taps are off. Still runs? Tell the "
+                 "facilitator.").format(**f)
+    return _("LEAK {household_id}: water ran non-stop {leak_min} min ({flow} L/min). Valve left open. "
+             "Close every tap; if it still runs, tell the facilitator.").format(**f)
 
 
 def _apply_status_change(segment, new_status, pressure_bar, flow_lpm,
-                         device_severity=DeviceSeverity.NONE, trigger=Trigger.NONE):
+                         device_severity=DeviceSeverity.NONE, trigger=Trigger.NONE,
+                         pressure_drop_bar=None):
     """
     Record a transition as a LeakEvent and close the previous open one.
 
@@ -426,6 +487,7 @@ def _apply_status_change(segment, new_status, pressure_bar, flow_lpm,
         flow_lpm=flow_lpm,
         device_severity=device_severity,
         trigger=trigger,
+        pressure_drop_bar=pressure_drop_bar,
         detected_at=now,
     )
     if new_status == Segment.Status.NORMAL:
@@ -635,8 +697,19 @@ def ingest(request):
             # A segment parked under maintenance by the facilitator keeps that
             # status until they clear it, so field repairs do not spam alerts.
             if segment.status != Segment.Status.MAINTENANCE and segment.status != mapped_status:
+                # The night test's measured drop, when the board sends it.
+                try:
+                    drop_raw = entry.get("test_drop_bar")
+                    pressure_drop_bar = float(drop_raw) if drop_raw is not None else None
+                    if pressure_drop_bar is not None and not (
+                        math.isfinite(pressure_drop_bar) and 0 < pressure_drop_bar < 100
+                    ):
+                        pressure_drop_bar = None
+                except (TypeError, ValueError):
+                    pressure_drop_bar = None
                 event = _apply_status_change(
-                    segment, mapped_status, pressure_bar, flow_lpm, severity, trigger
+                    segment, mapped_status, pressure_bar, flow_lpm, severity, trigger,
+                    pressure_drop_bar,
                 )
                 events.append({"module": module, "status": event.status, "id": event.id})
 

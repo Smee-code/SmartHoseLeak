@@ -57,28 +57,65 @@ class LeakSmsTextTests(TestCase):
             detected_at=timezone.now(),
         )
 
+    def _variants(self):
+        """Every shape the leak text can take: cause, valve, measured drop."""
+        from core.models import LatestReading, Trigger, ValveState, ValveReason
+        from django.utils import translation
+        for cause in ("flow", "decay"):
+            for closed in (False, True):
+                for drop in (None, 0.25):
+                    LatestReading.objects.update_or_create(segment=self.segment, defaults={
+                        "pressure_bar": 0.5, "flow_lpm": 5.2,
+                        "valve_state": ValveState.CLOSED if closed else ValveState.OPEN,
+                        "valve_reason": ValveReason.DECAY if cause == "decay" and closed else ValveReason.NONE,
+                    })
+                    self.event.trigger = Trigger.DECAY if cause == "decay" else Trigger.SUSTAINED
+                    self.event.pressure_drop_bar = drop
+                    self.event.flow_lpm = 1027.8
+                    self.event.pressure_bar = 0.18
+                    for language in ("en", "fil"):
+                        with translation.override(language):
+                            yield f"{cause}/{'closed' if closed else 'open'}/{drop}/{language}"
+
     def test_leak_sms_fits_one_message(self):
         """
-        Every severity, and a long household id, still fit in 160 characters.
+        Every variant, in both languages, with a wide household id and a huge
+        flow figure, still fits in 160 characters.
 
         Two texts cost twice as much, can arrive out of order, and the half
         that gets separated is the instruction telling the owner what to do.
         """
         self.household.household_id = "HH-0000"  # wider than the current format
-        for severity in DeviceSeverity.values:
-            with self.subTest(severity=severity):
-                self.event.device_severity = severity
+        from core.api import _alert_sms_text
+        for label in self._variants():
+            with self.subTest(variant=label):
                 text = _leak_sms_text(self.household, self.event)
                 self.assertLessEqual(
                     len(text), SmsMessage.SINGLE_LIMIT,
                     f"alert is {len(text)} characters and would split: {text}",
                 )
+        self.event.status = Segment.Status.WATER_RUNNING
+        for label in self._variants():
+            with self.subTest(variant="running/" + label):
+                text = _alert_sms_text(self.household, self.event)
+                self.assertLessEqual(len(text), SmsMessage.SINGLE_LIMIT, text)
 
-    def test_leak_sms_names_the_household_and_the_action(self):
+    def test_leak_sms_names_the_household_the_test_and_the_action(self):
         """A text arrives with no app around it, so it must stand alone."""
+        from core.models import Trigger
+        self.event.trigger = Trigger.SUSTAINED
         text = _leak_sms_text(self.household, self.event)
         self.assertIn("HH-001", text)
-        self.assertIn("faucets", text)   # check your own taps before calling anyone
+        self.assertIn("non-stop", text)          # which test
+        self.assertIn("min", text)               # the number
+        self.assertIn("alve", text)              # what the valve did
+        self.assertIn("tap", text)               # check your own taps before calling anyone
+        self.event.trigger = Trigger.DECAY
+        self.event.pressure_drop_bar = 0.25
+        text = _leak_sms_text(self.household, self.event)
+        self.assertIn("night test", text)
+        self.assertIn("0.25 bar", text)
+        self.assertIn("hose", text)
 
 
 class SmsQueueTests(TestCase):
