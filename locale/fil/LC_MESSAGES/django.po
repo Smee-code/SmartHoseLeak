@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Smart Hose Leak\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 14:37+0800\n"
+"POT-Creation-Date: 2026-11-18 19:38+0800\n"
 "PO-Revision-Date: 2026-10-28 19:30+0800\n"
 "Last-Translator: \n"
 "Language-Team: Filipino\n"
@@ -26,32 +26,36 @@ msgstr " ng {drop} bar"
 msgid ""
 "Night test: pressure fell{drop} with every tap shut. Valve held closed. "
 "Check your hose, then open it in the portal."
-msgstr "Night test: bumaba ang pressure{drop} kahit sarado ang lahat ng gripo. Nakasara ang valve. Suriin ang hose, saka buksan sa portal."
+msgstr ""
+"Night test: bumaba ang pressure{drop} kahit sarado ang lahat ng gripo. "
+"Nakasara ang valve. Suriin ang hose, saka buksan sa portal."
 
 #: .\core\api.py:161
 #, python-brace-format
 msgid ""
 "Water ran {leak_min} min non-stop. Valve closed. Check every tap, then open "
 "it in the portal."
-msgstr "{leak_min} min tuloy-tuloy ang tubig. Sarado ang valve. Suriin ang mga gripo, saka buksan sa portal."
+msgstr ""
+"{leak_min} min tuloy-tuloy ang tubig. Sarado ang valve. Suriin ang mga "
+"gripo, saka buksan sa portal."
 
 #: .\core\api.py:163
-#| msgid ""
-#| "Water has been running non-stop on your line. Turn off any tap or hose; "
-#| "if all are closed, tell the facilitator."
+#, python-brace-format
 msgid ""
 "Water ran {leak_min} min non-stop. Close every tap; if it still runs, tell "
 "the facilitator."
-msgstr "{leak_min} min tuloy-tuloy ang tubig. Isara ang lahat ng gripo; kung umaagos pa, sabihin sa facilitator."
+msgstr ""
+"{leak_min} min tuloy-tuloy ang tubig. Isara ang lahat ng gripo; kung umaagos "
+"pa, sabihin sa facilitator."
 
 #: .\core\api.py:167
-#| msgid ""
-#| "Water has been running non-stop on your line. Turn off any tap or hose; "
-#| "if all are closed, tell the facilitator."
+#, python-brace-format
 msgid ""
 "Water has run non-stop for {warn_min} min ({flow} L/min). Turn off any tap "
 "or hose; if all are closed, tell the facilitator."
-msgstr "{warn_min} min nang tuloy-tuloy ang tubig ({flow} L/min). Isara ang mga gripo at hose; kung sarado na lahat, sabihin sa facilitator."
+msgstr ""
+"{warn_min} min nang tuloy-tuloy ang tubig ({flow} L/min). Isara ang mga "
+"gripo at hose; kung sarado na lahat, sabihin sa facilitator."
 
 #: .\core\api.py:170
 msgid "Water may be slow at your tap. The source is probably low."
@@ -70,16 +74,23 @@ msgid ""
 "escaping somewhere on your line. The valve is held closed to save water. "
 "Check your hose and fittings; once fixed, open the valve from this portal. "
 "If you cannot find the leak, tell the water system facilitator."
-msgstr "Noong {test_hour} isinara ng board ang valve mo at binantayan ang pressure sa loob ng {grace_min} minuto habang sarado ang lahat ng gripo. Bumaba ito{drop}, ibig sabihin may tumutulong tubig sa linya mo. Nakasara ang valve para makatipid ng tubig. Suriin ang hose at mga kabit; kapag naayos na, buksan ang valve mula sa portal na ito. Kung hindi mo mahanap ang tagas, sabihin sa facilitator ng sistema ng tubig."
+msgstr ""
+"Noong {test_hour} isinara ng board ang valve mo at binantayan ang pressure "
+"sa loob ng {grace_min} minuto habang sarado ang lahat ng gripo. Bumaba "
+"ito{drop}, ibig sabihin may tumutulong tubig sa linya mo. Nakasara ang valve "
+"para makatipid ng tubig. Suriin ang hose at mga kabit; kapag naayos na, "
+"buksan ang valve mula sa portal na ito. Kung hindi mo mahanap ang tagas, "
+"sabihin sa facilitator ng sistema ng tubig."
 
 #: .\core\api.py:201
 msgid ""
 "The valve was closed automatically to save water; once every tap is off, "
 "open it from this portal."
-msgstr "Kusang isinara ang valve para makatipid ng tubig; kapag sarado na ang lahat ng gripo, buksan ito mula sa portal na ito."
+msgstr ""
+"Kusang isinara ang valve para makatipid ng tubig; kapag sarado na ang lahat "
+"ng gripo, buksan ito mula sa portal na ito."
 
 #: .\core\api.py:203
-#| msgid "The valve is turning."
 msgid "The valve was left open."
 msgstr "Iniwang bukas ang valve."
 
@@ -90,7 +101,11 @@ msgid ""
 "- longer than any normal use. {valve} Please check that every tap and hose "
 "is closed. If they are and water still runs, there is a leak between the "
 "valve and your taps - tell the water system facilitator."
-msgstr "{leak_min} minuto nang tuloy-tuloy ang pag-agos ng tubig, mga {flow} L/min - mas matagal kaysa karaniwang gamit. {valve} Pakitiyak na sarado ang bawat gripo at hose. Kung sarado na at umaagos pa rin, may tagas sa pagitan ng valve at ng mga gripo mo - sabihin sa facilitator ng sistema ng tubig."
+msgstr ""
+"{leak_min} minuto nang tuloy-tuloy ang pag-agos ng tubig, mga {flow} L/min - "
+"mas matagal kaysa karaniwang gamit. {valve} Pakitiyak na sarado ang bawat "
+"gripo at hose. Kung sarado na at umaagos pa rin, may tagas sa pagitan ng "
+"valve at ng mga gripo mo - sabihin sa facilitator ng sistema ng tubig."
 
 #: .\core\api.py:211 .\core\api.py:221
 #, python-brace-format
@@ -102,19 +117,17 @@ msgid "Possible leak on your water line"
 msgstr "Posibleng tagas sa linya ng tubig mo"
 
 #: .\core\api.py:216
-#| msgid ""
-#| "Water has been flowing without stopping on your line since before {when}. "
-#| "If you left a tap or hose on, please turn it off. If everything is closed "
-#| "and water is still running, you may have a leak - tell the water system "
-#| "facilitator.\n"
-#| "\n"
-#| "Reading at the time: {pressure_bar:.2f} bar, {flow_lpm:.2f} L/min."
+#, python-brace-format
 msgid ""
 "Water has been flowing without stopping on your line for {warn_min} minutes, "
 "since before {when}, at about {flow} L/min. If you left a tap or hose on, "
 "please turn it off. If everything is closed and water is still running, you "
 "may have a leak - tell the water system facilitator."
-msgstr "{warn_min} minuto nang tuloy-tuloy ang pag-agos ng tubig sa linya mo, mula bago mag-{when}, mga {flow} L/min. Kung may naiwan kang bukas na gripo o hose, pakisara. Kung sarado na ang lahat at umaagos pa rin, maaaring may tagas - sabihin sa facilitator ng sistema ng tubig."
+msgstr ""
+"{warn_min} minuto nang tuloy-tuloy ang pag-agos ng tubig sa linya mo, mula "
+"bago mag-{when}, mga {flow} L/min. Kung may naiwan kang bukas na gripo o "
+"hose, pakisara. Kung sarado na ang lahat at umaagos pa rin, maaaring may "
+"tagas - sabihin sa facilitator ng sistema ng tubig."
 
 #: .\core\api.py:222
 msgid "Water has been running on your line"
@@ -156,35 +169,38 @@ msgstr ""
 msgid ""
 "LEAK {who}{owner}: night test {test_hour}, pressure fell{drop} in "
 "{grace_min} min, taps shut. Valve held closed. Owner asked to check the hose."
-msgstr "LEAK {who}{owner}: night test {test_hour}, bumaba ang pressure{drop} sa {grace_min} min, sarado ang mga gripo. Nakasara ang valve. Pinasuri sa may-ari ang hose."
+msgstr ""
+"LEAK {who}{owner}: night test {test_hour}, bumaba ang pressure{drop} sa "
+"{grace_min} min, sarado ang mga gripo. Nakasara ang valve. Pinasuri sa may-"
+"ari ang hose."
 
 #: .\core\api.py:421
 #, python-brace-format
 msgid ""
 "LEAK {who}{owner}: water ran {leak_min} min non-stop, {flow} L/min, "
 "{pressure} bar. Valve {valve}. Owner asked to check taps."
-msgstr "LEAK {who}{owner}: {leak_min} min tuloy-tuloy ang tubig, {flow} L/min, {pressure} bar. Valve: {valve}. Pinasuri sa may-ari ang mga gripo."
+msgstr ""
+"LEAK {who}{owner}: {leak_min} min tuloy-tuloy ang tubig, {flow} L/min, "
+"{pressure} bar. Valve: {valve}. Pinasuri sa may-ari ang mga gripo."
 
 #: .\core\api.py:423
-#| msgid "Closed"
 msgid "closed"
 msgstr "sarado"
 
 #: .\core\api.py:423
-#| msgid "Valve opened"
 msgid "left open"
 msgstr "nakabukas"
 
 #: .\core\api.py:439
-#| msgid ""
-#| "WATER RUNNING {household_id}: water has run non-stop since {when}. Turn "
-#| "off any tap or hose. If all are closed and it still runs, tell the "
-#| "facilitator."
+#, python-brace-format
 msgid ""
 "WATER RUNNING {household_id}: non-stop for {warn_min} min ({flow} L/min) "
 "since {when}. Turn off any tap or hose. Still running with all closed? Tell "
 "the facilitator."
-msgstr "WATER RUNNING {household_id}: tuloy-tuloy {warn_min} min ({flow} L/min) mula {when}. Isara ang mga gripo at hose. Umaagos pa kahit sarado? Sabihin sa facilitator."
+msgstr ""
+"WATER RUNNING {household_id}: tuloy-tuloy {warn_min} min ({flow} L/min) mula "
+"{when}. Isara ang mga gripo at hose. Umaagos pa kahit sarado? Sabihin sa "
+"facilitator."
 
 #: .\core\api.py:456
 #, python-brace-format
@@ -192,28 +208,31 @@ msgid ""
 "LEAK {household_id}: night test {test_hour}: pressure fell{drop} in "
 "{grace_min} min with all taps shut. Valve held CLOSED; check the hose, then "
 "open it in the portal."
-msgstr "LEAK {household_id}: night test {test_hour}: bumaba ang pressure{drop} sa {grace_min} min, sarado ang lahat ng gripo. SARADO ang valve; suriin ang hose, saka buksan sa portal."
+msgstr ""
+"LEAK {household_id}: night test {test_hour}: bumaba ang pressure{drop} sa "
+"{grace_min} min, sarado ang lahat ng gripo. SARADO ang valve; suriin ang "
+"hose, saka buksan sa portal."
 
 #: .\core\api.py:460
-#| msgid ""
-#| "WATER RUNNING {household_id}: water has run non-stop since {when}. Turn "
-#| "off any tap or hose. If all are closed and it still runs, tell the "
-#| "facilitator."
+#, python-brace-format
 msgid ""
 "LEAK {household_id}: water ran non-stop {leak_min} min ({flow} L/min). Valve "
 "CLOSED; open it in the portal once all taps are off. Still runs? Tell the "
 "facilitator."
-msgstr "LEAK {household_id}: {leak_min} min tuloy-tuloy ang tubig ({flow} L/min). SARADO ang valve; isara ang mga gripo, saka buksan sa portal. Umaagos pa? Sabihin sa facilitator."
+msgstr ""
+"LEAK {household_id}: {leak_min} min tuloy-tuloy ang tubig ({flow} L/min). "
+"SARADO ang valve; isara ang mga gripo, saka buksan sa portal. Umaagos pa? "
+"Sabihin sa facilitator."
 
 #: .\core\api.py:463
-#| msgid ""
-#| "WATER RUNNING {household_id}: water has run non-stop since {when}. Turn "
-#| "off any tap or hose. If all are closed and it still runs, tell the "
-#| "facilitator."
+#, python-brace-format
 msgid ""
 "LEAK {household_id}: water ran non-stop {leak_min} min ({flow} L/min). Valve "
 "left open. Close every tap; if it still runs, tell the facilitator."
-msgstr "LEAK {household_id}: {leak_min} min tuloy-tuloy ang tubig ({flow} L/min). Nakabukas ang valve. Isara ang lahat ng gripo; kung umaagos pa, sabihin sa facilitator."
+msgstr ""
+"LEAK {household_id}: {leak_min} min tuloy-tuloy ang tubig ({flow} L/min). "
+"Nakabukas ang valve. Isara ang lahat ng gripo; kung umaagos pa, sabihin sa "
+"facilitator."
 
 #: .\core\api.py:772
 #, python-brace-format
@@ -253,22 +272,22 @@ msgstr ""
 msgid "its previous network"
 msgstr "ang dati nitong network"
 
-#: .\core\api.py:1239
+#: .\core\api.py:1240
 msgid "Notifications are working"
 msgstr "Gumagana ang mga notification"
 
-#: .\core\api.py:1240
+#: .\core\api.py:1241
 msgid "This is a test. Alerts about your water will look like this."
 msgstr "Test lang ito. Ganito ang itsura ng mga alerto tungkol sa tubig mo."
 
-#: .\core\api.py:1247
+#: .\core\api.py:1248
 msgid ""
 "This phone is not registered for notifications. Turn them off and on again."
 msgstr ""
 "Hindi naka-register ang phone na ito para sa mga notification. I-off at i-on "
 "ulit ang mga ito."
 
-#: .\core\api.py:1249
+#: .\core\api.py:1250
 msgid "No phone is registered for notifications yet."
 msgstr "Wala pang phone na naka-register para sa mga notification."
 
@@ -543,7 +562,7 @@ msgstr "Isulat ang sagot mo sa may-ari ng sambahayan..."
 msgid "Send to"
 msgstr "Ipadala sa"
 
-#: .\core\forms.py:703 .\core\models.py:1665
+#: .\core\forms.py:703 .\core\models.py:1671
 msgid "All active households"
 msgstr "Lahat ng aktibong sambahayan"
 
@@ -626,29 +645,29 @@ msgstr ""
 msgid "e.g. Replacing coupling at the 22 m marker"
 msgstr "hal. Pinapalitan ang coupling sa 22 m marker"
 
-#: .\core\forms.py:943
+#: .\core\forms.py:945
 msgid "The leak time must be longer than the water-running warning time."
 msgstr ""
 "Dapat mas matagal ang oras para sa tagas kaysa sa oras ng babala na tuloy-"
 "tuloy ang tubig."
 
-#: .\core\forms.py:962 .\templates\owner\settings.html:203
+#: .\core\forms.py:970 .\templates\owner\settings.html:203
 msgid "Mobile number"
 msgstr "Numero ng mobile"
 
-#: .\core\forms.py:963 .\templates\owner\settings.html:208
+#: .\core\forms.py:971 .\templates\owner\settings.html:208
 msgid "Email (optional)"
 msgstr "Email (opsyonal)"
 
-#: .\core\forms.py:972
+#: .\core\forms.py:980
 msgid "Enter your mobile number."
 msgstr "Ilagay ang numero ng mobile mo."
 
-#: .\core\forms.py:988
+#: .\core\forms.py:996
 msgid "Nothing changed."
 msgstr "Walang nabago."
 
-#: .\core\forms.py:995
+#: .\core\forms.py:1003
 msgid ""
 "That number or email is already on another household. Ask the water system "
 "facilitator."
@@ -918,7 +937,16 @@ msgstr "Umiikot ang valve."
 msgid "Water can flow."
 msgstr "Puwedeng umagos ang tubig."
 
-#: .\core\models.py:673
+#: .\core\models.py:675
+#| msgid ""
+#| "Closed automatically because water ran non-stop for too long. Check your "
+#| "taps and hose, then open it here once fixed."
+msgid ""
+"Closed automatically because water ran non-stop for too long. It reopens by "
+"itself after {minutes} minutes, or open it here once your taps are off."
+msgstr "Isinara nang kusa dahil masyadong matagal na tuloy-tuloy ang pag-agos ng tubig. Kusang bubukas ulit pagkalipas ng {minutes} minuto, o buksan ito rito kapag sarado na ang mga gripo mo."
+
+#: .\core\models.py:679
 msgid ""
 "Closed automatically because water ran non-stop for too long. Check your "
 "taps and hose, then open it here once fixed."
@@ -926,12 +954,12 @@ msgstr ""
 "Isinara nang kusa dahil masyadong matagal na tuloy-tuloy ang pag-agos ng "
 "tubig. Suriin ang mga gripo at hose mo, saka buksan ito rito kapag naayos na."
 
-#: .\core\models.py:677
+#: .\core\models.py:683
 msgid "Closed for the nightly leak test. It reopens when the test ends."
 msgstr ""
 "Isinara para sa gabi-gabing leak test. Bubukas ulit ito pagkatapos ng test."
 
-#: .\core\models.py:680
+#: .\core\models.py:686
 msgid ""
 "Closed because the nightly test found a leak: the line lost pressure with "
 "every tap shut. Check your taps and hose, then open it here once fixed."
@@ -940,320 +968,320 @@ msgstr ""
 "ng linya kahit sarado ang lahat ng gripo. Tingnan ang mga gripo at hose mo, "
 "tapos buksan ito dito kapag naayos na."
 
-#: .\core\models.py:685
+#: .\core\models.py:691
 #, python-brace-format
 msgid "Closed by {who}."
 msgstr "Isinara ng {who}."
 
-#: .\core\models.py:687
+#: .\core\models.py:693
 msgid "Only the administrator can open it again."
 msgstr "Ang administrator lang ang puwedeng magbukas ulit nito."
 
-#: .\core\models.py:689
+#: .\core\models.py:695
 msgid "Closed by hand at the board."
 msgstr "Isinara nang mano-mano sa board."
 
-#: .\core\models.py:701
+#: .\core\models.py:707
 msgid "None"
 msgstr "Wala"
 
-#: .\core\models.py:702
+#: .\core\models.py:708
 msgid "Minor"
 msgstr "Maliit"
 
-#: .\core\models.py:703
+#: .\core\models.py:709
 msgid "Moderate"
 msgstr "Katamtaman"
 
-#: .\core\models.py:704
+#: .\core\models.py:710
 msgid "Major"
 msgstr "Malaki"
 
-#: .\core\models.py:719
+#: .\core\models.py:725
 msgid "Burst (flow spike + pressure crash)"
 msgstr "Burst (biglang tumaas ang flow + bumagsak ang pressure)"
 
-#: .\core\models.py:720
+#: .\core\models.py:726
 msgid "Sustained low flow"
 msgstr "Tuloy-tuloy na mahinang flow"
 
-#: .\core\models.py:721
+#: .\core\models.py:727
 msgid "Night flow"
 msgstr "Flow sa gabi"
 
-#: .\core\models.py:722
+#: .\core\models.py:728
 msgid "Valve-closed pressure decay"
 msgstr "Pagbaba ng pressure habang sarado ang valve"
 
-#: .\core\models.py:723
+#: .\core\models.py:729
 msgid "Low supply"
 msgstr "Mahina ang supply"
 
-#: .\core\models.py:816 .\templates\admin\accounts.html:47
+#: .\core\models.py:822 .\templates\admin\accounts.html:47
 #: .\templates\admin\facilitators.html:32
 msgid "Active"
 msgstr "Aktibo"
 
-#: .\core\models.py:817
+#: .\core\models.py:823
 msgid "Inactive"
 msgstr "Hindi aktibo"
 
-#: .\core\models.py:818
+#: .\core\models.py:824
 msgid "Disconnected"
 msgstr "Nakadiskonekta"
 
-#: .\core\models.py:822
+#: .\core\models.py:828
 msgid "Assigned automatically (HH-001, HH-002, ...) when left blank."
 msgstr "Awtomatikong ibinibigay (HH-001, HH-002, ...) kapag iniwang blangko."
 
-#: .\core\models.py:838
+#: .\core\models.py:844
 msgid "The language of the portal and of every text sent to this household."
 msgstr "Ang wika ng portal at ng bawat text na ipapadala sa sambahayang ito."
 
-#: .\core\models.py:852
+#: .\core\models.py:858
 msgid "This household's hose line."
 msgstr "Ang linya ng hose ng sambahayang ito."
 
-#: .\core\models.py:860
+#: .\core\models.py:866
 msgid "Decimal degrees, e.g. 9.7167. Leave blank if not yet surveyed."
 msgstr "Decimal degrees, hal. 9.7167. Iwanang blangko kung hindi pa na-survey."
 
-#: .\core\models.py:865
+#: .\core\models.py:871
 msgid "Decimal degrees, e.g. 125.5333."
 msgstr "Decimal degrees, hal. 125.5333."
 
-#: .\core\models.py:1019
+#: .\core\models.py:1025
 msgid "What is at this point, e.g. 'Main source', 'Spring box' or 'Reservoir'."
 msgstr ""
 "Ano ang nasa puntong ito, hal. 'Main source', 'Spring box' o 'Reservoir'."
 
-#: .\core\models.py:1024
+#: .\core\models.py:1030
 msgid "Decimal degrees, e.g. 9.6620."
 msgstr "Decimal degrees, hal. 9.6620."
 
-#: .\core\models.py:1029
+#: .\core\models.py:1035
 msgid "Decimal degrees, e.g. 125.5290."
 msgstr "Decimal degrees, hal. 125.5290."
 
-#: .\core\models.py:1044
+#: .\core\models.py:1050
 msgid "water source"
 msgstr "source ng tubig"
 
-#: .\core\models.py:1045
+#: .\core\models.py:1051
 msgid "water sources"
 msgstr "mga source ng tubig"
 
-#: .\core\models.py:1073
+#: .\core\models.py:1079
 msgid "Informational"
 msgstr "Impormasyon lang"
 
-#: .\core\models.py:1074
+#: .\core\models.py:1080
 msgid "Warning"
 msgstr "Babala"
 
-#: .\core\models.py:1075
+#: .\core\models.py:1081
 msgid "Critical"
 msgstr "Kritikal"
 
-#: .\core\models.py:1138
+#: .\core\models.py:1144
 msgid "Automatic Alert"
 msgstr "Awtomatikong Alerto"
 
-#: .\core\models.py:1139
+#: .\core\models.py:1145
 msgid "Targeted Notice"
 msgstr "Abiso sa Piling Sambahayan"
 
-#: .\core\models.py:1140
+#: .\core\models.py:1146
 msgid "Broadcast"
 msgstr "Broadcast"
 
-#: .\core\models.py:1141
+#: .\core\models.py:1147
 msgid "Valve action"
 msgstr "Aksyon sa valve"
 
-#: .\core\models.py:1152
+#: .\core\models.py:1158
 msgid "Blank means every active household (broadcast)."
 msgstr "Kung blangko, lahat ng aktibong sambahayan (broadcast)."
 
-#: .\core\models.py:1199
+#: .\core\models.py:1205
 msgid "Sent by facilitator"
 msgstr "Ipinadala ng facilitator"
 
-#: .\core\models.py:1200
+#: .\core\models.py:1206
 msgid "Automatic alert"
 msgstr "Awtomatikong alerto"
 
-#: .\core\models.py:1212 .\templates\facilitator\notifications.html:332
+#: .\core\models.py:1218 .\templates\facilitator\notifications.html:332
 msgid "Queued"
 msgstr "Nakapila"
 
-#: .\core\models.py:1213 .\templates\facilitator\notifications.html:321
+#: .\core\models.py:1219 .\templates\facilitator\notifications.html:321
 msgid "Sent to network"
 msgstr "Naipadala sa network"
 
-#: .\core\models.py:1214 .\templates\facilitator\notifications.html:318
+#: .\core\models.py:1220 .\templates\facilitator\notifications.html:318
 msgid "Delivered"
 msgstr "Na-deliver"
 
-#: .\core\models.py:1215 .\templates\facilitator\notifications.html:326
+#: .\core\models.py:1221 .\templates\facilitator\notifications.html:326
 msgid "Not delivered"
 msgstr "Hindi na-deliver"
 
-#: .\core\models.py:1216 .\templates\facilitator\notifications.html:329
+#: .\core\models.py:1222 .\templates\facilitator\notifications.html:329
 msgid "Failed"
 msgstr "Nabigo"
 
-#: .\core\models.py:1236
+#: .\core\models.py:1242
 msgid "The gateway's own word for it, kept verbatim for diagnosis."
 msgstr ""
 "Ang mismong salita ng gateway para dito, iniingatan nang eksakto para sa "
 "diagnosis."
 
-#: .\core\models.py:1252
+#: .\core\models.py:1258
 msgid "The in-app notice this text accompanied, when there was one."
 msgstr "Ang in-app na abiso na kasama ng text na ito, kung mayroon."
 
-#: .\core\models.py:1377 .\templates\facilitator\reports.html:70
+#: .\core\models.py:1383 .\templates\facilitator\reports.html:70
 msgid "Pending"
 msgstr "Pending"
 
-#: .\core\models.py:1378 .\templates\facilitator\reports.html:70
+#: .\core\models.py:1384 .\templates\facilitator\reports.html:70
 msgid "In Progress"
 msgstr "Inaasikaso"
 
-#: .\core\models.py:1379 .\templates\facilitator\reports.html:70
+#: .\core\models.py:1385 .\templates\facilitator\reports.html:70
 msgid "Resolved"
 msgstr "Naresolba na"
 
-#: .\core\models.py:1380 .\core\models.py:1548
+#: .\core\models.py:1386 .\core\models.py:1554
 #: .\templates\facilitator\reports.html:70
 msgid "Rejected"
 msgstr "Tinanggihan"
 
-#: .\core\models.py:1383
+#: .\core\models.py:1389
 msgid "No Water Supply"
 msgstr "Walang Supply ng Tubig"
 
-#: .\core\models.py:1384
+#: .\core\models.py:1390
 msgid "Low Water Pressure"
 msgstr "Mahina ang Pressure ng Tubig"
 
-#: .\core\models.py:1385
+#: .\core\models.py:1391
 msgid "Visible Leak"
 msgstr "May Nakikitang Tagas"
 
-#: .\core\models.py:1386
+#: .\core\models.py:1392
 msgid "Water Quality"
 msgstr "Kalidad ng Tubig"
 
-#: .\core\models.py:1387
+#: .\core\models.py:1393
 msgid "Other"
 msgstr "Iba pa"
 
-#: .\core\models.py:1448
+#: .\core\models.py:1454
 msgid "True if written by the household, False if by the facilitator."
 msgstr "True kung isinulat ng sambahayan, False kung ng facilitator."
 
-#: .\core\models.py:1539
+#: .\core\models.py:1545
 msgid "Household visit"
 msgstr "Pagbisita sa sambahayan"
 
-#: .\core\models.py:1540
+#: .\core\models.py:1546
 msgid "Repair"
 msgstr "Pag-aayos"
 
-#: .\core\models.py:1541 .\templates\facilitator\dashboard.html:384
+#: .\core\models.py:1547 .\templates\facilitator\dashboard.html:384
 #: .\templates\facilitator\segments.html:166 .\templates\maintenance.html:6
 msgid "Maintenance"
 msgstr "Maintenance"
 
-#: .\core\models.py:1544
+#: .\core\models.py:1550
 msgid "Requested"
 msgstr "Hiniling"
 
-#: .\core\models.py:1545
+#: .\core\models.py:1551
 msgid "Scheduled"
 msgstr "Nakaiskedyul"
 
-#: .\core\models.py:1546
+#: .\core\models.py:1552
 msgid "In progress"
 msgstr "Inaasikaso"
 
-#: .\core\models.py:1547
+#: .\core\models.py:1553
 msgid "Done"
 msgstr "Tapos na"
 
-#: .\core\models.py:1549
+#: .\core\models.py:1555
 msgid "Cancelled"
 msgstr "Kinansela"
 
-#: .\core\models.py:1581
+#: .\core\models.py:1587
 msgid "The facilitator who will carry out this work."
 msgstr "Ang facilitator na gagawa ng trabahong ito."
 
-#: .\core\models.py:1584
+#: .\core\models.py:1590
 msgid "The day the visit or repair is planned for."
 msgstr "Ang araw na nakaplano ang pagbisita o pag-aayos."
 
-#: .\core\models.py:1591
+#: .\core\models.py:1597
 msgid "The facilitator who reported this, when it did not come from the admin."
 msgstr "Ang facilitator na nag-report nito, kung hindi galing sa admin."
 
-#: .\core\models.py:1666
+#: .\core\models.py:1672
 msgid "One barangay"
 msgstr "Isang barangay"
 
-#: .\core\models.py:1667
+#: .\core\models.py:1673
 msgid "Selected households"
 msgstr "Mga piniling sambahayan"
 
-#: .\core\models.py:1770
+#: .\core\models.py:1776
 msgid "Water-running warning after (minutes)"
 msgstr "Babala na tuloy-tuloy ang tubig pagkatapos ng (minuto)"
 
-#: .\core\models.py:1771
+#: .\core\models.py:1777
 msgid "Continuous flow for this many minutes raises a 'water running' warning."
 msgstr ""
 "Kapag tuloy-tuloy ang flow sa ganitong bilang ng minuto, magbibigay ng "
 "babalang 'tuloy-tuloy ang tubig'."
 
-#: .\core\models.py:1775
+#: .\core\models.py:1781
 msgid "Treat as leak after (minutes)"
 msgstr "Ituring na tagas pagkatapos ng (minuto)"
 
-#: .\core\models.py:1776
+#: .\core\models.py:1782
 msgid "Continuous flow for this many minutes is treated as a leak."
 msgstr ""
 "Kapag tuloy-tuloy ang flow sa ganitong bilang ng minuto, ituturing itong "
 "tagas."
 
-#: .\core\models.py:1780
+#: .\core\models.py:1786
 msgid "Nightly test hour"
 msgstr "Oras ng gabi-gabing test"
 
-#: .\core\models.py:1781
+#: .\core\models.py:1787
 msgid ""
 "The board closes the valve at this hour for its sealed-line pressure test."
 msgstr ""
 "Isinasara ng board ang valve sa oras na ito para sa pressure test ng "
 "selyadong linya."
 
-#: .\core\models.py:1785
+#: .\core\models.py:1791
 msgid "Test grace period (minutes)"
 msgstr "Grace period ng test (minuto)"
 
-#: .\core\models.py:1786
+#: .\core\models.py:1792
 msgid ""
 "How long the valve stays closed while the board watches for a pressure drop."
 msgstr ""
 "Gaano katagal nakasara ang valve habang binabantayan ng board kung may "
 "pagbaba ng pressure."
 
-#: .\core\models.py:1790
+#: .\core\models.py:1796
 msgid "Leak if pressure drops more than (bar)"
 msgstr "Tagas kung bumaba ang pressure nang higit sa (bar)"
 
-#: .\core\models.py:1791
+#: .\core\models.py:1797
 msgid ""
 "A pressure drop larger than this during the sealed-line test is treated as a "
 "leak."
@@ -1261,11 +1289,11 @@ msgstr ""
 "Kapag mas malaki pa dito ang pagbaba ng pressure habang nag-test sa "
 "selyadong linya, ituturing itong tagas."
 
-#: .\core\models.py:1795
+#: .\core\models.py:1801
 msgid "Auto-close valve on a continuous-flow leak"
 msgstr "Awtomatikong isara ang valve kapag may tagas na tuloy-tuloy ang flow"
 
-#: .\core\models.py:1796
+#: .\core\models.py:1802
 msgid ""
 "Close the valve automatically when continuous flow has run long enough to "
 "count as a leak."
@@ -1274,10 +1302,22 @@ msgstr ""
 "para ituring na tagas."
 
 #: .\core\models.py:1809
+#| msgid "Treat as leak after (minutes)"
+msgid "Reopen after a flow-leak close (minutes)"
+msgstr "Muling buksan pagkatapos ng pagsara dahil sa tagas (minuto)"
+
+#: .\core\models.py:1811
+msgid ""
+"The valve a continuous-flow leak closed opens again by itself after this "
+"many minutes, and can be opened from the portal sooner. 0 keeps it shut "
+"until somebody opens it."
+msgstr "Ang valve na isinara dahil sa tuloy-tuloy na pag-agos ay kusang bubukas ulit pagkalipas ng ganitong karaming minuto, at maaaring buksan nang mas maaga mula sa portal. Ang 0 ay panatilihin itong sarado hangga't walang nagbubukas."
+
+#: .\core\models.py:1827
 msgid "Board upload interval (seconds)"
 msgstr "Gaano kadalas mag-upload ang board (segundo)"
 
-#: .\core\models.py:1811
+#: .\core\models.py:1829
 msgid ""
 "How often each board posts a routine reading. A leak, a warning or a valve "
 "change is posted at once regardless. A board is shown Offline after missing "
@@ -1287,11 +1327,11 @@ msgstr ""
 "babala, o pagbabago sa valve ay ipinapadala agad anuman ito. Lalabas na "
 "Offline ang board kapag tatlong upload na sunod-sunod ang hindi dumating."
 
-#: .\core\models.py:1824
+#: .\core\models.py:1842
 msgid "Dashboard refresh (seconds)"
 msgstr "Pag-refresh ng dashboard (segundo)"
 
-#: .\core\models.py:1826
+#: .\core\models.py:1844
 msgid ""
 "How often the dashboards and the owner's page fetch fresh figures. 1 second "
 "with a 2-second board interval is the live-demo setting; 5 and 15 are the "
@@ -1301,18 +1341,18 @@ msgstr ""
 "ari. 1 segundo kasama ang 2-segundong pag-upload ng board ang setting para "
 "sa live demo; 5 at 15 ang pang-araw-araw."
 
-#: .\core\models.py:1973
+#: .\core\models.py:1991
 msgid "Text message"
 msgstr "Text message"
 
-#: .\core\models.py:1974 .\templates\_login_modal.html:108
+#: .\core\models.py:1992 .\templates\_login_modal.html:108
 #: .\templates\admin\facilitators.html:21
 #: .\templates\facilitator\household_detail.html:23
 #: .\templates\facilitator\households.html:178
 msgid "Email"
 msgstr "Email"
 
-#: .\core\models.py:2029
+#: .\core\models.py:2047
 msgid "your number"
 msgstr "numero mo"
 

@@ -140,9 +140,9 @@
 // After an auto-close for a continuous-flow leak, hold the valve shut this
 // long, then auto-open so water is not cut off indefinitely. If the leak is
 // real it will be detected and closed again.
-// A flow-leak close used to reopen by itself after 10 minutes. It no longer
-// does: a leak is a leak until a person has looked, so the valve stays shut
-// and the line stays POSSIBLE_LEAK until somebody presses Open (15 Nov 2026).
+// A flow-leak close reopens by itself after flow_leak_reopen_minutes (a
+// console setting; 10 by default, 0 = never) and can be opened from the
+// portal sooner. Until then the line stays POSSIBLE_LEAK and the valve shut.
 
 // A few seconds after the valve seals for the nightly test, the line settles;
 // the pressure read then is the baseline the drop is measured from.
@@ -207,6 +207,7 @@ int   dsUploadSec     = DEFAULT_UPLOAD_SEC;
 int   dsTestGraceMin  = 60;
 float dsTestDropBar   = 0.15f;
 bool  dsAutoClose     = true;
+int   dsReopenMin     = 10;      // a flow-leak close reopens by itself after this (0 = never)
 
 volatile unsigned long flowPulses = 0;
 unsigned long lastSampleMs   = 0;
@@ -232,6 +233,7 @@ String reportStatus    = "NORMAL";
 // Valve ownership so the two detections never fight over it.
 //   ""       -> open / nobody holds it
 //   "flow"   -> closed by the continuous-flow leak; held shut until somebody opens it
+//               or flow_leak_reopen_minutes pass (0 = never)
 //   "test"   -> closed while the nightly pressure test runs
 //   "decay"  -> the test found a leak; held shut until somebody opens it
 //   "manual" -> closed by a person; held shut until somebody opens it
@@ -245,6 +247,7 @@ String valveState  = "idle";
 // Continuous-flow tracking.
 unsigned long flowStartMs  = 0;        // when non-stop flow began (0 = idle)
 bool          flowLeakHeld = false;    // the flow leak shut the valve; POSSIBLE_LEAK until opened
+unsigned long flowClosedAt = 0;        // when that close happened (for the timed reopen)
 
 // Nightly pressure test.
 enum TestPhase { TEST_IDLE, TEST_SETTLING, TEST_RUNNING };
@@ -274,6 +277,7 @@ void loadConfig() {
   dsTestGraceMin = prefs.getInt("gracemin", 60);
   dsTestDropBar  = prefs.getFloat("dropbar", 0.15f);
   dsAutoClose    = prefs.getBool("autoclose", true);
+  dsReopenMin    = prefs.getInt("reopenmin", 10);
   // A valve an admin sealed by hand must stay sealed across a power cut, so
   // the "manual" ownership is remembered rather than lost on reboot.
   valveReason    = prefs.getString("valvern", "");
@@ -323,6 +327,7 @@ void saveDetectionSettings() {
   prefs.putInt("gracemin", dsTestGraceMin);
   prefs.putFloat("dropbar", dsTestDropBar);
   prefs.putBool("autoclose", dsAutoClose);
+  prefs.putInt("reopenmin", dsReopenMin);
   prefs.end();
 }
 
@@ -466,6 +471,7 @@ void applyServerConfig(const String &resp) {
   if (extractJsonInt(resp,   "valve_test_grace_minutes", iv) && iv != dsTestGraceMin) { dsTestGraceMin = iv; changed = true; }
   if (extractJsonFloat(resp, "valve_test_drop_bar", fv) && fv != dsTestDropBar){ dsTestDropBar = fv;  changed = true; }
   if (extractJsonBool(resp,  "auto_close_on_flow_leak", bv) && bv != dsAutoClose){ dsAutoClose = bv;  changed = true; }
+  if (extractJsonInt(resp,   "flow_leak_reopen_minutes", iv) && iv >= 0 && iv != dsReopenMin) { dsReopenMin = iv; changed = true; }
   if (extractJsonInt(resp,   "upload_interval_seconds", iv) && iv >= 2 && iv != dsUploadSec) { dsUploadSec = iv; changed = true; }
   // Not saved: whether a person is at a valve screen right now is not worth
   // remembering across a reboot.
@@ -582,6 +588,17 @@ void updateFlowDetection() {
   unsigned long now = millis();
   bool flowing = (lastFlowLpm >= FLOW_RUNNING_LPM);
 
+  // A flow-leak close reopens by itself after "reopen after" minutes (0 =
+  // never; Console -> Leak detection), and anyone with the button can open
+  // it sooner. The flow timer starts fresh, so water that is still running
+  // is caught again: warning, then leak, then close.
+  if (valveReason == "flow" && dsReopenMin > 0 &&
+      now - flowClosedAt >= (unsigned long)dsReopenMin * 60000UL) {
+    valveOpenNow(); valveReason = ""; flowLeakHeld = false; flowStartMs = 0; saveValveReason();
+    Serial.printf("[FLOW] %d min since the auto-close - reopened\n", dsReopenMin);
+    return;
+  }
+
   if (flowing) {
     if (flowStartMs == 0) flowStartMs = now;
     unsigned long mins = (now - flowStartMs) / 60000UL;
@@ -589,9 +606,11 @@ void updateFlowDetection() {
       if (dsAutoClose && valveReason == "") {    // auto-close on the flow leak
         valveCloseNow();
         valveReason = "flow";
-        flowLeakHeld = true;                     // ...and hold it, like a leak the night test found
+        flowLeakHeld = true;                     // ...and hold it: POSSIBLE_LEAK until it reopens
+        flowClosedAt = now;
         saveValveReason();                       // survives a power cut
-        Serial.println("[FLOW] leak - closed the valve; it stays shut until somebody opens it");
+        if (dsReopenMin > 0) Serial.printf("[FLOW] leak - closed the valve; reopens in %d min unless opened sooner\n", dsReopenMin);
+        else                 Serial.println("[FLOW] leak - closed the valve; it stays shut until somebody opens it");
       }
     }
   } else {
@@ -1025,7 +1044,7 @@ void setup() {
   if (valveReason == "manual" || valveReason == "decay" || valveReason == "flow") {
     valveCloseNow();
     if (valveReason == "decay") pressureTestLeak = true;   // keep reporting it
-    if (valveReason == "flow")  flowLeakHeld = true;       // ...this one too
+    if (valveReason == "flow")  { flowLeakHeld = true; flowClosedAt = millis(); }   // ...this one too; timer restarts
     Serial.println("[VALVE] restored " + valveReason + " close after reboot");
   } else {
     // Any other close (the nightly test, a flow-leak auto-close) does not

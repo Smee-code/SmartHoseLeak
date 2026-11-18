@@ -906,6 +906,7 @@ class DetectionSettingsForm(forms.ModelForm):
             "valve_test_grace_minutes",
             "valve_test_drop_bar",
             "auto_close_on_flow_leak",
+            "flow_leak_reopen_minutes",
             "upload_interval_seconds",
             "live_poll_seconds",
         ]
@@ -923,6 +924,7 @@ class DetectionSettingsForm(forms.ModelForm):
         # Added after the other settings; an older form post (or a script)
         # that leaves it out keeps the current value rather than failing.
         self.fields["live_poll_seconds"].required = False
+        self.fields["flow_leak_reopen_minutes"].required = False
         # A budget, not a threshold: leaving it blank keeps the value in use.
         self.fields["upload_interval_seconds"].required = False
 
@@ -943,6 +945,12 @@ class DetectionSettingsForm(forms.ModelForm):
                 _("The leak time must be longer than the water-running warning time."),
             )
         return cleaned
+
+    def clean_flow_leak_reopen_minutes(self):
+        value = self.cleaned_data.get("flow_leak_reopen_minutes")
+        if value is None:
+            return self.instance.flow_leak_reopen_minutes if self.instance.pk else 10
+        return value
 
     def clean_live_poll_seconds(self):
         value = self.cleaned_data.get("live_poll_seconds")

@@ -821,6 +821,7 @@ def _device_config(segments, device=None):
         "valve_test_grace_minutes": s.valve_test_grace_minutes,
         "valve_test_drop_bar": round(s.valve_test_drop_bar, 3),
         "auto_close_on_flow_leak": s.auto_close_on_flow_leak,
+        "flow_leak_reopen_minutes": s.flow_leak_reopen_minutes,
         "upload_interval_seconds": s.upload_interval_seconds,
     }
     if device is not None and device.pending_wifi_id:

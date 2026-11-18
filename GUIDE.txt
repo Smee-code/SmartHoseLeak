@@ -1273,12 +1273,17 @@ THE VALVE
                                               it; the line reads POSSIBLE_LEAK
                                               until then
     "Closed automatically because water
-     ran non-stop for too long"             - STAYS SHUT until somebody opens
-                                              it (since 15 Nov 2026; it used
-                                              to reopen after 10 min); the
-                                              line reads POSSIBLE_LEAK until
-                                              then, and the close survives a
-                                              power cut
+     ran non-stop for too long"             - reopens by itself after "Reopen
+                                              after a flow-leak close" minutes
+                                              (Console -> Leak detection; 10
+                                              by default, 0 = never), and
+                                              anyone with the button can open
+                                              it sooner. POSSIBLE_LEAK and
+                                              shut until then; the close and
+                                              its timer survive a power cut.
+                                              If water is still running after
+                                              the reopen, the cycle repeats:
+                                              warning, leak, close.
     "Closed by the household / the
      facilitator / the administrator"       - stays shut until opened
   The board sends the reason with every reading (valve_reason). A board on
@@ -2473,6 +2478,14 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+18 Nov 2026  "Reopen after a flow-leak close (minutes)" joins the Leak
+             detection settings (migration 0049; rides to the board as
+             flow_leak_reopen_minutes). A flow-leak close now opens again by
+             itself after that many minutes - 10 by default, 0 keeps it shut
+             - and can still be opened from the portal sooner. The valve
+             sentence says which. Asked for the field test: close by itself,
+             open by hand or by itself.
+
 18 Nov 2026  Automatic alerts reworded to be specific: which test caught it
              (water that never stopped, or the night pressure test), the
              numbers (minutes, L/min, bar, the measured drop), what the

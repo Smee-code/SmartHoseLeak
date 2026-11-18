@@ -669,6 +669,12 @@ def describe_valve(segment, latest):
 
     # Closed, and why.
     if reason == ValveReason.FLOW:
+        reopen = SystemSetting.load().flow_leak_reopen_minutes
+        if reopen:
+            return gettext(
+                "Closed automatically because water ran non-stop for too long. It reopens by "
+                "itself after {minutes} minutes, or open it here once your taps are off."
+            ).format(minutes=reopen)
         return (
             gettext("Closed automatically because water ran non-stop for too long. "
             "Check your taps and hose, then open it here once fixed.")
@@ -1794,6 +1800,18 @@ class SystemSetting(models.Model):
         default=True,
         verbose_name=_("Auto-close valve on a continuous-flow leak"),
         help_text=_("Close the valve automatically when continuous flow has run long enough to count as a leak."),
+    )
+    # After a flow-leak close the board reopens the valve by itself after this
+    # many minutes - and anyone with the button can open it sooner. 0 keeps it
+    # shut until somebody opens it. Rides to the board on the next reply.
+    flow_leak_reopen_minutes = models.PositiveSmallIntegerField(
+        default=10, validators=[MinValueValidator(0), MaxValueValidator(1440)],
+        verbose_name=_("Reopen after a flow-leak close (minutes)"),
+        help_text=_(
+            "The valve a continuous-flow leak closed opens again by itself after this many "
+            "minutes, and can be opened from the portal sooner. 0 keeps it shut until somebody "
+            "opens it."
+        ),
     )
 
     # How often a board posts a routine reading. One number for the whole

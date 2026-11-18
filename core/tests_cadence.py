@@ -239,3 +239,25 @@ class DashboardRefreshTests(_Fixture):
         self.client.force_login(self.owner_user)
         self.assertContains(self.client.get(reverse("owner_home")), "pollMs: 1000")
         _LIVE_POLL["value"] = None
+
+
+class FlowLeakReopenTests(_Fixture):
+    def test_the_reopen_minutes_ride_on_the_upload_reply(self):
+        cfg = self._ingest().json()["config"]["1"]
+        self.assertEqual(cfg["flow_leak_reopen_minutes"], 10)          # the default
+        setting = SystemSetting.load()
+        setting.flow_leak_reopen_minutes = 0                             # hold until opened
+        setting.save()
+        cfg = self._ingest().json()["config"]["1"]
+        self.assertEqual(cfg["flow_leak_reopen_minutes"], 0)
+
+    def test_the_valve_sentence_says_when_it_reopens(self):
+        from core.models import LatestReading, ValveReason, ValveState, describe_valve
+        LatestReading.objects.create(segment=self.segment, pressure_bar=0.5, flow_lpm=0,
+                                     valve_state=ValveState.CLOSED, valve_reason=ValveReason.FLOW)
+        self.segment.refresh_from_db()
+        self.assertIn("10 minutes", describe_valve(self.segment, self.segment.latest))
+        setting = SystemSetting.load()
+        setting.flow_leak_reopen_minutes = 0
+        setting.save()
+        self.assertIn("open it here", describe_valve(self.segment, self.segment.latest))
