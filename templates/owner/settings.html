@@ -119,25 +119,16 @@
           <div data-device="steps" {% if not device.show_steps and not device.can_reissue and device.key != 'connecting' %}hidden{% endif %}
                data-setup-builder data-setup-server="{{ setup_server }}">
             <p class="set-lede" style="margin-bottom:.25rem">{% trans "How to connect the board" %}</p>
-            <p class="set-note">{% trans "Type your home WiFi here first, while your phone still has internet. It stays on your phone - it is not sent to us." %}</p>
             <p class="set-note">{% trans "The board joins 2.4 GHz WiFi only. A phone hotspot has to be set to 2.4 GHz, and the name and password must match exactly, capitals included." %}</p>
-            <div class="field">
-              <label for="setup-ssid">{% trans "Home WiFi name" %}</label>
-              <input type="text" id="setup-ssid" data-setup-ssid autocomplete="off" autocapitalize="none" spellcheck="false">
-            </div>
-            <div class="field">
-              <label for="setup-pass">{% trans "WiFi password" %}</label>
-              <input type="password" id="setup-pass" data-setup-pass autocomplete="off">
-            </div>
             <ol class="device-steps">
               <li>{% trans "Plug in the board and wait about a minute." %}</li>
-              <li>{% blocktrans trimmed %}On your phone, join the WiFi network <strong>{{ setup_ssid }}</strong> (password: <strong>{{ setup_password }}</strong>). Your phone may say it has no internet - stay on it. Keep this page open; do not refresh it.{% endblocktrans %}</li>
               <li>
-                {% trans "Come back here and tap:" %}
-                <a class="btn btn-primary" data-setup-link href="http://192.168.4.1/" target="_blank" rel="noopener" style="margin:.3rem 0;display:inline-block" aria-disabled="true">{% trans "Open the board's setup page" %}</a>
-                <br><span class="small muted">{% blocktrans trimmed %}It opens already filled in. Press <strong>Save &amp; connect</strong> there.{% endblocktrans %}</span>
+                {% blocktrans trimmed %}On your phone, join the WiFi network <strong>{{ setup_ssid }}</strong> (password: <strong>{{ setup_password }}</strong>). A setup page opens by itself - on some phones as a "Sign in to network" notice that you tap.{% endblocktrans %}
+                <br><span class="small muted">{% trans "If nothing opens, tap this while your phone is still on that network:" %}</span>
+                <br><a class="btn btn-primary" data-setup-link href="http://192.168.4.1/" target="_blank" rel="noopener" style="margin:.3rem 0;display:inline-block" aria-disabled="true">{% trans "Open the board's setup page" %}</a>
               </li>
-              <li>{% trans "Switch your phone back to your home WiFi. Within a minute or two the status above says Connected." %}</li>
+              <li>{% blocktrans trimmed with code=device.code %}On that page, tap your home WiFi in the list, type its password and your setup code <strong data-device="code3">{{ code }}</strong>, then press <strong>Save &amp; connect</strong>.{% endblocktrans %}</li>
+              <li>{% trans "The page shows each step as it happens, and says so if the WiFi name or password is wrong. When it says the readings are reaching the server, put your phone back on your home WiFi - the status above turns to Connected." %}</li>
             </ol>
             <details class="set-steps">
               <summary>{% trans "If the link does not open" %}</summary>

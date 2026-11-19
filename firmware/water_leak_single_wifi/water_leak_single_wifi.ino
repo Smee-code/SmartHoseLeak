@@ -103,6 +103,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <WebServer.h>
+#include <DNSServer.h>    // captive portal: the setup page opens by itself on the phone
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <Preferences.h>
@@ -126,6 +127,19 @@
 // ---------------------------------------------------- setup access point
 #define SETUP_AP_SSID "LeakDetect-Setup"
 #define SETUP_AP_PASS "leakdetect123"
+// The server a board uses when nobody types one. The setup page comes up
+// with this filled in, so the owner only picks a WiFi and types the code.
+// Blank the field on the page ("Server address") to make the board look for
+// a laptop server on its own network instead.
+#define DEFAULT_SERVER "https://smarthoseleak.pythonanywhere.com"
+// A network typed on the setup page is tried while the hotspot stays up, so
+// the page can say how it went: this many tries, this long in all.
+#define JOIN_TIMEOUT_MS 30000UL
+#define JOIN_ATTEMPTS   3
+#define JOIN_IDLE    0
+#define JOIN_TRYING  1
+#define JOIN_OK      2
+#define JOIN_FAILED  3
 
 // ------------------------------------------------- calibration (TODO: tune)
 #define FLOW_PULSES_PER_LITER 450.0f   // YF-S201 is ~450
@@ -198,11 +212,27 @@
 // ------------------------------------------------------------- state
 Preferences prefs;
 WebServer   web(80);
+DNSServer   dns;                               // answers every name with the board while the hotspot is up
 
 String cfgSSID, cfgPass, cfgServer, cfgCode;   // provisioning
 String devId, apiKey;                          // identity after claim
 bool   apMode = false;
 unsigned long apStartedMs = 0;                 // when the hotspot came up (for SETUP_HOTSPOT_MIN_MS)
+
+// The guided join (20 Nov 2026). "Save" used to store the network and
+// restart, blind: a wrong password or a 5 GHz-only router just meant the
+// hotspot came back a minute later with no word why. Now the network is
+// tried at once with the hotspot still up, and the page watches it happen.
+uint8_t       joinState = JOIN_IDLE;
+String        tryS, tryP, tryServer, tryCode;  // what the page asked for; saved only once it has joined
+unsigned long joinStartedMs = 0, joinNextTryMs = 0;
+uint8_t       joinAttempts = 0;
+String        joinFailText;                    // why it failed, as a sentence for the page
+volatile int  staReason  = 0;                  // why the station last dropped (from the WiFi event)
+volatile bool staDropped = false;
+String        claimResult;                     // the last claim that did not work, in words
+String        scanCache;                       // the last list of networks, as JSON
+unsigned long scanCacheMs = 0;
 
 uint8_t       wifiFailCount   = 0;
 unsigned long lastWifiRetryMs = 0;
@@ -714,25 +744,35 @@ bool claimDevice() {
   http.end();
 
   Serial.printf("[CLAIM] %d %s\n", code, resp.c_str());
-  if (code < 0) { if (uploadFailStreak < 255) uploadFailStreak++; maybeRediscover(); return false; }
+  if (code < 0) {
+    if (uploadFailStreak < 255) uploadFailStreak++;
+    claimResult = "The server at " + cfgServer + " did not answer. Is the internet working on this WiFi? Trying again.";
+    maybeRediscover();
+    return false;
+  }
   uploadFailStreak = 0;
 
-  // A used (409) or expired (410) code will never work again. Forget it so
-  // the board stops retrying; the owner enters a fresh code on the setup page.
-  if (code == 409 || code == 410) {
+  // A used (409), expired (410), malformed (400) or unknown (404) code will
+  // never work. Forget it so the board stops asking every two seconds; the
+  // owner enters a fresh one on the setup page, which says which it was.
+  if (code == 409 || code == 410 || code == 400 || code == 404) {
+    if (code == 409)      claimResult = "That setup code was already used. Get a new one in your portal (Settings > My device), then enter it here.";
+    else if (code == 410) claimResult = "That setup code has expired. Get a new one in your portal (Settings > My device), then enter it here.";
+    else                  claimResult = "The server does not know that setup code. Check it against the one in your portal and enter it again.";
     cfgCode = "";
     prefs.begin("shl", false);
     prefs.putString("code", "");
     prefs.end();
-    Serial.println("[CLAIM] code is spent - get a new one and re-enter it.");
+    Serial.println("[CLAIM] that code will not work - get a new one and re-enter it.");
     return false;
   }
-  if (code != 200) return false;
+  if (code != 200) { claimResult = "The server answered HTTP " + String(code) + " to the setup code. Trying again."; return false; }
 
   String id, key;
   if (extractJsonString(resp, "device_id", id) &&
       extractJsonString(resp, "api_key", key)) {
     devId = id; apiKey = key;
+    claimResult = "";
     saveIdentity(id, key);
     Serial.printf("[CLAIM] device %s claimed.\n", id.c_str());
     return true;
@@ -813,6 +853,57 @@ void uploadReadings() {
   if (code < 0) maybeRediscover();
 }
 
+// ======================================================= joining a network
+// Every join goes through here. Three of the stack's defaults are wrong for
+// a house: (1) it refuses anything weaker than WPA2, so an older router or
+// pocket WiFi still on WPA reads as "network not found"; (2) it takes the
+// first access point that answers to the name, which with a repeater in the
+// house can be the far one - so scan every channel and take the strongest;
+// (3) a blank password has to mean an open network.
+void wifiBegin(const String &ssid, const String &pass) {
+  WiFi.setMinSecurity(pass.length() ? WIFI_AUTH_WPA_PSK : WIFI_AUTH_OPEN);
+  WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
+  WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
+  staDropped = false; staReason = 0;
+  WiFi.begin(ssid.c_str(), pass.c_str());
+}
+
+// The WiFi stack says why a join failed; keep it, for the page and the log.
+void onStaDisconnected(arduino_event_id_t event, arduino_event_info_t info) {
+  int r = info.wifi_sta_disconnected.reason;
+  if (r == WIFI_REASON_ASSOC_LEAVE) return;      // our own disconnect()
+  staReason = r; staDropped = true;
+}
+
+bool reasonNoNetwork(int r)  { return r == WIFI_REASON_NO_AP_FOUND || (r >= 210 && r <= 212); }
+bool reasonBadPassword(int r) {
+  return r == WIFI_REASON_AUTH_FAIL || r == WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT || r == WIFI_REASON_HANDSHAKE_TIMEOUT;
+}
+
+// A few words for the serial monitor and the status line.
+String staReasonText(int r) {
+  if (r == 0) return "";
+  if (reasonNoNetwork(r))   return "network not found - the board sees 2.4 GHz only";
+  if (reasonBadPassword(r)) return "wrong password";
+  if (r == WIFI_REASON_AUTH_EXPIRE || r == WIFI_REASON_ASSOC_EXPIRE || r == WIFI_REASON_BEACON_TIMEOUT)
+    return "the router did not answer - weak signal?";
+  return "could not join, reason " + String(r);
+}
+
+// A whole sentence for the setup page, saying what to do about it.
+String joinFailSentence(int r) {
+  String name = "\"" + tryS + "\"";
+  if (reasonNoNetwork(r))
+    return "The board cannot find a WiFi called " + name + ". It sees 2.4 GHz networks only. Check the name "
+           "(capital letters matter), that the router's 2.4 GHz band is switched on, and that the board is within reach of it.";
+  if (reasonBadPassword(r))
+    return "The WiFi " + name + " refused the password. Type it again - capital letters and spaces matter. "
+           "Tick Show password to check what you typed.";
+  if (r == 0)
+    return "The WiFi " + name + " did not answer in time. Move the board closer to the router and try again.";
+  return "The board could not join " + name + " (" + staReasonText(r) + "). Move the board closer to the router and try again.";
+}
+
 // ======================================================= WiFi change
 // Try a network the portal asked for. Blocking for up to 25 s each way; the
 // line is not being watched meanwhile, which is acceptable once in a while
@@ -821,7 +912,7 @@ void uploadReadings() {
 bool joinFor(const String &ssid, const String &pass, unsigned long ms) {
   WiFi.disconnect();
   delay(200);
-  WiFi.begin(ssid.c_str(), pass.c_str());
+  wifiBegin(ssid, pass);
   unsigned long start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < ms) { delay(250); web.handleClient(); }
   return WiFi.status() == WL_CONNECTED;
@@ -870,21 +961,115 @@ String page(const String &inner) {
          "h1{font-size:1.2rem}label{display:block;margin:.6rem 0 .2rem;font-weight:600}"
          "input{width:100%;padding:.5rem;font-size:16px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box}"
          "button{margin-top:1rem;padding:.6rem 1rem;font-size:16px;border:0;border-radius:6px;background:#0b6ea8;color:#fff}"
-         ".k{color:#5b6b7a;font-size:.9rem}</style>" + inner;
+         ".k{color:#5b6b7a;font-size:.9rem}input[type=checkbox]{width:auto;margin-right:.4rem}"
+         ".net{display:block;width:100%;text-align:left;margin:.35rem 0 0;background:#eef4f8;color:#16232e;border:1px solid #c9d6df}"
+         ".net.on{background:#0b6ea8;color:#fff;border-color:#0b6ea8}#nets a{display:inline-block;margin:.5rem 0}"
+         ".step{margin:.5rem 0;padding:.65rem .75rem;border-radius:6px;background:#eef4f8}.step:empty{display:none}"
+         ".step.ok{background:#e6f4ea;color:#14532d}.step.bad{background:#fdecea;color:#7a1a12}"
+         "details{margin-top:.8rem}</style>" + inner;
 }
 
+// The setup page's script: asks the board which networks it can see and
+// lists them to tap. Kept apart from the form so that a page cut short on a
+// weak hotspot link still has a form that works by typing.
+const char ROOT_JS[] PROGMEM = R"JS(
+(function(){
+var box=document.getElementById('nets'),inp=document.getElementById('ssid'),pw=document.getElementById('pass'),tries=0;
+document.getElementById('show').onchange=function(){pw.type=this.checked?'text':'password'};
+function sig(r){return r>-60?'strong':(r>-75?'fair':'weak')}
+function pick(b,n){inp.value=n.ssid;var all=box.querySelectorAll('.net');for(var i=0;i<all.length;i++)all[i].className='net';b.className='net on';pw.focus()}
+function show(d){
+ box.textContent='';
+ if(!d.nets.length){var p=document.createElement('div');p.textContent='The board sees no 2.4 GHz WiFi from here. Move it closer to the router, then scan again.';box.appendChild(p)}
+ d.nets.forEach(function(n){var b=document.createElement('button');b.type='button';b.className='net'+(n.ssid==inp.value?' on':'');b.textContent=n.ssid+'  -  '+sig(n.rssi)+' signal'+(n.open?', no password':'');b.onclick=function(){pick(b,n)};box.appendChild(b)});
+ var a=document.createElement('a');a.href='#';a.textContent='Scan again';a.onclick=function(e){e.preventDefault();tries=0;box.textContent='Looking for WiFi networks ...';load(1)};box.appendChild(a);
+}
+function load(fresh){
+ fetch('/scan'+(fresh?'?fresh=1':''),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+  if(d.scanning){if(++tries<20)setTimeout(function(){load(0)},1500);else box.textContent='Could not scan. Type the WiFi name below.';return}
+  show(d);
+ }).catch(function(){if(++tries<20)setTimeout(function(){load(0)},2000);else box.textContent='Could not scan. Type the WiFi name below.'});
+}
+load(0);
+})();
+)JS";
+
+// The progress page's script: asks the board every 1.5 s where it is, and
+// says it in three lines - the WiFi, the server, the first reading.
+const char PROGRESS_JS[] PROGMEM = R"JS(
+(function(){
+var miss=0,done=false;
+function el(i){return document.getElementById(i)}
+function set(i,cls,t){var e=el(i);e.className='step '+cls;e.textContent=t}
+function tick(){
+ fetch('/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+  miss=0;el('hint').textContent='';
+  if(d.join==1){set('s1','','Joining '+d.try_ssid+' ... this takes up to half a minute.');set('s2','','');set('s3','','')}
+  else if(d.join==3){set('s1','bad',d.fail);set('s2','','');set('s3','','');el('back').textContent='Try again';done=true}
+  else if(!d.wifi){set('s1','','Not on WiFi yet. Trying '+d.ssid+' ...'+(d.why?' Last try: '+d.why+'.':''));set('s2','','');set('s3','','')}
+  else{
+   set('s1','ok','Joined '+d.ssid+'. The board is on your WiFi.');
+   if(d.device){
+    set('s2','ok','The server knows this board as '+d.device+'.');
+    if(d.upload=='OK'){set('s3','ok','Readings are reaching the server. All done.');el('hint').textContent='Put your phone back on your own WiFi. This setup network closes by itself in a few minutes.';done=true}
+    else set('s3','','Sending the first reading ... ('+d.upload+')');
+   }
+   else if(d.claim){set('s2','bad',d.claim);set('s3','','')}
+   else if(!d.server){set('s2','','Looking for the server on this network ... ('+d.search+')');set('s3','','')}
+   else if(d.has_code){set('s2','','Asking the server which household this board belongs to ...');set('s3','','')}
+   else{set('s2','bad','The board is on WiFi, but no setup code was entered, so it belongs to no household yet. Go back and enter the code.');set('s3','','')}
+  }
+ }).catch(function(){
+  if(++miss>=4)el('hint').textContent='Lost contact with the board. If your phone left the setup network, join it again - or look at Settings > My device in your portal, which shows Connected once the board is through.';
+ }).then(function(){if(!done)setTimeout(tick,1500)});
+}
+tick();
+})();
+)JS";
+
 void handleRoot() {
-  web.client().setNoDelay(true);   // push the page out in one go; the button is at its end
+  web.client().setNoDelay(true);   // push the page out in one go
   bool connected = (WiFi.status() == WL_CONNECTED);
   String s = "<h1>Smart Hose Leak - board setup</h1>";
   s += "<p class=k>";
-  if (connected)      s += "Connected to " + cfgSSID + " (" + WiFi.localIP().toString() + ").";
-  else if (cfgSSID.length()) s += "Hotspot mode. Still trying \"" + cfgSSID + "\" - enter the new network below.";
-  else                s += "Hotspot mode. Enter your details below.";
+  if (connected)             s += "Connected to " + htmlEscape(cfgSSID) + " (" + WiFi.localIP().toString() + ").";
+  else if (cfgSSID.length()) s += "Not connected. Still trying \"" + htmlEscape(cfgSSID) + "\"" +
+                                  (staReason ? " - last try: " + staReasonText(staReason) : String("")) +
+                                  ". Pick the network again below.";
+  else                       s += "Not connected to any WiFi yet. Fill in the three steps below.";
   s += "</p>";
+  if (joinState != JOIN_IDLE) s += "<p><a href=/progress>See how the last setup went</a></p>";
 
-  s += "<p class=k>Identity: " + (devId.length() ? devId : String("not claimed")) +
-       " &middot; Server: " + (cfgServer.length() ? cfgServer : String("not set - will search")) +
+  // The owner portal can link here with the setup code and the server in the
+  // query string, so those come up filled in. The WiFi is picked on this
+  // page, from the networks the board itself can see.
+  bool fromPortal = web.hasArg("ssid") || web.hasArg("code");
+  String fSsid   = (fromPortal && web.arg("ssid").length()) ? web.arg("ssid") : cfgSSID;
+  String fPass   = fromPortal ? web.arg("pass")   : String("");
+  String fServer = fromPortal ? web.arg("server") : (cfgServer.length() ? cfgServer : String(DEFAULT_SERVER));
+  String fCode   = fromPortal ? web.arg("code")   : String("");
+
+  s += "<form method=POST action=/save>"
+       "<label>1. Your home WiFi</label>"
+       "<div id=nets class=k>Looking for WiFi networks ...</div>"
+       "<input name=ssid id=ssid value=\"" + htmlEscape(fSsid) + "\" placeholder='WiFi name' autocapitalize=none autocomplete=off>"
+       "<span class=k>Tap your WiFi above, or type its name. Only 2.4 GHz networks are listed - the board "
+       "cannot use 5 GHz. If yours is missing, move the board closer to the router.</span>"
+       "<label>2. WiFi password</label>"
+       "<input name=pass id=pass type=password value=\"" + htmlEscape(fPass) + "\" autocomplete=off placeholder='" +
+       (cfgPass.length() && !fromPortal ? "leave blank to keep the saved one" : "") + "'>"
+       "<label class=k style='font-weight:400'><input type=checkbox id=show>Show password</label>"
+       "<label>3. Setup code</label>"
+       "<input name=code value=\"" + htmlEscape(fCode) + "\" autocapitalize=characters autocomplete=off placeholder='" +
+       (devId.length() ? "leave blank to stay " + devId : String("e.g. K7M-4Q2")) + "'>" +
+       (devId.length() ? "<span class=k>Enter a code only to claim this board as a different household.</span>"
+                       : "<span class=k>The code texted to you, also shown in your portal under Settings &gt; My device.</span>") +
+       "<details><summary class=k>Server address (leave as it is)</summary>"
+       "<input name=server value=\"" + htmlEscape(fServer) + "\" placeholder='blank: find a laptop server on this WiFi'></details>"
+       "<button type=submit>Save &amp; connect</button></form>";
+
+  s += "<p class=k style='margin-top:1.2rem'>Identity: " + (devId.length() ? devId : String("not claimed")) +
+       " &middot; Server: " + (cfgServer.length() ? cfgServer : String("not set")) +
        "<br>Last upload: " + lastUploadResult +
        "<br>Last restart: " + bootReason +
        " &middot; Server search: " + lastDiscoveryResult +
@@ -895,35 +1080,82 @@ void handleRoot() {
        String(lastFlowLpm, 2) + " L/min &middot; Valve: " + valveState +
        " (" + (valveReason == "" ? "auto" : valveReason) + ")</p>";
 
-  // The owner portal links here with everything in the query string, so the
-  // form comes up filled in and one press of Save does the rest.
-  bool fromPortal = web.hasArg("ssid") || web.hasArg("code");
-  String fSsid   = fromPortal ? web.arg("ssid")   : cfgSSID;
-  String fPass   = fromPortal ? web.arg("pass")   : String("");
-  String fServer = fromPortal ? web.arg("server") : cfgServer;
-  String fCode   = fromPortal ? web.arg("code")   : String("");
-  if (fromPortal) s += "<p class=k style='color:#0b6ea8'><b>Filled in from your portal.</b> Check the WiFi name, then press Save &amp; connect.</p>";
-
-  s += "<form method=POST action=/save>"
-       "<label>Home WiFi name</label><input name=ssid value=\"" + htmlEscape(fSsid) + "\">"
-       "<label>WiFi password</label><input name=pass type=password value=\"" + htmlEscape(fPass) + "\" placeholder='" +
-       (cfgPass.length() && !fromPortal ? "leave blank to keep the saved one" : "") + "'>"
-       "<label>Server</label><input name=server value=\"" + htmlEscape(fServer) + "\" "
-       "placeholder='leave blank: find the laptop server on this network'>"
-       "<span class=k>Type an address only for a server elsewhere, e.g. "
-       "https://smarthoseleak.pythonanywhere.com</span>"
-       "<label>Setup code</label><input name=code value=\"" + htmlEscape(fCode) + "\" placeholder='" +
-       (devId.length() ? "leave blank to stay " + devId : String("e.g. K7M-4Q2")) + "'>" +
-       (devId.length() ? "<span class=k>Enter a code only to claim this board as a different household.</span>" : "") +
-       "<button type=submit>Save &amp; connect</button></form>";
-
-  s += "<p class=k style='margin-top:1.2rem'>Valve: "
+  s += "<p class=k>Valve: "
        "<a href=/valve?cmd=open>open</a> &middot; "
        "<a href=/valve?cmd=close>close</a></p>";
   s += "<p class=k><a href=/reset>Reset this board to a fresh one</a> - forgets the WiFi, "
        "server, identity and valve state, as if just flashed.</p>";
+  s += "<script>";
+  s += FPSTR(ROOT_JS);
+  s += "</script>";
 
   web.send(200, "text/html", page(s));
+}
+
+// ======================================================= guided join
+// Start trying the network the page asked for. Nothing is saved yet: a
+// typo must not overwrite a network that works.
+void startJoin(const String &ssid, const String &pass, const String &server, const String &code) {
+  tryS = ssid; tryP = pass; tryServer = server; tryCode = code;
+  joinFailText = ""; claimResult = "";
+  // Already on that very network (only the code or the server changed):
+  // there is nothing to join.
+  if (WiFi.status() == WL_CONNECTED && ssid == cfgSSID && pass == cfgPass) { commitJoin(); return; }
+  joinAttempts = 1; joinStartedMs = millis(); joinNextTryMs = 0;
+  joinState = JOIN_TRYING;
+  startAP();                       // keep (or raise) the hotspot: the page that asked has to hear the answer
+  apStartedMs = millis();          // ...for a fresh five minutes, however long it has been up
+  Serial.printf("[JOIN] trying \"%s\" - asked for on the setup page\n", ssid.c_str());
+  WiFi.disconnect();
+  delay(150);
+  wifiBegin(ssid, pass);
+}
+
+void failJoin(const String &why) {
+  joinState = JOIN_FAILED;
+  joinFailText = why;
+  Serial.println("[JOIN] failed: " + why);
+  WiFi.disconnect();
+  lastWifiRetryMs = millis();      // the saved network, if there is one, is retried on its usual timer
+}
+
+// It joined: now the network is saved, and the rest (server, identity,
+// first upload) follows from the loop exactly as after a boot.
+void commitJoin() {
+  // A new setup code means "this board is now that household": drop the old
+  // identity so the claim runs again. A blank code keeps the identity, so a
+  // board that only changed networks keeps its history.
+  bool reclaim = tryCode.length() > 0 && apiKey.length() > 0;
+  if (reclaim) { devId = ""; apiKey = ""; saveIdentity("", ""); }
+  if (tryCode.length() == 0) tryCode = cfgCode;       // an unused code is kept
+  cfgSSID = tryS; cfgPass = tryP; cfgServer = tryServer; cfgCode = tryCode;
+  saveNetwork(cfgSSID, cfgPass, cfgServer, cfgCode);
+  joinState = JOIN_OK;
+  apStartedMs = millis();          // the phone may blink off while the radio changes channel; stay for it
+  wifiDownSince = 0; uploadFailStreak = 0; unauthStreak = 0;
+  lastUploadResult = "not sent yet";
+  lastUploadMs = 0;                                   // upload as soon as there is an identity
+  Serial.printf("[JOIN] joined \"%s\" - saved.\n", cfgSSID.c_str());
+  onWiFiJoined();
+}
+
+// Called every loop while a join is being tried.
+void serviceJoin() {
+  if (joinState != JOIN_TRYING) return;
+  unsigned long now = millis();
+  if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == tryS) { commitJoin(); return; }
+  bool outOfTime = now - joinStartedMs > JOIN_TIMEOUT_MS;
+  if (staDropped && now >= joinNextTryMs) {
+    int r = staReason;
+    staDropped = false;
+    if (joinAttempts >= JOIN_ATTEMPTS || outOfTime) { failJoin(joinFailSentence(r)); return; }
+    Serial.printf("[JOIN] try %u of %d: %s - trying again\n", joinAttempts, JOIN_ATTEMPTS, staReasonText(r).c_str());
+    joinAttempts++;
+    joinNextTryMs = now + 1500;
+    wifiBegin(tryS, tryP);
+    return;
+  }
+  if (outOfTime) failJoin(joinFailSentence(staReason));
 }
 
 void handleSave() {
@@ -933,21 +1165,103 @@ void handleSave() {
   String code   = web.arg("code");
   ssid.trim(); code.trim();
   if (ssid.length() == 0) ssid = cfgSSID;
-  if (pass.length() == 0) pass = cfgPass;
-  // A new setup code means "this board is now that household": drop the old
-  // identity so the claim runs again. A blank code keeps the identity, so a
-  // board that only changed networks keeps its history.
-  bool reclaim = code.length() > 0 && apiKey.length() > 0;
-  if (reclaim) saveIdentity("", "");
-  if (code.length() == 0) code = cfgCode;       // an unused code is kept
-  saveNetwork(ssid, pass, server, code);
-  String note = "<h1>Saved</h1><p>The board is restarting and will connect to <b>" + ssid + "</b>";
-  if (server.length() == 0) note += ", then look for the server on that network";
-  note += (reclaim || apiKey.length() == 0) ? ", then claim its identity." : ".";
-  note += " Give it a minute, then check the dashboard. The hotspot closes once it has joined.</p>";
-  web.send(200, "text/html", page(note));
-  delay(800);
-  ESP.restart();
+  if (pass.length() == 0 && ssid == cfgSSID) pass = cfgPass;   // blank keeps the saved one, for the same network only
+  if (ssid.length() == 0) {                                     // nothing to join
+    web.sendHeader("Location", "/", true);
+    web.send(303, "text/plain", "");
+    return;
+  }
+  web.sendHeader("Location", "/progress", true);
+  web.send(303, "text/plain", "");
+  delay(300);                      // let the reply leave before the radio gets busy
+  startJoin(ssid, pass, server, code);
+}
+
+void handleProgress() {
+  String s = "<h1>Setting up the board</h1>"
+             "<div class=step id=s1>Starting ...</div>"
+             "<div class=step id=s2></div>"
+             "<div class=step id=s3></div>"
+             "<p class=k id=hint></p>"
+             "<p><a href=/ id=back>Back to the setup page</a></p>"
+             "<script>";
+  s += FPSTR(PROGRESS_JS);
+  s += "</script>";
+  web.send(200, "text/html", page(s));
+}
+
+// Where the board is, for the progress page.
+void handleStatus() {
+  bool on = (WiFi.status() == WL_CONNECTED);
+  String j = "{\"join\":" + String(joinState);
+  j += ",\"try_ssid\":\"" + jsonEscape(joinState == JOIN_IDLE ? cfgSSID : tryS) + "\"";
+  j += ",\"wifi\":" + String(on ? "true" : "false");
+  j += ",\"ssid\":\"" + jsonEscape(cfgSSID) + "\"";
+  j += ",\"ip\":\"" + (on ? WiFi.localIP().toString() : String("")) + "\"";
+  j += ",\"why\":\"" + jsonEscape(on ? String("") : staReasonText(staReason)) + "\"";
+  j += ",\"fail\":\"" + jsonEscape(joinFailText) + "\"";
+  j += ",\"server\":\"" + jsonEscape(cfgServer) + "\"";
+  j += ",\"device\":\"" + jsonEscape(devId) + "\"";
+  j += ",\"has_code\":" + String(cfgCode.length() ? "true" : "false");
+  j += ",\"claim\":\"" + jsonEscape(claimResult) + "\"";
+  j += ",\"upload\":\"" + jsonEscape(lastUploadResult) + "\"";
+  j += ",\"search\":\"" + jsonEscape(lastDiscoveryResult) + "\"}";
+  web.sendHeader("Cache-Control", "no-store");
+  web.send(200, "application/json", j);
+}
+
+// The networks the board can see, strongest first, one line per name. The
+// scan runs in the background (it takes a few seconds and the hotspot must
+// keep answering), so the page asks again until the list is ready.
+void handleScan() {
+  web.sendHeader("Cache-Control", "no-store");
+  if (joinState == JOIN_TRYING) { web.send(200, "application/json", "{\"scanning\":true}"); return; }
+  int n = WiFi.scanComplete();
+  if (n == WIFI_SCAN_RUNNING) { web.send(200, "application/json", "{\"scanning\":true}"); return; }
+  if (n < 0) {                                   // no scan waiting to be read
+    if (!web.hasArg("fresh") && scanCache.length() && millis() - scanCacheMs < 30000UL) {
+      web.send(200, "application/json", scanCache);
+      return;
+    }
+    WiFi.scanNetworks(true);                     // in the background; the next ask collects it
+    web.send(200, "application/json", "{\"scanning\":true}");
+    return;
+  }
+  if (n > 40) n = 40;
+  bool used[40];
+  for (int i = 0; i < 40; i++) used[i] = false;
+  String out = "{\"scanning\":false,\"nets\":[";
+  int listed = 0;
+  while (listed < 15) {
+    int best = -1;
+    for (int i = 0; i < n; i++)
+      if (!used[i] && WiFi.SSID(i).length() && (best < 0 || WiFi.RSSI(i) > WiFi.RSSI(best))) best = i;
+    if (best < 0) break;
+    String name = WiFi.SSID(best);
+    for (int i = 0; i < n; i++) if (WiFi.SSID(i) == name) used[i] = true;
+    if (listed) out += ",";
+    out += "{\"ssid\":\"" + jsonEscape(name) + "\",\"rssi\":" + String(WiFi.RSSI(best)) +
+           ",\"open\":" + String(WiFi.encryptionType(best) == WIFI_AUTH_OPEN ? "true" : "false") + "}";
+    listed++;
+  }
+  out += "]}";
+  WiFi.scanDelete();
+  scanCache = out; scanCacheMs = millis();
+  web.send(200, "application/json", out);
+}
+
+// A phone that has just joined a network asks a well-known address whether
+// the internet is there. While the hotspot is up every name resolves to the
+// board (the DNS server), and answering those asks with a redirect to the
+// setup page is what makes the phone open it by itself ("Sign in to
+// network"), with no address to type.
+void handleNotFound() {
+  if (apMode) {
+    web.sendHeader("Location", "http://" + WiFi.softAPIP().toString() + "/", true);
+    web.send(302, "text/plain", "");
+    return;
+  }
+  web.send(404, "text/plain", "not found");
 }
 
 // Manual override from the status page. Clears any auto reason so a person is
@@ -1006,6 +1320,7 @@ void startAP() {
   apStartedMs = millis();
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(SETUP_AP_SSID, SETUP_AP_PASS);
+  dns.start(53, "*", WiFi.softAPIP());            // every name -> the board, so the setup page opens by itself
   // The stack's own reconnect would otherwise scan for the lost network over
   // and over in the background, and every scan knocks the hotspot off the
   // air for a moment. Our timed retries in maintainWiFi() do the trying.
@@ -1017,6 +1332,7 @@ void startAP() {
 void stopAP() {
   if (!apMode) return;
   apMode = false;
+  dns.stop();
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
   Serial.println("[AP] closed - the board is on the network.");
@@ -1044,6 +1360,7 @@ void onWiFiJoined() {
 // Called every cycle. Never blocks: a lost network is retried on a timer,
 // and after enough misses the hotspot comes up beside the retries.
 void maintainWiFi() {
+  if (joinState == JOIN_TRYING) return;            // the setup page's join is in charge (serviceJoin)
   if (WiFi.status() == WL_CONNECTED) {
     wifiDownSince = 0;
     if (wifiFailCount > 0) onWiFiJoined();
@@ -1067,15 +1384,18 @@ void maintainWiFi() {
                     : WiFi.softAPgetStationNum() > 0 ? WIFI_RETRY_WITH_PHONE_MS
                     : WIFI_RETRY_IN_AP_MS;
   if (millis() - lastWifiRetryMs < gap) return;
+  if (WiFi.scanComplete() == WIFI_SCAN_RUNNING) return;   // the setup page is listing networks; a retry would cut it off
   lastWifiRetryMs = millis();
   if (wifiFailCount < 255) wifiFailCount++;
   if (!apMode && wifiFailCount > WIFI_FAILS_BEFORE_AP) {
     Serial.printf("[WIFI] %u misses - raising the setup hotspot.\n", wifiFailCount);
     startAP();
   }
-  Serial.printf("[WIFI] retrying %s (%u)\n", cfgSSID.c_str(), wifiFailCount);
+  Serial.printf("[WIFI] retrying %s (%u)%s%s\n", cfgSSID.c_str(), wifiFailCount,
+                staReason ? " - last try: " : "", staReasonText(staReason).c_str());
   WiFi.disconnect();
-  WiFi.begin(cfgSSID.c_str(), cfgPass.c_str());
+  delay(100);
+  wifiBegin(cfgSSID, cfgPass);
 }
 
 bool connectWiFi() {
@@ -1084,7 +1404,7 @@ bool connectWiFi() {
   WiFi.persistent(false);          // our Preferences hold the network; keep the stack from rewriting flash
   WiFi.setAutoReconnect(true);     // let the stack retry on its own between our timed begin() calls
   WiFi.mode(WIFI_STA);
-  WiFi.begin(cfgSSID.c_str(), cfgPass.c_str());
+  wifiBegin(cfgSSID, cfgPass);
   Serial.printf("[WIFI] joining %s", cfgSSID.c_str());
   unsigned long start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_CONNECT_TIMEOUT_MS) {
@@ -1094,7 +1414,8 @@ bool connectWiFi() {
   lastWifiRetryMs = millis();
   if (WiFi.status() == WL_CONNECTED) { onWiFiJoined(); return true; }
   wifiFailCount = 1;
-  Serial.println("[WIFI] failed - opening setup hotspot (and still trying).");
+  Serial.printf("[WIFI] failed%s%s - opening setup hotspot (and still trying).\n",
+                staReason ? ": " : "", staReasonText(staReason).c_str());
   return false;
 }
 
@@ -1121,6 +1442,8 @@ void reportNetwork() {
     Serial.printf("[NET] NOT connected - trying \"%s\" (%u misses; the hotspot comes up after %d)\n",
                   cfgSSID.c_str(), wifiFailCount, WIFI_FAILS_BEFORE_AP);
   }
+  if (WiFi.status() != WL_CONNECTED && staReason)
+    Serial.printf("[NET] why the last try failed: %s\n", staReasonText(staReason).c_str());
 }
 
 // ======================================================= reset reason
@@ -1169,6 +1492,10 @@ void setup() {
     valveOpenNow();
     Serial.println("[VALVE] opened on boot");
   }
+  // The radio comes on only now, after the valve has finished moving: the
+  // motor's start and the WiFi's first burst together are what a marginal
+  // supply cannot carry.
+  WiFi.onEvent(onStaDisconnected, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   if (!connectWiFi()) {
     startAP();
   } else if (apiKey.length() == 0 && cfgCode.length() > 0) {
@@ -1177,14 +1504,20 @@ void setup() {
 
   web.on("/", handleRoot);
   web.on("/save", HTTP_POST, handleSave);
+  web.on("/progress", handleProgress);
+  web.on("/status", handleStatus);
+  web.on("/scan", handleScan);
   web.on("/valve", handleValve);
   web.on("/reset", handleReset);
+  web.onNotFound(handleNotFound);
   web.begin();
   Serial.println("[WEB] setup/status page on port 80.");
 }
 
 void loop() {
   web.handleClient();
+  if (apMode) dns.processNextRequest();
+  serviceJoin();
 
   // Manual serial valve control, handy on the bench.
   if (Serial.available()) {
@@ -1205,7 +1538,7 @@ void loop() {
     maintainWiFi();
     if (apiKey.length() == 0 && cfgCode.length() > 0 && cfgServer.length() > 0 &&
         WiFi.status() == WL_CONNECTED) {
-      claimDevice();
+      if (claimDevice()) lastUploadMs = 0;      // claimed: send the first reading now, not in 15 s
     }
     readSensors();
     updateFlowDetection();

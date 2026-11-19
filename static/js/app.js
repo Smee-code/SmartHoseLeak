@@ -1890,6 +1890,7 @@ SHL.initOwnerDevice = function () {
     }
 
     var code2 = pick('code2'); if (code2) code2.textContent = state.code || '';
+    var code3 = pick('code3'); if (code3) code3.textContent = state.code || '';
     var boardLink = pick('board-link');
     if (boardLink && state.board_url) boardLink.href = state.board_url;
     var boardNote = pick('board-link-note');
@@ -1911,39 +1912,25 @@ SHL.initOwnerDevice = function () {
     buildSetupLink();
   };
 
-  // The guided setup: the home WiFi typed here never leaves the phone. It
-  // is put into a link to the board's own page (http://192.168.4.1/, only
-  // reachable once the phone has joined the board's hotspot), together with
-  // the setup code and the server address, so the board's page opens
-  // already filled in and the owner only presses Save there.
+  // The guided setup happens on the board's own page (20 Nov 2026): joining
+  // its hotspot opens that page by itself, and the WiFi is picked there from
+  // the networks the board can see. This link is the fallback for a phone
+  // that opens nothing: it carries the setup code and the server address, so
+  // those two come up filled in. (It used to carry the WiFi too, typed here
+  // first - but a typo then only showed as a board that never came online.)
   var builder = document.querySelector('[data-setup-builder]');
-  var ssidInput = builder && builder.querySelector('[data-setup-ssid]');
-  var passInput = builder && builder.querySelector('[data-setup-pass]');
   var link = builder && builder.querySelector('[data-setup-link]');
-  function remember(name, value) { try { sessionStorage.setItem('shl.setup.' + name, value); } catch (e) { /* private mode */ } }
-  function recall(name) { try { return sessionStorage.getItem('shl.setup.' + name) || ''; } catch (e) { return ''; } }
   function buildSetupLink() {
     if (!builder || !link) return;
-    var code = (pick('code') || {}).textContent || '';
-    var ssid = ssidInput ? ssidInput.value.trim() : '';
-    var pass = passInput ? passInput.value : '';
+    var code = ((pick('code') || {}).textContent || '').trim();
     var server = builder.getAttribute('data-setup-server') || '';
-    var ready = !!ssid && !!code.trim();
-    link.setAttribute('aria-disabled', ready ? 'false' : 'true');
-    link.style.opacity = ready ? '' : '.45';
-    link.href = 'http://192.168.4.1/?ssid=' + encodeURIComponent(ssid) +
-      '&pass=' + encodeURIComponent(pass) +
-      '&server=' + encodeURIComponent(server) +
-      '&code=' + encodeURIComponent(code.trim());
+    link.setAttribute('aria-disabled', code ? 'false' : 'true');
+    link.href = 'http://192.168.4.1/?server=' + encodeURIComponent(server) +
+      '&code=' + encodeURIComponent(code);
   }
-  if (builder) {
-    if (ssidInput) { ssidInput.value = recall('ssid'); ssidInput.addEventListener('input', function () { remember('ssid', ssidInput.value); buildSetupLink(); }); }
-    if (passInput) { passInput.value = recall('pass'); passInput.addEventListener('input', function () { remember('pass', passInput.value); buildSetupLink(); }); }
-    if (link) link.addEventListener('click', function (e) {
-      if (link.getAttribute('aria-disabled') === 'true') {
-        e.preventDefault();
-        if (ssidInput) ssidInput.focus();
-      }
+  if (link) {
+    link.addEventListener('click', function (e) {
+      if (link.getAttribute('aria-disabled') === 'true') e.preventDefault();
     });
     buildSetupLink();
   }

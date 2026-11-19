@@ -1058,11 +1058,19 @@ WHAT THE OWNER DOES  (also in their Settings page)
   2. On the phone, join WiFi "LeakDetect-Setup", password leakdetect123
      (BOARD_SETUP_SSID / BOARD_SETUP_PASSWORD in .env - change them with the
      firmware before deployment).
-  3. The setup page opens by itself; otherwise http://192.168.4.1/
-  4. Choose the home WiFi, type its password, enter the setup code. Leave
-     the server address alone - the board finds the server itself (sec 5).
-  5. Save. The board reboots and joins; the setup hotspot disappearing means
-     it worked. Settings > My device turns to CONNECTED within a minute.
+  3. The setup page opens by itself ("Sign in to network" on some
+     phones); otherwise http://192.168.4.1/
+  4. Tap the home WiFi in the list the board shows (2.4 GHz networks only;
+     one that is not listed is 5 GHz-only or out of reach), type its
+     password - "Show password" lets you check it - and the setup code.
+     Leave the server address alone: it comes filled in with the hosted
+     site; blank means "find a laptop server on this WiFi" (sec 5).
+  5. Save & connect. The board does NOT restart: it tries the network at
+     once, hotspot still up, and the page says what happened - "Joined",
+     then the board's identity, then "Readings are reaching the server" -
+     or why not: network not found, wrong password, code already used.
+     Nothing is saved until the join works, so a typo cannot overwrite a
+     network that does. Settings > My device turns to CONNECTED.
 
 THE STATUS CARD  (Settings > My device, updates every 5 s)
   No board fitted yet              nothing on the line - facilitator's job
@@ -1114,26 +1122,39 @@ A NOTE ON "FORGET SAVED NETWORK"
 ============================================================================
 Settings -> My device, on the owner's phone. Two things live there now.
 
-A NEW BOARD, WITHOUT TYPING ON THE BOARD'S PAGE
+A NEW BOARD: THE GUIDED PAGE ON THE BOARD  (redesigned 20 Nov 2026)
   A board with no WiFi yet is not on the internet, so the website cannot
-  reach it; the phone still has to join the board's hotspot once. What the
-  portal removes is the typing:
-    1. In "Set up my board", the owner types the home WiFi name and password
-       WHILE THE PHONE STILL HAS INTERNET. These never leave the phone - the
-       page builds a link out of them locally, nothing is posted to us.
-    2. They join LeakDetect-Setup (the phone may warn "no internet"; stay on
-       it) and come back to the same tab without refreshing.
-    3. They tap "Open the board's setup page". That is a link to
-       http://192.168.4.1/?ssid=..&pass=..&server=..&code=..  - the board's
-       own page, which now reads those and comes up filled in: WiFi, the
-       setup code, and the server (the hosted https address; blank on a
-       laptop server, so the board finds it by itself - section 5).
-    4. They press Save & connect on the board's page, put the phone back on
-       the home WiFi, and the card says Connected within a minute or two.
-  "If the link does not open" under the steps shows the same details to
-  type by hand. Works on iPhone and Android alike (a plain link, no
-  Bluetooth, no app). The typed WiFi is kept in the tab's session storage
-  so an accidental reload does not lose it.
+  reach it; the phone has to join the board's hotspot once. Everything
+  after that happens on the board's own page, which now does the guiding:
+    1. The owner joins LeakDetect-Setup. The board answers the phone's
+       "is there internet?" probe with a redirect, so the phone opens the
+       setup page by itself (Android: a "Sign in to network" notice; iPhone:
+       a sheet that slides up). No address to type.
+    2. The page lists the WiFi networks THE BOARD can see, strongest first.
+       The owner taps theirs. A network that is not in the list is
+       5 GHz-only or out of the board's reach - which used to be found out
+       only by the board never coming online.
+    3. They type the WiFi password ("Show password" to check it) and the
+       setup code, and press Save & connect.
+    4. The page turns into a progress page: Joining <name> ... Joined; the
+       server knows this board as esp32-NN; Readings are reaching the
+       server. Or it says what went wrong and offers "Try again": the
+       network was not found, the password was refused, the code was
+       already used or has expired, the server did not answer.
+    5. They put the phone back on the home WiFi; the card says Connected.
+  "Set up my board" in the portal lists those steps with the code in them,
+  and keeps one button, "Open the board's setup page", for a phone that
+  opens nothing by itself: a link to http://192.168.4.1/?server=..&code=..
+  so the code and server come up filled in. The WiFi is no longer typed
+  in the portal first (until 20 Nov it was, and rode in the link; a typo
+  there only showed as a board that never came online).
+  The old way failed silently: Save stored the network and restarted the
+  board, and a wrong password or a 5 GHz router just meant the hotspot
+  came back a minute later with no word why (field test, 19-20 Nov).
+  Three joins the firmware now gets right that it did not: a router still
+  on WPA (the stack's default refused anything under WPA2 and reported
+  "not found"); a house with a repeater (it took the first access point
+  that answered, now the strongest); an open network (blank password).
 
 "OPEN THE BOARD'S PAGE" is on the device card in every state. It links to
   http://192.168.4.1/ (the hotspot) until the board is online, then to the
@@ -1675,6 +1696,10 @@ The upload stops part-way: "No more data to read from the serial port"
         "%LOCALAPPDATA%\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" upload -p COM9 --fqbn esp32:esp32:esp32:UploadSpeed=115200 firmware/water_leak_single_wifi
 
 The board will not join the home WiFi after setup ("Still trying <name>")
+    Firmware from 20 Nov 2026 (the guided page) says which of these it is,
+    on the setup page itself and on the serial monitor ("[JOIN] failed:
+    ..." and "[NET] why the last try failed: ..."), and lists the networks
+    the board can see - so start there: join LeakDetect-Setup and look.
     Seen 19-20 Nov 2026 during a field test. In order of likelihood:
     1. The network is 5 GHz. The ESP32 joins 2.4 GHz ONLY. A phone
        hotspot on a newer phone defaults to 5 GHz - set its band to
@@ -2581,6 +2606,19 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+20 Nov 2026  Board setup redesigned around a guided page on the board
+             (section 9h). Joining LeakDetect-Setup opens the page by
+             itself (captive portal); it lists the 2.4 GHz networks the
+             board can see; Save & connect tries the join at once with the
+             hotspot still up and a progress page says "Joined", the
+             identity, "Readings are reaching the server" - or why not
+             (network not found, wrong password, code used or expired).
+             Nothing is saved until the join works. New routes on the
+             board: /progress, /status, /scan. Joins also accept WPA
+             routers and pick the strongest access point. The portal's
+             steps follow the new flow and no longer ask for the WiFi;
+             the setup email says the same. Needs a reflash.
+
 20 Nov 2026  Firmware: the setup hotspot stays up at least 5 minutes and
              while a phone is on it, even after the board joins (it used
              to close the moment the board joined). A factory reset: the

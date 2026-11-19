@@ -48,6 +48,10 @@ class GuidedSetupTests(_Portal):
         self.assertIn("data-setup-builder", page)
         self.assertIn('data-setup-server=""', page)          # plain http: the board finds a LAN server itself
         self.assertIn("http://192.168.4.1/", page)
+        # The WiFi is picked on the board's own page now, not typed here first.
+        self.assertNotIn("data-setup-ssid", page)
+        self.assertNotIn("data-setup-pass", page)
+        self.assertIn('data-device="code3"', page)           # the code, in the step that asks for it
 
     def test_a_hosted_site_gives_its_address(self):
         r = self.client.get(reverse("owner_settings"), secure=True)

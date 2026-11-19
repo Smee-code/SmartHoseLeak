@@ -176,8 +176,8 @@ def setup_email(household, ticket, site):
           "page opens by itself. If it does not, open http://192.168.4.1/ in "
           "your browser.\n4. Choose your home WiFi, type its password, and enter "
           "the setup code above. Leave the server address as it is.\n5. Press "
-          "Save. The board restarts and joins your WiFi; the setup network "
-          "disappears.\n\nSign in at {site}, open Settings > My device, and watch "
+          "Save & connect. The page shows whether the board joined your WiFi, or "
+          "what was wrong. The board uses 2.4 GHz WiFi only.\n\nSign in at {site}, open Settings > My device, and watch "
           "it change to Connected. The code works once. If it expires or "
           "something goes wrong, you can get a new one there.").format(household_id=household.household_id, code=ticket.code, expires=timezone.localtime(ticket.expires_at).strftime('%B %d, %Y'), board_setup_ssid=settings.BOARD_SETUP_SSID, board_setup_password=settings.BOARD_SETUP_PASSWORD, site=site)
     )
