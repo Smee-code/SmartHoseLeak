@@ -164,9 +164,16 @@
 // (about a minute) raise the setup hotspot beside the station so the board
 // can be re-pointed without a power cycle. While the hotspot is up the saved
 // network is still tried every minute, and the hotspot closes when it joins.
+// Every try is a scan of all channels, during which the hotspot's own link
+// stalls - a phone on it sees pages arrive cut short (the setup page came up
+// without its Save & connect button, 19 Nov 2026). So while a phone is on
+// the hotspot the tries are spaced out to every 5 minutes, and the WiFi
+// stack's own background reconnect is switched off for as long as the
+// hotspot is up (it is turned back on when the board joins).
 #define WIFI_RETRY_INTERVAL_MS  10000UL
 #define WIFI_FAILS_BEFORE_AP    6
 #define WIFI_RETRY_IN_AP_MS     60000UL
+#define WIFI_RETRY_WITH_PHONE_MS (5UL * 60UL * 1000UL)
 // A board that has been without its network this long is restarted, unless
 // somebody is on its hotspot. After a long outage (router rebooted, power
 // back before the router was up) the ESP32's WiFi stack sometimes never
@@ -842,6 +849,7 @@ String page(const String &inner) {
 }
 
 void handleRoot() {
+  web.client().setNoDelay(true);   // push the page out in one go; the button is at its end
   bool connected = (WiFi.status() == WL_CONNECTED);
   String s = "<h1>Smart Hose Leak - board setup</h1>";
   s += "<p class=k>";
@@ -935,6 +943,11 @@ void startAP() {
   apMode = true;
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(SETUP_AP_SSID, SETUP_AP_PASS);
+  // The stack's own reconnect would otherwise scan for the lost network over
+  // and over in the background, and every scan knocks the hotspot off the
+  // air for a moment. Our timed retries in maintainWiFi() do the trying.
+  WiFi.setAutoReconnect(false);
+  WiFi.disconnect();
   Serial.printf("[AP] %s at %s\n", SETUP_AP_SSID, WiFi.softAPIP().toString().c_str());
 }
 
@@ -948,6 +961,7 @@ void stopAP() {
 
 void onWiFiJoined() {
   wifiFailCount = 0;
+  WiFi.setAutoReconnect(true);     // back on: a brief drop is handled by the stack
   Serial.printf("[WIFI] got %s\n", WiFi.localIP().toString().c_str());
   configTime(TZ_OFFSET_SEC, DST_OFFSET_SEC, NTP_SERVER);  // for the nightly test
   stopAP();
@@ -974,7 +988,11 @@ void maintainWiFi() {
     delay(200);
     ESP.restart();
   }
-  unsigned long gap = apMode ? WIFI_RETRY_IN_AP_MS : WIFI_RETRY_INTERVAL_MS;
+  // A phone on the hotspot is somebody reading or filling in the setup page;
+  // a scan now would cut their page short, so the tries are spaced out.
+  unsigned long gap = !apMode ? WIFI_RETRY_INTERVAL_MS
+                    : WiFi.softAPgetStationNum() > 0 ? WIFI_RETRY_WITH_PHONE_MS
+                    : WIFI_RETRY_IN_AP_MS;
   if (millis() - lastWifiRetryMs < gap) return;
   lastWifiRetryMs = millis();
   if (wifiFailCount < 255) wifiFailCount++;

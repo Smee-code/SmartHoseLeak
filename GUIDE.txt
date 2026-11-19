@@ -1684,6 +1684,21 @@ The board stays offline for hours and does not come back by itself
     and turns on the stack's own auto-reconnect. Older firmware: pull the
     power for ten seconds, then reflash to get the self-restart.
 
+The board's setup page opens without its "Save & connect" button
+    Seen 19 Nov 2026 on a phone joined to LeakDetect-Setup: the fields
+    were there, the button at the bottom was not, so nothing could be
+    saved. The page is not missing anything - it arrived cut short. The
+    hotspot shares the radio with the station that keeps trying the home
+    network, and every try scans all channels, during which the hotspot
+    is off the air for a moment; a page being sent right then loses its
+    tail. Firmware from 15 Nov made it worse by turning on the stack's
+    own background reconnect. Firmware from 19 Nov 2026 switches that off
+    while the hotspot is up and, while a phone is on the hotspot, tries
+    the home network only every 5 minutes (WIFI_RETRY_WITH_PHONE_MS).
+    Until the board is reflashed: pull the page down to reload it - the
+    next copy is usually whole - or join the hotspot, wait a few seconds
+    and open http://192.168.4.1/ again.
+
 The device page shows the wrong upload result
     http://<device-ip>/status shows server_url and server_upload, which is
     the fastest way to see what the board is actually trying to do.
@@ -2223,9 +2238,11 @@ WHEN A HOUSEHOLD SAYS THEY GET NOTHING
   Upload interval     every 15 seconds (Console -> Detection settings;
                       a change of status or valve uploads at once)
   Offline after       3 missed uploads + 5 s (50 s at the default)
-  WiFi recovery       retry every 10 s; hotspot beside it after 6 misses;
-                      the board restarts itself after 15 min without the
-                      network if nobody is on the hotspot (firmware)
+  WiFi recovery       retry every 10 s; hotspot beside it after 6 misses,
+                      then every 60 s (every 5 min while a phone is on the
+                      hotspot); the board restarts itself after 15 min
+                      without the network if nobody is on the hotspot
+                      (firmware)
   Reset reason        printed first on the serial monitor, on the board's
                       page, sent once per boot (boot_reason) and shown on
                       the dashboard row / Lines page as "Last restart:"
@@ -2478,6 +2495,13 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+19 Nov 2026  Firmware: the setup hotspot stays on the air while a phone is
+             on it. The stack's background reconnect is off while the
+             hotspot is up and the home network is tried only every 5 min
+             with a phone attached, so the board's setup page no longer
+             arrives cut short (the owner saw it without its Save & connect
+             button). Needs a reflash.
+
 18 Nov 2026  "Reopen after a flow-leak close (minutes)" joins the Leak
              detection settings (migration 0049; rides to the board as
              flow_leak_reopen_minutes). A flow-leak close now opens again by
