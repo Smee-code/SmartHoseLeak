@@ -176,6 +176,11 @@
 #define WIFI_FAILS_BEFORE_AP    6
 #define WIFI_RETRY_IN_AP_MS     60000UL
 #define WIFI_RETRY_WITH_PHONE_MS (5UL * 60UL * 1000UL)
+// Once the setup hotspot is up it stays up for at least this long, and for
+// as long as a phone is on it - even after the board has joined its network.
+// It used to close the moment the board joined, which could be under a
+// minute after a boot, before the person had even found it on their phone.
+#define SETUP_HOTSPOT_MIN_MS     (5UL * 60UL * 1000UL)
 // A board that has been without its network this long is restarted, unless
 // somebody is on its hotspot. After a long outage (router rebooted, power
 // back before the router was up) the ESP32's WiFi stack sometimes never
@@ -197,6 +202,7 @@ WebServer   web(80);
 String cfgSSID, cfgPass, cfgServer, cfgCode;   // provisioning
 String devId, apiKey;                          // identity after claim
 bool   apMode = false;
+unsigned long apStartedMs = 0;                 // when the hotspot came up (for SETUP_HOTSPOT_MIN_MS)
 
 uint8_t       wifiFailCount   = 0;
 unsigned long lastWifiRetryMs = 0;
@@ -914,6 +920,8 @@ void handleRoot() {
   s += "<p class=k style='margin-top:1.2rem'>Valve: "
        "<a href=/valve?cmd=open>open</a> &middot; "
        "<a href=/valve?cmd=close>close</a></p>";
+  s += "<p class=k><a href=/reset>Reset this board to a fresh one</a> - forgets the WiFi, "
+       "server, identity and valve state, as if just flashed.</p>";
 
   web.send(200, "text/html", page(s));
 }
@@ -954,12 +962,48 @@ void handleValve() {
   web.send(303, "text/plain", "");
 }
 
+// ======================================================= factory reset
+// Everything the board remembers lives in one Preferences namespace, which
+// a new sketch upload does NOT clear - so "I flashed it again" is not a
+// fresh board. This is: WiFi, server, setup code, identity and key, valve
+// reason, detection settings, all gone, then a restart into hotspot mode.
+void factoryReset() {
+  Serial.println("[RESET] forgetting everything - WiFi, server, identity, valve state - and restarting as a fresh board.");
+  prefs.begin("shl", false);
+  prefs.clear();
+  prefs.end();
+  WiFi.disconnect(true, true);     // drop the station and wipe the stack's own copy too
+  delay(300);
+  ESP.restart();
+}
+
+// GET shows a confirmation; POST does it. A link alone must not be enough,
+// since a browser prefetch or a curious tap would wipe a working board.
+void handleReset() {
+  if (web.method() == HTTP_POST) {
+    web.send(200, "text/html", page("<h1>Reset</h1><p>Everything is forgotten. The board is restarting; "
+                                    "in about half a minute the <b>" SETUP_AP_SSID "</b> hotspot is back, "
+                                    "and it can be set up like a new board.</p>"));
+    delay(800);
+    factoryReset();
+    return;
+  }
+  web.send(200, "text/html", page(
+    "<h1>Reset this board?</h1>"
+    "<p class=k>This forgets the saved WiFi, the server address, the setup code, the board's identity "
+    "and key, the valve state and the detection settings - as if the board had just been flashed. "
+    "The household keeps its record on the server; to use this board again, enter a new setup code.</p>"
+    "<form method=POST action=/reset><button type=submit style='background:#b42318'>Forget everything and restart</button></form>"
+    "<p class=k><a href=/>Back</a></p>"));
+}
+
 // ======================================================= WiFi bring-up
 // The hotspot runs beside the station (AP_STA), so the saved network is still
 // retried while the setup page is up and the hotspot can close by itself.
 void startAP() {
   if (apMode) return;
   apMode = true;
+  apStartedMs = millis();
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(SETUP_AP_SSID, SETUP_AP_PASS);
   // The stack's own reconnect would otherwise scan for the lost network over
@@ -978,12 +1022,21 @@ void stopAP() {
   Serial.println("[AP] closed - the board is on the network.");
 }
 
+// Close the hotspot only once it has been up for SETUP_HOTSPOT_MIN_MS and
+// nobody is on it. Called every cycle while the board is on its network.
+void maybeStopAP() {
+  if (!apMode) return;
+  if (millis() - apStartedMs < SETUP_HOTSPOT_MIN_MS) return;
+  if (WiFi.softAPgetStationNum() > 0) return;
+  stopAP();
+}
+
 void onWiFiJoined() {
   wifiFailCount = 0;
   WiFi.setAutoReconnect(true);     // back on: a brief drop is handled by the stack
   Serial.printf("[WIFI] got %s\n", WiFi.localIP().toString().c_str());
   configTime(TZ_OFFSET_SEC, DST_OFFSET_SEC, NTP_SERVER);  // for the nightly test
-  stopAP();
+  maybeStopAP();                   // the hotspot stays a while longer if it only just came up
   // A moved board carries the old laptop's address; ask before posting to it.
   if (serverIsLocal()) discoverServer();
 }
@@ -993,7 +1046,8 @@ void onWiFiJoined() {
 void maintainWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
     wifiDownSince = 0;
-    if (wifiFailCount > 0 || apMode) onWiFiJoined();
+    if (wifiFailCount > 0) onWiFiJoined();
+    maybeStopAP();
     return;
   }
   if (cfgSSID.length() == 0) { startAP(); return; }
@@ -1054,6 +1108,8 @@ void reportNetwork() {
     Serial.printf("[NET] connected to \"%s\" (%s, %d dBm) - %s - last upload: %s\n",
                   cfgSSID.c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI(),
                   devId.length() ? devId.c_str() : "not claimed yet", lastUploadResult.c_str());
+    if (apMode) Serial.printf("[NET] hotspot %s still up for setup (%d phone(s) on it)\n",
+                              SETUP_AP_SSID, WiFi.softAPgetStationNum());
   } else if (cfgSSID.length() == 0) {
     Serial.printf("[NET] NOT connected - no WiFi saved yet. Join hotspot %s and open http://192.168.4.1/\n", SETUP_AP_SSID);
   } else if (apMode) {
@@ -1122,6 +1178,7 @@ void setup() {
   web.on("/", handleRoot);
   web.on("/save", HTTP_POST, handleSave);
   web.on("/valve", handleValve);
+  web.on("/reset", handleReset);
   web.begin();
   Serial.println("[WEB] setup/status page on port 80.");
 }
@@ -1136,6 +1193,7 @@ void loop() {
     if (c == "OPEN")  { valveOpenNow();  valveReason = ""; flowStartMs = 0; pressureTestLeak = false; flowLeakHeld = false; saveValveReason(); }
     else if (c == "CLOSE") { valveCloseNow(); valveReason = "manual"; saveValveReason(); }
     else if (c == "TEST")  { testRequested = true; Serial.println("[TEST] requested from serial."); }
+    else if (c == "FACTORY") factoryReset();        // back to a fresh board
   }
 
   if (millis() - lastNetReportMs >= NET_REPORT_MS) { lastNetReportMs = millis(); reportNetwork(); }

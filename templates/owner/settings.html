@@ -120,6 +120,7 @@
                data-setup-builder data-setup-server="{{ setup_server }}">
             <p class="set-lede" style="margin-bottom:.25rem">{% trans "How to connect the board" %}</p>
             <p class="set-note">{% trans "Type your home WiFi here first, while your phone still has internet. It stays on your phone - it is not sent to us." %}</p>
+            <p class="set-note">{% trans "The board joins 2.4 GHz WiFi only. A phone hotspot has to be set to 2.4 GHz, and the name and password must match exactly, capitals included." %}</p>
             <div class="field">
               <label for="setup-ssid">{% trans "Home WiFi name" %}</label>
               <input type="text" id="setup-ssid" data-setup-ssid autocomplete="off" autocapitalize="none" spellcheck="false">

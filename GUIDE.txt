@@ -1674,6 +1674,48 @@ The upload stops part-way: "No more data to read from the serial port"
     Or from a terminal, which lets you set the speed without the IDE:
         "%LOCALAPPDATA%\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" upload -p COM9 --fqbn esp32:esp32:esp32:UploadSpeed=115200 firmware/water_leak_single_wifi
 
+The board will not join the home WiFi after setup ("Still trying <name>")
+    Seen 19-20 Nov 2026 during a field test. In order of likelihood:
+    1. The network is 5 GHz. The ESP32 joins 2.4 GHz ONLY. A phone
+       hotspot on a newer phone defaults to 5 GHz - set its band to
+       2.4 GHz in the hotspot settings (the owner's setup steps say so
+       from 20 Nov 2026). A dual-band router usually has a 2.4 GHz name
+       too; use that one.
+    2. The name or password is not exactly right - capitals, spaces, a
+       trailing space the phone's keyboard added. The board's page shows
+       the name it is trying; retype both.
+    3. WPA3-only or "enhanced open" networks: set the router or hotspot
+       to WPA2 (or WPA2/WPA3 mixed).
+    4. The phone used for setup is ALSO the hotspot. Fine, as long as the
+       phone's hotspot stays on while the board joins it.
+    What the board says: the serial monitor prints "[NET] NOT connected -
+    hotspot LeakDetect-Setup is up ...; trying "<name>" ..." every 30 s
+    (firmware from 19 Nov); the board's page says "Hotspot mode. Still
+    trying "<name>"". Both mean the same: the board sees no such 2.4 GHz
+    network, or the password is wrong. "Connected to <name>" with a
+    failing last upload is a different problem (server or key).
+    The hotspot stays up at least 5 minutes after it comes up and for as
+    long as a phone is on it, even once the board has joined (firmware
+    from 20 Nov 2026; before that it closed the moment the board joined,
+    which could be under a minute after a boot).
+
+Reset the board to a fresh one (a new upload does NOT do this)
+    The board keeps its WiFi, server, setup code, identity and key, valve
+    state and detection settings in flash, and uploading a sketch leaves
+    them there. Three ways to wipe them, any one is enough:
+    1. The board's page: http://192.168.4.1/ (hotspot) or
+       http://<board-ip>/ (online) -> "Reset this board to a fresh one"
+       -> "Forget everything and restart" (firmware from 20 Nov 2026).
+    2. The serial monitor: type FACTORY (firmware from 20 Nov 2026).
+    3. Erase the whole flash while uploading - works on any firmware:
+         "%LOCALAPPDATA%\Programs\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe" upload -p COM9 --fqbn esp32:esp32:esp32:UploadSpeed=115200,EraseFlash=all firmware\water_leak_single_wifi
+       (in the Arduino IDE: Tools -> Erase All Flash Before Sketch Upload
+       -> Enabled, upload once, then set it back to Disabled).
+    After any of them the board boots straight into hotspot mode with
+    nothing saved; set it up again with a new setup code (the old code
+    was single-use; the facilitator issues a new one: Lines -> Devices
+    -> New code, or the owner's Settings -> Get a new setup code).
+
 The board stays offline for hours and does not come back by itself
     Seen 14-15 Nov 2026 (esp32-21, "connection lost" for 26 h). Physical
     checks first: is the board powered, and is it within reach of the
@@ -2283,6 +2325,10 @@ WHEN A HOUSEHOLD SAYS THEY GET NOTHING
                       hotspot); the board restarts itself after 15 min
                       without the network if nobody is on the hotspot
                       (firmware)
+  Setup hotspot       up 20 s after a boot that cannot join (at once on a
+                      fresh board); stays at least 5 min and for as long
+                      as a phone is on it, even after the board joins
+                      (SETUP_HOTSPOT_MIN_MS, firmware)
   Reset reason        printed first on the serial monitor, on the board's
                       page, sent once per boot (boot_reason) and shown on
                       the dashboard row / Lines page as "Last restart:"
@@ -2535,6 +2581,14 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+20 Nov 2026  Firmware: the setup hotspot stays up at least 5 minutes and
+             while a phone is on it, even after the board joins (it used
+             to close the moment the board joined). A factory reset: the
+             board's page -> "Reset this board to a fresh one", or FACTORY
+             on the serial monitor - forgets WiFi, server, identity, key,
+             valve state and settings, which a new upload does not. The
+             owner's setup steps now say 2.4 GHz only. Needs a reflash.
+
 19 Nov 2026  The owner's login text no longer carries a link or the word
              "password": the SMS gateway's phishing filter had refused
              every one of them (the setup-code text always went through).
