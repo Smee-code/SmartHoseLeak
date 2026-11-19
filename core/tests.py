@@ -1793,7 +1793,10 @@ class FacilitatorFeatureTests(TestCase):
         texts = [t.body for t in SmsMessage.objects.filter(household=household)]
         code = household.segment.device.claim_code.code
         # Two messages: the login (which may run to two parts) and the setup code (one part).
-        self.assertTrue(any(household.user.username in t and "temporary password" in t for t in texts))
+        login_texts = [t for t in texts if household.user.username in t and "First-time code" in t]
+        self.assertEqual(len(login_texts), 1)                 # one part: no link, nothing to split
+        self.assertNotIn("http", login_texts[0])              # the gateway's phishing filter refuses links
+        self.assertNotIn("password", login_texts[0].lower())
         setup_parts = [t for t in texts if code in t]
         self.assertEqual(len(setup_parts), 1)
         self.assertIn("LeakDetect-Setup", setup_parts[0])

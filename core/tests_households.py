@@ -55,7 +55,7 @@ class PermanentDeleteTests(_Console):
         r = self.client.post(reverse("admin_household_destroy", args=[self.household.pk]), {})
         self.assertTrue(Household.objects.filter(pk=self.household.pk).exists())
 
-    def test_delete_removes_everything_but_the_board(self):
+    def test_delete_removes_the_board_record_too(self):
         r = self.client.post(
             reverse("admin_household_destroy", args=[self.household.pk]),
             {"confirm": "hh-010", "from": "archive"},            # case does not matter
@@ -66,10 +66,24 @@ class PermanentDeleteTests(_Console):
         self.assertFalse(Segment.objects.filter(pk=self.segment.pk).exists())
         self.assertFalse(LatestReading.objects.filter(segment_id=self.segment.pk).exists())
         self.assertFalse(Complaint.objects.filter(subject="No water").exists())
-        self.device.refresh_from_db()
-        self.assertTrue(Device.objects.filter(pk=self.device.pk).exists())   # a spare now
-        self.assertFalse(self.device.segments.exists())
+        self.assertFalse(Device.objects.filter(pk=self.device.pk).exists())  # identity, key and code gone
         self.assertTrue(AuditLog.objects.filter(action="household.delete").exists())
+
+    def test_delete_keeps_a_board_that_also_serves_another_line(self):
+        Segment.objects.create(name="HH-011 line", barangay=self.brgy, device=self.device, module_index=2)
+        self.client.post(reverse("admin_household_destroy", args=[self.household.pk]), {"confirm": "HH-010"})
+        self.assertFalse(Household.objects.filter(pk=self.household.pk).exists())
+        self.assertTrue(Device.objects.filter(pk=self.device.pk).exists())
+        self.assertEqual(self.device.segments.count(), 1)
+
+    def test_a_deleted_board_key_is_refused_so_the_board_starts_over(self):
+        key = self.device.api_key
+        self.client.post(reverse("admin_household_destroy", args=[self.household.pk]), {"confirm": "HH-010"})
+        r = self.client.post(
+            reverse("api_ingest"), data='{"device_id": "esp32-hh", "readings": [{"module": 1, "pressure_bar": 1}]}',
+            content_type="application/json", HTTP_X_DEVICE_KEY=key,
+        )
+        self.assertEqual(r.status_code, 401)
 
     def test_archive_still_only_hides(self):
         r = self.client.post(reverse("admin_household_delete", args=[self.household.pk]))
@@ -95,7 +109,7 @@ class PermanentDeleteTests(_Console):
         self.assertEqual(r.status_code, 302)
         self.assertFalse(Household.objects.filter(pk=self.household.pk).exists())
         self.assertFalse(Segment.objects.filter(pk=self.segment.pk).exists())
-        self.assertTrue(Device.objects.filter(pk=self.device.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=self.device.pk).exists())   # same rule as the admin's delete
 
 
 class DanglingLineTests(TransactionTestCase):

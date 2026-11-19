@@ -22,7 +22,7 @@
       <div class="modal-body">
         <p>{% blocktrans trimmed %}This cannot be undone. Deleting <strong data-destroy-name></strong> also removes:{% endblocktrans %}</p>
         <ul data-destroy-list style="margin:.4rem 0 .8rem 1.2rem"></ul>
-        <p class="small muted">{% trans "The board itself is kept and becomes a spare. To hide a household without losing anything, use Archive instead." %}</p>
+        <p class="small muted">{% trans "Its board record goes too - identity, key and setup code - so the board has to be set up again with a new code. To hide a household without losing anything, use Archive instead." %}</p>
         <div class="field">
           <label for="household-destroy-confirm">{% blocktrans trimmed %}Type the household ID (<span class="mono" data-destroy-hid></span>) to confirm{% endblocktrans %}</label>
           <input type="text" id="household-destroy-confirm" name="confirm" autocomplete="off" data-destroy-confirm>

@@ -233,11 +233,19 @@ HOUSEHOLDS: ARCHIVE, DELETE, AND THE DUPLICATE WARNING  (console -> Households)
     screens and the map, and still alerts, until it is deleted or restored.
   - Delete (the red button on the list and on the Archive page) is for
     good. It removes the household, its login, its hose line with every
-    reading and event, its complaints, notices and work orders. The BOARD
-    is kept and becomes a spare for the next household. The household ID
-    has to be typed back in the dialog, and the server checks it again.
-    Use it for a duplicate registration or a test entry; for anything
-    else, archive.
+    reading and event, its complaints, notices and work orders, AND the
+    board record fitted to that line - identity, key and setup code
+    (since 19 Nov 2026; it used to stay behind as a spare, which left a
+    claimed board nobody could tell from a live one). A board that also
+    serves another line is kept. The physical board notices on its own:
+    its uploads get HTTP 401, and after three in a row it drops its
+    identity and waits for a new setup code, so the next household's
+    code can be entered on its page (firmware from 19 Nov). The household
+    ID has to be typed back in the dialog, and the server checks it
+    again. Use it for a duplicate registration or a test entry; for
+    anything else, archive. To keep the board's history with a NEW
+    household instead, do not delete: Hose lines -> Edit -> Device fits
+    the same board to the new line.
   - Registering a contact number or email that is already on a household
     (archived or not) stops with a warning naming the match: a link to the
     existing record, or "Restore it instead" when it is archived. Tick
@@ -1684,6 +1692,38 @@ The board stays offline for hours and does not come back by itself
     and turns on the stack's own auto-reconnect. Older firmware: pull the
     power for ten seconds, then reflash to get the self-restart.
 
+The owner never got the text with their username and temporary password
+    Seen on the hosted site, 19 Nov 2026: every "portal login" text since
+    the first activation sat in Notices & SMS as Failed with "Message
+    looks suspicious (phishing detected: suspicious_url, login_reset)",
+    while the setup-code text beside it was Delivered. The SMS gateway
+    refuses any text that carries a link together with words like
+    "password" or "sign in". The login text is reworded from 19 Nov 2026:
+    no link, "First-time code" instead of "temporary password", and the
+    site address left to the email and the facilitator (the wording was
+    sent through the gateway and delivered). For an owner activated
+    before that: Households -> the household -> "Text login details"
+    sends the new wording with a fresh temporary password, or read the
+    password to them from the activation message.
+
+Is the board connected or not? (serial monitor)
+    Firmware from 19 Nov 2026 prints a [NET] line every 30 seconds:
+    "[NET] connected to <WiFi> (<ip>, <signal> dBm) - esp32-NN - last
+    upload: OK" when all is well, or "[NET] NOT connected - ..." with the
+    reason: no WiFi saved yet, the hotspot is up and how often the saved
+    network is being tried, or still trying with the miss count. Older
+    firmware only printed when something happened (a retry, an upload),
+    which could mean minutes of silence.
+
+The board keeps saying HTTP 401 / "the server does not know this board"
+    Its household was deleted (the board record goes with it) or the
+    facilitator pressed "New key" on the Devices table. The old key will
+    never work again. Firmware from 19 Nov drops the identity by itself
+    after three 401s and waits for a setup code: issue one (activate the
+    new household, or Devices -> New code) and enter it on the board's
+    page at http://192.168.4.1/ (hotspot) or http://<board-ip>/ (online).
+    Older firmware: enter the code the same way; it re-claims regardless.
+
 The board's setup page opens without its "Save & connect" button
     Seen 19 Nov 2026 on a phone joined to LeakDetect-Setup: the fields
     were there, the button at the bottom was not, so nothing could be
@@ -2495,6 +2535,19 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+19 Nov 2026  The owner's login text no longer carries a link or the word
+             "password": the SMS gateway's phishing filter had refused
+             every one of them (the setup-code text always went through).
+             Reworded, sent through the gateway, delivered.
+
+19 Nov 2026  Deleting a household now deletes its board record too
+             (identity, key, setup code) unless the board also serves
+             another line; the dialog says so. Firmware: after three HTTP
+             401s in a row the board drops its identity and waits for a
+             new setup code, and a "[NET] connected / NOT connected" line
+             is printed every 30 s so the serial monitor always says
+             where the board stands. Needs a reflash.
+
 19 Nov 2026  Firmware: the setup hotspot stays on the air while a phone is
              on it. The stack's background reconnect is off while the
              hotspot is up and the home network is tried only every 5 min

@@ -155,6 +155,8 @@
 
 // ------------------------------------------------------------- timing
 #define SAMPLE_INTERVAL_MS      2000UL   // sensors + detections
+#define NET_REPORT_MS          30000UL   // one plain "[NET] connected / NOT connected" line on the serial monitor
+#define UNAUTH_BEFORE_RESET    3         // HTTP 401s in a row before the board forgets its identity
 #define DEFAULT_UPLOAD_SEC      15       // until the server says otherwise
 #define CHANGE_RETRY_MS         2000UL   // a changed state not yet accepted
 #define HTTP_TIMEOUT_MS         8000
@@ -200,6 +202,8 @@ uint8_t       wifiFailCount   = 0;
 unsigned long lastWifiRetryMs = 0;
 unsigned long wifiDownSince   = 0;             // millis() when the network was last seen to drop
 uint8_t       uploadFailStreak = 0;            // transport failures in a row
+uint8_t       unauthStreak     = 0;            // HTTP 401s in a row: the server no longer knows our key
+unsigned long lastNetReportMs  = 0;
 unsigned long lastDiscoveryMs  = 0;
 String        lastDiscoveryResult = "not needed yet";
 String        lastWifiChangeId;                 // the last change tried (persisted)
@@ -776,6 +780,21 @@ void uploadReadings() {
   if (code == 200)     lastUploadResult = "OK";
   else if (code > 0)   lastUploadResult = "HTTP " + String(code);
   else                 lastUploadResult = "no reply from " + cfgServer;
+
+  // 401 means the server does not know our key any more: the household was
+  // deleted (its board record goes with it) or the key was renewed. No
+  // amount of retrying fixes that, so after a few in a row the board drops
+  // its identity and waits for a new setup code, like a blank board.
+  if (code == 401) {
+    if (++unauthStreak >= UNAUTH_BEFORE_RESET) {
+      Serial.println("[UPLOAD] the server no longer knows this board (HTTP 401 three times) - its household was deleted or its key renewed.");
+      Serial.println("[UPLOAD] identity dropped. Enter a new setup code on the board's page to claim it again.");
+      devId = ""; apiKey = ""; saveIdentity("", "");
+      unauthStreak = 0;
+      lastUploadResult = "the server does not know this board - enter a new setup code";
+    }
+  } else if (code > 0) unauthStreak = 0;
+
   if (code == 200) {
     sentStatus = reportStatus; sentValve = valveState; sentReason = valveReason;
     reportWifiId = "";                            // the outcome has been delivered
@@ -1025,6 +1044,29 @@ bool connectWiFi() {
   return false;
 }
 
+// ======================================================= network report
+// One plain line every 30 s saying whether the board is on the network or
+// not, and why not. Everything else on the serial monitor is event-driven
+// (a retry, an upload), which can leave minutes of silence that read as
+// "is it connected or not?".
+void reportNetwork() {
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("[NET] connected to \"%s\" (%s, %d dBm) - %s - last upload: %s\n",
+                  cfgSSID.c_str(), WiFi.localIP().toString().c_str(), WiFi.RSSI(),
+                  devId.length() ? devId.c_str() : "not claimed yet", lastUploadResult.c_str());
+  } else if (cfgSSID.length() == 0) {
+    Serial.printf("[NET] NOT connected - no WiFi saved yet. Join hotspot %s and open http://192.168.4.1/\n", SETUP_AP_SSID);
+  } else if (apMode) {
+    int phones = WiFi.softAPgetStationNum();
+    unsigned long gap = phones > 0 ? WIFI_RETRY_WITH_PHONE_MS : WIFI_RETRY_IN_AP_MS;
+    Serial.printf("[NET] NOT connected - hotspot %s is up (%d phone%s on it); trying \"%s\" every %lu s, %u misses so far\n",
+                  SETUP_AP_SSID, phones, phones == 1 ? "" : "s", cfgSSID.c_str(), gap / 1000UL, wifiFailCount);
+  } else {
+    Serial.printf("[NET] NOT connected - trying \"%s\" (%u misses; the hotspot comes up after %d)\n",
+                  cfgSSID.c_str(), wifiFailCount, WIFI_FAILS_BEFORE_AP);
+  }
+}
+
 // ======================================================= reset reason
 String resetReasonText() {
   switch (esp_reset_reason()) {
@@ -1095,6 +1137,8 @@ void loop() {
     else if (c == "CLOSE") { valveCloseNow(); valveReason = "manual"; saveValveReason(); }
     else if (c == "TEST")  { testRequested = true; Serial.println("[TEST] requested from serial."); }
   }
+
+  if (millis() - lastNetReportMs >= NET_REPORT_MS) { lastNetReportMs = millis(); reportNetwork(); }
 
   // Sensors and detections every 2 s, online or not - and in hotspot mode
   // too, so a board waiting for its new network still protects the line.

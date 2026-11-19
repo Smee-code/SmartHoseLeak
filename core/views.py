@@ -810,14 +810,22 @@ def household_delete(request, pk):
 def _destroy_household(household):
     """
     Remove a household for good: its login, its hose line with every reading
-    and event on it, its complaints, notices and work orders. The board is
-    kept - hardware outlives the house it was fitted to - and becomes a
-    spare. Returns what went, in words, for the message.
+    and event on it, its complaints, notices and work orders, and the board
+    record fitted to that line - its identity, key and setup code - unless
+    the same board also serves another line. The physical board is not
+    reached, of course: it keeps posting with a key the server no longer
+    knows, gets 401 three times, drops its identity and waits for a new
+    setup code (firmware, 19 Nov 2026). It used to be kept as a spare, which
+    left a claimed board nobody could tell apart from a live one (seen 19
+    Nov 2026: a deleted household's board, still reporting, with its
+    readings refused). Returns what went, in words, for the message.
     """
     complaints = household.complaints.count()
     notifications = household.notifications.count()
     username = household.user.username if household.user else None
     segment = household.segment
+    device = segment.device if segment is not None else None
+    board_removed = False
     with transaction.atomic():
         if household.user is not None:
             household.user.delete()
@@ -825,6 +833,9 @@ def _destroy_household(household):
             segment.device = None
             segment.save(update_fields=["device"])
             segment.delete()                 # readings, rollups and events go with it
+        if device is not None and not device.segments.exists():
+            device.delete()                  # its setup code cascades
+            board_removed = True
         household.delete()                   # complaints, notices, push subscriptions
     removed = [
         _("{n} complaint(s)").format(n=complaints),
@@ -832,6 +843,8 @@ def _destroy_household(household):
     ]
     if segment is not None:
         removed.append(_("its hose line and readings"))
+    if board_removed:
+        removed.append(_("its board {device_id} and its setup code").format(device_id=device.device_id))
     if username:
         removed.append(_("the login '{username}'").format(username=username))
     return removed
@@ -3493,11 +3506,17 @@ def _text_credentials(request, household, username, password):
     """
     if not (household.contact_number or "").strip():
         return False
-    site = request.build_absolute_uri("/").rstrip("/")
+    # No link and no "password" / "sign in": the SMS gateway's phishing filter
+    # refused every login text that carried them ("suspicious_url,
+    # login_reset" - seen on the hosted site, 19 Nov 2026), so owners never
+    # got their login by text. This wording was sent through the gateway and
+    # delivered. The site address is in the email and on the facilitator's
+    # lips; the setup-code text, which has no link, always went through.
     with translation.override(household.language or settings.LANGUAGE_CODE):
         body = (
-            _("Smart Hose Leak portal login - username: {username}, temporary "
-              "password: {password}. Sign in at {site} and change it.").format(username=username, password=password, site=site)
+            _("Smart Hose Leak account {household_id} ready. Username: {username}. First-time "
+              "code: {password}. Open the site address from your facilitator, enter these and "
+              "set your own.").format(household_id=household.household_id, username=username, password=password)
         )
     parts = SmsMessage.queue(household, body, kind=SmsMessage.Kind.MANUAL, sent_by=request.user)
     return bool(parts)

@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Smart Hose Leak\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-18 19:38+0800\n"
+"POT-Creation-Date: 2026-11-19 22:47+0800\n"
 "PO-Revision-Date: 2026-10-28 19:30+0800\n"
 "Last-Translator: \n"
 "Language-Team: Filipino\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: .\GUIDE.txt:446 .\GUIDE.txt:447 .\GUIDE.txt:493
+#: .\GUIDE.txt:454 .\GUIDE.txt:455 .\GUIDE.txt:501
 msgid "..."
 msgstr "..."
 
@@ -550,7 +550,7 @@ msgstr "Kailan ito nagsimula? Ano ba talaga ang nakikita mo?"
 msgid "Write a message..."
 msgstr "Sumulat ng mensahe..."
 
-#: .\core\forms.py:629 .\core\views.py:1455
+#: .\core\forms.py:629 .\core\views.py:1468
 msgid "Write something before sending."
 msgstr "Sumulat muna bago ipadala."
 
@@ -700,7 +700,7 @@ msgstr ""
 msgid "Emails are sent from {default_from_email}."
 msgstr "Ipinapadala ang mga email mula sa {default_from_email}."
 
-#: .\core\models.py:53 .\core\views.py:2665 .\templates\admin\archive.html:76
+#: .\core\models.py:53 .\core\views.py:2678 .\templates\admin\archive.html:76
 #: .\templates\admin\household_form.html:46
 #: .\templates\admin\households.html:185 .\templates\admin\households.html:277
 #: .\templates\admin\workorder_detail.html:24
@@ -938,13 +938,14 @@ msgid "Water can flow."
 msgstr "Puwedeng umagos ang tubig."
 
 #: .\core\models.py:675
-#| msgid ""
-#| "Closed automatically because water ran non-stop for too long. Check your "
-#| "taps and hose, then open it here once fixed."
+#, python-brace-format
 msgid ""
 "Closed automatically because water ran non-stop for too long. It reopens by "
 "itself after {minutes} minutes, or open it here once your taps are off."
-msgstr "Isinara nang kusa dahil masyadong matagal na tuloy-tuloy ang pag-agos ng tubig. Kusang bubukas ulit pagkalipas ng {minutes} minuto, o buksan ito rito kapag sarado na ang mga gripo mo."
+msgstr ""
+"Isinara nang kusa dahil masyadong matagal na tuloy-tuloy ang pag-agos ng "
+"tubig. Kusang bubukas ulit pagkalipas ng {minutes} minuto, o buksan ito rito "
+"kapag sarado na ang mga gripo mo."
 
 #: .\core\models.py:679
 msgid ""
@@ -1302,7 +1303,6 @@ msgstr ""
 "para ituring na tagas."
 
 #: .\core\models.py:1809
-#| msgid "Treat as leak after (minutes)"
 msgid "Reopen after a flow-leak close (minutes)"
 msgstr "Muling buksan pagkatapos ng pagsara dahil sa tagas (minuto)"
 
@@ -1311,7 +1311,10 @@ msgid ""
 "The valve a continuous-flow leak closed opens again by itself after this "
 "many minutes, and can be opened from the portal sooner. 0 keeps it shut "
 "until somebody opens it."
-msgstr "Ang valve na isinara dahil sa tuloy-tuloy na pag-agos ay kusang bubukas ulit pagkalipas ng ganitong karaming minuto, at maaaring buksan nang mas maaga mula sa portal. Ang 0 ay panatilihin itong sarado hangga't walang nagbubukas."
+msgstr ""
+"Ang valve na isinara dahil sa tuloy-tuloy na pag-agos ay kusang bubukas ulit "
+"pagkalipas ng ganitong karaming minuto, at maaaring buksan nang mas maaga "
+"mula sa portal. Ang 0 ay panatilihin itong sarado hangga't walang nagbubukas."
 
 #: .\core\models.py:1827
 msgid "Board upload interval (seconds)"
@@ -1389,7 +1392,7 @@ msgstr ""
 "Hindi ma-email ang sign-in code sa ngayon. Subukang ipa-text na lang ito, o "
 "sabihan ang administrator na i-check ang email setup."
 
-#: .\core\otp.py:120 .\core\views.py:2118
+#: .\core\otp.py:120 .\core\views.py:2131
 msgid "No code is waiting. Request a new one."
 msgstr "Walang code na naka-pending. Humingi ng bago."
 
@@ -1676,7 +1679,7 @@ msgstr ""
 "Naka-sign in nang walang code: walang nakatalang contact number o email ang "
 "account na ito. Sabihan ang administrator na maglagay."
 
-#: .\core\views.py:333 .\core\views.py:3672
+#: .\core\views.py:333 .\core\views.py:3691
 #, python-brace-format
 msgid "DEBUG only: your sign-in code is {code}."
 msgstr "DEBUG lang: ang sign-in code mo ay {code}."
@@ -1718,30 +1721,35 @@ msgstr ""
 msgid "Deleted {label}, along with {removed}."
 msgstr "Tinanggal ang {label}, kasama ang {removed}."
 
-#: .\core\views.py:830
+#: .\core\views.py:841
 #, python-brace-format
 msgid "{n} complaint(s)"
 msgstr "{n} reklamo"
 
-#: .\core\views.py:831
+#: .\core\views.py:842
 #, python-brace-format
 msgid "{n} notice(s)"
 msgstr "{n} abiso"
 
-#: .\core\views.py:834
+#: .\core\views.py:845
 msgid "its hose line and readings"
 msgstr "ang hose line at mga reading nito"
 
-#: .\core\views.py:836
+#: .\core\views.py:847
+#, python-brace-format
+msgid "its board {device_id} and its setup code"
+msgstr "ang board nitong {device_id} at ang setup code nito"
+
+#: .\core\views.py:849
 #, python-brace-format
 msgid "the login '{username}'"
 msgstr "ang login na '{username}'"
 
-#: .\core\views.py:846 .\core\views.py:3537
+#: .\core\views.py:859 .\core\views.py:3556
 msgid "This household has no Owner Portal account yet."
 msgstr "Wala pang Owner Portal account ang sambahayang ito."
 
-#: .\core\views.py:857
+#: .\core\views.py:870
 #, python-brace-format
 msgid ""
 "New temporary password for {username}: {password} - give this to the owner; "
@@ -1750,11 +1758,11 @@ msgstr ""
 "Bagong temporary password para kay {username}: {password} - ibigay ito sa "
 "may-ari; hindi na ito ipapakita ulit."
 
-#: .\core\views.py:896
+#: .\core\views.py:909
 msgid "Water source location saved."
 msgstr "Na-save ang lokasyon ng pinagkukunan ng tubig."
 
-#: .\core\views.py:948
+#: .\core\views.py:961
 #, python-brace-format
 msgid ""
 "Board {device_id} registered. Claim code: {code} - enter it on the board's "
@@ -1764,7 +1772,7 @@ msgstr ""
 "page ng board kasama ng WiFi. Isang beses lang ito gumagana at mananatili sa "
 "page na ito."
 
-#: .\core\views.py:972
+#: .\core\views.py:985
 #, python-brace-format
 msgid ""
 "New key issued for {device_id}.{where} until you enter it on the board's "
@@ -1773,7 +1781,7 @@ msgstr ""
 "May bagong key para sa {device_id}.{where} hangga't hindi mo ito nailalagay "
 "sa setup page ng board. Bagong key: {api_key}"
 
-#: .\core\views.py:993
+#: .\core\views.py:1006
 #, python-brace-format
 msgid ""
 "New claim code for {device_id}: {code}. It works once, and expires in "
@@ -1782,7 +1790,7 @@ msgstr ""
 "Bagong claim code para sa {device_id}: {code}. Isang beses lang ito "
 "gumagana, at mag-e-expire sa loob ng {valid_days} araw."
 
-#: .\core\views.py:1014
+#: .\core\views.py:1027
 #, python-brace-format
 msgid ""
 "{device_id} is fitted to {name}. Detach it there first, so that household "
@@ -1791,12 +1799,12 @@ msgstr ""
 "Nakakabit ang {device_id} sa {name}. Tanggalin muna ito doon, para hindi "
 "basta mawala ang board ng sambahayang iyon nang walang paalam."
 
-#: .\core\views.py:1021
+#: .\core\views.py:1034
 #, python-brace-format
 msgid "Board {device_id} removed."
 msgstr "Tinanggal ang board {device_id}."
 
-#: .\core\views.py:1043
+#: .\core\views.py:1056
 #, python-brace-format
 msgid ""
 "{name} added as module M{module_index}. It will read OFFLINE until the ESP32 "
@@ -1805,23 +1813,23 @@ msgstr ""
 "Naidagdag ang {name} bilang module M{module_index}. Magbabasa itong OFFLINE "
 "hangga't hindi nagre-report ang ESP32 ng module {module_index2}."
 
-#: .\core\views.py:1063
+#: .\core\views.py:1076
 #, python-brace-format
 msgid "{name} updated."
 msgstr "Na-update ang {name}."
 
-#: .\core\views.py:1099
+#: .\core\views.py:1112
 #, python-brace-format
 msgid "Deleted {label}. {detail}."
 msgstr "Tinanggal ang {label}. {detail}."
 
-#: .\core\views.py:1122
+#: .\core\views.py:1135
 #, python-brace-format
 msgid "{name} has no device fitted, so there is no valve to test."
 msgstr ""
 "Walang nakakabit na device ang {name}, kaya walang valve na pwedeng i-test."
 
-#: .\core\views.py:1130
+#: .\core\views.py:1143
 #, python-brace-format
 msgid ""
 "Valve test requested for {name}. The device will close the line briefly, "
@@ -1830,23 +1838,23 @@ msgstr ""
 "Hiniling ang valve test para sa {name}. Isasara ng device ang linya nang "
 "saglit, tapos kusa itong bubuksan ulit."
 
-#: .\core\views.py:1182
+#: .\core\views.py:1195
 msgid "your line"
 msgstr "linya mo"
 
-#: .\core\views.py:1186
+#: .\core\views.py:1199
 #, python-brace-format
 msgid "{name} has no device fitted, so there is no valve to control."
 msgstr ""
 "Walang nakakabit na device ang {name}, kaya walang valve na pwedeng "
 "kontrolin."
 
-#: .\core\views.py:1198
+#: .\core\views.py:1211
 msgid "Closing your valve. Your water is off until you open it again."
 msgstr ""
 "Isinasara ang valve mo. Walang tubig hangga't hindi mo ito binubuksan ulit."
 
-#: .\core\views.py:1203
+#: .\core\views.py:1216
 #, python-brace-format
 msgid ""
 "Closing the valve on {line}. The household has been told, and the line stays "
@@ -1855,34 +1863,34 @@ msgstr ""
 "Isinasara ang valve sa {line}. Naabisuhan na ang sambahayan, at mananatiling "
 "sarado ang linya hangga't walang nagbubukas ulit."
 
-#: .\core\views.py:1210
+#: .\core\views.py:1223
 msgid ""
 "The administrator closed this line. Only the administrator can open it again."
 msgstr ""
 "Isinara ng administrator ang linyang ito. Administrator lang ang pwedeng "
 "magbukas ulit."
 
-#: .\core\views.py:1219
+#: .\core\views.py:1232
 #, python-brace-format
 msgid "Opening the valve on {line}. Water will be restored within seconds."
 msgstr ""
 "Binubuksan ang valve sa {line}. Babalik ang tubig sa loob ng ilang segundo."
 
-#: .\core\views.py:1222
+#: .\core\views.py:1235
 msgid "Unknown valve command."
 msgstr "Hindi kilalang valve command."
 
-#: .\core\views.py:1252
+#: .\core\views.py:1265
 msgid "You closed your water valve. Your water is off until you open it again."
 msgstr ""
 "Isinara mo ang valve ng tubig mo. Walang tubig hangga't hindi mo ito "
 "binubuksan ulit."
 
-#: .\core\views.py:1253
+#: .\core\views.py:1266
 msgid "You opened your water valve. Water is back."
 msgstr "Binuksan mo ang valve ng tubig mo. Bumalik na ang tubig."
 
-#: .\core\views.py:1256
+#: .\core\views.py:1269
 #, python-brace-format
 msgid ""
 "Your water valve was closed by {who}. Your water is off until it is opened "
@@ -1891,29 +1899,29 @@ msgstr ""
 "Isinara ng {who} ang valve ng tubig mo. Walang tubig hangga't hindi ito "
 "nabubuksan ulit."
 
-#: .\core\views.py:1259
+#: .\core\views.py:1272
 #, python-brace-format
 msgid "Your water valve was opened by {who}. Water is back."
 msgstr "Binuksan ng {who} ang valve ng tubig mo. Bumalik na ang tubig."
 
-#: .\core\views.py:1262
+#: .\core\views.py:1275
 msgid "Valve closed"
 msgstr "Sarado ang valve"
 
-#: .\core\views.py:1262
+#: .\core\views.py:1275
 msgid "Valve opened"
 msgstr "Bukas ang valve"
 
-#: .\core\views.py:1287
+#: .\core\views.py:1300
 #, python-brace-format
 msgid "{household_id} has no hose line to alert on."
 msgstr "Walang linya ang {household_id} na pwedeng padalhan ng alerto."
 
-#: .\core\views.py:1298
+#: .\core\views.py:1311
 msgid "Choose which condition to test."
 msgstr "Piliin kung aling kondisyon ang ite-test."
 
-#: .\core\views.py:1309
+#: .\core\views.py:1322
 #, python-brace-format
 msgid ""
 "Test alert sent to {household_id} ({owner_name}). Check the household's "
@@ -1922,84 +1930,84 @@ msgstr ""
 "Naipadala ang test alert sa {household_id} ({owner_name}). I-check ang "
 "notifications, email at text ng sambahayan."
 
-#: .\core\views.py:1332
+#: .\core\views.py:1345
 #, python-brace-format
 msgid "{name} returned to live monitoring."
 msgstr "Bumalik na sa live monitoring ang {name}."
 
-#: .\core\views.py:1336
+#: .\core\views.py:1349
 #, python-brace-format
 msgid "{name} marked as under maintenance."
 msgstr "Minarkahan ang {name} bilang under maintenance."
 
-#: .\core\views.py:1369
+#: .\core\views.py:1382
 #, python-brace-format
 msgid "Alert on {name} acknowledged."
 msgstr "Na-acknowledge ang alerto sa {name}."
 
-#: .\core\views.py:1469
+#: .\core\views.py:1482
 #, python-brace-format
 msgid "Reply to your complaint {reference}"
 msgstr "Sagot sa reklamo mong {reference}"
 
-#: .\core\views.py:1480
+#: .\core\views.py:1493
 msgid "Reply sent. The owner has been notified."
 msgstr "Naipadala ang sagot. Naabisuhan na ang may-ari."
 
-#: .\core\views.py:1492
+#: .\core\views.py:1505
 #, python-brace-format
 msgid "Marked as {get_status_display}."
 msgstr "Minarkahan bilang {get_status_display}."
 
-#: .\core\views.py:1512 .\core\views.py:2982
+#: .\core\views.py:1525 .\core\views.py:2995
 msgid "No active households match that audience."
 msgstr "Walang aktibong sambahayan na tumutugma sa audience na iyon."
 
-#: .\core\views.py:1566 .\core\views.py:3036
+#: .\core\views.py:1579 .\core\views.py:3049
 #, python-brace-format
 msgid "shown in the app to {n} household(s)"
 msgstr "ipinakita sa app sa {n} sambahayan"
 
-#: .\core\views.py:1568 .\core\views.py:3038
+#: .\core\views.py:1581 .\core\views.py:3051
 #, python-brace-format
 msgid "{n} text message(s) queued"
 msgstr "{n} text message ang naka-queue"
 
-#: .\core\views.py:1570 .\core\views.py:3040
+#: .\core\views.py:1583 .\core\views.py:3053
 #, python-brace-format
 msgid "{n} email(s) sent"
 msgstr "{n} email ang naipadala"
 
-#: .\core\views.py:1571
+#: .\core\views.py:1584
 #, python-brace-format
 msgid "Notice {done}."
 msgstr "Abiso: {done}."
 
-#: .\core\views.py:1571 .\core\views.py:3041 .\core\views.py:3955
+#: .\core\views.py:1584 .\core\views.py:3054 .\core\views.py:3974
 msgid " and "
 msgstr " at "
 
-#: .\core\views.py:1579
+#: .\core\views.py:1592
 #, python-brace-format
 msgid "No contact number on file, so no text was sent to: {names}."
 msgstr ""
 "Walang nakatalang contact number, kaya walang naipadalang text sa: {names}."
 
-#: .\core\views.py:1683
+#: .\core\views.py:1696
 #, python-brace-format
 msgid "Queued again for {recipient_label}."
 msgstr "Inilagay ulit sa queue para sa {recipient_label}."
 
-#: .\core\views.py:1933
+#: .\core\views.py:1946
 msgid "Message sent to the facilitator."
 msgstr "Naipadala ang mensahe sa facilitator."
 
-#: .\core\views.py:1952
+#: .\core\views.py:1965
 #, python-brace-format
 msgid "Complaint {reference} submitted. The facilitator has been notified."
 msgstr "Naisumite ang reklamo {reference}. Naabisuhan na ang facilitator."
 
-#: .\core\views.py:2058
+#: .\core\views.py:2071
 #, python-brace-format
 msgid ""
 "Smart Hose Leak: {code} is your code to confirm your new contact details. It "
@@ -2009,12 +2017,12 @@ msgstr ""
 "details. Mag-e-expire ito sa loob ng {minutes} minuto. Kung hindi ikaw ang "
 "humiling nito, huwag pansinin."
 
-#: .\core\views.py:2067 .\templates\owner\contact_confirm.html:3
+#: .\core\views.py:2080 .\templates\owner\contact_confirm.html:3
 #: .\templates\owner\contact_confirm.html:16
 msgid "Confirm your new contact details"
 msgstr "Kumpirmahin ang bago mong contact details"
 
-#: .\core\views.py:2068
+#: .\core\views.py:2081
 #, python-brace-format
 msgid ""
 "Your code is {code}. Enter it in the Smart Hose Leak portal to confirm your "
@@ -2028,7 +2036,7 @@ msgstr ""
 "\n"
 "Kung hindi ikaw ang humiling nito, huwag pansinin ang email na ito."
 
-#: .\core\views.py:2074
+#: .\core\views.py:2087
 msgid ""
 "The code could not be emailed right now. Ask the water system facilitator to "
 "change it for you."
@@ -2036,42 +2044,42 @@ msgstr ""
 "Hindi ma-email ang code ngayon. Pakiusap sa facilitator ng sistema ng tubig "
 "na palitan ito para sa iyo."
 
-#: .\core\views.py:2109
+#: .\core\views.py:2122
 msgid "No contact change is waiting."
 msgstr "Walang naghihintay na pagbabago ng contact details."
 
-#: .\core\views.py:2124
+#: .\core\views.py:2137
 msgid ""
 "Saved. Leak alerts and sign-in codes now go to your new contact details."
 msgstr ""
 "Naitala. Doon na pupunta ang mga alerto sa tagas at sign-in code sa bago "
 "mong contact details."
 
-#: .\core\views.py:2148 .\core\views.py:3657
+#: .\core\views.py:2161 .\core\views.py:3676
 msgid "A code was sent less than a minute ago. Give it a moment to arrive."
 msgstr ""
 "May code nang ipinadala wala pang isang minuto ang nakalipas. Hintayin lang "
 "itong dumating."
 
-#: .\core\views.py:2152
+#: .\core\views.py:2165
 msgid "A new code is on its way."
 msgstr "Padala na ang bagong code."
 
-#: .\core\views.py:2163
+#: .\core\views.py:2176
 msgid "Cancelled. Your contact details are unchanged."
 msgstr "Kinansela. Hindi nabago ang contact details mo."
 
-#: .\core\views.py:2186
+#: .\core\views.py:2199
 #, python-brace-format
 msgid "Your contact number is now {number}."
 msgstr "Ang contact number mo ngayon ay {number}."
 
-#: .\core\views.py:2188
+#: .\core\views.py:2201
 #, python-brace-format
 msgid "Your email is now {email}."
 msgstr "Ang email mo ngayon ay {email}."
 
-#: .\core\views.py:2189
+#: .\core\views.py:2202
 msgid ""
 "Leak alerts and sign-in codes go there from now on. If you did not do this, "
 "tell the water system facilitator at once."
@@ -2079,11 +2087,11 @@ msgstr ""
 "Doon na pupunta ang mga alerto sa tagas at sign-in code mula ngayon. Kung "
 "hindi ikaw ang gumawa nito, sabihin agad sa facilitator ng sistema ng tubig."
 
-#: .\core\views.py:2193
+#: .\core\views.py:2206
 msgid "Contact details changed"
 msgstr "Nabago ang contact details"
 
-#: .\core\views.py:2210
+#: .\core\views.py:2223
 #, python-brace-format
 msgid ""
 "Smart Hose Leak: {household_id} ({owner}) changed their contact details in "
@@ -2092,39 +2100,39 @@ msgstr ""
 "Smart Hose Leak: {household_id} ({owner}) ay nagpalit ng contact details sa "
 "portal. Numero {old_number} -> {number}."
 
-#: .\core\views.py:2216
+#: .\core\views.py:2229
 #, python-brace-format
 msgid "Email {old_email} -> {email}."
 msgstr "Email {old_email} -> {email}."
 
-#: .\core\views.py:2217
+#: .\core\views.py:2230
 msgid "A household changed its contact details"
 msgstr "May sambahayang nagpalit ng contact details"
 
-#: .\core\views.py:2397
+#: .\core\views.py:2410
 #, python-brace-format
 msgid "Barangay updated: {name}."
 msgstr "Na-update ang barangay: {name}."
 
-#: .\core\views.py:2397
+#: .\core\views.py:2410
 #, python-brace-format
 msgid "Barangay added: {name}."
 msgstr "Naidagdag ang barangay: {name}."
 
-#: .\core\views.py:2410 .\templates\admin\barangays.html:32
+#: .\core\views.py:2423 .\templates\admin\barangays.html:32
 msgid "active"
 msgstr "aktibo"
 
-#: .\core\views.py:2410 .\templates\admin\barangays.html:33
+#: .\core\views.py:2423 .\templates\admin\barangays.html:33
 msgid "inactive"
 msgstr "hindi aktibo"
 
-#: .\core\views.py:2411
+#: .\core\views.py:2424
 #, python-brace-format
 msgid "{name} is now {state}."
 msgstr "{state} na ang {name}."
 
-#: .\core\views.py:2465
+#: .\core\views.py:2478
 #, python-brace-format
 msgid ""
 "Hello {get_full_name},\n"
@@ -2155,11 +2163,11 @@ msgstr ""
 "\n"
 "— Smart Hose Leak System"
 
-#: .\core\views.py:2471
+#: .\core\views.py:2484
 msgid "Your facilitator account"
 msgstr "Ang facilitator account mo"
 
-#: .\core\views.py:2475
+#: .\core\views.py:2488
 #, python-brace-format
 msgid ""
 "Facilitator account created for {get_full_name} ({name}). Credentials sent "
@@ -2168,7 +2176,7 @@ msgstr ""
 "Nagawa ang facilitator account para kay {get_full_name} ({name}). Naipadala "
 "ang login details sa {email}."
 
-#: .\core\views.py:2481
+#: .\core\views.py:2494
 #, python-brace-format
 msgid ""
 "Facilitator account created for {name} ({barangay}) — username: {uname} / "
@@ -2177,38 +2185,38 @@ msgstr ""
 "Nagawa ang facilitator account para kay {name} ({barangay}) — username: "
 "{uname} / temporary password: {pw}. "
 
-#: .\core\views.py:2484
+#: .\core\views.py:2497
 msgid "Email could not be sent — write this down now."
 msgstr "Hindi naipadala ang email — isulat ito ngayon."
 
-#: .\core\views.py:2485
+#: .\core\views.py:2498
 msgid "No email address on file — write this down now."
 msgstr "Walang nakatalang email address — isulat ito ngayon."
 
-#: .\core\views.py:2557
+#: .\core\views.py:2570
 msgid "That account cannot be suspended from here."
 msgstr "Hindi pwedeng i-suspend ang account na iyon mula dito."
 
-#: .\core\views.py:2563
+#: .\core\views.py:2576
 #, python-brace-format
 msgid "Restored the login '{username}'."
 msgstr "Naibalik ang login na '{username}'."
 
-#: .\core\views.py:2566
+#: .\core\views.py:2579
 #, python-brace-format
 msgid "Suspended the login '{username}'. They can no longer sign in."
 msgstr "Na-suspend ang login na '{username}'. Hindi na siya makaka-sign in."
 
-#: .\core\views.py:2584
+#: .\core\views.py:2597
 msgid "That account cannot be deleted from here."
 msgstr "Hindi pwedeng tanggalin ang account na iyon mula dito."
 
-#: .\core\views.py:2589
+#: .\core\views.py:2602
 #, python-brace-format
 msgid "Deleted the login '{username}'."
 msgstr "Tinanggal ang login na '{username}'."
 
-#: .\core\views.py:2622
+#: .\core\views.py:2635
 #, python-brace-format
 msgid ""
 "Household {household_id} registered with board {device_id}. It is pending "
@@ -2220,7 +2228,7 @@ msgstr ""
 "gagawa ng login para sa may-ari, saka ipapadala sa may-ari ang setup code ng "
 "board."
 
-#: .\core\views.py:2630
+#: .\core\views.py:2643
 #, python-brace-format
 msgid ""
 "Household {household_id} registered, with no board yet. It is pending "
@@ -2231,11 +2239,11 @@ msgstr ""
 "ang activation: kukumpirmahin ng facilitator ang lokasyon nito at gagawa ng "
 "login para sa may-ari."
 
-#: .\core\views.py:2663 .\core\views.py:2673
+#: .\core\views.py:2676 .\core\views.py:2686
 msgid "soon"
 msgstr "malapit na"
 
-#: .\core\views.py:2668
+#: .\core\views.py:2681
 #, python-brace-format
 msgid ""
 "{brgy} water system: a {kind} is scheduled for your household on {when}. "
@@ -2244,7 +2252,7 @@ msgstr ""
 "{brgy} water system: may {kind} na naka-iskedyul para sa sambahayan mo, "
 "{when}. {title}"
 
-#: .\core\views.py:2679
+#: .\core\views.py:2692
 #, python-brace-format
 msgid ""
 "Assignment ({get_kind_display}): {title}. Scheduled {when}. Where: "
@@ -2253,24 +2261,24 @@ msgstr ""
 "Nakatalagang trabaho ({get_kind_display}): {title}. Iskedyul: {when}. Saan: "
 "{where_label}."
 
-#: .\core\views.py:2739
+#: .\core\views.py:2752
 #, python-brace-format
 msgid "Work order created and assigned to {get_full_name}."
 msgstr "Nagawa ang trabaho at naitalaga kay {get_full_name}."
 
-#: .\core\views.py:2741
+#: .\core\views.py:2754
 msgid "Work order created. Assign a facilitator to schedule it."
 msgstr "Nagawa ang trabaho. Magtalaga ng facilitator para ma-iskedyul ito."
 
-#: .\core\views.py:2756
+#: .\core\views.py:2769
 msgid "Work order updated."
 msgstr "Na-update ang trabaho."
 
-#: .\core\views.py:2802
+#: .\core\views.py:2815
 msgid "Choose a facilitator to assign this to before approving."
 msgstr "Pumili muna ng facilitator na tatalagahan dito bago i-approve."
 
-#: .\core\views.py:2821
+#: .\core\views.py:2834
 #, python-brace-format
 msgid ""
 "Scheduled and assigned to {username}. The household and the facilitator have "
@@ -2279,96 +2287,96 @@ msgstr ""
 "Na-iskedyul at naitalaga kay {username}. Na-text na ang sambahayan at ang "
 "facilitator."
 
-#: .\core\views.py:2837
+#: .\core\views.py:2850
 msgid "Marked as rejected."
 msgstr "Minarkahan bilang tinanggihan."
 
-#: .\core\views.py:2850
+#: .\core\views.py:2863
 msgid "Not a status this order can be moved to."
 msgstr "Hindi pwedeng ilipat ang trabahong ito sa status na iyon."
 
-#: .\core\views.py:2858
+#: .\core\views.py:2871
 #, python-brace-format
 msgid "Work order marked {get_status_display}."
 msgstr "Minarkahan ang trabaho bilang {get_status_display}."
 
-#: .\core\views.py:2905
+#: .\core\views.py:2918
 msgid "Overdue"
 msgstr "Lampas na sa iskedyul"
 
-#: .\core\views.py:2905
+#: .\core\views.py:2918
 msgid "These were due before today."
 msgstr "Dapat natapos na ang mga ito bago ngayong araw."
 
-#: .\core\views.py:2906
+#: .\core\views.py:2919
 msgid "Today"
 msgstr "Ngayong araw"
 
-#: .\core\views.py:2907
+#: .\core\views.py:2920
 msgid "Tomorrow"
 msgstr "Bukas"
 
-#: .\core\views.py:2908
+#: .\core\views.py:2921
 msgid "Later this week"
 msgstr "Mga susunod na araw ngayong linggo"
 
-#: .\core\views.py:2909
+#: .\core\views.py:2922
 msgid "Later"
 msgstr "Sa susunod pa"
 
-#: .\core\views.py:2910
+#: .\core\views.py:2923
 msgid "Not yet scheduled"
 msgstr "Wala pang iskedyul"
 
-#: .\core\views.py:2911
+#: .\core\views.py:2924
 msgid "Assigned to you, but the administrator has not set a day yet."
 msgstr "Naitalaga sa iyo, pero wala pang itinakdang araw ang administrator."
 
-#: .\core\views.py:2932
+#: .\core\views.py:2945
 msgid "This assignment is not yours."
 msgstr "Hindi sa iyo nakatalaga ang trabahong ito."
 
-#: .\core\views.py:2936
+#: .\core\views.py:2949
 msgid "Not a status you can set."
 msgstr "Hindi mo pwedeng i-set ang status na iyon."
 
-#: .\core\views.py:2944
+#: .\core\views.py:2957
 #, python-brace-format
 msgid "Marked {get_status_display}."
 msgstr "Minarkahan bilang {get_status_display}."
 
-#: .\core\views.py:3041
+#: .\core\views.py:3054
 #, python-brace-format
 msgid "Announcement {done}."
 msgstr "Anunsyo: {done}."
 
-#: .\core\views.py:3280
+#: .\core\views.py:3293
 msgid ""
 "That file is not readable as UTF-8 text. Export it as CSV and try again."
 msgstr ""
 "Hindi mabasa ang file na iyon bilang UTF-8 text. I-export ito bilang CSV at "
 "subukan ulit."
 
-#: .\core\views.py:3285
+#: .\core\views.py:3298
 msgid "The CSV needs a header row with at least an 'owner_name' column."
 msgstr ""
 "Kailangan ng CSV ng header row na may kahit 'owner_name' column man lang."
 
-#: .\core\views.py:3317
+#: .\core\views.py:3330
 #, python-brace-format
 msgid "Imported {created} household(s)."
 msgstr "Na-import ang {created} sambahayan."
 
-#: .\core\views.py:3371
+#: .\core\views.py:3384
 #, python-brace-format
 msgid "Restore failed - nothing was changed: {exc}"
 msgstr "Hindi natuloy ang restore - walang nabago: {exc}"
 
-#: .\core\views.py:3385
+#: .\core\views.py:3398
 msgid "Database restored from the backup."
 msgstr "Naibalik ang database mula sa backup."
 
-#: .\core\views.py:3449
+#: .\core\views.py:3462
 msgid ""
 "Detection settings saved. Boards pick up the new values on their next "
 "reading."
@@ -2376,7 +2384,7 @@ msgstr ""
 "Na-save ang detection settings. Kukunin ng mga board ang bagong values sa "
 "susunod nilang reading."
 
-#: .\core\views.py:3468
+#: .\core\views.py:3481
 msgid ""
 "Maintenance mode is on. Households and facilitators now see the maintenance "
 "notice."
@@ -2384,24 +2392,23 @@ msgstr ""
 "Naka-on ang maintenance mode. Nakikita na ngayon ng mga sambahayan at "
 "facilitator ang maintenance notice."
 
-#: .\core\views.py:3469
+#: .\core\views.py:3482
 msgid "Maintenance mode is off."
 msgstr "Naka-off ang maintenance mode."
 
-#: .\core\views.py:3499
+#: .\core\views.py:3517
 #, python-brace-format
 msgid ""
-"Smart Hose Leak portal login - username: {username}, temporary password: "
-"{password}. Sign in at {site} and change it."
-msgstr ""
-"Smart Hose Leak portal login - username: {username}, temporary password: "
-"{password}. Mag-sign in sa {site} at palitan ito."
+"Smart Hose Leak account {household_id} ready. Username: {username}. First-"
+"time code: {password}. Open the site address from your facilitator, enter "
+"these and set your own."
+msgstr "Smart Hose Leak account {household_id} handa na. Username: {username}. Unang code: {password}. Buksan ang site address mula sa facilitator, ilagay ang mga ito at magtakda ng sarili mo."
 
-#: .\core\views.py:3515
+#: .\core\views.py:3534
 msgid "Your Smart Hose Leak portal login"
 msgstr "Ang iyong Smart Hose Leak portal login"
 
-#: .\core\views.py:3516
+#: .\core\views.py:3535
 #, python-brace-format
 msgid ""
 "Your household ({household_id}) is now active on the Smart Hose Leak "
@@ -2419,14 +2426,14 @@ msgstr ""
 "\n"
 "Mag-sign in sa {site} at hihilingin sa iyong pumili ng bagong password."
 
-#: .\core\views.py:3541
+#: .\core\views.py:3560
 msgid ""
 "No contact number on file for this household, so there is nowhere to text it."
 msgstr ""
 "Walang nakatalang contact number ang sambahayang ito, kaya walang "
 "mapapadalhan ng text."
 
-#: .\core\views.py:3552
+#: .\core\views.py:3571
 #, python-brace-format
 msgid ""
 "Login details texted to {contact_number}: username {username}, temporary "
@@ -2435,12 +2442,12 @@ msgstr ""
 "Na-text ang login details sa {contact_number}: username {username}, "
 "temporary password {password}. Hindi na ito ipapakita ulit."
 
-#: .\core\views.py:3570
+#: .\core\views.py:3589
 msgid "This household has no coordinates yet, so there is nothing to route to."
 msgstr ""
 "Wala pang coordinates ang sambahayang ito, kaya walang mapupuntahang ruta."
 
-#: .\core\views.py:3576
+#: .\core\views.py:3595
 #, python-brace-format
 msgid ""
 "Route fetched: {visit_route_label} by road. It is drawn on the dashboard map."
@@ -2448,91 +2455,91 @@ msgstr ""
 "Nakuha ang ruta: {visit_route_label} sa kalsada. Nakaguhit ito sa mapa ng "
 "dashboard."
 
-#: .\core\views.py:3580
+#: .\core\views.py:3599
 #, python-brace-format
 msgid "No route fetched: {reason}."
 msgstr "Walang nakuhang ruta: {reason}."
 
-#: .\core\views.py:3581
+#: .\core\views.py:3600
 msgid "nothing to route between"
 msgstr "walang mga lugar na pag-uugnayin"
 
-#: .\core\views.py:3613
+#: .\core\views.py:3632
 msgid "Sign in with your password first."
 msgstr "Mag-sign in muna gamit ang password mo."
 
-#: .\core\views.py:3667
+#: .\core\views.py:3686
 msgid "This account has no contact number or email to send a code to."
 msgstr ""
 "Walang contact number o email ang account na ito na mapapadalhan ng code."
 
-#: .\core\views.py:3670
+#: .\core\views.py:3689
 #, python-brace-format
 msgid "A new code was sent by {sent_by} to {masked_destination}."
 msgstr ""
 "Ipinadala ang bagong code sa pamamagitan ng {sent_by} sa "
 "{masked_destination}."
 
-#: .\core\views.py:3688
+#: .\core\views.py:3707
 msgid "That account cannot be edited from here."
 msgstr "Hindi pwedeng i-edit ang account na iyon mula dito."
 
-#: .\core\views.py:3697
+#: .\core\views.py:3716
 #, python-brace-format
 msgid "Saved contact details for {username}."
 msgstr "Na-save ang contact details ni {username}."
 
-#: .\core\views.py:3759
+#: .\core\views.py:3778
 #, python-brace-format
 msgid "{household_id} updated."
 msgstr "Na-update ang {household_id}."
 
-#: .\core\views.py:3792 .\core\views.py:3862
+#: .\core\views.py:3811 .\core\views.py:3881
 #, python-brace-format
 msgid "Archived {label}. You can restore it from the archive page."
 msgstr "Na-archive ang {label}. Pwede mo itong ibalik mula sa archive page."
 
-#: .\core\views.py:3814
+#: .\core\views.py:3833
 #, python-brace-format
 msgid "Not deleted: type the household ID {household_id} exactly to confirm."
 msgstr ""
 "Hindi na-delete: i-type nang eksakto ang household ID {household_id} para "
 "kumpirmahin."
 
-#: .\core\views.py:3823
+#: .\core\views.py:3842
 #, python-brace-format
 msgid "Deleted {label} permanently, along with {removed}."
 msgstr "Permanenteng na-delete ang {label}, kasama ang {removed}."
 
-#: .\core\views.py:3839
+#: .\core\views.py:3858
 #, python-brace-format
 msgid "{facilitator_id} updated."
 msgstr "Na-update ang {facilitator_id}."
 
-#: .\core\views.py:3856
+#: .\core\views.py:3875
 msgid "That account cannot be archived from here."
 msgstr "Hindi pwedeng i-archive ang account na iyon mula dito."
 
-#: .\core\views.py:3900 .\core\views.py:3914
+#: .\core\views.py:3919 .\core\views.py:3933
 #, python-brace-format
 msgid "Restored {label}."
 msgstr "Naibalik ang {label}."
 
-#: .\core\views.py:3947
+#: .\core\views.py:3966
 msgid "A new setup code is not available for your board right now."
 msgstr "Walang bagong setup code na available para sa board mo sa ngayon."
 
-#: .\core\views.py:3954
+#: .\core\views.py:3973
 #, python-brace-format
 msgid "Your new setup code is {code}."
 msgstr "Ang bagong setup code mo ay {code}."
 
-#: .\core\views.py:3955
+#: .\core\views.py:3974
 #, python-brace-format
 msgid " It was also sent by {channels}."
 msgstr " Ipinadala rin ito sa pamamagitan ng {channels}."
 
-#: .\core\views.py:3975
+#: .\core\views.py:3994
 msgid ""
 "Your board has not connected yet, so a WiFi change cannot reach it. Use the "
 "setup steps instead."
@@ -2540,16 +2547,16 @@ msgstr ""
 "Hindi pa nakakakonekta ang board mo, kaya hindi aabot dito ang pagpapalit ng "
 "WiFi. Gamitin na lang ang mga hakbang sa setup."
 
-#: .\core\views.py:3980
+#: .\core\views.py:3999
 msgid "Enter the WiFi name (up to 32 characters)."
 msgstr "Ilagay ang pangalan ng WiFi (hanggang 32 character)."
 
-#: .\core\views.py:3983
+#: .\core\views.py:4002
 msgid "A WiFi password is 8 to 63 characters, or blank for an open network."
 msgstr ""
 "Ang WiFi password ay 8 hanggang 63 character, o blangko kung open network."
 
-#: .\core\views.py:3989
+#: .\core\views.py:4008
 #, python-brace-format
 msgid ""
 "Sent. The board picks it up on its next check-in (within about a minute), "
@@ -2560,16 +2567,16 @@ msgstr ""
 "isang minuto), susubukan ang {ssid}, at babalik sa kasalukuyang network "
 "kapag hindi ito gumana. Makikita rito ang resulta."
 
-#: .\core\views.py:4002
+#: .\core\views.py:4021
 msgid "There is no current setup code to send. Get a new one instead."
 msgstr "Walang kasalukuyang setup code na maipapadala. Kumuha na lang ng bago."
 
-#: .\core\views.py:4006
+#: .\core\views.py:4025
 #, python-brace-format
 msgid "Setup code {code} sent by {sent}."
 msgstr "Naipadala ang setup code {code} sa pamamagitan ng {sent}."
 
-#: .\core\views.py:4008
+#: .\core\views.py:4027
 msgid ""
 "There is no number or email on your record to send it to. The code is shown "
 "below."
@@ -2828,11 +2835,13 @@ msgstr ""
 
 #: .\templates\admin\_household_destroy_dialog.html:25
 msgid ""
-"The board itself is kept and becomes a spare. To hide a household without "
-"losing anything, use Archive instead."
+"Its board record goes too - identity, key and setup code - so the board has "
+"to be set up again with a new code. To hide a household without losing "
+"anything, use Archive instead."
 msgstr ""
-"Mananatili ang board at magiging spare ito. Para itago ang sambahayan nang "
-"walang mawawala, gamitin ang Archive."
+"Kasamang matatanggal ang record ng board nito - ang identity, key at setup "
+"code - kaya kailangang i-set up muli ang board gamit ang bagong code. Para "
+"itago ang sambahayan nang walang mawawala, gamitin ang Archive."
 
 #: .\templates\admin\_household_destroy_dialog.html:27
 msgid ""
@@ -7007,6 +7016,13 @@ msgstr "Padalhan ako ng reset link"
 #: .\templates\registration\password_reset_subject.txt:1
 msgid "Reset your Smart Hose Leak password"
 msgstr "I-reset ang Smart Hose Leak password mo"
+
+#~ msgid ""
+#~ "Smart Hose Leak portal login - username: {username}, temporary password: "
+#~ "{password}. Sign in at {site} and change it."
+#~ msgstr ""
+#~ "Smart Hose Leak portal login - username: {username}, temporary password: "
+#~ "{password}. Mag-sign in sa {site} at palitan ito."
 
 #~ msgid ""
 #~ "Check that your faucets are fully closed. If they are and water is still "
