@@ -951,7 +951,15 @@ class Household(models.Model):
         both be handed the same number and the second would fail.
         """
         if self.household_id:
-            return super().save(*args, **kwargs)
+            # What the email was before this save, to tell "removed just now"
+            # from "never had one" when it is blank afterwards.
+            had_email = bool(
+                self.pk and self.user_id
+                and (Household.objects.filter(pk=self.pk).values_list("email", flat=True).first() or "").strip()
+            )
+            result = super().save(*args, **kwargs)
+            self._push_contact_to_login(kwargs.get("update_fields"), had_email)
+            return result
 
         for attempt in range(5):
             self.household_id = self.next_household_id()
@@ -964,6 +972,44 @@ class Household(models.Model):
                 # Force an INSERT on the next attempt rather than an UPDATE
                 # against a primary key the failed save may have set.
                 self.pk = None
+
+    def _push_contact_to_login(self, update_fields=None, had_email=False):
+        """
+        Keep the owner's login reachable at the household's number and email.
+
+        The number used to live in two places: here (where leak alerts and
+        notices are texted) and on the login (where sign-in codes go). Only
+        the owner's own Settings page changed both; a facilitator or an
+        administrator editing the household changed this one alone, so the
+        dashboard showed the new number while sign-in codes kept going to
+        the old one (reported 20 Nov 2026). This record is now the one
+        place it lives, and every save carries it to the login.
+
+        A blank is carried only when it was typed: a number is never blanked
+        (a household must have one), and an email is cleared on the login
+        only if this household had one until now - a household that never
+        had an email does not wipe the one an administrator put on the login.
+        """
+        if not self.user_id:
+            return
+        if update_fields is not None and not {"contact_number", "email", "user"} & set(update_fields):
+            return
+        number = (self.contact_number or "").strip()
+        email = (self.email or "").strip()
+        values = {}
+        if number:
+            values["contact_number"] = number
+        if email or had_email:
+            values["email"] = email
+        if not values:
+            return
+        User.objects.filter(pk=self.user_id).update(**values)
+        # A user object already loaded beside this household must not write
+        # the old values back if it is saved later in the same request.
+        cached = self._state.fields_cache.get("user")
+        if cached is not None:
+            for name, value in values.items():
+                setattr(cached, name, value)
 
     @property
     def has_location(self):

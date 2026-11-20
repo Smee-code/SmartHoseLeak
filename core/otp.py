@@ -41,13 +41,15 @@ TRUSTED_COOKIE = "shl_trusted_device"
 
 def channels_for(user):
     """{'sms': number or None, 'email': address or None} for this person."""
+    # A household owner is reached where the household record says - the
+    # same number the leak alerts go to - and the login's own copy is only
+    # the fallback. The two are kept in step on every save, but this order
+    # means a stray difference can never send the code to an old number.
     household = getattr(user, "household", None)
-    number = (user.contact_number or "").strip() or (
-        (household.contact_number or "").strip() if household is not None else ""
-    )
-    email = (user.email or "").strip() or (
-        (household.email or "").strip() if household is not None else ""
-    )
+    number = ((household.contact_number or "").strip() if household is not None else "") or (
+        user.contact_number or ""
+    ).strip()
+    email = ((household.email or "").strip() if household is not None else "") or (user.email or "").strip()
     return {"sms": number or None, "email": email or None}
 
 

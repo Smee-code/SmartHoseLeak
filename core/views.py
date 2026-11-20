@@ -3709,6 +3709,21 @@ def account_edit(request, pk):
     form = AccountContactForm(request.POST or None, instance=user, auto_id="edit_%s")
     if request.method == "POST" and form.is_valid():
         form.save()
+        # An owner's login and household are one person: what is typed here
+        # goes onto the household record too, which is where alerts are sent.
+        # A blank number is not carried over - a household must keep one.
+        household = getattr(user, "household", None)
+        if household is not None:
+            changed = []
+            number = (user.contact_number or "").strip()
+            if number and household.contact_number != number:
+                household.contact_number = number
+                changed.append("contact_number")
+            if (household.email or "") != (user.email or ""):
+                household.email = user.email or ""
+                changed.append("email")
+            if changed:
+                household.save(update_fields=changed)
         AuditLog.record(
             request.user, "account.edit",
             f"Updated contact details for '{user.username}'", target=user.username,

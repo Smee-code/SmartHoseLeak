@@ -177,3 +177,84 @@ class OwnerContactChangeTests(TestCase):
         self.client.force_login(self.faci)
         resp = self.client.post(reverse("owner_contact_start"), {"contact_number": "09175550123", "email": ""})
         self.assertEqual(resp.status_code, 403)
+
+
+class OneNumberEverywhereTests(TestCase):
+    """A number changed by staff reaches the login too, so codes follow the alerts."""
+
+    def setUp(self):
+        self.brgy = Barangay.objects.create(name="Lower Dakong Patag")
+        self.admin = User.objects.create_user(username="adm", password="pw", role=User.Role.ADMIN)
+        self.owner = User.objects.create_user(
+            username="lita", password="pw", role=User.Role.OWNER,
+            contact_number="09171234520", email="lita@example.com",
+        )
+        self.household = Household.objects.create(
+            household_id="HH-020", owner_name="Lita Ramos", address="Purok 2",
+            contact_number="09171234520", email="lita@example.com", user=self.owner,
+            barangay=self.brgy, language="en",
+        )
+
+    def test_a_staff_edit_of_the_household_moves_the_login_too(self):
+        from core import otp
+        household = Household.objects.select_related("user").get(pk=self.household.pk)
+        household.contact_number = "09175550123"
+        household.email = "new@example.com"
+        household.save()
+        self.owner.refresh_from_db()
+        self.assertEqual(self.owner.contact_number, "09175550123")
+        self.assertEqual(self.owner.email, "new@example.com")
+        self.assertEqual(otp.channels_for(self.owner), {"sms": "09175550123", "email": "new@example.com"})
+        # The user loaded beside the household cannot write the old number back.
+        household.user.save()
+        self.owner.refresh_from_db()
+        self.assertEqual(self.owner.contact_number, "09175550123")
+
+    def test_an_email_is_cleared_only_when_it_was_removed(self):
+        # Removed on the household: the login loses it too.
+        self.household.email = ""
+        self.household.save()
+        self.owner.refresh_from_db()
+        self.assertEqual(self.owner.email, "")
+        # A household that never had one leaves the login's address alone.
+        User.objects.filter(pk=self.owner.pk).update(email="admin.set@example.com")
+        self.household.contact_number = "09175550123"
+        self.household.save()
+        self.owner.refresh_from_db()
+        self.assertEqual(self.owner.email, "admin.set@example.com")
+        self.assertEqual(self.owner.contact_number, "09175550123")
+
+    def test_a_save_of_other_fields_leaves_the_login_alone(self):
+        User.objects.filter(pk=self.owner.pk).update(contact_number="09170000000")
+        self.household.notes = "moved the meter"
+        self.household.save(update_fields=["notes"])
+        self.owner.refresh_from_db()
+        self.assertEqual(self.owner.contact_number, "09170000000")
+
+    def test_the_sign_in_code_goes_where_the_household_says_even_if_the_login_drifted(self):
+        from core import otp
+        User.objects.filter(pk=self.owner.pk).update(contact_number="09170000000", email="old@example.com")
+        self.owner.refresh_from_db()
+        self.assertEqual(otp.channels_for(self.owner), {"sms": "09171234520", "email": "lita@example.com"})
+
+    def test_the_admins_account_edit_reaches_the_household(self):
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse("account_edit", args=[self.owner.pk]), {
+            "first_name": "Lita", "last_name": "Ramos",
+            "contact_number": "09175550999", "email": "lita.new@example.com",
+        })
+        self.assertEqual(r.status_code, 302)
+        self.household.refresh_from_db()
+        self.assertEqual(self.household.contact_number, "09175550999")
+        self.assertEqual(self.household.email, "lita.new@example.com")
+        parts = SmsMessage.queue(self.household, "test alert")
+        self.assertEqual(parts[0].to_number, "09175550999")
+
+    def test_the_migration_aligns_rows_that_had_drifted(self):
+        import importlib
+        from django.apps import apps as live_apps
+        User.objects.filter(pk=self.owner.pk).update(contact_number="09170000000", email="old@example.com")
+        importlib.import_module("core.migrations.0050_align_owner_contacts").align(live_apps, None)
+        self.owner.refresh_from_db()
+        self.assertEqual(self.owner.contact_number, "09171234520")
+        self.assertEqual(self.owner.email, "lita@example.com")

@@ -1189,6 +1189,19 @@ sign-in codes go), in two different places, so a new SIM usually left the
 two out of step. The owner now does it themselves from Settings, and both
 records change together.
 
+ONE NUMBER, WHOEVER CHANGES IT  (20 Nov 2026)
+  The household record is now the one place an owner's number and email
+  live. Whoever changes them - the owner in Settings, the facilitator or
+  the administrator on the household, the administrator on the login
+  (Console -> Accounts) - the other record follows at once, and sign-in
+  codes are sent where the household record says. Before this, a staff
+  edit of the household changed the dashboard and the leak alerts but
+  left sign-in codes going to the OLD number. Migration 0050 aligns every
+  login that had already drifted (the household record wins; a login's
+  email is kept where the household had none).
+  Texts already queued or sent keep the number they were addressed to -
+  the log records where a message actually went.
+
 HOW IT GOES
   1. Settings > My contact details: type the new number (and/or email),
      press "Save and send me a code".
@@ -2606,6 +2619,13 @@ THE ONE THING THAT DOES NOT SCALE YET
 ============================================================================
 CHANGE LOG OF THIS GUIDE
 ============================================================================
+20 Nov 2026  One contact number per owner. Editing a household (by the
+             facilitator or the administrator) now carries the number and
+             email to the owner's login, the administrator's account edit
+             carries them to the household, and sign-in codes go where the
+             household record says. A staff edit used to leave codes going
+             to the old number. Migration 0050 aligns existing rows.
+
 20 Nov 2026  Board setup redesigned around a guided page on the board
              (section 9h). Joining LeakDetect-Setup opens the page by
              itself (captive portal); it lists the 2.4 GHz networks the
